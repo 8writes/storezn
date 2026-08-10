@@ -1,9 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth.js";
 import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
@@ -16,10 +14,9 @@ const EMPTY_FORM = {
 };
 
 export default function VendorSignupPage() {
-  const { login } = useAuth(false);
-  const router = useRouter();
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
+  const [created, setCreated] = useState(false);
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const setVendorField = (key) => (e) => setForm((f) => ({ ...f, vendor: { ...f.vendor, [key]: e.target.value } }));
@@ -40,23 +37,28 @@ export default function VendorSignupPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Signup failed");
 
-      const loginRes = await fetch("/api/v1/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.vendor.email, password: form.vendor.password }),
-      });
-      const loginData = await loginRes.json();
-      if (!loginRes.ok) throw new Error(loginData.error || "Account created - please sign in");
-
-      toast.success("Store created!");
-      login(loginData.token, loginData.user);
-      router.replace("/vendor/dashboard");
+      // No auto-login - login now requires a verified email, and the
+      // account can't be verified yet (that link just landed in their
+      // inbox), so a login attempt right here would just fail.
+      setCreated(true);
     } catch (err) {
       toast.error(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
+
+  if (created) {
+    return (
+      <div className="space-y-4 text-center">
+        <h2 className="text-xl font-bold text-slate-900">Check your email</h2>
+        <p className="text-sm text-slate-500">
+          We&apos;ve sent a verification link to <strong>{form.vendor.email}</strong>. Verify it, then sign in to your new store.
+        </p>
+        <Link href="/login" className="text-sm text-brand-600 hover:underline">Sign in</Link>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -70,7 +72,11 @@ export default function VendorSignupPage() {
         label="Store URL"
         placeholder="janes-boutique"
         value={form.slug}
-        onChange={setField("slug")}
+        // Strips anything that isn't a-z/0-9/- as the vendor types,
+        // rather than letting them type "My Shop.com" and only finding
+        // out it's invalid after submit - matches the server's own
+        // slug regex (see vendorSignupSchema in lib/validate.js).
+        onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))}
         required
       />
 

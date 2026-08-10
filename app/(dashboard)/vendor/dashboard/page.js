@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Package, ShoppingBag, Wallet, AlertTriangle, Plus } from "lucide-react";
+import { Package, ShoppingBag, Wallet, AlertTriangle, Plus, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Select } from "@/components/ui/Select.js";
@@ -20,6 +20,7 @@ export default function VendorDashboardPage() {
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState("");
   const [stats, setStats] = useState(null);
+  const [verification, setVerification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -32,6 +33,12 @@ export default function VendorDashboardPage() {
       })
       .catch((err) => toast.error(err.message || "Failed to load your store"))
       .finally(() => setLoading(false));
+    // Fetched fresh rather than read off the cached login user object -
+    // approvalStatus can change any time an admin reviews it, and the
+    // dashboard should reflect that without requiring a re-login.
+    apiFetch("/api/v1/vendor/verification")
+      .then(setVerification)
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -88,6 +95,36 @@ export default function VendorDashboardPage() {
                   <CopyableUrl url={getStorefrontUrl(store)} />
                 </div>
                 <StoreQrCodeButton storeName={store.name} storeUrl={getStorefrontUrl(store)} />
+              </div>
+            </div>
+          )}
+
+          {verification && verification.approvalStatus !== "approved" && (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-sm p-4">
+              <ShieldAlert size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800">
+                {verification.approvalStatus === "rejected" ? (
+                  <>
+                    <p className="font-medium">Identity verification rejected</p>
+                    <p>
+                      Your store stays hidden from customers until this is resolved.{" "}
+                      <Link href="/vendor/verification" className="underline font-medium">Resubmit your NIN</Link>.
+                    </p>
+                  </>
+                ) : verification.nin ? (
+                  <>
+                    <p className="font-medium">Identity verification pending</p>
+                    <p>Your NIN is under review - your store stays hidden from customers until it&apos;s approved.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium">Verify your identity</p>
+                    <p>
+                      Customers can&apos;t see or order from your store until you&apos;re verified.{" "}
+                      <Link href="/vendor/verification" className="underline font-medium">Submit your NIN</Link>.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}

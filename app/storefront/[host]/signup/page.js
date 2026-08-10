@@ -1,9 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
@@ -11,10 +9,9 @@ import { Button } from "@/components/ui/Button.js";
 const EMPTY_FORM = { firstName: "", lastName: "", email: "", password: "" };
 
 export default function StorefrontSignupPage() {
-  const router = useRouter();
-  const { login } = useCustomerAuth();
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
+  const [created, setCreated] = useState(false);
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -30,23 +27,28 @@ export default function StorefrontSignupPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Signup failed");
 
-      const loginRes = await fetch("/api/v1/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, password: form.password }),
-      });
-      const loginData = await loginRes.json();
-      if (!loginRes.ok) throw new Error(loginData.error || "Account created, please sign in");
-
-      login(loginData.token, loginData.user);
-      toast.success("Account created!");
-      router.push("/");
+      // No auto-login - login now requires a verified email, and the
+      // account can't be verified yet (that link just landed in their
+      // inbox), so a login attempt right here would just fail.
+      setCreated(true);
     } catch (err) {
       toast.error(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
+
+  if (created) {
+    return (
+      <div className="max-w-sm mx-auto py-8 space-y-4 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Check your email</h1>
+        <p className="text-sm text-slate-500">
+          We&apos;ve sent a verification link to <strong>{form.email}</strong>. Verify it, then sign in.
+        </p>
+        <Link href="/login" className="block text-sm text-slate-900 underline underline-offset-2">Sign in</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-sm mx-auto py-8 space-y-8">

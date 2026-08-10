@@ -14,10 +14,13 @@ export default function StorefrontLoginPage() {
   const { login } = useCustomerAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setUnverified(false);
     try {
       const res = await fetch("/api/v1/auth/login", {
         method: "POST",
@@ -25,7 +28,10 @@ export default function StorefrontLoginPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Login failed");
+      if (!res.ok) {
+        if (data.code === "EMAIL_NOT_VERIFIED") setUnverified(true);
+        throw new Error(data.error || "Login failed");
+      }
 
       login(data.token, data.user);
       router.push(`/${searchParams.get("next") || ""}`);
@@ -33,6 +39,22 @@ export default function StorefrontLoginPage() {
       toast.error(err.message || "Login failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      await fetch("/api/v1/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email }),
+      });
+      toast.success("If that account needs verifying, a new link is on its way");
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -45,6 +67,19 @@ export default function StorefrontLoginPage() {
         <div className="text-right">
           <Link href="/forgot-password" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">Forgot your password?</Link>
         </div>
+        {unverified && (
+          <div className="bg-amber-50 border border-amber-200 rounded-sm p-3 text-sm text-amber-800 flex items-center justify-between gap-3">
+            <span>Email not verified yet.</span>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="font-medium underline underline-offset-2 disabled:opacity-50 cursor-pointer shrink-0"
+            >
+              {resending ? "Sending…" : "Resend link"}
+            </button>
+          </div>
+        )}
         <Button type="submit" fullWidth size="lg" loading={loading}>Sign in</Button>
       </form>
       <p className="text-center text-sm text-slate-500">

@@ -16,11 +16,14 @@ function LoginForm() {
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
+    setUnverified(false);
     try {
       const res = await fetch("/api/v1/auth/login", {
         method: "POST",
@@ -31,6 +34,7 @@ function LoginForm() {
 
       if (!res.ok) {
         toast.error(data.error || "Login failed");
+        if (data.code === "EMAIL_NOT_VERIFIED") setUnverified(true);
         return;
       }
 
@@ -41,6 +45,22 @@ function LoginForm() {
       toast.error("Something went wrong");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      await fetch("/api/v1/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email }),
+      });
+      toast.success("If that account needs verifying, a new link is on its way");
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setResending(false);
     }
   };
 
@@ -75,6 +95,20 @@ function LoginForm() {
           Forgot password?
         </Link>
       </div>
+
+      {unverified && (
+        <div className="bg-amber-50 border border-amber-200 rounded-sm p-3 text-sm text-amber-800 flex items-center justify-between gap-3">
+          <span>Email not verified yet.</span>
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending}
+            className="font-medium underline underline-offset-2 disabled:opacity-50 cursor-pointer shrink-0"
+          >
+            {resending ? "Sending…" : "Resend link"}
+          </button>
+        </div>
+      )}
 
       <Button type="submit" loading={loading} fullWidth size="lg">
         Sign In

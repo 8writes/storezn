@@ -30,6 +30,10 @@ export async function POST(req) {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
 
+  if (!user.emailVerified) {
+    return NextResponse.json({ error: "Please verify your email before signing in", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });
+  }
+
   if (user.role === "customer" && user.storeId) {
     const [store] = await db.select({ isActive: stores.isActive }).from(stores).where(eq(stores.id, user.storeId)).limit(1);
     if (store && !store.isActive) {
