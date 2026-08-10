@@ -1,0 +1,95 @@
+"use client";
+import { use, useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth.js";
+import { useApi } from "@/hooks/useApi.js";
+import { Badge } from "@/components/ui/Badge.js";
+import { BackLink } from "@/components/ui/BackLink.js";
+import { FormSkeleton } from "@/components/ui/Skeleton.js";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/format.js";
+
+const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate" };
+
+export default function VendorCustomerDetailPage({ params }) {
+  const { id } = use(params);
+  const searchParams = useSearchParams();
+  const storeId = searchParams.get("storeId");
+  const { token } = useAuth(true);
+  const { apiFetch } = useApi(token);
+
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!storeId || !token) return;
+    setLoading(true);
+    apiFetch(`/api/v1/vendor/stores/${storeId}/customers/${id}`)
+      .then(setData)
+      .catch((err) => toast.error(err.message || "Could not load customer"))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId, id, token]);
+
+  if (loading) return <FormSkeleton />;
+  if (!data) return null;
+
+  const { customer, orders, stats } = data;
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <BackLink href="/vendor/customers" label="Back to customers" />
+
+      <div>
+        <h1 className="text-xl font-bold text-slate-900">{customer.firstName} {customer.lastName}</h1>
+        <p className="text-sm text-slate-500">Customer since {formatDate(customer.createdAt)}</p>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-sm p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div>
+          <p className="text-slate-400">Email</p>
+          <p className="text-slate-900 font-medium">{customer.email}</p>
+        </div>
+        <div>
+          <p className="text-slate-400">Phone</p>
+          <p className="text-slate-900 font-medium">{customer.phone || "-"}</p>
+        </div>
+        <div>
+          <p className="text-slate-400">Orders placed</p>
+          <p className="text-slate-900 font-medium">{stats.orderCount}</p>
+        </div>
+        <div>
+          <p className="text-slate-400">Total spent</p>
+          <p className="text-slate-900 font-medium">{formatCurrency(stats.totalSpent)}</p>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold text-slate-700 mb-2">Order history</h2>
+        <div className="bg-white border border-slate-200 rounded-sm divide-y divide-slate-100">
+          {orders.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-slate-400">No orders yet</p>
+          ) : (
+            orders.map((o) => (
+              <Link
+                key={o.id}
+                href={`/vendor/orders/${o.id}?storeId=${storeId}`}
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{o.orderNumber}</p>
+                  <p className="text-xs text-slate-400">{formatDateTime(o.createdAt)}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-slate-700">{formatCurrency(o.totalAmount)}</span>
+                  <Badge color={STATUS_COLOR[o.status] || "slate"}>{o.status.replace("_", " ")}</Badge>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

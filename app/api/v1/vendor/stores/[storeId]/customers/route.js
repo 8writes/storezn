@@ -1,0 +1,55 @@
+import { NextResponse } from "next/server";
+import { db } from "../../../../../../../lib/db/index.js";
+import { users, orders, stores } from "../../../../../../../lib/db/schema.js";
+import { and, count, desc, eq, sql } from "drizzle-orm";
+import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
+import { parsePagination } from "../../../../../../../lib/pagination.js";
+
+async function loadStore(storeId) {
+  const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
+  return store;
+}
+
+// A vendor's own view of their store's customers - same shape as
+// /api/v1/super-admin/customers, scoped to one store instead of every
+// store on the platform.
+export async function GET(req, { params }) {
+  const user = await getUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { storeId } = await params;
+  const store = await loadStore(storeId);
+  if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
+  if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const searchParams = new URL(req.url).searchParams;
+  const { page, pageSize, limit, offset } = parsePagination(searchParams);
+  const conditions = [eq(users.role, "customer"), eq(users.storeId, storeId)];
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        phone: users.phone,
+        createdAt: users.createdAt,
+        orderCount: sql`count(${orders.id}) filter (where ${orders.paymentStatus} = 'paid')`.mapWith(Number),
+        totalSpent: sql`coalesce(sum(${orders.totalAmount}) filter (where ${orders.paymentStatus} = 'paid'), 0)`.mapWith(Number),
+      })
+      .from(users)
+      .leftJoin(orders, eq(orders.userId, users.id))
+      .where(and(...conditions))
+      .groupBy(users.id)
+      .orderBy(desc(users.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: count() }).from(users).where(and(...conditions)),
+  ]);
+
+  return NextResponse.json({
+    customers: rows,
+    pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+  });
+}

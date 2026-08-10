@@ -1,0 +1,55 @@
+import { NextResponse } from "next/server";
+import { db } from "../../../../../../../lib/db/index.js";
+import { cartItems, carts } from "../../../../../../../lib/db/schema.js";
+import { and, eq } from "drizzle-orm";
+import { getUser } from "../../../../../../../lib/auth.js";
+import { validate, updateCartItemSchema } from "../../../../../../../lib/validate.js";
+import { getCartWithItems, computeCartTotals, GUEST_CART_COOKIE } from "../../../../../../../lib/cart.js";
+
+// Confirms the cart item belongs to the requester's own cart (by user id
+// or guest token) before allowing it to be touched - otherwise someone
+// could guess another shopper's cart-item id and edit their cart.
+async function loadOwnedItem(req, itemId) {
+  const user = await getUser(req);
+  const guestToken = req.cookies.get(GUEST_CART_COOKIE)?.value;
+  if (!user && !guestToken) return null;
+
+  const [row] = await db
+    .select({ item: cartItems, cart: carts })
+    .from(cartItems)
+    .innerJoin(carts, eq(cartItems.cartId, carts.id))
+    .where(eq(cartItems.id, itemId))
+    .limit(1);
+  if (!row) return null;
+
+  const owns = user ? row.cart.userId === user.id : row.cart.guestToken === guestToken;
+  return owns ? row : null;
+}
+
+export async function PATCH(req, { params }) {
+  const { id } = await params;
+  const owned = await loadOwnedItem(req, id);
+  if (!owned) return NextResponse.json({ error: "Cart item not found" }, { status: 404 });
+
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+
+  const result = validate(updateCartItemSchema, body);
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+
+  await db.update(cartItems).set({ quantity: result.data.quantity }).where(eq(cartItems.id, id));
+
+  const items = await getCartWithItems(owned.cart.id);
+  return NextResponse.json({ items, ...computeCartTotals(items) });
+}
+
+export async function DELETE(req, { params }) {
+  const { id } = await params;
+  const owned = await loadOwnedItem(req, id);
+  if (!owned) return NextResponse.json({ error: "Cart item not found" }, { status: 404 });
+
+  await db.delete(cartItems).where(eq(cartItems.id, id));
+
+  const items = await getCartWithItems(owned.cart.id);
+  return NextResponse.json({ items, ...computeCartTotals(items) });
+}

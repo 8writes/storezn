@@ -1,26 +1,55 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand-50: #f0fdf6;
+  --color-brand-100: #dcfce9;
+  --color-brand-200: #b8f5d3;
+  --color-brand-300: #82e8b5;
+  --color-brand-400: #46d38e;
+  --color-brand-500: #1fb872;
+  --color-brand-600: #14915b;
+  --color-brand-700: #12734b;
+  --color-brand-800: #135b3d;
+  --color-brand-900: #114b33;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-brand-200);
+  border-top-color: var(--color-brand-600);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
