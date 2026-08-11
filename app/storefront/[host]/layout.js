@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Toaster } from "sonner";
 import { resolveStoreByHost, isStoreLive } from "@/lib/resolveStore.js";
 import { CartBadge } from "@/components/storefront/CartBadge.js";
 import { AccountMenu } from "@/components/storefront/AccountMenu.js";
@@ -52,6 +53,7 @@ export default async function StorefrontLayout({ children, params }) {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-12 flex-1 w-full">{children}</main>
       <Footer store={store} />
       <WhatsAppButton store={store} />
+      <Toaster position="top-right" offset="10vh" closeButton={true} />
     </div>
   );
 }
