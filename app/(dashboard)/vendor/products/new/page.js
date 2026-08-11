@@ -15,7 +15,8 @@ import { uploadFile } from "@/lib/clientUpload.js";
 import { slugify } from "@/lib/slugify.js";
 import { X, ImagePlus, Loader2, GripVertical } from "lucide-react";
 
-const MAX_IMAGES = 8;
+const MAX_IMAGES = 10;
+const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
 
 const PRODUCT_TYPE_OPTIONS = [
   { value: "physical", label: "Physical (needs shipping)" },
@@ -86,8 +87,14 @@ export default function VendorNewProductPage() {
       toast.error(`You can only have up to ${MAX_IMAGES} photos`);
       return;
     }
-    const toUpload = files.slice(0, room);
-    if (files.length > toUpload.length) toast.error(`Only added ${toUpload.length} - max ${MAX_IMAGES} photos per product`);
+
+    const oversized = files.filter((f) => f.size > MAX_IMAGE_SIZE);
+    if (oversized.length > 0) toast.error(`${oversized.length} photo${oversized.length === 1 ? "" : "s"} skipped - each must be under 1MB`);
+    const sized = files.filter((f) => f.size <= MAX_IMAGE_SIZE);
+
+    const toUpload = sized.slice(0, room);
+    if (sized.length > toUpload.length) toast.error(`Only added ${toUpload.length} - max ${MAX_IMAGES} photos per product`);
+    if (toUpload.length === 0) return;
 
     const entries = toUpload.map((file) => ({ key: `${Date.now()}-${Math.random()}`, file, localUrl: URL.createObjectURL(file) }));
     setPendingUploads((p) => [...p, ...entries]);

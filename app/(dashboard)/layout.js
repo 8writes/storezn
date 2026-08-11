@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { MobileNavDrawer } from "@/components/ui/MobileNavDrawer.js";
 import { Skeleton } from "@/components/ui/Skeleton.js";
-import { Menu, LogOut, Store, Settings, BarChart3, Package, ShoppingBag, User, Users, Truck, ShieldCheck, Wallet } from "lucide-react";
+import { Menu, LogOut, Store, Settings, BarChart3, Package, ShoppingBag, User, Users, Truck, ShieldCheck, Wallet, HelpCircle } from "lucide-react";
 import Image from "next/image";
 
 const NAV_BY_ROLE = {
@@ -30,6 +30,7 @@ const NAV_BY_ROLE = {
     { href: "/vendor/shipping", label: "Shipping", icon: Truck },
     { href: "/vendor/settings", label: "Store settings", icon: Settings },
     { href: "/vendor/verification", label: "Verification", icon: ShieldCheck },
+    { href: "/vendor/help", label: "Help", icon: HelpCircle },
     { href: "/profile", label: "Profile", icon: User },
   ],
 };
