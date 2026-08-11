@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -14,6 +15,7 @@ import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 // is a read-only oversight list (search + enable/disable + drill into
 // details), not an onboarding form.
 export default function SuperAdminStoresPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const { confirm, confirmDialog } = useConfirm();
@@ -95,7 +97,11 @@ export default function SuperAdminStoresPage() {
               </tr>
             ) : (
               stores.map((s) => (
-                <tr key={s.id} className="border-t border-slate-100">
+                <tr
+                  key={s.id}
+                  onClick={() => router.push(`/super-admin/stores/${s.id}`)}
+                  className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
+                >
                   <td className="px-4 py-3">
                     <p className="font-medium">{s.name}</p>
                     <p className="text-xs text-slate-400">{s.slug}</p>
@@ -106,7 +112,7 @@ export default function SuperAdminStoresPage() {
                   <td className="px-4 py-3">
                     <Badge color={s.isActive ? "green" : "red"}>{s.isActive ? "Active" : "Inactive"}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-right space-x-4 whitespace-nowrap">
+                  <td className="px-4 py-3 text-right space-x-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <Link href={`/super-admin/stores/${s.id}`} className="text-brand-600 hover:underline">View</Link>
                     <button
                       type="button"

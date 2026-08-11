@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
-import { formatCurrency, formatDateTime } from "@/lib/format.js";
+import { formatCurrency, formatDateTime, formatCondition } from "@/lib/format.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 
 export default function SuperAdminProductDetailPage({ params }) {
@@ -123,7 +123,7 @@ export default function SuperAdminProductDetailPage({ params }) {
           <>
             <div>
               <p className="text-slate-400">Condition</p>
-              <p className="text-slate-900 font-medium">{product.condition === "used" ? "Used" : "Brand New"}</p>
+              <p className="text-slate-900 font-medium">{formatCondition(product.condition)}</p>
             </div>
             <div>
               <p className="text-slate-400">Stock</p>

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -24,6 +25,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function VendorOrdersPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
@@ -112,7 +114,11 @@ export default function VendorOrdersPage() {
               </tr>
             ) : (
               orders.map((o) => (
-                <tr key={o.id} className="border-t border-slate-100">
+                <tr
+                  key={o.id}
+                  onClick={() => router.push(`/vendor/orders/${o.id}?storeId=${storeId}`)}
+                  className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
+                >
                   <td className="px-4 py-3 font-medium text-slate-900">
                     <span className="inline-flex items-center gap-2">
                       {o.orderNumber}
@@ -124,7 +130,7 @@ export default function VendorOrdersPage() {
                   <td className="px-4 py-3">
                     <Badge color={STATUS_COLOR[o.status] || "slate"}>{o.status.replace("_", " ")}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <Link href={`/vendor/orders/${o.id}?storeId=${storeId}`} className="text-brand-600 hover:underline">View</Link>
                   </td>
                 </tr>

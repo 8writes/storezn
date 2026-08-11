@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -19,6 +20,7 @@ const SUSPENDED_OPTIONS = [
 ];
 
 export default function SuperAdminProductsPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const { confirm, confirmDialog } = useConfirm();
@@ -113,7 +115,11 @@ export default function SuperAdminProductsPage() {
               </tr>
             ) : (
               products.map((p) => (
-                <tr key={p.id} className="border-t border-slate-100">
+                <tr
+                  key={p.id}
+                  onClick={() => router.push(`/super-admin/products/${p.id}`)}
+                  className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
+                >
                   <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
                   <td className="px-4 py-3 text-slate-500">{p.storeName}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(p.price)}</td>
@@ -124,7 +130,7 @@ export default function SuperAdminProductsPage() {
                     </div>
                     {p.suspendedReason && <p className="text-xs text-slate-400 mt-1">{p.suspendedReason}</p>}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-3">
                       <Link href={`/super-admin/products/${p.id}`} className="text-brand-600 hover:underline">View</Link>
                       <button

@@ -39,17 +39,27 @@ if (typeof window !== "undefined") {
   const standalone =
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
   const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  // A storefront (a vendor's own subdomain or custom domain, see
+  // resolveStoreByHost in lib/resolveStore.js) has no branding of its own
+  // in the install prompt yet - it would show Storezn's name/icon on a
+  // customer's home screen for someone else's store, which is wrong. Until
+  // there's a per-store manifest (its own name + an icon generated from
+  // the vendor's logo), suppress the prompt entirely off-platform rather
+  // than show it mis-branded.
+  const isPlatformHost = window.location.hostname === (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost");
 
   state = {
     deferredPrompt: null,
     ready: true,
     isIos,
-    standaloneOrDismissed: standalone || !!localStorage.getItem(DISMISSED_KEY),
+    standaloneOrDismissed: !isPlatformHost || standalone || !!localStorage.getItem(DISMISSED_KEY),
   };
 
   window.addEventListener("beforeinstallprompt", (e) => {
+    // Always suppress Chrome's own mini-infobar (which would use the same
+    // mis-branded manifest) - only actually surface our UI on-platform.
     e.preventDefault();
-    setState({ deferredPrompt: e });
+    if (isPlatformHost) setState({ deferredPrompt: e });
   });
   window.addEventListener("appinstalled", () => {
     localStorage.setItem(DISMISSED_KEY, "1");

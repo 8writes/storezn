@@ -3,6 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { products, productVariants } from "@/lib/db/schema.js";
 import { resolveStoreByHost } from "@/lib/resolveStore.js";
+import { formatCondition } from "@/lib/format.js";
 import { AddToCartButton } from "@/components/storefront/AddToCartButton.js";
 import { ReviewsSection } from "@/components/storefront/ReviewsSection.js";
 import { ProductGallery } from "@/components/storefront/ProductGallery.js";
@@ -33,8 +34,10 @@ export default async function StorefrontProductPage({ params }) {
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">{product.name}</h1>
-              {product.productType === "physical" && product.condition === "used" && (
-                <span className="shrink-0 px-2 py-0.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-sm uppercase tracking-wide">Used</span>
+              {product.productType === "physical" && product.condition !== "new" && (
+                <span className="shrink-0 px-2 py-0.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-sm uppercase tracking-wide">
+                  {formatCondition(product.condition)}
+                </span>
               )}
             </div>
             {product.sku && <p className="text-xs text-slate-400">SKU: {product.sku}</p>}

@@ -24,6 +24,7 @@ const PRODUCT_TYPE_OPTIONS = [
 
 const CONDITION_OPTIONS = [
   { value: "new", label: "Brand New" },
+  { value: "fairly_used", label: "Fairly Used" },
   { value: "used", label: "Used" },
 ];
 
@@ -46,6 +47,7 @@ export default function VendorNewProductPage() {
   const [pendingUploads, setPendingUploads] = useState([]);
   const [dragIndex, setDragIndex] = useState(null);
   const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY);
+  const [categorySlugTouched, setCategorySlugTouched] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
 
   useEffect(() => {
@@ -126,6 +128,7 @@ export default function VendorNewProductPage() {
       setCategories((c) => [...c, data.category]);
       setForm((f) => ({ ...f, categoryId: data.category.id }));
       setCategoryForm(EMPTY_CATEGORY);
+      setCategorySlugTouched(false);
       toast.success("Category added");
     } catch (err) {
       toast.error(err.message || "Failed to add category");
@@ -286,8 +289,24 @@ export default function VendorNewProductPage() {
 
         <form onSubmit={handleAddCategory} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
           <p className="text-sm font-semibold text-slate-700">Add a category</p>
-          <Input label="Name" value={categoryForm.name} onChange={(e) => setCategoryForm((f) => ({ ...f, name: e.target.value }))} required />
-          <Input label="Slug" value={categoryForm.slug} onChange={(e) => setCategoryForm((f) => ({ ...f, slug: e.target.value }))} required />
+          <Input
+            label="Name"
+            value={categoryForm.name}
+            onChange={(e) => {
+              const name = e.target.value;
+              setCategoryForm((f) => ({ ...f, name, slug: categorySlugTouched ? f.slug : slugify(name) }));
+            }}
+            required
+          />
+          <Input
+            label="Slug"
+            value={categoryForm.slug}
+            onChange={(e) => {
+              setCategorySlugTouched(true);
+              setCategoryForm((f) => ({ ...f, slug: e.target.value }));
+            }}
+            required
+          />
           <Button type="submit" variant="outline" size="sm" loading={addingCategory}>Add category</Button>
         </form>
       </div>

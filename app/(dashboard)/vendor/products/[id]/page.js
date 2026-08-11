@@ -24,6 +24,7 @@ const PRODUCT_TYPE_OPTIONS = [
 
 const CONDITION_OPTIONS = [
   { value: "new", label: "Brand New" },
+  { value: "fairly_used", label: "Fairly Used" },
   { value: "used", label: "Used" },
 ];
 

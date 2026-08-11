@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, ilike, isNull, lte } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { products, categories } from "@/lib/db/schema.js";
 import { resolveStoreByHost } from "@/lib/resolveStore.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { StorefrontFilters } from "@/components/storefront/StorefrontFilters.js";
 
 const SORTS = {
@@ -64,8 +64,8 @@ export default async function StorefrontHomePage({ params, searchParams }) {
               <div className="mt-3 space-y-0.5">
                 <p className="text-sm text-slate-800 group-hover:text-slate-950 transition-colors">
                   {p.name}
-                  {p.productType === "physical" && p.condition === "used" && (
-                    <span className="ml-1.5 text-xs text-slate-400 uppercase tracking-wide">Used</span>
+                  {p.productType === "physical" && p.condition !== "new" && (
+                    <span className="ml-1.5 text-xs text-slate-400 uppercase tracking-wide">{formatCondition(p.condition)}</span>
                   )}
                 </p>
                 <p className="text-sm font-medium text-slate-900">{formatCurrency(p.price)}</p>

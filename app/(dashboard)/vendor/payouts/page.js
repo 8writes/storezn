@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Wallet, Calendar, Landmark, AlertTriangle, Info, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -21,6 +22,7 @@ const CHANNEL_OPTIONS = [
 ];
 
 export default function VendorPayoutsPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
@@ -228,10 +230,15 @@ export default function VendorPayoutsPage() {
               data.transactions.map((t) => {
                 const paidAt = t.paidAt || t.createdAt;
                 return (
-                  <tr key={t.id} className="border-t border-slate-100">
+                  <tr
+                    key={t.id}
+                    onClick={() => router.push(`/vendor/orders/${t.id}?storeId=${storeId}`)}
+                    className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
+                  >
                     <td className="px-4 py-3 font-medium text-slate-900">
                       <Link
                         href={`/vendor/orders/${t.id}?storeId=${storeId}`}
+                        onClick={(e) => e.stopPropagation()}
                         className="hover:underline"
                       >
                         {t.orderNumber}

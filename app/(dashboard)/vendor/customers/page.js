@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -10,6 +11,7 @@ import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 
 export default function VendorCustomersPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
@@ -85,14 +87,18 @@ export default function VendorCustomersPage() {
               </tr>
             ) : (
               customers.map((c) => (
-                <tr key={c.id} className="border-t border-slate-100">
+                <tr
+                  key={c.id}
+                  onClick={() => router.push(`/vendor/customers/${c.id}?storeId=${storeId}`)}
+                  className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
+                >
                   <td className="px-4 py-3 font-medium text-slate-900">{c.firstName} {c.lastName}</td>
                   <td className="px-4 py-3 text-slate-500">{c.email}</td>
                   <td className="px-4 py-3 text-slate-500">{c.phone || "-"}</td>
                   <td className="px-4 py-3 text-slate-500">{c.orderCount}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(c.totalSpent)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(c.createdAt)}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <Link href={`/vendor/customers/${c.id}?storeId=${storeId}`} className="text-brand-600 hover:underline">View</Link>
                   </td>
                 </tr>

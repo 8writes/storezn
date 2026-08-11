@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
+import { slugify } from "@/lib/slugify.js";
 
 const EMPTY_FORM = {
   name: "",
@@ -15,6 +16,7 @@ const EMPTY_FORM = {
 
 export default function VendorSignupPage() {
   const [form, setForm] = useState(EMPTY_FORM);
+  const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState(false);
 
@@ -67,7 +69,15 @@ export default function VendorSignupPage() {
         <p className="text-sm text-slate-500 mt-1">Create your store in a couple of minutes.</p>
       </div>
 
-      <Input label="Store name" value={form.name} onChange={setField("name")} required />
+      <Input
+        label="Store name"
+        value={form.name}
+        onChange={(e) => {
+          const name = e.target.value;
+          setForm((f) => ({ ...f, name, slug: slugTouched ? f.slug : slugify(name) }));
+        }}
+        required
+      />
       <Input
         label="Store URL"
         placeholder="janes-boutique"
@@ -76,7 +86,10 @@ export default function VendorSignupPage() {
         // rather than letting them type "My Shop.com" and only finding
         // out it's invalid after submit - matches the server's own
         // slug regex (see vendorSignupSchema in lib/validate.js).
-        onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))}
+        onChange={(e) => {
+          setSlugTouched(true);
+          setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }));
+        }}
         required
       />
 

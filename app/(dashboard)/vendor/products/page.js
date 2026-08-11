@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -11,9 +12,10 @@ import { Badge } from "@/components/ui/Badge.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, formatCondition } from "@/lib/format.js";
 
 export default function VendorProductsPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
@@ -106,12 +108,18 @@ export default function VendorProductsPage() {
               </tr>
             ) : (
               products.map((p) => (
-                <tr key={p.id} className="border-t border-slate-100">
+                <tr
+                  key={p.id}
+                  onClick={() => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
+                  className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
+                >
                   <td className="px-4 py-3">{p.name}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(p.price)}</td>
                   <td className="px-4 py-3 text-slate-500 capitalize">
                     {p.productType}
-                    {p.productType === "physical" && p.condition === "used" && <span className="text-slate-400"> · Used</span>}
+                    {p.productType === "physical" && p.condition !== "new" && (
+                      <span className="text-slate-400"> · {formatCondition(p.condition)}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-500">
                     {p.productType === "physical" ? (
@@ -131,7 +139,7 @@ export default function VendorProductsPage() {
                       {p.suspendedAt && <Badge color="red">Suspended</Badge>}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <Link href={`/vendor/products/${p.id}?storeId=${storeId}`} className="text-brand-600 hover:underline">Edit</Link>
                   </td>
                 </tr>
