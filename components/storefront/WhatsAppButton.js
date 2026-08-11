@@ -1,5 +1,14 @@
 import { MessageCircle } from "lucide-react";
 
+// wa.me needs the full international number (country code, no leading
+// trunk "0", no "+") - vendors type it in local Nigerian format
+// ("0801...", see the WhatsApp field in vendor/settings), which would
+// otherwise open a chat to a malformed/nonexistent number.
+function toWhatsAppDigits(number) {
+  const digits = number.replace(/\D/g, "");
+  return digits.startsWith("0") ? `234${digits.slice(1)}` : digits;
+}
+
 // Lucide has no dedicated WhatsApp mark (trademarked brand logo), a
 // green MessageCircle bubble is the common stand-in without pulling in a
 // whole extra icon library for one icon.
@@ -14,7 +23,7 @@ export function WhatsAppButton({ store }) {
 
   return (
     <a
-      href={`https://wa.me/${number.replace(/\D/g, "")}`}
+      href={`https://wa.me/${toWhatsAppDigits(number)}`}
       target="_blank"
       rel="noreferrer"
       aria-label={`Chat with ${store.name} on WhatsApp`}
