@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Toaster } from "sonner";
 import { resolveStoreByHost, isStoreLive } from "@/lib/resolveStore.js";
+import { getStorefrontUrl, getPlatformUrl } from "@/lib/storeUrl.js";
 import { CartBadge } from "@/components/storefront/CartBadge.js";
 import { AccountMenu } from "@/components/storefront/AccountMenu.js";
 import { Footer } from "@/components/storefront/Footer.js";
@@ -11,13 +12,41 @@ import { WhatsAppButton } from "@/components/storefront/WhatsAppButton.js";
 // storefront (falls back to the platform default when they haven't set
 // one) - resolved separately from the page body since generateMetadata
 // runs before render and gets its own store lookup.
+//
+// Also sets Open Graph/Twitter card data so sharing a store's link (the
+// exact URL from CopyableUrl.js on the vendor dashboard) shows a real
+// preview - name, a short description, and the store's logo - instead of
+// a bare link, wherever it's pasted (WhatsApp, Instagram bio, Twitter/X).
 export async function generateMetadata({ params }) {
   const { host } = await params;
   const store = await resolveStoreByHost(decodeURIComponent(host));
   if (!store || !isStoreLive(store)) return {};
+
+  const description = `Shop ${store.name} online - browse products and order directly, powered by Storezn.`;
+  // logoUrl is already an absolute Cloudinary URL once a vendor uploads
+  // one (see lib/storage/index.js); og:image needs an absolute URL either
+  // way, so the platform default is built out to one too rather than
+  // left as a bare "/storezn-logo.png" path.
+  const image = store.logoUrl || getPlatformUrl("/storezn-logo.png");
+
   return {
     title: store.name,
+    description,
     icons: store.faviconUrl ? { icon: store.faviconUrl } : undefined,
+    openGraph: {
+      title: store.name,
+      description,
+      url: getStorefrontUrl(store),
+      siteName: store.name,
+      images: [{ url: image }],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: store.name,
+      description,
+      images: [image],
+    },
   };
 }
 
