@@ -14,6 +14,8 @@ import { StoreQrCodeButton } from "@/components/ui/StoreQrCodeButton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
+import { dnsInstructionsFor } from "@/lib/domain.js";
+import { CUSTOM_DOMAINS_ENABLED } from "@/lib/featureFlags.js";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
 const EMPTY_FORM = { logoUrl: "", faviconUrl: "", customDomain: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false };
@@ -47,6 +49,7 @@ export default function VendorSettingsPage() {
   const [banksLoading, setBanksLoading] = useState(true);
   const [payoutForm, setPayoutForm] = useState(EMPTY_PAYOUT_FORM);
   const [linkingAccount, setLinkingAccount] = useState(false);
+  const [checkingDomain, setCheckingDomain] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -151,6 +154,21 @@ export default function VendorSettingsPage() {
       toast.error(err.message || "Could not verify that account");
     } finally {
       setLinkingAccount(false);
+    }
+  };
+
+  const handleCheckDomainStatus = async () => {
+    setCheckingDomain(true);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/domain-status`);
+      setStores((prev) => prev.map((s) => (s.id === storeId ? { ...s, domainStatus: data.domainStatus } : s)));
+      toast[data.domainStatus === "verified" ? "success" : "message"](
+        data.domainStatus === "verified" ? "Domain verified and live" : "Still waiting on DNS - this can take a few minutes to a few hours to propagate",
+      );
+    } catch (err) {
+      toast.error(err.message || "Could not check domain status");
+    } finally {
+      setCheckingDomain(false);
     }
   };
 
@@ -266,12 +284,59 @@ export default function VendorSettingsPage() {
               <p className="text-xs text-slate-500">Shown as your browser tab icon - separate from the logo above, since it needs to be a small circle.</p>
             </div>
 
-            <Input
-              label="Custom domain (optional)"
-              placeholder="yourdomain.com"
-              value={form.customDomain}
-              onChange={(e) => setForm((f) => ({ ...f, customDomain: e.target.value }))}
-            />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Input
+                    label="Custom domain (optional)"
+                    placeholder="yourdomain.com"
+                    value={form.customDomain}
+                    onChange={(e) => setForm((f) => ({ ...f, customDomain: e.target.value }))}
+                    disabled={!CUSTOM_DOMAINS_ENABLED}
+                  />
+                </div>
+                {CUSTOM_DOMAINS_ENABLED && store?.customDomain && (
+                  <Badge color={store.domainStatus === "verified" ? "green" : "amber"}>
+                    {store.domainStatus === "verified" ? "Verified" : "Pending DNS"}
+                  </Badge>
+                )}
+              </div>
+
+              {!CUSTOM_DOMAINS_ENABLED && (
+                <p className="text-xs text-slate-400">Coming soon - not available to set up yet.</p>
+              )}
+
+              {CUSTOM_DOMAINS_ENABLED && store?.customDomain && store.domainStatus !== "verified" && (
+                <div className="rounded-sm bg-slate-50 border border-slate-200 p-3 space-y-2 text-xs text-slate-600">
+                  <p>Add this DNS record at your domain registrar, then check status - it can take a few minutes to a few hours to propagate:</p>
+                  {(() => {
+                    const rec = dnsInstructionsFor(store.customDomain);
+                    return (
+                      <div className="flex flex-wrap gap-4 font-mono text-slate-800">
+                        <span>Type: {rec.type}</span>
+                        <span>Name: {rec.name}</span>
+                        <span>Value: {rec.value}</span>
+                      </div>
+                    );
+                  })()}
+                  {store.domainVerification?.length > 0 && (
+                    <div className="pt-1 border-t border-slate-200 space-y-1">
+                      <p>Vercel also needs this TXT record to confirm you own the domain:</p>
+                      {store.domainVerification.map((v) => (
+                        <div key={v.value} className="flex flex-wrap gap-4 font-mono text-slate-800">
+                          <span>Type: {v.type}</span>
+                          <span>Name: {v.domain}</span>
+                          <span>Value: {v.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button type="button" size="sm" variant="secondary" loading={checkingDomain} onClick={handleCheckDomainStatus}>
+                    Check status
+                  </Button>
+                </div>
+              )}
+            </div>
 
             <div className="space-y-3 pt-2 border-t border-slate-100">
               <div>
