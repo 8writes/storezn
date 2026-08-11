@@ -145,7 +145,6 @@ const SECTIONS = [
     cards: [
       { q: "Forgot your password?", a: "On the sign-in page, tap \"Forgot password\", enter your email, and follow the link that arrives." },
       { q: "Didn't get a verification email?", a: "Check spam first. Still nothing? Use the resend option on the sign-in page, or contact support below." },
-      { q: "Can I run more than one store?", a: "Yes, if you own more than one, a store switcher appears near the top of your dashboard." },
       { q: "Who pays Storezn's fee?", a: "Your choice, in Store settings, either you absorb it from each sale, or it's added on top of what the customer pays." },
     ],
   },

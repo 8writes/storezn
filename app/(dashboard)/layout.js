@@ -159,7 +159,7 @@ export default function DashboardLayout({ children }) {
       <aside className="hidden sm:flex sm:w-60 shrink-0 flex-col bg-brand-900 h-dvh sticky top-0">
         <div className="flex items-center px-4 h-16 border-b border-slate-800 shrink-0">
           {isVendor ? (
-            <StoreSwitcher token={token} textClassName="text-white font-extrabold tracking-tight text-sm" />
+            <StoreSwitcher textClassName="text-white font-extrabold tracking-tight text-sm" />
           ) : (
             <Image src="/storezn-logo.png" alt="Storezn" width={120} height={29} priority unoptimized />
           )}
@@ -186,7 +186,7 @@ export default function DashboardLayout({ children }) {
         >
           <span className="w-5.5 shrink-0" />
           {isVendor ? (
-            <StoreSwitcher token={token} textClassName="font-extrabold tracking-tight text-sm" />
+            <StoreSwitcher textClassName="font-extrabold tracking-tight text-sm" />
           ) : (
             <Image src="/storezn-logo.png" alt="Storezn" width={110} height={27} priority unoptimized />
           )}
