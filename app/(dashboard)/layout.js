@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Toaster } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -34,6 +34,16 @@ const NAV_BY_ROLE = {
   ],
 };
 
+// Fixed-size, always-rendered so it never shifts the link's layout -
+// visible/animated only once pending, and delayed 80ms so an
+// already-prefetched (near-instant) navigation never flashes it. Confirms
+// the click registered even before the target route's loading.js fallback
+// has a chance to paint.
+function NavLinkHint() {
+  const { pending } = useLinkStatus();
+  return <span aria-hidden className={`nav-link-hint ${pending ? "is-pending" : ""}`} />;
+}
+
 function NavLinks({ links, pathname, onNavigate }) {
   return (
     <>
@@ -50,6 +60,7 @@ function NavLinks({ links, pathname, onNavigate }) {
         >
           <Icon size={18} />
           {label}
+          <NavLinkHint />
         </Link>
       ))}
     </>

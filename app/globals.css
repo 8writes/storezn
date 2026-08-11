@@ -46,6 +46,35 @@ body {
   animation: spin 0.7s linear infinite;
 }
 
+.nav-link-hint {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-left: auto;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.nav-link-hint.is-pending {
+  visibility: visible;
+  animation-name: fadeIn2, pulse;
+  animation-duration: 150ms, 0.8s;
+  /* Delay so a fast (already-prefetched) navigation never flashes this. */
+  animation-delay: 80ms, 80ms;
+  animation-timing-function: ease, ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, none;
+}
+
+@keyframes fadeIn2 {
+  to { opacity: 1; }
+}
+@keyframes pulse {
+  50% { opacity: 0.3; }
+}
+
 .scrollbar-none {
   scrollbar-width: none;
   -ms-overflow-style: none;

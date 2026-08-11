@@ -1,6 +1,7 @@
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import RegisterServiceWorker from "./RegisterServiceWorker.js";
+import InstallPrompt from "./InstallPrompt.js";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -41,6 +42,7 @@ export default function RootLayout({ children }) {
           scroll on mobile without that side effect. */}
       <body className="min-h-full overflow-x-clip bg-slate-50 text-slate-900 antialiased">
         <RegisterServiceWorker />
+        <InstallPrompt />
         {children}
       </body>
     </html>
