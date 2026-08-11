@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { orders, stores } from "../../../../../../../lib/db/schema.js";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
 
@@ -31,11 +31,13 @@ export async function GET(req, { params }) {
 
   const searchParams = new URL(req.url).searchParams;
   const channel = searchParams.get("channel"); // "online" | "offline" | null (all)
+  const q = searchParams.get("q")?.trim();
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
 
   const conditions = [eq(orders.storeId, storeId), eq(orders.paymentStatus, "paid")];
   if (channel === "online") conditions.push(eq(orders.isOffline, false));
   if (channel === "offline") conditions.push(eq(orders.isOffline, true));
+  if (q) conditions.push(ilike(orders.orderNumber, `%${q}%`));
 
   const [[stats], [{ total }], rows] = await Promise.all([
     db

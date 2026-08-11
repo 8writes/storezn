@@ -131,28 +131,37 @@ export default function DashboardLayout({ children }) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 bg-brand-900 text-white shrink-0">
+        <header
+          onClick={() => setDrawerOpen(true)}
+          className="sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 bg-brand-900 text-white shrink-0 cursor-pointer"
+        >
           <span className="w-5.5" />
           {isVendorWithStore ? (
             <span className="font-extrabold tracking-tight text-sm truncate max-w-[60%]">{brandLabel}</span>
           ) : (
             <Image src="/storezn-logo.png" alt="Storezn" width={110} height={27} priority unoptimized />
           )}
-          <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Open menu" className="cursor-pointer">
+          <button type="button" aria-label="Open menu" className="cursor-pointer">
             <Menu size={22} />
           </button>
         </header>
 
-        <MobileNavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Menu">
+        <MobileNavDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          title="Menu"
+          footer={
+            <button
+              type="button"
+              onClick={logout}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white hover:bg-white/10 cursor-pointer"
+            >
+              <LogOut size={18} />
+              Sign out
+            </button>
+          }
+        >
           <NavLinks links={links} pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
-          <button
-            type="button"
-            onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/10 cursor-pointer"
-          >
-            <LogOut size={18} />
-            Sign out
-          </button>
         </MobileNavDrawer>
 
         <main className="flex-1 bg-slate-50 p-4 sm:p-8">{children}</main>

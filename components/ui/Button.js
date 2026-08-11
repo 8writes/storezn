@@ -24,7 +24,7 @@ export function Button({
   return (
     <button
       disabled={disabled || loading}
-      className={`rounded-sm font-semibold transition-colors inline-flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed ${sizes[size]} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
+      className={`rounded-sm font-semibold transition-colors inline-flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap ${sizes[size]} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
       {...props}
     >
       {loading && <span className="spinner" />}

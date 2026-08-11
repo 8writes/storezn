@@ -7,6 +7,7 @@ import { useConfirm } from "@/hooks/useConfirm.js";
 import { Select } from "@/components/ui/Select.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
+import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDateTime } from "@/lib/format.js";
@@ -28,6 +29,7 @@ export default function SuperAdminVendorsPage() {
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
+  const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [decidingId, setDecidingId] = useState(null);
 
@@ -35,6 +37,7 @@ export default function SuperAdminVendorsPage() {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page) });
     if (status) params.set("status", status);
+    if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/super-admin/vendors?${params}`)
       .then((data) => {
         setVendors(data.vendors);
@@ -48,11 +51,11 @@ export default function SuperAdminVendorsPage() {
     if (!token) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, status]);
+  }, [token, page, status, q]);
 
   useEffect(() => {
     setPage(1);
-  }, [status]);
+  }, [status, q]);
 
   const handleDecision = async (vendor, decision) => {
     const requireReason = decision === "rejected";
@@ -87,8 +90,11 @@ export default function SuperAdminVendorsPage() {
       {confirmDialog}
       <h1 className="text-xl font-bold text-slate-900">Vendor verification</h1>
 
-      <div className="max-w-xs">
-        <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="max-w-xs">
+          <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+        </div>
+        <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="max-w-sm" />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
@@ -108,7 +114,7 @@ export default function SuperAdminVendorsPage() {
               <TableRowSkeleton cols={6} />
             ) : vendors.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">No vendors match</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">No vendors match{q ? " your search" : ""}</td>
               </tr>
             ) : (
               vendors.map((v) => (

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { orders, stores } from "../../../../../lib/db/schema.js";
-import { and, desc, eq, count } from "drizzle-orm";
+import { and, desc, eq, count, ilike } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { parsePagination } from "../../../../../lib/pagination.js";
 
@@ -15,11 +15,13 @@ export async function GET(req) {
   const searchParams = new URL(req.url).searchParams;
   const status = searchParams.get("status");
   const storeId = searchParams.get("storeId");
+  const q = searchParams.get("q")?.trim();
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
 
   const conditions = [eq(orders.paymentStatus, "paid")];
   if (status) conditions.push(eq(orders.status, status));
   if (storeId) conditions.push(eq(orders.storeId, storeId));
+  if (q) conditions.push(ilike(orders.orderNumber, `%${q}%`));
 
   const [rows, [{ total }]] = await Promise.all([
     db

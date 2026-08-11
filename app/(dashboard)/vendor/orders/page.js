@@ -8,6 +8,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { Select } from "@/components/ui/Select.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
+import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
@@ -35,6 +36,7 @@ export default function VendorOrdersPage() {
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
+  const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,6 +56,7 @@ export default function VendorOrdersPage() {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page) });
     if (status) params.set("status", status);
+    if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/vendor/stores/${storeId}/orders?${params}`)
       .then((data) => {
         setOrders(data.orders);
@@ -62,11 +65,11 @@ export default function VendorOrdersPage() {
       .catch((err) => toast.error(err.message || "Failed to load orders"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, page, status]);
+  }, [storeId, page, status, q]);
 
   useEffect(() => {
     setPage(1);
-  }, [status, storeId]);
+  }, [status, q, storeId]);
 
   if (!loading && stores.length === 0) {
     return <p className="text-sm text-slate-400">No store set up yet.</p>;
@@ -92,6 +95,7 @@ export default function VendorOrdersPage() {
         <div className="max-w-xs">
           <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
         </div>
+        <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="max-w-xs" />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
@@ -110,7 +114,7 @@ export default function VendorOrdersPage() {
               <TableRowSkeleton cols={5} />
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">No orders yet</td>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">{q ? "No orders match your search" : "No orders yet"}</td>
               </tr>
             ) : (
               orders.map((o) => (

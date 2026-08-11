@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Select } from "@/components/ui/Select.js";
+import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
@@ -20,6 +21,7 @@ export default function VendorCustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +39,9 @@ export default function VendorCustomersPage() {
   useEffect(() => {
     if (!storeId) return;
     setLoading(true);
-    apiFetch(`/api/v1/vendor/stores/${storeId}/customers?page=${page}`)
+    const params = new URLSearchParams({ page: String(page) });
+    if (q.trim()) params.set("q", q.trim());
+    apiFetch(`/api/v1/vendor/stores/${storeId}/customers?${params}`)
       .then((data) => {
         setCustomers(data.customers);
         setPagination(data.pagination);
@@ -45,11 +49,11 @@ export default function VendorCustomersPage() {
       .catch((err) => toast.error(err.message || "Failed to load customers"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, page]);
+  }, [storeId, page, q]);
 
   useEffect(() => {
     setPage(1);
-  }, [storeId]);
+  }, [storeId, q]);
 
   if (!loading && stores.length === 0) {
     return <p className="text-sm text-slate-400">No store set up yet.</p>;
@@ -59,11 +63,14 @@ export default function VendorCustomersPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Customers</h1>
 
-      {stores.length > 1 && (
-        <div className="max-w-xs">
-          <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
-        </div>
-      )}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {stores.length > 1 && (
+          <div className="max-w-xs">
+            <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+          </div>
+        )}
+        <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="max-w-sm" />
+      </div>
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
@@ -83,7 +90,7 @@ export default function VendorCustomersPage() {
               <TableRowSkeleton cols={7} />
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">No customers yet</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">{q ? "No customers match your search" : "No customers yet"}</td>
               </tr>
             ) : (
               customers.map((c) => (

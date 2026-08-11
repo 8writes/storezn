@@ -9,6 +9,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { Select } from "@/components/ui/Select.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
+import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { StatCard } from "@/components/ui/StatCard.js";
 import { StatGridSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton.js";
@@ -31,6 +32,7 @@ export default function VendorPayoutsPage() {
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [channel, setChannel] = useState("");
+  const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [checkingSettlements, setCheckingSettlements] = useState(false);
 
@@ -50,6 +52,7 @@ export default function VendorPayoutsPage() {
     if (!storeId) return Promise.resolve();
     const params = new URLSearchParams({ page: String(page) });
     if (channel) params.set("channel", channel);
+    if (q.trim()) params.set("q", q.trim());
     return apiFetch(`/api/v1/vendor/stores/${storeId}/payouts?${params}`)
       .then(setData)
       .catch((err) => toast.error(err.message || "Failed to load payouts"));
@@ -60,11 +63,11 @@ export default function VendorPayoutsPage() {
     setLoading(true);
     loadPayouts().finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, page, channel]);
+  }, [storeId, page, channel, q]);
 
   useEffect(() => {
     setPage(1);
-  }, [channel, storeId]);
+  }, [channel, q, storeId]);
 
   const handleCheckSettlements = async () => {
     setCheckingSettlements(true);
@@ -192,13 +195,16 @@ export default function VendorPayoutsPage() {
         </div>
       )}
 
-      <div className="max-w-xs">
-        <Select
-          label="Filter"
-          options={CHANNEL_OPTIONS}
-          value={channel}
-          onChange={setChannel}
-        />
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="max-w-xs">
+          <Select
+            label="Filter"
+            options={CHANNEL_OPTIONS}
+            value={channel}
+            onChange={setChannel}
+          />
+        </div>
+        <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="max-w-xs" />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
@@ -223,7 +229,7 @@ export default function VendorPayoutsPage() {
                   colSpan={7}
                   className="px-4 py-6 text-center text-slate-400"
                 >
-                  No payouts yet
+                  {q ? "No payouts match your search" : "No payouts yet"}
                 </td>
               </tr>
             ) : (

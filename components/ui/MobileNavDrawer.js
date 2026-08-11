@@ -7,7 +7,7 @@ import { X } from "lucide-react";
 // Always mounted (not conditionally rendered) so both the open AND close
 // transitions can animate, sm:hidden keeps it inert and invisible on
 // desktop regardless of `open`.
-export function MobileNavDrawer({ open, onClose, title, children }) {
+export function MobileNavDrawer({ open, onClose, title, children, footer }) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e) => e.key === "Escape" && onClose();
@@ -45,6 +45,13 @@ export function MobileNavDrawer({ open, onClose, title, children }) {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto py-2">{children}</div>
+        {footer && (
+          // Visually and structurally separate from the scrollable nav
+          // list above (own border-top section, not just another item in
+          // the same flow) - specifically so a quick scroll/tap through
+          // the menu can't land on Sign out by accident.
+          <div className="border-t border-slate-800 shrink-0 pt-1">{footer}</div>
+        )}
       </div>
     </div>
   );

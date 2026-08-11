@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, MessageCircle } from "lucide-react";
+import { Mail, MessageCircle, Search } from "lucide-react";
 
 const SUPPORT_EMAIL = "support@ozmictech.com";
 // Local Nigerian format as given - normalized the same way
@@ -12,6 +12,7 @@ const SUPPORT_WHATSAPP = "09153374542".replace(/^0/, "234");
 const STEPS = [
   {
     title: "Create your store",
+    keywords: "create store sign up start selling store url slug create my store verify email",
     body: (
       <>
         <p>
@@ -25,6 +26,7 @@ const STEPS = [
   },
   {
     title: "Verify your identity",
+    keywords: "verify identity NIN national identification number submit for review approval",
     body: (
       <>
         <p>
@@ -40,6 +42,7 @@ const STEPS = [
   },
   {
     title: "Set up your store's look",
+    keywords: "logo store settings whatsapp number social media links look branding",
     body: (
       <p>
         Open <b>Store settings</b>. Upload your logo, and add your WhatsApp number and any social media links you
@@ -49,6 +52,7 @@ const STEPS = [
   },
   {
     title: "Link your bank account",
+    keywords: "bank account link payout payment setup money paid",
     body: (
       <p>
         Still in <b>Store settings</b>, add your bank details. This is the account your money gets paid into
@@ -58,6 +62,7 @@ const STEPS = [
   },
   {
     title: "Add your first product",
+    keywords: "add product create product name price photos stock",
     body: (
       <p>
         Open <b>Products</b> → <b>Add product</b>. Type a name, the product&apos;s web address fills in by itself,
@@ -68,6 +73,7 @@ const STEPS = [
   },
   {
     title: "You're live",
+    keywords: "share store link qr code live storefront social media",
     body: (
       <p>
         Once your identity is verified, share your store&apos;s link (or its QR code, from <b>Store settings</b>)
@@ -81,12 +87,12 @@ const SECTIONS = [
   {
     id: "start",
     label: "Get started",
-    render: () => (
+    render: (steps) => (
       <div className="space-y-3">
-        {STEPS.map((step, i) => (
+        {steps.map((step) => (
           <div key={step.title} className="bg-white border border-slate-200 rounded-sm p-5 flex gap-4">
             <div className="shrink-0 w-8 h-8 rounded-sm bg-brand-100 text-brand-700 font-bold text-sm flex items-center justify-center">
-              {i + 1}
+              {STEPS.indexOf(step) + 1}
             </div>
             <div className="space-y-2 text-sm text-slate-600 leading-relaxed">
               <h3 className="font-semibold text-slate-900 text-[15px]">{step.title}</h3>
@@ -145,11 +151,25 @@ const SECTIONS = [
   },
 ];
 
-function SectionBody({ section }) {
-  if (section.render) return section.render();
+function matchesQuery(text, query) {
+  return text.toLowerCase().includes(query);
+}
+
+function stepMatches(step, query) {
+  return matchesQuery(step.title, query) || matchesQuery(step.keywords, query);
+}
+
+function SectionBody({ section, query }) {
+  if (section.render) {
+    const steps = query ? STEPS.filter((s) => stepMatches(s, query)) : STEPS;
+    return section.render(steps);
+  }
+  const cards = query
+    ? section.cards.filter(({ q: question, a }) => matchesQuery(question, query) || matchesQuery(a, query))
+    : section.cards;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {section.cards.map(({ q, a }) => (
+      {cards.map(({ q, a }) => (
         <div key={q} className="bg-white border border-slate-200 rounded-sm p-4">
           <p className="text-sm font-semibold text-slate-900">{q}</p>
           <p className="text-sm text-slate-500 mt-1 leading-relaxed">{a}</p>
@@ -159,20 +179,52 @@ function SectionBody({ section }) {
   );
 }
 
+function sectionMatchCount(section, query) {
+  if (!query) return 1;
+  if (section.id === "start") return STEPS.filter((s) => stepMatches(s, query)).length;
+  return section.cards.filter(({ q, a }) => matchesQuery(q, query) || matchesQuery(a, query)).length;
+}
+
 export function HelpGuideContent() {
   const [activeId, setActiveId] = useState(null);
+  const [search, setSearch] = useState("");
 
-  const toggle = (id) => setActiveId((current) => (current === id ? null : id));
-  const visibleSections = activeId ? SECTIONS.filter((s) => s.id === activeId) : SECTIONS;
+  const toggle = (id) => {
+    setSearch("");
+    setActiveId((current) => (current === id ? null : id));
+  };
+  const query = search.trim().toLowerCase();
+
+  // A search in progress overrides the topic chips entirely - it looks
+  // across every section for matches instead of just the selected one.
+  const visibleSections = query
+    ? SECTIONS.filter((s) => sectionMatchCount(s, query) > 0)
+    : activeId
+      ? SECTIONS.filter((s) => s.id === activeId)
+      : SECTIONS;
 
   return (
     <div className="space-y-10">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Vendor guide</h1>
         <p className="text-sm text-slate-500 mt-1">
-          No technical know-how required. Tap a topic below to jump straight to it, or leave nothing selected to
-          read everything in order.
+          No technical know-how required. Search for anything below, tap a topic to jump straight to it, or leave
+          nothing selected to read everything in order.
         </p>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => {
+            setActiveId(null);
+            setSearch(e.target.value);
+          }}
+          placeholder="Search the guide..."
+          className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-sm text-base outline-none focus:border-brand-500"
+        />
       </div>
 
       <nav className="flex flex-wrap gap-2">
@@ -182,7 +234,7 @@ export function HelpGuideContent() {
             type="button"
             onClick={() => toggle(id)}
             aria-pressed={activeId === id}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer whitespace-nowrap ${
               activeId === id
                 ? "bg-brand-600 border-brand-600 text-white"
                 : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700"
@@ -195,17 +247,21 @@ export function HelpGuideContent() {
           <button
             type="button"
             onClick={() => setActiveId(null)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer"
+            className="text-xs font-semibold px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer whitespace-nowrap"
           >
             Show all
           </button>
         )}
       </nav>
 
+      {query && visibleSections.length === 0 && (
+        <p className="text-sm text-slate-400">Nothing matches &quot;{search.trim()}&quot; - try a different word, or contact support below.</p>
+      )}
+
       {visibleSections.map((section) => (
         <section key={section.id} className="space-y-4">
           <h2 className="text-lg font-bold text-slate-900">{section.label}</h2>
-          <SectionBody section={section} />
+          <SectionBody section={section} query={query} />
         </section>
       ))}
 
@@ -217,7 +273,7 @@ export function HelpGuideContent() {
         <div className="flex flex-wrap gap-3">
           <Link
             href={`mailto:${SUPPORT_EMAIL}`}
-            className="inline-flex items-center gap-2 text-sm font-semibold bg-brand-600 text-white px-4 py-2.5 rounded-sm hover:bg-brand-700 transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-semibold bg-brand-600 text-white px-4 py-2.5 rounded-sm hover:bg-brand-700 transition-colors whitespace-nowrap"
           >
             <Mail size={16} />
             Email support
@@ -226,7 +282,7 @@ export function HelpGuideContent() {
             href={`https://wa.me/${SUPPORT_WHATSAPP}`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 text-sm font-semibold bg-[#25D366] text-white px-4 py-2.5 rounded-sm hover:brightness-95 transition-[filter]"
+            className="inline-flex items-center gap-2 text-sm font-semibold bg-[#25D366] text-white px-4 py-2.5 rounded-sm hover:brightness-95 transition-[filter] whitespace-nowrap"
           >
             <MessageCircle size={16} />
             WhatsApp us (faster)

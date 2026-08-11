@@ -42,7 +42,7 @@ export function CopyableUrl({ url, shareTitle }) {
         <button
           type="button"
           onClick={handleCopy}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-semibold bg-brand-600 text-white px-3 py-2 rounded-sm hover:bg-brand-700 transition-colors cursor-pointer"
+          className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-semibold bg-brand-600 text-white px-3 py-2 rounded-sm hover:bg-brand-700 transition-colors cursor-pointer whitespace-nowrap"
         >
           {copied ? <Check size={16} /> : <Copy size={16} />}
           {copied ? "Copied!" : "Copy link"}
@@ -51,7 +51,7 @@ export function CopyableUrl({ url, shareTitle }) {
           <button
             type="button"
             onClick={handleShare}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-semibold bg-white border border-slate-200 text-slate-700 px-3 py-2 rounded-sm hover:bg-slate-50 transition-colors cursor-pointer"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-semibold bg-white border border-slate-200 text-slate-700 px-3 py-2 rounded-sm hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap"
           >
             <Share2 size={16} />
             Share

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
+import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
@@ -14,12 +15,15 @@ export default function SuperAdminCustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    apiFetch(`/api/v1/super-admin/customers?page=${page}`)
+    const params = new URLSearchParams({ page: String(page) });
+    if (q.trim()) params.set("q", q.trim());
+    apiFetch(`/api/v1/super-admin/customers?${params}`)
       .then((data) => {
         setCustomers(data.customers);
         setPagination(data.pagination);
@@ -27,11 +31,17 @@ export default function SuperAdminCustomersPage() {
       .catch((err) => toast.error(err.message || "Failed to load customers"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page]);
+  }, [token, page, q]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [q]);
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Customers</h1>
+
+      <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="max-w-sm" />
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
@@ -50,7 +60,7 @@ export default function SuperAdminCustomersPage() {
               <TableRowSkeleton cols={6} />
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">No customers yet</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">{q ? "No customers match your search" : "No customers yet"}</td>
               </tr>
             ) : (
               customers.map((c) => (
