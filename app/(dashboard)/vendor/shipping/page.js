@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
+import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Select } from "@/components/ui/Select.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Button } from "@/components/ui/Button.js";
@@ -18,23 +19,10 @@ export default function VendorShippingPage() {
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
-  const [stores, setStores] = useState([]);
-  const [storeId, setStoreId] = useState("");
+  const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!token) return;
-    apiFetch("/api/v1/vendor/stores")
-      .then((data) => {
-        setStores(data.stores);
-        if (data.stores.length > 0) setStoreId(data.stores[0].id);
-        else setLoading(false);
-      })
-      .catch((err) => toast.error(err.message || "Failed to load your store"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
 
   useEffect(() => {
     if (!storeId) return;
@@ -59,19 +47,13 @@ export default function VendorShippingPage() {
     }
   };
 
-  if (!loading && stores.length === 0) {
+  if (!storesLoading && stores.length === 0) {
     return <p className="text-sm text-slate-400">No store set up yet.</p>;
   }
 
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-xl font-bold text-slate-900">Shipping</h1>
-
-      {stores.length > 1 && (
-        <div className="max-w-xs">
-          <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
-        </div>
-      )}
 
       {loading || !form ? (
         <FormSkeleton fields={3} />

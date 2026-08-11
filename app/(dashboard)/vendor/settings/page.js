@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
+import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Select } from "@/components/ui/Select.js";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
@@ -33,8 +35,8 @@ export default function VendorSettingsPage() {
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
-  const [stores, setStores] = useState([]);
-  const [storeId, setStoreId] = useState("");
+  const { stores, storeId, loading: storesLoading, updateStore } = useVendorStore();
+  const [verification, setVerification] = useState(null);
   const [form, setForm] = useState(null);
   const [commissionRate, setCommissionRate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,13 +52,9 @@ export default function VendorSettingsPage() {
 
   useEffect(() => {
     if (!token) return;
-    apiFetch("/api/v1/vendor/stores")
-      .then((data) => {
-        setStores(data.stores);
-        if (data.stores.length > 0) setStoreId(data.stores[0].id);
-        else setLoading(false);
-      })
-      .catch((err) => toast.error(err.message || "Failed to load your store"));
+    apiFetch("/api/v1/vendor/verification")
+      .then(setVerification)
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -73,7 +71,7 @@ export default function VendorSettingsPage() {
           feeChargedToCustomer: !!data.store.feeChargedToCustomer,
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
-        setStores((prev) => prev.map((s) => (s.id === storeId ? data.store : s)));
+        updateStore(data.store);
       })
       .catch((err) => toast.error(err.message || "Failed to load store"))
       .finally(() => setLoading(false));
@@ -114,7 +112,7 @@ export default function VendorSettingsPage() {
       const url = await uploadFile(token, file, purpose);
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify({ [field]: url }) });
       setForm((f) => ({ ...f, [field]: url }));
-      setStores((prev) => prev.map((s) => (s.id === storeId ? data.store : s)));
+      updateStore(data.store);
       toast.success(field === "logoUrl" ? "Logo updated" : "Favicon updated");
     } catch (err) {
       toast.error(err.message || "Upload failed");
@@ -129,7 +127,7 @@ export default function VendorSettingsPage() {
     setSaving(true);
     try {
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify(form) });
-      setStores((prev) => prev.map((s) => (s.id === storeId ? data.store : s)));
+      updateStore(data.store);
       toast.success("Settings saved");
     } catch (err) {
       toast.error(err.message || "Failed to save settings");
@@ -143,7 +141,7 @@ export default function VendorSettingsPage() {
     setLinkingAccount(true);
     try {
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account`, { method: "POST", body: JSON.stringify(payoutForm) });
-      setStores((prev) => prev.map((s) => (s.id === storeId ? data.store : s)));
+      updateStore(data.store);
       setPayoutForm(EMPTY_PAYOUT_FORM);
       toast.success(`Verified, payouts go to ${data.store.accountName}`);
     } catch (err) {
@@ -153,7 +151,7 @@ export default function VendorSettingsPage() {
     }
   };
 
-  if (!loading && stores.length === 0) {
+  if (!storesLoading && stores.length === 0) {
     return <p className="text-sm text-slate-400">No store set up yet.</p>;
   }
 
@@ -164,17 +162,11 @@ export default function VendorSettingsPage() {
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-xl font-bold text-slate-900">Store settings</h1>
 
-      {stores.length > 1 && (
-        <div className="max-w-xs">
-          <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
-        </div>
-      )}
-
       {loading || !form ? (
         <FormSkeleton fields={4} />
       ) : (
         <>
-          {store && (
+          {store && verification?.approvalStatus === "approved" && (
             <div className="space-y-1.5 max-w-md bg-brand-50 border border-brand-100 rounded-sm p-4">
               <label className="text-sm font-semibold text-slate-900">This is your store&apos;s link</label>
               <p className="text-xs text-slate-500">Anyone who opens it can browse and buy from you - copy it and share it on WhatsApp, Instagram, anywhere.</p>
@@ -183,6 +175,19 @@ export default function VendorSettingsPage() {
                   <CopyableUrl url={getStorefrontUrl(store)} shareTitle={store.name} />
                 </div>
                 <StoreQrCodeButton storeName={store.name} storeUrl={getStorefrontUrl(store)} />
+              </div>
+            </div>
+          )}
+
+          {store && verification && verification.approvalStatus !== "approved" && (
+            <div className="max-w-md flex items-start gap-3 bg-slate-50 border border-dashed border-slate-200 rounded-sm p-4">
+              <ShieldAlert size={18} className="text-slate-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-slate-500">Your store&apos;s link will appear here</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Once your identity is verified, you&apos;ll get a shareable link customers can use to shop from you.{" "}
+                  <Link href="/vendor/verification" className="underline font-medium text-slate-500">Verify now</Link>.
+                </p>
               </div>
             </div>
           )}

@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { toast } from "sonner";
 import {
   Package,
   ShoppingBag,
@@ -18,7 +17,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
-import { Select } from "@/components/ui/Select.js";
+import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Button } from "@/components/ui/Button.js";
 import { StatCard } from "@/components/ui/StatCard.js";
 import { CopyableUrl } from "@/components/ui/CopyableUrl.js";
@@ -75,24 +74,15 @@ function SHORTCUTS(storeId, onOpenGuide) {
 export default function VendorDashboardPage() {
   const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
-  const [stores, setStores] = useState([]);
-  const [storeId, setStoreId] = useState("");
+  const { stores, storeId, loading } = useVendorStore();
   const [stats, setStats] = useState(null);
   const [verification, setVerification] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [guideDismissed, setGuideDismissed] = useState(false);
   const [guideForceOpen, setGuideForceOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
-    apiFetch("/api/v1/vendor/stores")
-      .then((data) => {
-        setStores(data.stores);
-        if (data.stores.length > 0) setStoreId(data.stores[0].id);
-      })
-      .catch((err) => toast.error(err.message || "Failed to load your store"))
-      .finally(() => setLoading(false));
     // Fetched fresh rather than read off the cached login user object -
     // approvalStatus can change any time an admin reviews it, and the
     // dashboard should reflect that without requiring a re-login.
@@ -159,13 +149,7 @@ export default function VendorDashboardPage() {
         <p className="text-sm text-slate-400">No store set up yet, contact the platform admin.</p>
       ) : (
         <>
-          {stores.length > 1 && (
-            <div className="max-w-xs">
-              <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
-            </div>
-          )}
-
-          {store && (
+          {store && verification?.approvalStatus === "approved" && (
             <div className="space-y-1.5 max-w-md bg-brand-50 border border-brand-100 rounded-sm p-4">
               <label className="text-sm font-semibold text-slate-900">This is your store&apos;s link</label>
               <p className="text-xs text-slate-500">Anyone who opens it can browse and buy from you - copy it and share it on WhatsApp, Instagram, anywhere.</p>
@@ -175,6 +159,13 @@ export default function VendorDashboardPage() {
                 </div>
                 <StoreQrCodeButton storeName={store.name} storeUrl={getStorefrontUrl(store)} />
               </div>
+            </div>
+          )}
+
+          {store && verification && verification.approvalStatus !== "approved" && (
+            <div className="max-w-md bg-slate-50 border border-dashed border-slate-200 rounded-sm p-4">
+              <p className="text-sm font-semibold text-slate-500">Your store&apos;s link will appear here</p>
+              <p className="text-xs text-slate-400 mt-0.5">Once your identity is verified below, you&apos;ll get a shareable link customers can use to shop from you.</p>
             </div>
           )}
 

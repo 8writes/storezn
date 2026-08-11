@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
-import { Select } from "@/components/ui/Select.js";
+import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
@@ -16,25 +16,12 @@ export default function VendorCustomersPage() {
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
-  const [stores, setStores] = useState([]);
-  const [storeId, setStoreId] = useState("");
+  const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [customers, setCustomers] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!token) return;
-    apiFetch("/api/v1/vendor/stores")
-      .then((data) => {
-        setStores(data.stores);
-        if (data.stores.length > 0) setStoreId(data.stores[0].id);
-        else setLoading(false);
-      })
-      .catch((err) => toast.error(err.message || "Failed to load your store"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
 
   useEffect(() => {
     if (!storeId) return;
@@ -55,7 +42,7 @@ export default function VendorCustomersPage() {
     setPage(1);
   }, [storeId, q]);
 
-  if (!loading && stores.length === 0) {
+  if (!storesLoading && stores.length === 0) {
     return <p className="text-sm text-slate-400">No store set up yet.</p>;
   }
 
@@ -63,14 +50,7 @@ export default function VendorCustomersPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Customers</h1>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        {stores.length > 1 && (
-          <div className="max-w-xs">
-            <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
-          </div>
-        )}
-        <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="max-w-sm" />
-      </div>
+      <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="max-w-sm" />
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">

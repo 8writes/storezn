@@ -58,7 +58,7 @@ export default function SuperAdminOrdersPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Orders</h1>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="max-w-xs">
           <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
         </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
+import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Select } from "@/components/ui/Select.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
@@ -30,26 +31,13 @@ export default function VendorOrdersPage() {
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
-  const [stores, setStores] = useState([]);
-  const [storeId, setStoreId] = useState("");
+  const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!token) return;
-    apiFetch("/api/v1/vendor/stores")
-      .then((data) => {
-        setStores(data.stores);
-        if (data.stores.length > 0) setStoreId(data.stores[0].id);
-        else setLoading(false);
-      })
-      .catch((err) => toast.error(err.message || "Failed to load your store"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
 
   useEffect(() => {
     if (!storeId) return;
@@ -71,7 +59,7 @@ export default function VendorOrdersPage() {
     setPage(1);
   }, [status, q, storeId]);
 
-  if (!loading && stores.length === 0) {
+  if (!storesLoading && stores.length === 0) {
     return <p className="text-sm text-slate-400">No store set up yet.</p>;
   }
 
@@ -86,12 +74,7 @@ export default function VendorOrdersPage() {
         </Link>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        {stores.length > 1 && (
-          <div className="max-w-xs">
-            <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
-          </div>
-        )}
+      <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="max-w-xs">
           <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
         </div>
