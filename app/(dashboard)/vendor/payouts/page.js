@@ -89,16 +89,30 @@ export default function VendorPayoutsPage() {
 
       {stores.length > 1 && (
         <div className="max-w-xs">
-          <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+          <Select
+            label="Store"
+            options={stores.map((s) => ({ value: s.id, label: s.name }))}
+            value={storeId}
+            onChange={setStoreId}
+          />
         </div>
       )}
 
       {!data?.payoutAccount && !loading && (
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-sm p-4">
-          <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+          <AlertTriangle
+            size={18}
+            className="text-amber-600 shrink-0 hidden md:block mt-0.5"
+          />
           <div className="text-sm text-amber-800">
             <p className="font-medium">No payout account linked</p>
-            <p>Online orders can&apos;t pay out until you link a bank account. <Link href="/vendor/settings" className="underline font-medium">Link one now</Link>.</p>
+            <p>
+              Online orders can&apos;t pay out until you link a bank account.{" "}
+              <Link href="/vendor/settings" className="underline font-medium">
+                Link one now
+              </Link>
+              .
+            </p>
           </div>
         </div>
       )}
@@ -106,22 +120,41 @@ export default function VendorPayoutsPage() {
       {data?.payoutAccount && (
         <div className="bg-white border border-slate-200 rounded-sm p-4 flex items-center gap-3">
           <div className="w-9 h-9 rounded-sm bg-brand-100 text-brand-700 flex items-center justify-center shrink-0">
-            <Landmark size={16} />
+            <Landmark size={16} className="hidden md:block" />
           </div>
           <div className="text-sm min-w-0">
-            <p className="font-medium text-slate-900">Online orders pay out to this account</p>
-            <p className="text-slate-500">{data.payoutAccount.accountName} · {data.payoutAccount.bankName} · {data.payoutAccount.accountNumber}</p>
+            <p className="font-medium text-slate-900">
+              Online orders pay out to this account
+            </p>
+            <p className="text-slate-500">
+              {data.payoutAccount.accountName} · {data.payoutAccount.bankName} ·{" "}
+              {data.payoutAccount.accountNumber}
+            </p>
           </div>
         </div>
       )}
 
       <div className="flex items-start gap-3 bg-brand-50 border border-brand-100 rounded-sm p-4">
-        <Info size={18} className="text-brand-600 shrink-0 mt-0.5" />
+        <Info
+          size={18}
+          className="text-brand-600 hidden md:block shrink-0 mt-0.5"
+        />
         <div className="flex-1 text-sm text-brand-800">
           <p>
-            Paystack settles online orders to your bank account <strong>the next business day</strong> after payment, not instantly - weekends push it to the following Monday. Offline sales are already yours since you collected them in person.
+            Paystack settles online orders to your bank account{" "}
+            <strong>the next business day</strong> after payment, not instantly
+            - weekends push it to the following Monday. Offline sales are
+            already yours since you collected them in person.
           </p>
-          <Button type="button" size="sm" variant="secondary" className="mt-3" loading={checkingSettlements} onClick={handleCheckSettlements} disabled={!data?.payoutAccount}>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="mt-3"
+            loading={checkingSettlements}
+            onClick={handleCheckSettlements}
+            disabled={!data?.payoutAccount}
+          >
             <RefreshCw size={14} /> Check settlements
           </Button>
         </div>
@@ -131,15 +164,39 @@ export default function VendorPayoutsPage() {
         <StatGridSkeleton count={4} />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard icon={Wallet} label="Lifetime payouts" value={formatCurrency(data.stats.lifetimeTotal)} color="green" />
-          <StatCard icon={Calendar} label="This month" value={formatCurrency(data.stats.thisMonthTotal)} />
-          <StatCard icon={Landmark} label="Via Paystack" value={formatCurrency(data.stats.onlineTotal)} sub={`${data.stats.ordersCount} paid · ${data.stats.pendingSettlementCount} pending`} />
-          <StatCard icon={Wallet} label="Recorded offline" value={formatCurrency(data.stats.offlineTotal)} color="amber" />
+          <StatCard
+            icon={Wallet}
+            label="Lifetime payouts"
+            value={formatCurrency(data.stats.lifetimeTotal)}
+            color="green"
+          />
+          <StatCard
+            icon={Calendar}
+            label="This month"
+            value={formatCurrency(data.stats.thisMonthTotal)}
+          />
+          <StatCard
+            icon={Landmark}
+            label="Via Paystack"
+            value={formatCurrency(data.stats.onlineTotal)}
+            sub={`${data.stats.ordersCount} paid · ${data.stats.pendingSettlementCount} pending`}
+          />
+          <StatCard
+            icon={Wallet}
+            label="Recorded offline"
+            value={formatCurrency(data.stats.offlineTotal)}
+            color="amber"
+          />
         </div>
       )}
 
       <div className="max-w-xs">
-        <Select label="Filter" options={CHANNEL_OPTIONS} value={channel} onChange={setChannel} />
+        <Select
+          label="Filter"
+          options={CHANNEL_OPTIONS}
+          value={channel}
+          onChange={setChannel}
+        />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
@@ -160,7 +217,12 @@ export default function VendorPayoutsPage() {
               <TableRowSkeleton cols={7} />
             ) : data.transactions.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">No payouts yet</td>
+                <td
+                  colSpan={7}
+                  className="px-4 py-6 text-center text-slate-400"
+                >
+                  No payouts yet
+                </td>
               </tr>
             ) : (
               data.transactions.map((t) => {
@@ -168,24 +230,47 @@ export default function VendorPayoutsPage() {
                 return (
                   <tr key={t.id} className="border-t border-slate-100">
                     <td className="px-4 py-3 font-medium text-slate-900">
-                      <Link href={`/vendor/orders/${t.id}?storeId=${storeId}`} className="hover:underline">{t.orderNumber}</Link>
+                      <Link
+                        href={`/vendor/orders/${t.id}?storeId=${storeId}`}
+                        className="hover:underline"
+                      >
+                        {t.orderNumber}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{formatDate(paidAt)}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatCurrency(t.totalAmount)}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatCurrency(t.commissionAmount)} ({t.commissionRatePercent}%)</td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{formatCurrency(t.vendorPayoutAmount)}</td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {formatDate(paidAt)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {formatCurrency(t.totalAmount)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {formatCurrency(t.commissionAmount)} (
+                      {t.commissionRatePercent}%)
+                    </td>
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {formatCurrency(t.vendorPayoutAmount)}
+                    </td>
                     <td className="px-4 py-3">
-                      <Badge color={t.isOffline ? "amber" : "green"}>{t.isOffline ? "Offline" : "Paystack"}</Badge>
+                      <Badge color={t.isOffline ? "amber" : "green"}>
+                        {t.isOffline ? "Offline" : "Paystack"}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3">
                       {t.isOffline ? (
-                        <span className="text-slate-400">Collected in person</span>
+                        <span className="text-slate-400">
+                          Collected in person
+                        </span>
                       ) : t.settledAt ? (
-                        <Badge color="green">Paid {formatDate(t.settledAt)}</Badge>
+                        <Badge color="green">
+                          Paid {formatDate(t.settledAt)}
+                        </Badge>
                       ) : (
                         <div>
                           <Badge color="amber">Pending</Badge>
-                          <p className="text-xs text-slate-400 mt-0.5">Expected {formatDate(estimatedSettlementDate(paidAt))}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Expected{" "}
+                            {formatDate(estimatedSettlementDate(paidAt))}
+                          </p>
                         </div>
                       )}
                     </td>
