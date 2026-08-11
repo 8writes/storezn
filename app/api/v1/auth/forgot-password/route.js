@@ -43,7 +43,7 @@ export async function POST(req) {
       to: user.email,
       subject: "Reset your password",
       html: `<p>A password reset was requested for your account.</p><p>Click below to reset your password. This link expires in 1 hour.</p><p><a href="${resetUrl}">Reset Password</a></p>`,
-    }).catch(() => {});
+    }).catch((err) => console.error("sendMail failed (forgot-password):", err));
   }
 
   return NextResponse.json({ ok: true });

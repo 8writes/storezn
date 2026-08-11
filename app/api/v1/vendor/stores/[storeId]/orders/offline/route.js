@@ -152,7 +152,7 @@ export async function POST(req, { params }) {
       subject: `Order confirmation - ${order.orderNumber}`,
       html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${store.name} has been recorded.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
       fromName: store.name,
-    }).catch(() => {});
+    }).catch((err) => console.error("sendMail failed (offline order confirmation):", err));
   }
 
   return NextResponse.json({ order }, { status: 201 });

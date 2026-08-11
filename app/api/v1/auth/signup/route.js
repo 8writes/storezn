@@ -38,7 +38,7 @@ export async function POST(req) {
     .values({ storeId: store.id, firstName, lastName, email, passwordHash, role: "customer", termsAcceptedAt: new Date() })
     .returning();
 
-  sendVerificationEmail({ user: created, req }).catch(() => {});
+  sendVerificationEmail({ user: created, req }).catch((err) => console.error("sendVerificationEmail failed (signup):", err));
 
   const { passwordHash: _, ...safeUser } = created;
   return NextResponse.json({ user: safeUser }, { status: 201 });

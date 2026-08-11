@@ -24,7 +24,7 @@ export async function POST(req) {
   // reasoning as forgot-password.
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (user && !user.emailVerified) {
-    sendVerificationEmail({ user, req }).catch(() => {});
+    sendVerificationEmail({ user, req }).catch((err) => console.error("sendVerificationEmail failed (resend-verification):", err));
   }
 
   return NextResponse.json({ ok: true });

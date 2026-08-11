@@ -106,7 +106,7 @@ export async function POST(req) {
       subject: `Order confirmation - ${order.orderNumber}`,
       html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${store?.name || "the store"} has been received.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
       fromName: store?.name,
-    }).catch(() => {});
+    }).catch((err) => console.error("sendMail failed (order confirmation):", err));
   }
 
   return NextResponse.json({ received: true });

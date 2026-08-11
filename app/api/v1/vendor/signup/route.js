@@ -60,7 +60,7 @@ export async function POST(req) {
     return { store, vendorUser };
   });
 
-  sendVerificationEmail({ user: created.vendorUser, req }).catch(() => {});
+  sendVerificationEmail({ user: created.vendorUser, req }).catch((err) => console.error("sendVerificationEmail failed (vendor signup):", err));
 
   const { passwordHash: _, ...safeVendor } = created.vendorUser;
   return NextResponse.json({ store: created.store, vendor: safeVendor }, { status: 201 });
