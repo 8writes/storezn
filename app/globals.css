@@ -46,6 +46,15 @@ body {
   animation: spin 0.7s linear infinite;
 }
 
+.spinner-lg {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-brand-200);
+  border-top-color: var(--color-brand-600);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 .nav-link-hint {
   display: inline-block;
   width: 0.5em;
