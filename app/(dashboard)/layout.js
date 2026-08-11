@@ -91,7 +91,7 @@ export default function DashboardLayout({ children }) {
     // Sticky sidebar, not a fixed-height internally-scrolled container -
     // see school-app's layout.js for why: nested overflow containers get
     // the 100vh math wrong across embedded webviews/mobile browser chrome
-    // and end up dragging the sidebar away as the page scrolls.
+    // and end up dragging the sidebar away as the page scroll.
     <div className="min-h-screen flex">
       <Toaster position="top-right" offset="10vh" closeButton={true} />
 
