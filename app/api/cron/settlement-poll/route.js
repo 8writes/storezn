@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { db } from "../../../../../lib/db/index.js";
-import { stores } from "../../../../../lib/db/schema.js";
+import { db } from "../../../../lib/db/index.js";
+import { stores } from "../../../../lib/db/schema.js";
 import { isNotNull } from "drizzle-orm";
-import { syncStoreSettlements } from "../../../../../lib/settlementSync.js";
+import { syncStoreSettlements } from "../../../../lib/settlementSync.js";
 
-// Vercel invokes crons (see vercel.json) with this header when
-// CRON_SECRET is set - without this check anyone could hit the route and
-// trigger a burst of Vercel API calls.
+// Triggered by an external scheduler (not a Vercel cron - see the
+// platform owner's call not to configure any cron in vercel.json), which
+// must send this header - without it anyone could hit the route and
+// trigger a burst of Paystack API calls.
 export async function GET(req) {
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
