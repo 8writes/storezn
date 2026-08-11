@@ -9,7 +9,7 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata = {
   title: "Storezn",
-  description: "Multi-tenant e-commerce platform, every vendor gets their own dedicated store.",
+  description: "E-commerce platform, get your own dedicated store.",
 };
 
 export const viewport = {
