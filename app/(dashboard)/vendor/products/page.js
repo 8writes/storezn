@@ -116,12 +116,12 @@ export default function VendorProductsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Badge color={p.isActive ? "green" : "slate"}>{p.isActive ? "Live" : "Hidden"}</Badge>
+                      <Badge color={p.isActive ? "green" : "slate"}>{p.isActive ? "Live" : "Archived"}</Badge>
                       {p.suspendedAt && <Badge color="red">Suspended</Badge>}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                    <Link href={`/vendor/products/${p.id}?storeId=${storeId}`} className="text-brand-600 hover:underline">Edit</Link>
+                    <Link href={`/vendor/products/${p.id}/edit?storeId=${storeId}`} className="text-brand-600 hover:underline">Edit</Link>
                   </td>
                 </tr>
               ))

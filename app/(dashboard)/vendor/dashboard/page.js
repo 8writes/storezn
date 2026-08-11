@@ -45,7 +45,7 @@ function buildSetupSteps({ store, verification, stats }) {
       label: "Link your bank account",
       description: "This is where your money gets paid whenever someone buys online.",
       done: !!store.subAccountCode,
-      href: "/vendor/settings",
+      href: "/vendor/payouts",
     },
     {
       label: "Add your first product",
@@ -204,7 +204,7 @@ export default function VendorDashboardPage() {
               <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-800">
                 <p className="font-medium">Payment setup incomplete</p>
-                <p>Customers can&apos;t check out from your store yet. <Link href="/vendor/settings" className="underline font-medium">Finish payment setup</Link>.</p>
+                <p>Customers can&apos;t check out from your store yet. <Link href="/vendor/payouts" className="underline font-medium">Finish payment setup</Link>.</p>
               </div>
             </div>
           )}

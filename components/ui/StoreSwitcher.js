@@ -33,14 +33,14 @@ export function StoreSwitcher({ token, textClassName }) {
     // on any click (see (dashboard)/layout.js) - stops that click from
     // also reaching the header while someone's actually using the
     // switcher/its dropdown/its "Add store" modal.
-    <div className="relative" ref={ref} onClick={(e) => e.stopPropagation()}>
+    <div className="relative flex-1 min-w-0" ref={ref} onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 min-w-0 cursor-pointer"
+        className="flex items-center gap-1.5 min-w-0 w-full cursor-pointer"
       >
         <span className={`truncate ${textClassName}`}>{current.name}</span>
-        {stores.length > 1 && <ChevronDown size={14} className="text-white/60 shrink-0" />}
+        <ChevronDown size={14} className="text-white/60 shrink-0" />
       </button>
 
       {open && (

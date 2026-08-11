@@ -13,6 +13,19 @@ async function loadStoreAndProduct(storeId, productId) {
   return { store, product };
 }
 
+export async function GET(req, { params }) {
+  const user = await getUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { storeId, id } = await params;
+  const { store, product } = await loadStoreAndProduct(storeId, id);
+  if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
+  if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+
+  return NextResponse.json({ product });
+}
+
 export async function PATCH(req, { params }) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

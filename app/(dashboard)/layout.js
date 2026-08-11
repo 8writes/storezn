@@ -184,13 +184,13 @@ export default function DashboardLayout({ children }) {
           onClick={() => setDrawerOpen(true)}
           className="sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 bg-brand-900 text-white shrink-0 cursor-pointer"
         >
-          <span className="w-5.5" />
+          <span className="w-5.5 shrink-0" />
           {isVendor ? (
-            <StoreSwitcher token={token} textClassName="font-extrabold tracking-tight text-sm max-w-[60%]" />
+            <StoreSwitcher token={token} textClassName="font-extrabold tracking-tight text-sm" />
           ) : (
             <Image src="/storezn-logo.png" alt="Storezn" width={110} height={27} priority unoptimized />
           )}
-          <button type="button" aria-label="Open menu" className="cursor-pointer">
+          <button type="button" aria-label="Open menu" className="cursor-pointer shrink-0">
             <Menu size={22} />
           </button>
         </header>

@@ -3,11 +3,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Wallet, Calendar, Landmark, AlertTriangle, Info, RefreshCw } from "lucide-react";
+import { Wallet, Calendar, Landmark, Info, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Select } from "@/components/ui/Select.js";
+import { Input } from "@/components/ui/Input.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
@@ -23,18 +24,35 @@ const CHANNEL_OPTIONS = [
   { value: "offline", label: "Recorded offline" },
 ];
 
+const EMPTY_PAYOUT_FORM = { bankCode: "", accountNumber: "" };
+
 export default function VendorPayoutsPage() {
   const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
-  const { stores, storeId, loading: storesLoading } = useVendorStore();
+  const { stores, storeId, loading: storesLoading, updateStore } = useVendorStore();
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [channel, setChannel] = useState("");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [checkingSettlements, setCheckingSettlements] = useState(false);
+
+  const [banks, setBanks] = useState([]);
+  const [banksLoading, setBanksLoading] = useState(true);
+  const [payoutForm, setPayoutForm] = useState(EMPTY_PAYOUT_FORM);
+  const [linkingAccount, setLinkingAccount] = useState(false);
+
+  useEffect(() => {
+    if (!storeId) return;
+    setBanksLoading(true);
+    apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account`)
+      .then((data) => setBanks(data.banks || []))
+      .catch((err) => toast.error(err.message || "Failed to load bank list"))
+      .finally(() => setBanksLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId]);
 
   const loadPayouts = () => {
     if (!storeId) return Promise.resolve();
@@ -56,6 +74,22 @@ export default function VendorPayoutsPage() {
   useEffect(() => {
     setPage(1);
   }, [channel, q, storeId]);
+
+  const handleLinkAccount = async (e) => {
+    e.preventDefault();
+    setLinkingAccount(true);
+    try {
+      const result = await apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account`, { method: "POST", body: JSON.stringify(payoutForm) });
+      updateStore(result.store);
+      setPayoutForm(EMPTY_PAYOUT_FORM);
+      toast.success(`Verified, payouts go to ${result.store.accountName}`);
+      loadPayouts();
+    } catch (err) {
+      toast.error(err.message || "Could not verify that account");
+    } finally {
+      setLinkingAccount(false);
+    }
+  };
 
   const handleCheckSettlements = async () => {
     setCheckingSettlements(true);
@@ -80,41 +114,52 @@ export default function VendorPayoutsPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Payouts</h1>
 
-      {!data?.payoutAccount && !loading && (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-sm p-4">
-          <AlertTriangle
-            size={18}
-            className="text-amber-600 shrink-0 hidden md:block mt-0.5"
-          />
-          <div className="text-sm text-amber-800">
-            <p className="font-medium">No payout account linked</p>
-            <p>
-              Online orders can&apos;t pay out until you link a bank account.{" "}
-              <Link href="/vendor/settings" className="underline font-medium">
-                Link one now
-              </Link>
-              .
-            </p>
-          </div>
+      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-slate-700">Payout account</label>
+          <Badge color={data?.payoutAccount ? "green" : "amber"}>
+            {data?.payoutAccount ? "Verified" : "Not linked"}
+          </Badge>
         </div>
-      )}
 
-      {data?.payoutAccount && (
-        <div className="bg-white border border-slate-200 rounded-sm p-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-sm bg-brand-100 text-brand-700 hidden md:flex items-center justify-center shrink-0">
-            <Landmark size={16} />
+        {data?.payoutAccount ? (
+          <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-sm p-4 text-sm text-green-800">
+            <Landmark size={18} className="shrink-0 mt-0.5 hidden md:block" />
+            <div>
+              <p className="font-medium">{data.payoutAccount.accountName}</p>
+              <p>{data.payoutAccount.bankName} · {data.payoutAccount.accountNumber}</p>
+              <p className="text-xs text-green-700 mt-1">Online orders pay out to this account automatically. To change it, link a new account below.</p>
+            </div>
           </div>
-          <div className="text-sm min-w-0">
-            <p className="font-medium text-slate-900">
-              Online orders pay out to this account
-            </p>
-            <p className="text-slate-500">
-              {data.payoutAccount.accountName} · {data.payoutAccount.bankName} ·{" "}
-              {data.payoutAccount.accountNumber}
-            </p>
-          </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-xs text-slate-500">
+            Enter your bank account below - we verify it and set up automatic payouts through Paystack. Customers can&apos;t check out from your store until this is done.
+          </p>
+        )}
+
+        <form onSubmit={handleLinkAccount} className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+          <Select
+            label="Bank"
+            options={banks.map((b) => ({ value: b.code, label: b.name }))}
+            loading={banksLoading}
+            searchable
+            value={payoutForm.bankCode}
+            onChange={(v) => setPayoutForm((f) => ({ ...f, bankCode: v }))}
+            required
+          />
+          <Input
+            label="Account number"
+            placeholder="0123456789"
+            maxLength={10}
+            value={payoutForm.accountNumber}
+            onChange={(e) => setPayoutForm((f) => ({ ...f, accountNumber: e.target.value.replace(/\D/g, "") }))}
+            required
+          />
+          <Button type="submit" loading={linkingAccount} className="sm:col-span-2 w-fit">
+            {data?.payoutAccount ? "Link a different account" : "Verify & link account"}
+          </Button>
+        </form>
+      </div>
 
       <div className="flex items-start gap-3 bg-brand-50 border border-brand-100 rounded-sm p-4">
         <Info
@@ -198,7 +243,7 @@ export default function VendorPayoutsPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {loading || !data ? (
               <TableRowSkeleton cols={7} />
             ) : data.transactions.length === 0 ? (
               <tr>

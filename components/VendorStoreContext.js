@@ -14,7 +14,7 @@ export const MAX_STORES_PER_VENDOR = 3;
 // a reload/new tab, not just in-session navigation.
 export function VendorStoreProvider({ token, apiFetch, children }) {
   const [stores, setStores] = useState([]);
-  const [storeId, setStoreIdState] = useState("");
+  const [storeIdState, setStoreIdState] = useState("");
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
@@ -36,6 +36,15 @@ export function VendorStoreProvider({ token, apiFetch, children }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Self-healing: computed at render time from the current stores list
+  // rather than trusted as raw state. If storeIdState ever doesn't match
+  // any store this account actually owns - a stale localStorage value
+  // from another account on the same browser, a store that got removed,
+  // anything - every consumer instantly falls back to a real one instead
+  // of continuing to hammer every /api/v1/vendor/stores/<bad-id>/* route
+  // with 401s.
+  const storeId = storeIdState && stores.some((s) => s.id === storeIdState) ? storeIdState : stores[0]?.id || "";
 
   const setStoreId = (id) => {
     setStoreIdState(id);
