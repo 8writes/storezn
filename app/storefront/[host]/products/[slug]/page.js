@@ -96,7 +96,13 @@ export default async function StorefrontProductPage({ params }) {
           </p>
 
           <div className="pt-2 border-t border-slate-100">
-            <AddToCartButton productId={product.id} basePrice={product.price} productType={product.productType} variants={variants} />
+            <AddToCartButton
+              productId={product.id}
+              basePrice={product.price}
+              baseStock={product.stock}
+              productType={product.productType}
+              variants={variants}
+            />
           </div>
         </div>
       </div>

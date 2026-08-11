@@ -358,7 +358,10 @@ function VariantsManager({ storeId, productId, apiFetch }) {
         <p className="text-sm font-semibold text-slate-700">Variants</p>
         <p className="text-xs text-slate-500">
           e.g. Size: Large, Color: Red - each with its own price/stock. Leave
-          empty to sell this product as-is.
+          empty to sell this product as-is. Adding variants doesn&apos;t
+          replace the product&apos;s own price/stock above - customers can
+          still buy it as &quot;Standard&quot; alongside whatever variants
+          you add.
         </p>
       </div>
 

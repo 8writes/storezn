@@ -93,10 +93,14 @@ export async function POST(req) {
     .limit(1);
   if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
-  const variantRows = await db.select().from(productVariants).where(and(eq(productVariants.productId, productId), eq(productVariants.isActive, true)));
+  // A null variantId is valid even for a product that has variants - the
+  // storefront offers the product's own base price/stock as its own
+  // "Standard" choice alongside the real variants (see
+  // AddToCartButton.js), so "no variant" isn't just the no-variants-exist
+  // case anymore.
   let variant = null;
-  if (variantRows.length > 0) {
-    if (!variantId) return NextResponse.json({ error: "Please select an option" }, { status: 400 });
+  if (variantId) {
+    const variantRows = await db.select().from(productVariants).where(and(eq(productVariants.productId, productId), eq(productVariants.isActive, true)));
     variant = variantRows.find((v) => v.id === variantId);
     if (!variant) return NextResponse.json({ error: "That option is no longer available" }, { status: 404 });
   }
