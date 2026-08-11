@@ -46,6 +46,12 @@ export async function POST(req) {
         email: vendor.email,
         passwordHash,
         role: "vendor",
+        // TEMPORARY: verification emails aren't sending in production
+        // (see console.error logging added on the sendVerificationEmail
+        // call below - check Vercel Runtime Logs for the real cause).
+        // Defaulting new vendors to verified so they aren't blocked in
+        // the meantime. Revert once email delivery is confirmed fixed.
+        emailVerified: true,
         termsAcceptedAt: new Date(),
         // Every other role defaults to "approved" (see
         // users.approvalStatus in lib/db/schema.js) - a new vendor

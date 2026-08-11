@@ -35,7 +35,21 @@ export async function POST(req) {
   const passwordHash = await bcrypt.hash(password, 10);
   const [created] = await db
     .insert(users)
-    .values({ storeId: store.id, firstName, lastName, email, passwordHash, role: "customer", termsAcceptedAt: new Date() })
+    .values({
+      storeId: store.id,
+      firstName,
+      lastName,
+      email,
+      passwordHash,
+      role: "customer",
+      // TEMPORARY: verification emails aren't sending in production (see
+      // console.error logging on the sendVerificationEmail call below -
+      // check Vercel Runtime Logs for the real cause). Defaulting new
+      // customers to verified so they aren't blocked in the meantime.
+      // Revert once email delivery is confirmed fixed.
+      emailVerified: true,
+      termsAcceptedAt: new Date(),
+    })
     .returning();
 
   sendVerificationEmail({ user: created, req }).catch((err) => console.error("sendVerificationEmail failed (signup):", err));

@@ -1,5 +1,6 @@
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import RegisterServiceWorker from "./RegisterServiceWorker.js";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -10,6 +11,16 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata = {
   title: "Storezn",
   description: "E-commerce platform, get your own dedicated store.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Storezn",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport = {
@@ -29,6 +40,7 @@ export default function RootLayout({ children }) {
           runaway-width content from creating page-level horizontal
           scroll on mobile without that side effect. */}
       <body className="min-h-full overflow-x-clip bg-slate-50 text-slate-900 antialiased">
+        <RegisterServiceWorker />
         {children}
       </body>
     </html>
