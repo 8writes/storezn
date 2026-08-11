@@ -175,11 +175,12 @@ export default function VendorSettingsPage() {
       ) : (
         <>
           {store && (
-            <div className="space-y-1.5 max-w-md">
-              <label className="text-sm font-medium text-slate-700">Your storefront</label>
-              <div className="flex items-center gap-2">
+            <div className="space-y-1.5 max-w-md bg-brand-50 border border-brand-100 rounded-sm p-4">
+              <label className="text-sm font-semibold text-slate-900">This is your store&apos;s link</label>
+              <p className="text-xs text-slate-500">Anyone who opens it can browse and buy from you - copy it and share it on WhatsApp, Instagram, anywhere.</p>
+              <div className="flex items-start gap-2 pt-1">
                 <div className="flex-1 min-w-0">
-                  <CopyableUrl url={getStorefrontUrl(store)} />
+                  <CopyableUrl url={getStorefrontUrl(store)} shareTitle={store.name} />
                 </div>
                 <StoreQrCodeButton storeName={store.name} storeUrl={getStorefrontUrl(store)} />
               </div>

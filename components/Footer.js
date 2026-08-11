@@ -1,3 +1,4 @@
+import Link from "next/link";
 
 export function Footer() {
   return (
@@ -7,7 +8,10 @@ export function Footer() {
           <p>
             &copy; {new Date().getFullYear()} Storezn. All rights reserved.
           </p>
-          <p>
+          <div className="flex items-center gap-4">
+            <Link href="/help" className="hover:underline">
+              Vendor guide
+            </Link>
             <a
               href="https://ozmictech.com/"
               target="_blank"
@@ -15,7 +19,7 @@ export function Footer() {
             >
               Powered by Ozmictech
             </a>
-          </p>
+          </div>
         </div>
       </div>
     </footer>

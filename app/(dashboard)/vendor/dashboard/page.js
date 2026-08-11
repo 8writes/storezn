@@ -1,8 +1,21 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Package, ShoppingBag, Wallet, AlertTriangle, Plus, ShieldAlert } from "lucide-react";
+import {
+  Package,
+  ShoppingBag,
+  Wallet,
+  AlertTriangle,
+  Plus,
+  ShieldAlert,
+  Settings,
+  ShieldCheck,
+  Truck,
+  Users,
+  HelpCircle,
+  ListChecks,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Select } from "@/components/ui/Select.js";
@@ -10,9 +23,54 @@ import { Button } from "@/components/ui/Button.js";
 import { StatCard } from "@/components/ui/StatCard.js";
 import { CopyableUrl } from "@/components/ui/CopyableUrl.js";
 import { StoreQrCodeButton } from "@/components/ui/StoreQrCodeButton.js";
+import { SetupGuideModal } from "@/components/ui/SetupGuideModal.js";
 import { Skeleton, StatGridSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
+
+function buildSetupSteps({ store, verification, stats }) {
+  return [
+    {
+      label: "Verify your identity",
+      description: "Customers can't see your store until this is approved.",
+      done: verification?.approvalStatus === "approved",
+      href: "/vendor/verification",
+    },
+    {
+      label: "Add your logo",
+      description: "Helps customers recognize and trust your store.",
+      done: !!store.logoUrl,
+      href: "/vendor/settings",
+    },
+    {
+      label: "Link your bank account",
+      description: "This is where your money gets paid whenever someone buys online.",
+      done: !!store.subAccountCode,
+      href: "/vendor/settings",
+    },
+    {
+      label: "Add your first product",
+      description: "Customers need something to buy.",
+      done: (stats?.products?.total ?? 0) > 0,
+      href: `/vendor/products/new?storeId=${store.id}`,
+      cta: "Add product →",
+    },
+  ];
+}
+
+function SHORTCUTS(storeId, onOpenGuide) {
+  return [
+    { label: "Add product", icon: Plus, href: `/vendor/products/new?storeId=${storeId}` },
+    { label: "Orders", icon: ShoppingBag, href: "/vendor/orders" },
+    { label: "Payouts", icon: Wallet, href: "/vendor/payouts" },
+    { label: "Store settings", icon: Settings, href: "/vendor/settings" },
+    { label: "Verification", icon: ShieldCheck, href: "/vendor/verification" },
+    { label: "Shipping", icon: Truck, href: "/vendor/shipping" },
+    { label: "Customers", icon: Users, href: "/vendor/customers" },
+    { label: "Help", icon: HelpCircle, href: "/vendor/help" },
+    { label: "Setup guide", icon: ListChecks, onClick: onOpenGuide },
+  ];
+}
 
 export default function VendorDashboardPage() {
   const { user, token } = useAuth(true);
@@ -23,6 +81,8 @@ export default function VendorDashboardPage() {
   const [verification, setVerification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [guideDismissed, setGuideDismissed] = useState(false);
+  const [guideForceOpen, setGuideForceOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -63,8 +123,26 @@ export default function VendorDashboardPage() {
     );
   }
 
+  const steps = store ? buildSetupSteps({ store, verification, stats }) : [];
+  const allStepsDone = steps.length > 0 && steps.every((s) => s.done);
+  // Read once per render, only reached after the client-only fetches above
+  // have already resolved (loading is false) - never evaluated during SSR
+  // or the initial hydration pass, so there's no server/client mismatch to
+  // guard against here the way a top-level "on mount" read would need.
+  const dismissKey = store ? `setup_guide_dismissed_${store.id}` : null;
+  const previouslyDismissed = dismissKey && typeof window !== "undefined" && !!localStorage.getItem(dismissKey);
+  const guideOpen = guideForceOpen || (!!store && !allStepsDone && !guideDismissed && !previouslyDismissed);
+
+  const closeGuide = () => {
+    setGuideForceOpen(false);
+    setGuideDismissed(true);
+    if (dismissKey) localStorage.setItem(dismissKey, "1");
+  };
+
   return (
     <div className="space-y-6">
+      <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />
+
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-slate-900">Welcome, {user?.firstName}</h1>
         {stores.length > 0 && (
@@ -88,11 +166,12 @@ export default function VendorDashboardPage() {
           )}
 
           {store && (
-            <div className="space-y-1.5 max-w-md">
-              <label className="text-sm font-medium text-slate-700">Your storefront</label>
-              <div className="flex items-center gap-2">
+            <div className="space-y-1.5 max-w-md bg-brand-50 border border-brand-100 rounded-sm p-4">
+              <label className="text-sm font-semibold text-slate-900">This is your store&apos;s link</label>
+              <p className="text-xs text-slate-500">Anyone who opens it can browse and buy from you - copy it and share it on WhatsApp, Instagram, anywhere.</p>
+              <div className="flex items-start gap-2 pt-1">
                 <div className="flex-1 min-w-0">
-                  <CopyableUrl url={getStorefrontUrl(store)} />
+                  <CopyableUrl url={getStorefrontUrl(store)} shareTitle={store.name} />
                 </div>
                 <StoreQrCodeButton storeName={store.name} storeUrl={getStorefrontUrl(store)} />
               </div>
@@ -155,9 +234,28 @@ export default function VendorDashboardPage() {
             </div>
           )}
 
-          <div className="flex gap-3">
-            <Link href="/vendor/products" className="text-sm text-brand-600 hover:underline">Manage products</Link>
-            <Link href="/vendor/orders" className="text-sm text-brand-600 hover:underline">View orders</Link>
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-3">Quick actions</p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+              {SHORTCUTS(storeId, () => setGuideForceOpen(true)).map(({ label, icon: Icon, href, onClick }) => {
+                const content = (
+                  <>
+                    <Icon size={20} className="text-brand-600" />
+                    <span className="text-xs font-medium text-slate-700 text-center leading-tight">{label}</span>
+                  </>
+                );
+                const className = "flex flex-col items-center justify-center gap-2 bg-white border border-slate-200 rounded-sm p-4 hover:border-brand-300 hover:bg-brand-50/50 transition-colors cursor-pointer";
+                return href ? (
+                  <Link key={label} href={href} className={className}>
+                    {content}
+                  </Link>
+                ) : (
+                  <button key={label} type="button" onClick={onClick} className={className}>
+                    {content}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </>
       )}
