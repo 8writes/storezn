@@ -25,14 +25,19 @@ export default function VendorShippingPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!storeId) return;
+    // Also gated on token, not just storeId - see VendorStoreContext.js:
+    // storeId can already be populated (shared context, not remounted)
+    // before this page's own token has resolved on a client-side
+    // navigation, which would otherwise fire this fetch with no
+    // Authorization header.
+    if (!token || !storeId) return;
     setLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}`)
       .then((data) => setForm({ defaultShippingFee: String(data.store.defaultShippingFee ?? 0) }))
       .catch((err) => toast.error(err.message || "Failed to load store"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [token, storeId]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -75,7 +80,7 @@ export default function VendorShippingPage() {
             <Button type="submit" loading={saving}>Save</Button>
           </form>
 
-          <ShippingRatesManager storeId={storeId} apiFetch={apiFetch} />
+          <ShippingRatesManager storeId={storeId} apiFetch={apiFetch} token={token} />
         </>
       )}
     </div>
@@ -84,7 +89,7 @@ export default function VendorShippingPage() {
 
 // A city/LGA-specific rate beats a state-wide one, which beats the store's
 // flat default fee above - see lib/shipping.js's resolveShippingFee.
-function ShippingRatesManager({ storeId, apiFetch }) {
+function ShippingRatesManager({ storeId, apiFetch, token }) {
   const [rates, setRates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_RATE_FORM);
@@ -99,10 +104,13 @@ function ShippingRatesManager({ storeId, apiFetch }) {
   };
 
   useEffect(() => {
-    if (!storeId) return;
+    // Also gated on token, not just storeId - same client-navigation race
+    // as the parent page's own effect (see there for the full
+    // explanation).
+    if (!token || !storeId) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [token, storeId]);
 
   const handleAdd = async (e) => {
     e.preventDefault();

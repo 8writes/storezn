@@ -27,7 +27,7 @@ export default function VendorProductsPage() {
   const [loading, setLoading] = useState(true);
 
   const loadProducts = () => {
-    if (!storeId) return;
+    if (!token || !storeId) return;
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: "5" });
     if (q.trim()) params.set("q", q.trim());
@@ -41,10 +41,15 @@ export default function VendorProductsPage() {
   };
 
   useEffect(() => {
-    if (!storeId) return;
+    // Also gated on token, not just storeId - see VendorStoreContext.js:
+    // storeId can already be populated (shared context, not remounted)
+    // before this page's own token has resolved on a client-side
+    // navigation, which would otherwise fire this fetch with no
+    // Authorization header.
+    if (!token || !storeId) return;
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, page, q]);
+  }, [token, storeId, page, q]);
 
   useEffect(() => {
     setPage(1);

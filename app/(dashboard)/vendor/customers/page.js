@@ -24,7 +24,12 @@ export default function VendorCustomersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!storeId) return;
+    // Also gated on token, not just storeId - see VendorStoreContext.js:
+    // storeId can already be populated (shared context, not remounted)
+    // before this page's own token has resolved on a client-side
+    // navigation, which would otherwise fire this fetch with no
+    // Authorization header.
+    if (!token || !storeId) return;
     setLoading(true);
     const params = new URLSearchParams({ page: String(page) });
     if (q.trim()) params.set("q", q.trim());
@@ -36,7 +41,7 @@ export default function VendorCustomersPage() {
       .catch((err) => toast.error(err.message || "Failed to load customers"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, page, q]);
+  }, [token, storeId, page, q]);
 
   useEffect(() => {
     setPage(1);

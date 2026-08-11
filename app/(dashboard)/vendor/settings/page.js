@@ -38,7 +38,12 @@ export default function VendorSettingsPage() {
   const [cropTarget, setCropTarget] = useState(null);
 
   useEffect(() => {
-    if (!storeId) return;
+    // Also gated on token, not just storeId - see VendorStoreContext.js:
+    // storeId can already be populated (shared context, not remounted)
+    // before this page's own token has resolved on a client-side
+    // navigation, which would otherwise fire this fetch with no
+    // Authorization header.
+    if (!token || !storeId) return;
     setLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}`)
       .then((data) => {
@@ -54,7 +59,7 @@ export default function VendorSettingsPage() {
       .catch((err) => toast.error(err.message || "Failed to load store"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [token, storeId]);
 
   const handleFileSelect = (target) => (e) => {
     const file = e.target.files?.[0];

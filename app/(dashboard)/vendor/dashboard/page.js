@@ -93,14 +93,21 @@ export default function VendorDashboardPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!storeId) return;
+    // Also gated on token, not just storeId: storeId comes from the
+    // shared VendorStoreContext, which on a client-side navigation (as
+    // opposed to a full reload) is already populated from before this
+    // page even mounted - but this page's own useAuth() token starts
+    // null again on every fresh mount and takes a render to resolve. Without
+    // this guard, the fetch fires with no Authorization header the instant
+    // storeId is already truthy, before token catches up.
+    if (!token || !storeId) return;
     setStatsLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}/stats`)
       .then(setStats)
       .catch(() => {})
       .finally(() => setStatsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [token, storeId]);
 
   const store = stores.find((s) => s.id === storeId);
 

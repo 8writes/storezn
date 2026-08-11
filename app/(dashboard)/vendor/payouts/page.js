@@ -45,17 +45,22 @@ export default function VendorPayoutsPage() {
   const [linkingAccount, setLinkingAccount] = useState(false);
 
   useEffect(() => {
-    if (!storeId) return;
+    // Also gated on token, not just storeId - see VendorStoreContext.js:
+    // storeId can already be populated (shared context, not remounted)
+    // before this page's own token has resolved on a client-side
+    // navigation, which would otherwise fire this fetch with no
+    // Authorization header.
+    if (!token || !storeId) return;
     setBanksLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account`)
       .then((data) => setBanks(data.banks || []))
       .catch((err) => toast.error(err.message || "Failed to load bank list"))
       .finally(() => setBanksLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [token, storeId]);
 
   const loadPayouts = () => {
-    if (!storeId) return Promise.resolve();
+    if (!token || !storeId) return Promise.resolve();
     const params = new URLSearchParams({ page: String(page) });
     if (channel) params.set("channel", channel);
     if (q.trim()) params.set("q", q.trim());
@@ -65,11 +70,11 @@ export default function VendorPayoutsPage() {
   };
 
   useEffect(() => {
-    if (!storeId) return;
+    if (!token || !storeId) return;
     setLoading(true);
     loadPayouts().finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, page, channel, q]);
+  }, [token, storeId, page, channel, q]);
 
   useEffect(() => {
     setPage(1);
