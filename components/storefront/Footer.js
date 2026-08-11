@@ -1,5 +1,6 @@
 import { Globe, X, Music2 } from "lucide-react";
 import { InstagramIcon, FacebookIcon } from "./BrandIcons.js";
+import { getPlatformUrl } from "@/lib/storeUrl.js";
 
 // Lucide ships no brand icons in this version (Twitter/Instagram/Facebook
 // were all dropped - trademarked marks aren't generic glyphs). X's own
@@ -47,12 +48,17 @@ export function Footer({ store }) {
           </div>
         )}
 
-        <p className="text-xs text-slate-400">
-          Powered by{" "}
-          <a href="https://ozmictech.com" target="_blank" rel="noreferrer" className="hover:text-brand-600 transition-colors">
-            Ozmictech
+        <div className="flex items-center gap-4 text-xs text-slate-400">
+          <a href={getPlatformUrl("/signup")} className="font-medium hover:text-brand-600 transition-colors">
+            Get your own store
           </a>
-        </p>
+          <p>
+            Powered by{" "}
+            <a href="https://ozmictech.com" target="_blank" rel="noreferrer" className="hover:text-brand-600 transition-colors">
+              Ozmictech
+            </a>
+          </p>
+        </div>
       </div>
     </footer>
   );

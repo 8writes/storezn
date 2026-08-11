@@ -33,7 +33,7 @@ export default function Home() {
         </ul>
 
         <Link
-          href="/login"
+          href="/signup"
           className="mt-10 inline-flex items-center justify-center text-sm font-semibold bg-brand-600 text-white px-6 py-3 rounded-sm hover:bg-brand-700 transition-colors cursor-pointer uppercase"
         >
           Get started now!
