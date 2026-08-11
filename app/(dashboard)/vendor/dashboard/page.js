@@ -52,7 +52,7 @@ function buildSetupSteps({ store, verification, stats }) {
       description: "Customers need something to buy.",
       done: (stats?.products?.total ?? 0) > 0,
       href: `/vendor/products/new?storeId=${store.id}`,
-      cta: "Add product →",
+      cta: "Add product ",
     },
   ];
 }

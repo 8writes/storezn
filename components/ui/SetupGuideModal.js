@@ -68,7 +68,7 @@ export function SetupGuideModal({ open, onClose, steps }) {
                   onClick={onClose}
                   className="shrink-0 text-xs font-semibold text-brand-600 hover:underline whitespace-nowrap"
                 >
-                  {step.cta || "Do this →"}
+                  {step.cta || "Do this "}
                 </Link>
               )}
             </div>

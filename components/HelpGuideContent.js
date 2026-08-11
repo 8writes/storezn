@@ -65,7 +65,7 @@ const STEPS = [
     keywords: "add product create product name price photos stock",
     body: (
       <p>
-        Open <b>Products</b> → <b>Add product</b>. Type a name, the product&apos;s web address fills in by itself,
+        Open <b>Products</b>  <b>Add product</b>. Type a name, the product&apos;s web address fills in by itself,
         same as your store name did. Add a price, up to 10 photos (each under 1MB), and how many you have in
         stock, then tap <b>Create product</b>.
       </p>

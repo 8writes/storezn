@@ -165,7 +165,7 @@ export default function SuperAdminProductDetailPage({ params }) {
         target="_blank"
         className="text-sm text-brand-600 hover:underline block"
       >
-        View on storefront →
+        View on storefront 
       </Link>
 
       <Button variant={product.suspendedAt ? "primary" : "danger"} onClick={handleToggleSuspend} loading={acting}>
