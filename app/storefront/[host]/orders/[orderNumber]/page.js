@@ -78,7 +78,7 @@ export default function OrderConfirmationPage() {
 
       <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-2">
         {items.map((item) => (
-          <div key={item.id} className="flex justify-between text-sm text-slate-600">
+          <div key={item.id} className="flex justify-between text-sm text-slate-700">
             <span>{item.productName}{item.variantLabel ? ` (${item.variantLabel})` : ""} × {item.quantity}</span>
             <span>{formatCurrency(item.lineTotal)}</span>
           </div>
@@ -90,7 +90,7 @@ export default function OrderConfirmationPage() {
       </div>
 
       {order.shippingAddress && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-600">
+        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
           <p className="font-semibold text-slate-700 mb-1">Shipping to</p>
           <p>{order.shippingAddress.fullName}</p>
           <p>{order.shippingAddress.line1}{order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}</p>

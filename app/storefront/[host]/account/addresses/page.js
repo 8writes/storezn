@@ -87,7 +87,7 @@ export default function CustomerAddressesPage() {
         <div className="bg-white border border-slate-200 rounded-sm divide-y divide-slate-100">
           {addresses.map((a) => (
             <div key={a.id} className="flex items-start justify-between p-4">
-              <div className="text-sm text-slate-600">
+              <div className="text-sm text-slate-700">
                 <p className="font-medium text-slate-900">{a.fullName} {a.isDefault && <Badge color="green">Default</Badge>}</p>
                 <p>{a.line1}{a.line2 ? `, ${a.line2}` : ""}</p>
                 <p>{a.city}, {a.state}</p>
@@ -122,7 +122,7 @@ export default function CustomerAddressesPage() {
             required
           />
         </div>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
           Set as default address
         </label>

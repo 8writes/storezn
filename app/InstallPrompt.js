@@ -116,7 +116,7 @@ export default function InstallPrompt() {
           </>
         )}
       </div>
-      <button type="button" onClick={dismiss} aria-label="Dismiss" className="shrink-0 text-slate-400 hover:text-slate-600 cursor-pointer">
+      <button type="button" onClick={dismiss} aria-label="Dismiss" className="shrink-0 text-slate-400 hover:text-slate-700 cursor-pointer">
         <X size={16} />
       </button>
     </div>

@@ -88,7 +88,7 @@ export default async function StorefrontProductPage({ params }) {
             {product.sku && <p className="text-xs text-slate-400">SKU: {product.sku}</p>}
           </div>
 
-          {product.description && <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{product.description}</p>}
+          {product.description && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{product.description}</p>}
 
           <p className="text-xs text-slate-400 uppercase tracking-wide">
             {product.productType === "physical" ? "Ships to your address" : "Digital delivery"}

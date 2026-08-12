@@ -25,13 +25,17 @@ export function SetupGuideModal({ open, onClose, steps }) {
   const doneCount = steps.filter((s) => s.done).length;
 
   return (
-    // transform: translateZ(0) forces this onto its own compositing layer
-    // immediately - without it, mobile Safari sometimes doesn't actually
-    // paint a fixed+overflow-y-auto overlay like this until the next
-    // scroll/touch event forces a repaint, showing a blank/broken screen
-    // right after it opens.
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8" style={{ transform: "translateZ(0)" }}>
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+      {/* transform: translateZ(0) forces just the backdrop onto its own
+          compositing layer immediately - without it, mobile Safari
+          sometimes doesn't actually paint a fixed overlay until the next
+          scroll/touch event forces a repaint, showing a blank/broken
+          screen right after it opens. Applied here, not on the scrolling
+          parent above: a transform on that parent would make it the
+          containing block for this backdrop's own `fixed` positioning,
+          which then scrolls away with the parent's content instead of
+          staying pinned full-height - the opposite of what this is for. */}
+      <div className="fixed inset-0 bg-black/50" style={{ transform: "translateZ(0)" }} onClick={onClose} />
       <div className="relative bg-white rounded-sm shadow-xl w-full max-w-lg p-6 space-y-5 my-auto">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -39,11 +43,11 @@ export function SetupGuideModal({ open, onClose, steps }) {
             <p className="text-sm text-slate-500 mt-1">
               {doneCount} of {steps.length} done - finish these and you&apos;re ready to sell.
             </p>
-            <p className="text-xs text-slate-400 mt-2">
-              Tip: look for the <Info size={12} className="inline align-text-bottom mx-0.5" /> icon next to a field for more details.
+            <p className="text-xs text-slate-700 mt-2">
+              Tip: Tap on the <Info size={12} className="inline align-text-bottom mx-0.5" /> icon next to a field for more details.
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="shrink-0 text-slate-400 hover:text-slate-600 cursor-pointer">
+          <button type="button" onClick={onClose} aria-label="Close" className="shrink-0 text-slate-400 hover:text-slate-700 cursor-pointer">
             <X size={18} />
           </button>
         </div>

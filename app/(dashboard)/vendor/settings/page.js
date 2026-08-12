@@ -31,7 +31,7 @@ const CROP_CONFIG = {
 // section instead of reading every label in sequence to figure out
 // where one topic ends and the next begins.
 function SectionLabel({ children }) {
-  return <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{children}</p>;
+  return <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{children}</p>;
 }
 
 export default function VendorSettingsPage() {
@@ -302,7 +302,7 @@ export default function VendorSettingsPage() {
                   className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
                     !form.feeChargedToCustomer
                       ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
                   }`}
                 >
                   I absorb it
@@ -313,7 +313,7 @@ export default function VendorSettingsPage() {
                   className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
                     form.feeChargedToCustomer
                       ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
                   }`}
                 >
                   Customer pays it

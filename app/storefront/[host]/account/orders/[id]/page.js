@@ -103,7 +103,7 @@ export default function CustomerOrderDetailPage() {
             key={item.id}
             type="button"
             onClick={() => setActiveItem(item)}
-            className="flex items-center justify-between gap-3 text-sm text-slate-600 w-full text-left cursor-pointer hover:text-slate-900"
+            className="flex items-center justify-between gap-3 text-sm text-slate-700 w-full text-left cursor-pointer hover:text-slate-900"
           >
             <div className="flex items-center gap-3 min-w-0">
               {item.productImage ? (

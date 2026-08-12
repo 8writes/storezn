@@ -103,7 +103,7 @@ export function ReviewsSection({ productId }) {
                 <span className="text-sm font-medium text-slate-700">{r.firstName || "Customer"}</span>
                 <span className="text-xs text-slate-400">{formatDate(r.createdAt)}</span>
               </div>
-              {r.comment && <p className="text-sm text-slate-600 mt-1">{r.comment}</p>}
+              {r.comment && <p className="text-sm text-slate-700 mt-1">{r.comment}</p>}
             </div>
           ))}
         </div>

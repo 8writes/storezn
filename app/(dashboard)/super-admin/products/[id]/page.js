@@ -138,7 +138,7 @@ export default function SuperAdminProductDetailPage({ params }) {
       </div>
 
       {product.description && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-600 whitespace-pre-line">
+        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700 whitespace-pre-line">
           {product.description}
         </div>
       )}

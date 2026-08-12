@@ -133,7 +133,7 @@ export default function VendorOrderDetailPage({ params }) {
       </div>
 
       {(order.buyerName || order.buyerPhone) && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-600">
+        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
           <p className="font-semibold text-slate-700 mb-1">Customer</p>
           {order.buyerName && <p>{order.buyerName}</p>}
           {order.buyerPhone && (
@@ -147,7 +147,7 @@ export default function VendorOrderDetailPage({ params }) {
       )}
 
       {order.note && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-600">
+        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
           <p className="font-semibold text-slate-700 mb-1">Note</p>
           <p>{order.note}</p>
         </div>
@@ -159,7 +159,7 @@ export default function VendorOrderDetailPage({ params }) {
             key={item.id}
             type="button"
             onClick={() => setActiveItem(item)}
-            className="flex items-center justify-between gap-3 text-sm text-slate-600 w-full text-left cursor-pointer hover:text-slate-900"
+            className="flex items-center justify-between gap-3 text-sm text-slate-700 w-full text-left cursor-pointer hover:text-slate-900"
           >
             <div className="flex items-center gap-3 min-w-0">
               {item.productImage ? (
@@ -186,7 +186,7 @@ export default function VendorOrderDetailPage({ params }) {
       </div>
 
       {order.shippingAddress && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-600">
+        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
           <p className="font-semibold text-slate-700 mb-1">Ship to</p>
           <p>{order.shippingAddress.fullName}</p>
           <p>{order.shippingAddress.line1}{order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}</p>
@@ -201,7 +201,7 @@ export default function VendorOrderDetailPage({ params }) {
       {refundRequest?.status === "pending" && (
         <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
           <p className="text-sm font-semibold text-slate-700">Refund requested</p>
-          <p className="text-sm text-slate-600">{refundRequest.reason}</p>
+          <p className="text-sm text-slate-700">{refundRequest.reason}</p>
           <div className="flex gap-3">
             <Button size="sm" onClick={() => handleRefundDecision("approved")} loading={updating}>Approve</Button>
             <Button size="sm" variant="danger" onClick={() => handleRefundDecision("rejected")} loading={updating}>Reject</Button>

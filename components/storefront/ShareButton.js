@@ -30,7 +30,7 @@ export function ShareButton({ url, title, className = "" }) {
     <button
       type="button"
       onClick={handleClick}
-      className={`inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer ${className}`}
+      className={`inline-flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors cursor-pointer ${className}`}
     >
       {copied ? <Check size={16} className="text-green-600" /> : canShare ? <Share2 size={16} /> : <Copy size={16} />}
       Share

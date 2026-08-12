@@ -190,7 +190,7 @@ export default function VendorProductViewPage({ params }) {
           {product.description && (
             <div className="bg-white border border-slate-200 rounded-sm p-5">
               <p className="text-sm font-medium text-slate-700 mb-1.5">Description</p>
-              <p className="text-sm text-slate-600 whitespace-pre-line">{product.description}</p>
+              <p className="text-sm text-slate-700 whitespace-pre-line">{product.description}</p>
             </div>
           )}
 

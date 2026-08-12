@@ -98,7 +98,7 @@ export default function ProfilePage() {
 
       <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
         <p className="text-sm font-semibold text-slate-700">Notifications</p>
-        <label className="flex items-center justify-between gap-4 text-sm text-slate-600 cursor-pointer">
+        <label className="flex items-center justify-between gap-4 text-sm text-slate-700 cursor-pointer">
           <span>Email me about order updates</span>
           <input
             type="checkbox"

@@ -102,7 +102,7 @@ export default function VendorSignupPage() {
         <PasswordInput label="Password" value={form.vendor.password} onChange={setVendorField("password")} required minLength={8} autoComplete="new-password" />
       </div>
 
-      <label className="flex items-start gap-2 text-sm text-slate-600">
+      <label className="flex items-start gap-2 text-sm text-slate-700">
         <input
           type="checkbox"
           checked={form.acceptTerms}

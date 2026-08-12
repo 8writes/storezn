@@ -165,19 +165,19 @@ export default function CheckoutPage() {
         <div className="space-y-2 pt-6 border-t border-slate-200">
           <p className="text-xs font-medium text-slate-700 uppercase tracking-wide mb-3">Order summary</p>
           {cart.items.map((item) => (
-            <div key={item.id} className="flex justify-between text-sm text-slate-600">
+            <div key={item.id} className="flex justify-between text-sm text-slate-700">
               <span>{item.product.name}{item.variant ? ` (${Object.values(item.variant.options).join(", ")})` : ""} × {item.quantity}</span>
               <span>{formatCurrency(item.lineTotal)}</span>
             </div>
           ))}
           {needsShipping && (
-            <div className="flex justify-between pt-2 border-t border-slate-100 text-sm text-slate-600">
+            <div className="flex justify-between pt-2 border-t border-slate-100 text-sm text-slate-700">
               <span>Shipping</span>
               <span>{effectiveState ? formatCurrency(cart.shippingFee || 0) : "Enter your address"}</span>
             </div>
           )}
           {cart.feeChargedToCustomer && cart.platformFee > 0 && (
-            <div className="flex justify-between text-sm text-slate-600">
+            <div className="flex justify-between text-sm text-slate-700">
               <span>Platform fee</span>
               <span>{formatCurrency(cart.platformFee)}</span>
             </div>

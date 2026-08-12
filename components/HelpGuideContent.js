@@ -94,7 +94,7 @@ const SECTIONS = [
             <div className="shrink-0 w-8 h-8 rounded-sm bg-brand-100 text-brand-700 font-bold text-sm flex items-center justify-center">
               {STEPS.indexOf(step) + 1}
             </div>
-            <div className="space-y-2 text-sm text-slate-600 leading-relaxed">
+            <div className="space-y-2 text-sm text-slate-700 leading-relaxed">
               <h3 className="font-semibold text-slate-900 text-[15px]">{step.title}</h3>
               {step.body}
             </div>
@@ -236,7 +236,7 @@ export function HelpGuideContent() {
             className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer whitespace-nowrap ${
               activeId === id
                 ? "bg-brand-600 border-brand-600 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700"
+                : "border-slate-200 bg-white text-slate-700 hover:border-brand-300 hover:text-brand-700"
             }`}
           >
             {label}
@@ -246,7 +246,7 @@ export function HelpGuideContent() {
           <button
             type="button"
             onClick={() => setActiveId(null)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer whitespace-nowrap"
+            className="text-xs font-semibold px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-700 cursor-pointer whitespace-nowrap"
           >
             Show all
           </button>
