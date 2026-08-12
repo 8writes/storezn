@@ -24,6 +24,7 @@ import {
   Wallet,
   HelpCircle,
   Receipt,
+  RotateCw,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -186,7 +187,21 @@ export default function DashboardLayout({ children }) {
           onClick={() => setDrawerOpen(true)}
           className="sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 bg-brand-900 text-white shrink-0 cursor-pointer"
         >
-          <span className="w-5.5 shrink-0" />
+          {/* Installed PWAs have no browser chrome at all, so there's no
+              native reload button/pull-to-refresh some users expect -
+              this gives them an explicit one. stopPropagation so tapping
+              it reloads instead of just opening the drawer underneath it. */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.reload();
+            }}
+            aria-label="Refresh"
+            className="w-5.5 shrink-0 cursor-pointer"
+          >
+            <RotateCw size={20} />
+          </button>
           {isVendor ? (
             <StoreSwitcher textClassName="font-extrabold tracking-tight text-sm" />
           ) : (

@@ -27,9 +27,10 @@ export function Footer({ store }) {
   return (
     <footer className="border-t border-slate-200 bg-white">
       <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-sm text-slate-500">
-          © {new Date().getFullYear()} {store?.name}
-        </p>
+        <div className="text-sm text-slate-500 text-center sm:text-left">
+          <p>© {new Date().getFullYear()} {store?.name}</p>
+          {store?.address && <p className="text-xs text-slate-400 mt-0.5">{store.address}</p>}
+        </div>
 
         {hasAnySocial && (
           <div className="flex items-center gap-4">

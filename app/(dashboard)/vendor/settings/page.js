@@ -13,7 +13,7 @@ import { uploadFile } from "@/lib/clientUpload.js";
 import { AlertTriangle } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7" };
+const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "" };
 
 // Two separate uploads with different shapes: the navbar logo is a wide
 // rectangle (vendors' real logos are rarely square), the favicon is a
@@ -56,6 +56,7 @@ export default function VendorSettingsPage() {
           socialLinks: { ...EMPTY_SOCIAL_LINKS, ...(data.store.socialLinks || {}) },
           feeChargedToCustomer: !!data.store.feeChargedToCustomer,
           returnWindowDays: String(data.store.returnWindowDays ?? 7),
+          address: data.store.address || "",
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
         setStore(data.store);
@@ -215,6 +216,16 @@ export default function VendorSettingsPage() {
               </label>
             </div>
             <p className="text-xs text-slate-500">Shown as your browser tab icon - separate from the logo above, since it needs to be a small circle.</p>
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <Input
+              label="Store address (optional)"
+              placeholder="12 Allen Avenue, Ikeja, Lagos"
+              value={form.address}
+              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+            />
+            <p className="text-xs text-slate-500">Shown in your storefront&apos;s footer, for a pickup location or just to build trust.</p>
           </div>
 
           <div className="space-y-3 pt-2 border-t border-slate-100">
