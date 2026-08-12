@@ -231,8 +231,8 @@ export default function VendorPayoutsPage() {
           className="text-brand-600 hidden md:block shrink-0 mt-0.5"
         />
         <div className="flex-1 text-sm text-brand-800">
-          <p className="flex items-center gap-1.5">
-            Paystack settles online orders <strong>the next business day</strong>.
+          <p>
+            Paystack settles online orders <strong>the next business day</strong>.{" "}
             <InfoTip>Weekends push it to the following Monday. Offline sales are already yours since you collected them in person.</InfoTip>
           </p>
           <Button

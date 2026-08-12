@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import Link from "next/link";
-import { CheckCircle2, Circle, X } from "lucide-react";
+import { CheckCircle2, Circle, Info, X } from "lucide-react";
 
 // Controlled, dismissible checklist walking a new vendor through the
 // steps that actually unlock a working store (see vendor/dashboard's
@@ -25,7 +25,12 @@ export function SetupGuideModal({ open, onClose, steps }) {
   const doneCount = steps.filter((s) => s.done).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+    // transform: translateZ(0) forces this onto its own compositing layer
+    // immediately - without it, mobile Safari sometimes doesn't actually
+    // paint a fixed+overflow-y-auto overlay like this until the next
+    // scroll/touch event forces a repaint, showing a blank/broken screen
+    // right after it opens.
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8" style={{ transform: "translateZ(0)" }}>
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-white rounded-sm shadow-xl w-full max-w-lg p-6 space-y-5 my-auto">
         <div className="flex items-start justify-between gap-3">
@@ -33,6 +38,9 @@ export function SetupGuideModal({ open, onClose, steps }) {
             <h2 className="font-bold text-slate-900 text-lg">Get your store ready</h2>
             <p className="text-sm text-slate-500 mt-1">
               {doneCount} of {steps.length} done - finish these and you&apos;re ready to sell.
+            </p>
+            <p className="text-xs text-slate-400 mt-2">
+              Tip: look for the <Info size={12} className="inline align-text-bottom mx-0.5" /> icon next to a field for more details.
             </p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="shrink-0 text-slate-400 hover:text-slate-600 cursor-pointer">
