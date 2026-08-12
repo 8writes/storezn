@@ -133,7 +133,7 @@ export default function SuperAdminVendorsPage() {
                     <Badge color={STATUS_COLOR[v.approvalStatus] || "slate"}>{v.approvalStatus}</Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {v.nin && v.approvalStatus !== "approved" && (
+                    {v.hasNin && v.approvalStatus !== "approved" && (
                       <div className="flex justify-end gap-3">
                         <button
                           type="button"

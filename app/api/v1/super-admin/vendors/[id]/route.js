@@ -4,6 +4,7 @@ import { users } from "../../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
 import { validate, reviewVendorApprovalSchema } from "../../../../../../lib/validate.js";
+import { sendPushToUser } from "../../../../../../lib/push.js";
 
 // Approves or rejects a vendor's submitted NIN - see users.approvalStatus
 // in lib/db/schema.js. Approving is what actually lets their store go
@@ -37,6 +38,15 @@ export async function PATCH(req, { params }) {
     })
     .where(eq(users.id, id))
     .returning();
+
+  sendPushToUser(id, {
+    title: decision === "approved" ? "You're verified!" : "Verification update",
+    body:
+      decision === "approved"
+        ? "Your identity has been verified - your store is now live and can take orders."
+        : reviewNote || "Your NIN submission was rejected. Check your verification page for details.",
+    url: "/vendor/verification",
+  }).catch((err) => console.error("sendPushToUser failed (vendor verification decision):", err));
 
   const { passwordHash: _, nin: __, ...safeVendor } = updated;
   return NextResponse.json({ vendor: safeVendor });

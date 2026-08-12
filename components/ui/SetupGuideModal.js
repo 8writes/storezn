@@ -1,6 +1,7 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { CheckCircle2, Circle, Info, X } from "lucide-react";
 
 // Controlled, dismissible checklist walking a new vendor through the
@@ -8,7 +9,25 @@ import { CheckCircle2, Circle, Info, X } from "lucide-react";
 // buildSetupSteps for what counts as "done" for each one). Modal
 // chrome/behavior matches ConfirmModal.js (backdrop click + Escape to
 // close, body scroll locked while open) for consistency across the app.
+//
+// A step is either navigational (href, closes the modal on click like a
+// normal link) or actionable in place (onAction, e.g. "enable push
+// notifications" - runs right here without leaving the guide, modal
+// stays open so the checklist can flip to done immediately after).
 export function SetupGuideModal({ open, onClose, steps }) {
+  const [actioningLabel, setActioningLabel] = useState(null);
+
+  const runAction = async (step) => {
+    setActioningLabel(step.label);
+    try {
+      await step.onAction();
+    } catch (err) {
+      toast.error(err.message || "Something went wrong");
+    } finally {
+      setActioningLabel(null);
+    }
+  };
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e) => e.key === "Escape" && onClose();
@@ -74,7 +93,17 @@ export function SetupGuideModal({ open, onClose, steps }) {
                 <p className={`text-sm font-medium ${step.done ? "text-slate-700 line-through" : "text-slate-900"}`}>{step.label}</p>
                 {!step.done && step.description && <p className="text-xs text-slate-500 mt-0.5">{step.description}</p>}
               </div>
-              {!step.done && (
+              {!step.done && step.onAction && (
+                <button
+                  type="button"
+                  disabled={actioningLabel === step.label}
+                  onClick={() => runAction(step)}
+                  className="shrink-0 text-xs font-semibold text-brand-600 hover:underline whitespace-nowrap disabled:opacity-50 cursor-pointer"
+                >
+                  {actioningLabel === step.label ? "Enabling…" : step.cta || "Do this "}
+                </button>
+              )}
+              {!step.done && step.href && (
                 <Link
                   href={step.href}
                   onClick={onClose}

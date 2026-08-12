@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   Package,
   ShoppingBag,
@@ -26,9 +27,10 @@ import { SetupGuideModal } from "@/components/ui/SetupGuideModal.js";
 import { Skeleton, StatGridSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
+import { pushSupported, getPushSubscription, subscribeToPush } from "@/lib/pushClient.js";
 
-function buildSetupSteps({ store, verification, stats }) {
-  return [
+function buildSetupSteps({ store, verification, stats, pushSubscribed, onEnablePush }) {
+  const steps = [
     {
       label: "Verify your identity",
       description: "Customers can't see your store until this is approved.",
@@ -55,6 +57,20 @@ function buildSetupSteps({ store, verification, stats }) {
       cta: "Add product ",
     },
   ];
+
+  // Skipped entirely on browsers that can't do push at all, same as
+  // PushNotificationToggle - no point nagging for something unattainable.
+  if (pushSupported()) {
+    steps.push({
+      label: "Turn on push notifications",
+      description: "So you don't miss new orders, low stock alerts, or verification updates.",
+      done: pushSubscribed,
+      cta: "Turn on",
+      onAction: onEnablePush,
+    });
+  }
+
+  return steps;
 }
 
 function SHORTCUTS(storeId, onOpenGuide) {
@@ -80,6 +96,7 @@ export default function VendorDashboardPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [guideDismissed, setGuideDismissed] = useState(false);
   const [guideForceOpen, setGuideForceOpen] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -91,6 +108,18 @@ export default function VendorDashboardPage() {
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  useEffect(() => {
+    getPushSubscription()
+      .then((sub) => setPushSubscribed(!!sub))
+      .catch(() => {});
+  }, []);
+
+  const handleEnablePush = async () => {
+    await subscribeToPush(token);
+    setPushSubscribed(true);
+    toast.success("Notifications enabled");
+  };
 
   useEffect(() => {
     // Also gated on token, not just storeId: storeId comes from the
@@ -120,7 +149,7 @@ export default function VendorDashboardPage() {
     );
   }
 
-  const steps = store ? buildSetupSteps({ store, verification, stats }) : [];
+  const steps = store ? buildSetupSteps({ store, verification, stats, pushSubscribed, onEnablePush: handleEnablePush }) : [];
   const allStepsDone = steps.length > 0 && steps.every((s) => s.done);
   // Read once per render, only reached after the client-only fetches above
   // have already resolved (loading is false) - never evaluated during SSR
