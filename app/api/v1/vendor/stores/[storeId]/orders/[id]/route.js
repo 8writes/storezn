@@ -63,7 +63,7 @@ export async function PATCH(req, { params }) {
         .where(eq(refundRequests.id, refundRequest.id));
       await tx
         .update(orders)
-        .set({ status: refundDecision === "approved" ? "refunded" : "delivered", updatedAt: new Date() })
+        .set({ status: refundDecision === "approved" ? "refunded" : "refund_declined", updatedAt: new Date() })
         .where(eq(orders.id, id));
     });
     const [updated] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
@@ -75,7 +75,12 @@ export async function PATCH(req, { params }) {
     if (!allowed.includes(status)) {
       return NextResponse.json({ error: `Cannot move an order from "${order.status}" to "${status}"` }, { status: 400 });
     }
-    const [updated] = await db.update(orders).set({ status, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
+    const data = { status, updatedAt: new Date() };
+    // Anchor for the store's return window (see stores.returnWindowDays
+    // and POST /api/v1/customer/orders/[id]/refund-request) - counts from
+    // when the customer actually received the item, not from payment.
+    if (status === "delivered") data.deliveredAt = new Date();
+    const [updated] = await db.update(orders).set(data).where(eq(orders.id, id)).returning();
     return NextResponse.json({ order: updated });
   }
 

@@ -152,6 +152,10 @@ export default function VendorProductEditPage({ params }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (pendingUploads.length > 0) {
+      toast.error("Wait for photo uploads to finish");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -287,7 +291,7 @@ export default function VendorProductEditPage({ params }) {
           </div>
         </div>
 
-        <Button type="submit" loading={saving}>Save changes</Button>
+        <Button type="submit" loading={saving} disabled={pendingUploads.length > 0}>Save changes</Button>
       </form>
 
       <VariantsManager storeId={storeId} productId={id} apiFetch={apiFetch} />

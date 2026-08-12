@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { orders, refundRequests } from "../../../../../../../lib/db/schema.js";
+import { orders, refundRequests, stores } from "../../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser } from "../../../../../../../lib/auth.js";
 import { validate, requestRefundSchema } from "../../../../../../../lib/validate.js";
@@ -14,6 +14,16 @@ export async function POST(req, { params }) {
   if (!order || order.userId !== user.id) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.status !== "delivered") {
     return NextResponse.json({ error: "Refunds can only be requested after delivery" }, { status: 400 });
+  }
+
+  const [store] = await db.select({ returnWindowDays: stores.returnWindowDays }).from(stores).where(eq(stores.id, order.storeId)).limit(1);
+  const deliveredAt = order.deliveredAt || order.updatedAt;
+  const windowMs = (store?.returnWindowDays ?? 7) * 24 * 60 * 60 * 1000;
+  if (deliveredAt && Date.now() - deliveredAt.getTime() > windowMs) {
+    return NextResponse.json(
+      { error: `The ${store?.returnWindowDays ?? 7}-day refund window for this order has passed` },
+      { status: 400 },
+    );
   }
 
   const [existing] = await db.select({ id: refundRequests.id }).from(refundRequests).where(eq(refundRequests.orderId, id)).limit(1);

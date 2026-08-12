@@ -10,7 +10,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format.js";
 
-const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate" };
+const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 
 export default function VendorCustomerDetailPage({ params }) {
   const { id } = use(params);

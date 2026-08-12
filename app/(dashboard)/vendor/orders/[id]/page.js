@@ -1,7 +1,9 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
@@ -9,9 +11,11 @@ import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
+import { CopyButton } from "@/components/ui/CopyButton.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
+import { downloadOrderPdf } from "@/lib/orderPdf.js";
 
-const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate" };
+const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 const NEXT_ACTIONS = {
   processing: [{ status: "shipped", label: "Mark as shipped" }, { status: "cancelled", label: "Cancel order", variant: "danger" }],
   shipped: [{ status: "delivered", label: "Mark as delivered" }],
@@ -59,14 +63,26 @@ export default function VendorOrderDetailPage({ params }) {
   };
 
   const handleRefundDecision = async (refundDecision) => {
-    const ok = await confirm({
-      title: refundDecision === "approved" ? "Approve refund?" : "Reject refund?",
-      variant: refundDecision === "rejected" ? "danger" : "default",
-    });
-    if (!ok) return;
+    let reviewNote;
+    if (refundDecision === "rejected") {
+      reviewNote = await confirm({
+        title: "Reject refund?",
+        description: "Tell the customer why - they'll see this note on their order.",
+        requireReason: true,
+        confirmLabel: "Reject",
+        variant: "danger",
+      });
+      if (!reviewNote) return;
+    } else {
+      const ok = await confirm({ title: "Approve refund?" });
+      if (!ok) return;
+    }
     setUpdating(true);
     try {
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/${id}`, { method: "PATCH", body: JSON.stringify({ refundDecision }) });
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ refundDecision, ...(reviewNote ? { reviewNote } : {}) }),
+      });
       toast.success("Refund request updated");
       load();
     } catch (err) {
@@ -81,6 +97,18 @@ export default function VendorOrderDetailPage({ params }) {
 
   const { order, items, refundRequest } = data;
 
+  const downloadPdf = () =>
+    downloadOrderPdf({
+      order,
+      items,
+      storeName: order.isOffline ? "Offline sale" : undefined,
+      shippingAddress: order.shippingAddress,
+      totalsLines: [
+        { label: `Commission (${order.commissionRatePercent}%)`, value: `-${formatCurrency(order.commissionAmount)}` },
+        { label: "Your payout", value: formatCurrency(order.vendorPayoutAmount), bold: true },
+      ],
+    });
+
   return (
     <div className="max-w-xl space-y-6">
       {confirmDialog}
@@ -94,14 +122,25 @@ export default function VendorOrderDetailPage({ params }) {
           </h1>
           <p className="text-sm text-slate-500">Placed {formatDateTime(order.createdAt)}</p>
         </div>
-        <Badge color={STATUS_COLOR[order.status] || "slate"}>{order.status.replace("_", " ")}</Badge>
+        <div className="flex items-center gap-3">
+          <Badge color={STATUS_COLOR[order.status] || "slate"}>{order.status.replace("_", " ")}</Badge>
+          <Button variant="outline" size="sm" onClick={downloadPdf}>
+            <Download size={14} />
+            PDF
+          </Button>
+        </div>
       </div>
 
       {(order.buyerName || order.buyerPhone) && (
         <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-600">
           <p className="font-semibold text-slate-700 mb-1">Customer</p>
           {order.buyerName && <p>{order.buyerName}</p>}
-          {order.buyerPhone && <p>{order.buyerPhone}</p>}
+          {order.buyerPhone && (
+            <p className="flex items-center gap-1.5">
+              {order.buyerPhone}
+              <CopyButton value={order.buyerPhone} label="Copy phone number" />
+            </p>
+          )}
           {order.guestEmail && <p>{order.guestEmail}</p>}
         </div>
       )}
@@ -113,11 +152,23 @@ export default function VendorOrderDetailPage({ params }) {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-2">
+      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="flex justify-between text-sm text-slate-600">
-            <span>{item.productName}{item.variantLabel ? ` (${item.variantLabel})` : ""} × {item.quantity}</span>
-            <span>{formatCurrency(item.lineTotal)}</span>
+          <div key={item.id} className="flex items-center justify-between gap-3 text-sm text-slate-600">
+            <div className="flex items-center gap-3 min-w-0">
+              {item.productImage ? (
+                <img src={item.productImage} alt="" className="w-10 h-10 rounded-sm object-cover border border-slate-200 shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded-sm bg-slate-100 shrink-0" />
+              )}
+              <span className="truncate">
+                <Link href={`/vendor/products/${item.productId}?storeId=${storeId}`} className="hover:text-brand-600 hover:underline">
+                  {item.productName}
+                </Link>
+                {item.variantLabel ? ` (${item.variantLabel})` : ""} × {item.quantity}
+              </span>
+            </div>
+            <span className="shrink-0">{formatCurrency(item.lineTotal)}</span>
           </div>
         ))}
         <div className="flex justify-between pt-2 border-t border-slate-100 text-sm text-slate-500">
@@ -136,7 +187,10 @@ export default function VendorOrderDetailPage({ params }) {
           <p>{order.shippingAddress.fullName}</p>
           <p>{order.shippingAddress.line1}{order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}</p>
           <p>{order.shippingAddress.city}, {order.shippingAddress.state}</p>
-          <p>{order.shippingAddress.phone}</p>
+          <p className="flex items-center gap-1.5">
+            {order.shippingAddress.phone}
+            <CopyButton value={order.shippingAddress.phone} label="Copy phone number" />
+          </p>
         </div>
       )}
 

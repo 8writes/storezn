@@ -13,7 +13,7 @@ import { uploadFile } from "@/lib/clientUpload.js";
 import { AlertTriangle } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false };
+const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7" };
 
 // Two separate uploads with different shapes: the navbar logo is a wide
 // rectangle (vendors' real logos are rarely square), the favicon is a
@@ -55,6 +55,7 @@ export default function VendorSettingsPage() {
           faviconUrl: data.store.faviconUrl || "",
           socialLinks: { ...EMPTY_SOCIAL_LINKS, ...(data.store.socialLinks || {}) },
           feeChargedToCustomer: !!data.store.feeChargedToCustomer,
+          returnWindowDays: String(data.store.returnWindowDays ?? 7),
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
         setStore(data.store);
@@ -300,6 +301,22 @@ export default function VendorSettingsPage() {
                 ? "Shown as a separate \"Platform fee\" line at checkout, added on top of the order total. You receive your full subtotal + shipping."
                 : "Commission is deducted from your payout. Customers never see it, they just pay the order total."}
             </p>
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <label className="text-sm font-medium text-slate-700">Refund window</label>
+            <p className="text-xs text-slate-500 -mt-1">
+              How many days after you mark an order delivered a customer can still request a refund. After that, the &quot;Request a refund&quot; button
+              stops working for that order.
+            </p>
+            <Input
+              type="number"
+              min="0"
+              max="365"
+              className="max-w-32"
+              value={form.returnWindowDays}
+              onChange={(e) => setForm((f) => ({ ...f, returnWindowDays: e.target.value }))}
+            />
           </div>
 
           <Button type="submit" loading={saving}>Save settings</Button>

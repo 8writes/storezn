@@ -182,6 +182,8 @@ export default function VendorProductViewPage({ params }) {
               )}
               <dt className="text-slate-400">Category</dt>
               <dd className="text-slate-700">{category?.name || "None"}</dd>
+              <dt className="text-slate-400">Sold</dt>
+              <dd className="text-slate-700">{product.unitsSold} unit{product.unitsSold === 1 ? "" : "s"}</dd>
             </dl>
           </div>
 

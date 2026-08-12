@@ -1,14 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
+import { downloadOrderPdf } from "@/lib/orderPdf.js";
+import { Download } from "lucide-react";
 
-const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate" };
+const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 
 export default function CustomerOrderDetailPage() {
   const { id } = useParams();
@@ -68,21 +71,52 @@ export default function CustomerOrderDetailPage() {
 
   const { order, items, refundRequest } = data;
 
+  const downloadPdf = () =>
+    downloadOrderPdf({
+      order,
+      items,
+      storeName: order.storeName,
+      shippingAddress: order.shippingAddress,
+      totalsLines: [{ label: "Total", value: formatCurrency(order.totalAmount), bold: true }],
+    });
+
   return (
     <div className="max-w-xl mx-auto space-y-6">
       {confirmDialog}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{order.orderNumber}</h1>
-        <p className="text-sm text-slate-500 mt-1">Placed {formatDateTime(order.createdAt)}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{order.orderNumber}</h1>
+          <p className="text-sm text-slate-500 mt-1">Placed {formatDateTime(order.createdAt)}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={downloadPdf}>
+          <Download size={14} />
+          PDF
+        </Button>
       </div>
 
       <Badge color={STATUS_COLOR[order.status] || "slate"}>{order.status.replace("_", " ")}</Badge>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-2">
+      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="flex justify-between text-sm text-slate-600">
-            <span>{item.productName}{item.variantLabel ? ` (${item.variantLabel})` : ""} × {item.quantity}</span>
-            <span>{formatCurrency(item.lineTotal)}</span>
+          <div key={item.id} className="flex items-center justify-between gap-3 text-sm text-slate-600">
+            <div className="flex items-center gap-3 min-w-0">
+              {item.productImage ? (
+                <img src={item.productImage} alt="" className="w-10 h-10 rounded-sm object-cover border border-slate-200 shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded-sm bg-slate-100 shrink-0" />
+              )}
+              <span className="truncate">
+                {item.productSlug ? (
+                  <Link href={`/products/${item.productSlug}`} className="hover:text-brand-600 hover:underline">
+                    {item.productName}
+                  </Link>
+                ) : (
+                  item.productName
+                )}
+                {item.variantLabel ? ` (${item.variantLabel})` : ""} × {item.quantity}
+              </span>
+            </div>
+            <span className="shrink-0">{formatCurrency(item.lineTotal)}</span>
           </div>
         ))}
         <div className="flex justify-between pt-2 border-t border-slate-100 font-semibold text-slate-900">

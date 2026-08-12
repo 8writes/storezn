@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { products, stores, productVariants, cartItems, reviews, orderItems } from "../../../../../../../../lib/db/schema.js";
-import { and, eq } from "drizzle-orm";
+import { products, stores, productVariants, cartItems, reviews, orderItems, orders } from "../../../../../../../../lib/db/schema.js";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, updateProductSchema } from "../../../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../../../lib/storage/index.js";
@@ -23,7 +23,16 @@ export async function GET(req, { params }) {
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
-  return NextResponse.json({ product });
+  // Paid orders only, and not refunded - a refund reverses the sale, so
+  // it shouldn't keep counting as "sold" (cancelled/refund_declined
+  // orders were still actually paid for, so those do still count).
+  const [{ unitsSold }] = await db
+    .select({ unitsSold: sql`coalesce(sum(${orderItems.quantity}), 0)`.mapWith(Number) })
+    .from(orderItems)
+    .innerJoin(orders, eq(orderItems.orderId, orders.id))
+    .where(and(eq(orderItems.productId, id), eq(orders.paymentStatus, "paid"), ne(orders.status, "refunded")));
+
+  return NextResponse.json({ product: { ...product, unitsSold } });
 }
 
 export async function PATCH(req, { params }) {

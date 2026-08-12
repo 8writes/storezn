@@ -10,7 +10,7 @@ import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 
-const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate" };
+const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
   { value: "processing", label: "Processing" },
@@ -19,6 +19,7 @@ const STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
   { value: "refund_requested", label: "Refund requested" },
   { value: "refunded", label: "Refunded" },
+  { value: "refund_declined", label: "Refund declined" },
 ];
 
 // Platform-wide view across every store - the vendor-side equivalent

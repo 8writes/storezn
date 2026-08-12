@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Wallet, Calendar, Landmark, Info, RefreshCw } from "lucide-react";
+import { Wallet, Calendar, Landmark, Info, RefreshCw, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -24,7 +24,7 @@ const CHANNEL_OPTIONS = [
   { value: "offline", label: "Recorded offline" },
 ];
 
-const EMPTY_PAYOUT_FORM = { bankCode: "", accountNumber: "" };
+const EMPTY_PAYOUT_FORM = { bankCode: "", accountNumber: "", accountName: "" };
 
 export default function VendorPayoutsPage() {
   const router = useRouter();
@@ -43,6 +43,9 @@ export default function VendorPayoutsPage() {
   const [banksLoading, setBanksLoading] = useState(true);
   const [payoutForm, setPayoutForm] = useState(EMPTY_PAYOUT_FORM);
   const [linkingAccount, setLinkingAccount] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [resolveError, setResolveError] = useState("");
+  const resolveDebounceRef = useRef(null);
 
   useEffect(() => {
     // Also gated on token, not just storeId - see VendorStoreContext.js:
@@ -80,11 +83,47 @@ export default function VendorPayoutsPage() {
     setPage(1);
   }, [channel, q, storeId]);
 
+  // Resolves the account holder's name live as the vendor types, so they
+  // can see who they're actually about to lock in before submitting -
+  // the account can't be changed again without going through support
+  // once linked, so this is the one chance to catch a wrong number.
+  useEffect(() => {
+    clearTimeout(resolveDebounceRef.current);
+    setResolveError("");
+
+    if (payoutForm.accountNumber.length !== 10 || !payoutForm.bankCode) {
+      setPayoutForm((f) => (f.accountName ? { ...f, accountName: "" } : f));
+      return;
+    }
+
+    resolveDebounceRef.current = setTimeout(async () => {
+      setResolving(true);
+      try {
+        const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account/resolve`, {
+          method: "POST",
+          body: JSON.stringify({ bankCode: payoutForm.bankCode, accountNumber: payoutForm.accountNumber }),
+        });
+        setPayoutForm((f) => ({ ...f, accountName: data.accountName }));
+      } catch (err) {
+        setPayoutForm((f) => ({ ...f, accountName: "" }));
+        setResolveError(err.message || "Could not resolve account name");
+      } finally {
+        setResolving(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(resolveDebounceRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payoutForm.accountNumber, payoutForm.bankCode, storeId]);
+
   const handleLinkAccount = async (e) => {
     e.preventDefault();
     setLinkingAccount(true);
     try {
-      const result = await apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account`, { method: "POST", body: JSON.stringify(payoutForm) });
+      const result = await apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account`, {
+        method: "POST",
+        body: JSON.stringify({ bankCode: payoutForm.bankCode, accountNumber: payoutForm.accountNumber }),
+      });
       updateStore(result.store);
       setPayoutForm(EMPTY_PAYOUT_FORM);
       toast.success(`Verified, payouts go to ${result.store.accountName}`);
@@ -161,7 +200,23 @@ export default function VendorPayoutsPage() {
                 onChange={(e) => setPayoutForm((f) => ({ ...f, accountNumber: e.target.value.replace(/\D/g, "") }))}
                 required
               />
-              <Button type="submit" loading={linkingAccount} className="sm:col-span-2 w-fit">
+              <div className="sm:col-span-2 flex flex-col gap-1">
+                <label className="text-sm font-medium text-slate-700">Account name</label>
+                <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-sm bg-slate-50 text-base min-h-[42px]">
+                  {resolving ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin text-slate-400" />
+                      <span className="text-slate-400">Resolving…</span>
+                    </>
+                  ) : payoutForm.accountName ? (
+                    <span className="text-slate-900">{payoutForm.accountName}</span>
+                  ) : (
+                    <span className="text-slate-400">Enter your bank and account number above</span>
+                  )}
+                </div>
+                {resolveError && <p className="text-xs text-red-500">{resolveError}</p>}
+              </div>
+              <Button type="submit" loading={linkingAccount} disabled={!payoutForm.accountName || resolving} className="sm:col-span-2 w-fit">
                 Verify &amp; link account
               </Button>
             </form>

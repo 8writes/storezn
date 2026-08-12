@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 
-const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate" };
+const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 
 export default function CustomerOrdersPage() {
   const router = useRouter();
