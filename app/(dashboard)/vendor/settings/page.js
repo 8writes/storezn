@@ -7,6 +7,7 @@ import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
+import { InfoTip } from "@/components/ui/InfoTip.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { uploadFile } from "@/lib/clientUpload.js";
@@ -24,6 +25,14 @@ const CROP_CONFIG = {
   logoUrl: { field: "logoUrl", purpose: "store-logo", title: "Crop logo", aspect: 3, cropShape: "rect", outputWidth: 600, outputHeight: 200 },
   faviconUrl: { field: "faviconUrl", purpose: "store-favicon", title: "Crop favicon", aspect: 1, cropShape: "round", outputWidth: 256, outputHeight: 256 },
 };
+
+// Small uppercase eyebrow above each card - the actual visual break
+// between sections, so scanning the page means jumping section to
+// section instead of reading every label in sequence to figure out
+// where one topic ends and the next begins.
+function SectionLabel({ children }) {
+  return <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{children}</p>;
+}
 
 export default function VendorSettingsPage() {
   const { token } = useAuth(true);
@@ -156,11 +165,9 @@ export default function VendorSettingsPage() {
       {!loading && store && (
         <div className="bg-white border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-slate-900">Store status</p>
+            <p className="text-sm font-semibold text-slate-900">Store status</p>
             <p className="text-xs text-slate-500 mt-0.5">
-              {store.isOpen
-                ? "Your store is live - customers can browse and order."
-                : "Your store is offline - customers see a closed page instead of your storefront."}
+              {store.isOpen ? "Live - customers can browse and order." : "Offline - customers see a closed page instead."}
             </p>
           </div>
           <button
@@ -185,55 +192,55 @@ export default function VendorSettingsPage() {
       {loading || !form ? (
         <FormSkeleton fields={4} />
       ) : (
-        <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-sm p-5 space-y-5">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Store logo</label>
-            <div className="flex items-center gap-4">
-              {form.logoUrl ? (
-                <img src={form.logoUrl} alt="" className="h-12 w-36 rounded-sm object-contain bg-slate-50 border border-slate-200" />
-              ) : (
-                <div className="h-12 w-36 rounded-sm bg-slate-100 flex items-center justify-center text-slate-300 text-xs">None</div>
-              )}
-              <label className="text-sm text-brand-600 hover:underline cursor-pointer">
-                {uploading ? "Uploading…" : "Upload logo"}
-                <input type="file" accept="image/*" onChange={handleFileSelect("logoUrl")} disabled={uploading} className="hidden" />
-              </label>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+            <SectionLabel>Branding</SectionLabel>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Store logo</label>
+              <div className="flex items-center gap-4">
+                {form.logoUrl ? (
+                  <img src={form.logoUrl} alt="" className="h-12 w-36 rounded-sm object-contain bg-slate-50 border border-slate-200" />
+                ) : (
+                  <div className="h-12 w-36 rounded-sm bg-slate-100 flex items-center justify-center text-slate-300 text-xs">None</div>
+                )}
+                <label className="text-sm text-brand-600 hover:underline cursor-pointer">
+                  {uploading ? "Uploading…" : "Upload logo"}
+                  <input type="file" accept="image/*" onChange={handleFileSelect("logoUrl")} disabled={uploading} className="hidden" />
+                </label>
+                <InfoTip>Shown as a wide rectangle in your storefront navbar - you&apos;ll crop it after choosing a file.</InfoTip>
+              </div>
             </div>
-            <p className="text-xs text-slate-500">Shown as a wide rectangle in your storefront navbar - you&apos;ll be able to crop it after choosing a file.</p>
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Favicon</label>
-            <div className="flex items-center gap-4">
-              {form.faviconUrl ? (
-                <img src={form.faviconUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-300 text-xs">None</div>
-              )}
-              <label className="text-sm text-brand-600 hover:underline cursor-pointer">
-                {uploading ? "Uploading…" : "Upload favicon"}
-                <input type="file" accept="image/*" onChange={handleFileSelect("faviconUrl")} disabled={uploading} className="hidden" />
-              </label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Favicon</label>
+              <div className="flex items-center gap-4">
+                {form.faviconUrl ? (
+                  <img src={form.faviconUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-300 text-xs">None</div>
+                )}
+                <label className="text-sm text-brand-600 hover:underline cursor-pointer">
+                  {uploading ? "Uploading…" : "Upload favicon"}
+                  <input type="file" accept="image/*" onChange={handleFileSelect("faviconUrl")} disabled={uploading} className="hidden" />
+                </label>
+                <InfoTip>Your browser tab icon - separate from the logo above, since it needs to be a small circle.</InfoTip>
+              </div>
             </div>
-            <p className="text-xs text-slate-500">Shown as your browser tab icon - separate from the logo above, since it needs to be a small circle.</p>
           </div>
 
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            <Input
-              label="Store address (optional)"
-              placeholder="12 Allen Avenue, Ikeja, Lagos"
-              value={form.address}
-              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-            />
-            <p className="text-xs text-slate-500">Shown in your storefront&apos;s footer, for a pickup location or just to build trust.</p>
-          </div>
+          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+            <SectionLabel>Contact &amp; socials</SectionLabel>
 
-          <div className="space-y-3 pt-2 border-t border-slate-100">
-            <div>
-              <label className="text-sm font-medium text-slate-700">Socials (optional)</label>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Only the ones you fill in show up as icons in your storefront&apos;s footer. WhatsApp also powers the quick-help button shoppers see on every page.
-              </p>
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-medium text-slate-700">Store address</label>
+              <InfoTip>Shown in your storefront&apos;s footer, for a pickup location or just to build trust.</InfoTip>
+            </div>
+            <Input placeholder="12 Allen Avenue, Ikeja, Lagos" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+
+            <div className="flex items-center gap-1.5 pt-2">
+              <label className="text-sm font-medium text-slate-700">Socials</label>
+              <InfoTip>Only the ones you fill in show up as icons in your footer. WhatsApp also powers the quick-help button shoppers see everywhere.</InfoTip>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
@@ -275,59 +282,59 @@ export default function VendorSettingsPage() {
             </div>
           </div>
 
-          <div className="space-y-3 pt-2 border-t border-slate-100">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">Who pays the commission?</label>
-              {commissionRate != null && <Badge color="slate">{commissionRate}% rate</Badge>}
-            </div>
-            <p className="text-xs text-slate-500 -mt-2">
-              When you sell a product, who pays the commission fee to the platform?
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, feeChargedToCustomer: false }))}
-                className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
-                  !form.feeChargedToCustomer
-                    ? "border-brand-500 bg-brand-50 text-brand-700"
-                    : "border-slate-300 text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                I absorb it
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, feeChargedToCustomer: true }))}
-                className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
-                  form.feeChargedToCustomer
-                    ? "border-brand-500 bg-brand-50 text-brand-700"
-                    : "border-slate-300 text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                Customer pays it
-              </button>
-            </div>
-            <p className="text-xs text-slate-500">
-              {form.feeChargedToCustomer
-                ? "Shown as a separate \"Platform fee\" line at checkout, added on top of the order total. You receive your full subtotal + shipping."
-                : "Commission is deducted from your payout. Customers never see it, they just pay the order total."}
-            </p>
-          </div>
+          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+            <SectionLabel>Fees &amp; refunds</SectionLabel>
 
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            <label className="text-sm font-medium text-slate-700">Refund window</label>
-            <p className="text-xs text-slate-500 -mt-1">
-              How many days after you mark an order delivered a customer can still request a refund. After that, the &quot;Request a refund&quot; button
-              stops working for that order.
-            </p>
-            <Input
-              type="number"
-              min="0"
-              max="365"
-              className="max-w-32"
-              value={form.returnWindowDays}
-              onChange={(e) => setForm((f) => ({ ...f, returnWindowDays: e.target.value }))}
-            />
+            <div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700">Who pays the commission?</label>
+                {commissionRate != null && <Badge color="slate">{commissionRate}%</Badge>}
+                <InfoTip>
+                  {form.feeChargedToCustomer
+                    ? "Shown as a separate \"Platform fee\" at checkout, added on top of the total. You receive your full subtotal + shipping."
+                    : "Commission is deducted from your payout. Customers never see it, they just pay the order total."}
+                </InfoTip>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, feeChargedToCustomer: false }))}
+                  className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
+                    !form.feeChargedToCustomer
+                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  I absorb it
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, feeChargedToCustomer: true }))}
+                  className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
+                    form.feeChargedToCustomer
+                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  Customer pays it
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <label className="text-sm font-medium text-slate-700">Refund window (days)</label>
+                <InfoTip>How many days after you mark an order delivered a customer can still request a refund.</InfoTip>
+              </div>
+              <Input
+                type="number"
+                min="0"
+                max="365"
+                className="max-w-32 mt-1.5"
+                value={form.returnWindowDays}
+                onChange={(e) => setForm((f) => ({ ...f, returnWindowDays: e.target.value }))}
+              />
+            </div>
           </div>
 
           <Button type="submit" loading={saving}>Save settings</Button>

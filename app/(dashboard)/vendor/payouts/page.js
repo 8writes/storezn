@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Input } from "@/components/ui/Input.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
+import { InfoTip } from "@/components/ui/InfoTip.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { StatCard } from "@/components/ui/StatCard.js";
@@ -164,25 +165,25 @@ export default function VendorPayoutsPage() {
           <Badge color={data?.payoutAccount ? "green" : "amber"}>
             {data?.payoutAccount ? "Verified" : "Not linked"}
           </Badge>
+          {!data?.payoutAccount && (
+            <InfoTip>We verify it and set up automatic payouts through Paystack. Customers can&apos;t check out until this is done.</InfoTip>
+          )}
         </div>
 
         {data?.payoutAccount ? (
           <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-sm p-4 text-sm text-green-800">
             <Landmark size={18} className="shrink-0 mt-0.5 hidden md:block" />
             <div>
-              <p className="font-medium">{data.payoutAccount.accountName}</p>
-              <p>{data.payoutAccount.bankName} · {data.payoutAccount.accountNumber}</p>
-              <p className="text-xs text-green-700 mt-1">
-                Online orders pay out to this account automatically. Bank details are locked once set, for security - contact support to change your payout account.
+              <p className="font-medium flex items-center gap-1.5">
+                {data.payoutAccount.accountName}
+                <InfoTip>Locked once set, for security. Contact support to change your payout account.</InfoTip>
               </p>
+              <p>{data.payoutAccount.bankName} · {data.payoutAccount.accountNumber}</p>
             </div>
           </div>
         ) : (
           <>
-            <p className="text-xs text-slate-500">
-              Enter your bank account below - we verify it and set up automatic payouts through Paystack. Customers can&apos;t check out from your store until this is done.
-            </p>
-            <form onSubmit={handleLinkAccount} className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+            <form onSubmit={handleLinkAccount} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Select
                 label="Bank"
                 options={banks.map((b) => ({ value: b.code, label: b.name }))}
@@ -230,11 +231,9 @@ export default function VendorPayoutsPage() {
           className="text-brand-600 hidden md:block shrink-0 mt-0.5"
         />
         <div className="flex-1 text-sm text-brand-800">
-          <p>
-            Paystack settles online orders to your bank account{" "}
-            <strong>the next business day</strong> after payment, not instantly
-            - weekends push it to the following Monday. Offline sales are
-            already yours since you collected them in person.
+          <p className="flex items-center gap-1.5">
+            Paystack settles online orders <strong>the next business day</strong>.
+            <InfoTip>Weekends push it to the following Monday. Offline sales are already yours since you collected them in person.</InfoTip>
           </p>
           <Button
             type="button"
