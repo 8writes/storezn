@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
 import { orders, orderItems, products, productVariants, stores, platformSettings } from "../../../../../../../../lib/db/schema.js";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -147,12 +147,16 @@ export async function POST(req, { params }) {
     const itemsHtml = resolvedItems
       .map((i) => `<tr><td>${i.product.name}${i.variant ? ` (${Object.values(i.variant.options).join(", ")})` : ""}</td><td>${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`)
       .join("");
-    sendMail({
-      to: buyerEmail,
-      subject: `Order confirmation - ${order.orderNumber}`,
-      html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${store.name} has been recorded.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
-      fromName: store.name,
-    }).catch((err) => console.error("sendMail failed (offline order confirmation):", err));
+    // Wrapped in after() rather than left as a bare fire-and-forget
+    // promise - see the identical comment in forgot-password/route.js.
+    after(() =>
+      sendMail({
+        to: buyerEmail,
+        subject: `Order confirmation - ${order.orderNumber}`,
+        html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${store.name} has been recorded.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
+        fromName: store.name,
+      }).catch((err) => console.error("sendMail failed (offline order confirmation):", err)),
+    );
   }
 
   return NextResponse.json({ order }, { status: 201 });

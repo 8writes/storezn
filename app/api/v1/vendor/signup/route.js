@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "../../../../../lib/db/index.js";
 import { stores, users } from "../../../../../lib/db/schema.js";
@@ -65,7 +65,11 @@ export async function POST(req) {
     return { store, vendorUser };
   });
 
-  sendVerificationEmail({ user: created.vendorUser, req }).catch((err) => console.error("sendVerificationEmail failed (vendor signup):", err));
+  // Wrapped in after() rather than left as a bare fire-and-forget promise
+  // - see the identical comment in forgot-password/route.js.
+  after(() =>
+    sendVerificationEmail({ user: created.vendorUser, req }).catch((err) => console.error("sendVerificationEmail failed (vendor signup):", err)),
+  );
 
   const { passwordHash: _, ...safeVendor } = created.vendorUser;
   return NextResponse.json({ store: created.store, vendor: safeVendor }, { status: 201 });

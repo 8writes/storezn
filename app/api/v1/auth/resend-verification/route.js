@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { users } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
@@ -24,7 +24,11 @@ export async function POST(req) {
   // reasoning as forgot-password.
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (user && !user.emailVerified) {
-    sendVerificationEmail({ user, req }).catch((err) => console.error("sendVerificationEmail failed (resend-verification):", err));
+    // Wrapped in after() rather than left as a bare fire-and-forget
+    // promise - see the identical comment in forgot-password/route.js.
+    after(() =>
+      sendVerificationEmail({ user, req }).catch((err) => console.error("sendVerificationEmail failed (resend-verification):", err)),
+    );
   }
 
   return NextResponse.json({ ok: true });

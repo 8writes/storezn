@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { users, tokens } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
@@ -39,11 +39,21 @@ export async function POST(req) {
     const protocol = req.headers.get("x-forwarded-proto") || "http";
     const host = req.headers.get("host") || "";
     const resetUrl = `${protocol}://${host}/reset-password?token=${token}`;
-    sendMail({
-      to: user.email,
-      subject: "Reset your password",
-      html: `<p>A password reset was requested for your account.</p><p>Click below to reset your password. This link expires in 1 hour.</p><p><a href="${resetUrl}">Reset Password</a></p>`,
-    }).catch((err) => console.error("sendMail failed (forgot-password):", err));
+    // Not awaited - the response below must stay fast regardless of mail
+    // provider latency, and always-ok must not depend on send success
+    // (see the comment above). Wrapped in after() rather than left as a
+    // bare fire-and-forget promise: Vercel can freeze/tear down a
+    // serverless invocation the instant the response is sent, which can
+    // silently cut an un-awaited async call off mid-flight - after()
+    // (backed by Vercel's waitUntil) keeps the invocation alive until
+    // this callback actually settles.
+    after(() =>
+      sendMail({
+        to: user.email,
+        subject: "Reset your password",
+        html: `<p>A password reset was requested for your account.</p><p>Click below to reset your password. This link expires in 1 hour.</p><p><a href="${resetUrl}">Reset Password</a></p>`,
+      }).catch((err) => console.error("sendMail failed (forgot-password):", err)),
+    );
   }
 
   return NextResponse.json({ ok: true });
