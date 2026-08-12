@@ -106,7 +106,7 @@ export default function VendorVerificationPage() {
             required
           />
           <p className="text-xs text-slate-700">
-            Your NIN is encrypted on your device before it&apos;s sent - it&apos;s stored encrypted and only decrypted by a super-admin when reviewing your submission.
+            Your NIN is encrypted on your device before it&apos;s sent - it&apos;s stored encrypted.
           </p>
           <Button type="submit" loading={submitting}>Submit for review</Button>
         </form>
