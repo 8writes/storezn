@@ -5,6 +5,8 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { verifyWebhookSignature, verifyTransaction } from "../../../../../lib/paystack.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { formatCurrency } from "../../../../../lib/format.js";
+import { sendPushToUser } from "../../../../../lib/push.js";
+import { LOW_STOCK_THRESHOLD } from "../../../../../lib/inventory.js";
 
 // This is registered directly on Paystack only in local/single-product
 // dev. In production, website-ozmictech's shared webhook router receives
@@ -45,6 +47,7 @@ export async function POST(req) {
   }
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+  const lowStockNow = [];
 
   await db.transaction(async (tx) => {
     await tx
@@ -57,18 +60,35 @@ export async function POST(req) {
     // Only touches rows that actually track stock (physical, non-null
     // stock) - a variant's own stock is authoritative when one was
     // ordered, since the parent product's stock is ignored once it has
-    // variants.
+    // variants. .returning() gives back the post-decrement stock, which
+    // is enough (added to this item's own quantity) to derive the
+    // pre-decrement value too, without a separate read - used below to
+    // detect crossing into low stock without a second query.
     for (const item of items) {
       if (item.variantId) {
-        await tx
+        const [updated] = await tx
           .update(productVariants)
           .set({ stock: sql`${productVariants.stock} - ${item.quantity}` })
-          .where(and(eq(productVariants.id, item.variantId), isNotNull(productVariants.stock)));
+          .where(and(eq(productVariants.id, item.variantId), isNotNull(productVariants.stock)))
+          .returning({ stock: productVariants.stock });
+        if (updated) {
+          const before = updated.stock + item.quantity;
+          if (before > LOW_STOCK_THRESHOLD && updated.stock <= LOW_STOCK_THRESHOLD) {
+            lowStockNow.push({ name: item.productName, variantLabel: item.variantLabel, stock: updated.stock });
+          }
+        }
       } else {
-        await tx
+        const [updated] = await tx
           .update(products)
           .set({ stock: sql`${products.stock} - ${item.quantity}` })
-          .where(and(eq(products.id, item.productId), isNotNull(products.stock)));
+          .where(and(eq(products.id, item.productId), isNotNull(products.stock)))
+          .returning({ stock: products.stock });
+        if (updated) {
+          const before = updated.stock + item.quantity;
+          if (before > LOW_STOCK_THRESHOLD && updated.stock <= LOW_STOCK_THRESHOLD) {
+            lowStockNow.push({ name: item.productName, variantLabel: item.variantLabel, stock: updated.stock });
+          }
+        }
       }
     }
 
@@ -95,7 +115,27 @@ export async function POST(req) {
     if (customer) recipient = { email: customer.email, notify: customer.notify };
   }
 
-  const [store] = await db.select({ name: stores.name }).from(stores).where(eq(stores.id, order.storeId)).limit(1);
+  const [store] = await db
+    .select({ name: stores.name, ownerId: stores.ownerId })
+    .from(stores)
+    .where(eq(stores.id, order.storeId))
+    .limit(1);
+
+  if (store?.ownerId) {
+    sendPushToUser(store.ownerId, {
+      title: "New order",
+      body: `Order ${order.orderNumber} for ${formatCurrency(order.totalAmount)} just came in.`,
+      url: "/vendor/orders",
+    }).catch((err) => console.error("sendPushToUser failed (new order):", err));
+
+    for (const p of lowStockNow) {
+      sendPushToUser(store.ownerId, {
+        title: "Low stock",
+        body: `${p.name}${p.variantLabel ? ` (${p.variantLabel})` : ""} is down to ${p.stock} left.`,
+        url: "/vendor/products",
+      }).catch((err) => console.error("sendPushToUser failed (low stock):", err));
+    }
+  }
 
   if (recipient.email && recipient.notify) {
     const itemsHtml = items

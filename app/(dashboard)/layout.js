@@ -24,6 +24,7 @@ import {
   Wallet,
   HelpCircle,
   Receipt,
+  Bell,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -50,7 +51,10 @@ const NAV_BY_ROLE = {
     },
     {
       title: "Platform",
-      items: [{ href: "/super-admin/settings", label: "Platform settings", icon: Settings }],
+      items: [
+        { href: "/super-admin/notifications", label: "Notify vendors", icon: Bell },
+        { href: "/super-admin/settings", label: "Platform settings", icon: Settings },
+      ],
     },
     {
       title: "Account",

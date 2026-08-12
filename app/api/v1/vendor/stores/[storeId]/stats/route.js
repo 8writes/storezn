@@ -3,6 +3,7 @@ import { db } from "../../../../../../../lib/db/index.js";
 import { orders, products, stores } from "../../../../../../../lib/db/schema.js";
 import { eq, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
+import { LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
 
 // Small stats summary for the vendor dashboard landing page - revenue
 // only counts paid orders, same reasoning as the super-admin analytics
@@ -31,7 +32,7 @@ export async function GET(req, { params }) {
       live: sql`count(*) filter (where ${products.isActive})`.mapWith(Number),
       // Only physical products with a tracked (non-null) stock count -
       // digital/unlimited items can't be "low".
-      lowStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} is not null and ${products.stock} <= 5)`.mapWith(Number),
+      lowStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} is not null and ${products.stock} <= ${LOW_STOCK_THRESHOLD})`.mapWith(Number),
     })
     .from(products)
     .where(eq(products.storeId, storeId));

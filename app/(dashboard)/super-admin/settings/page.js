@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
+import { PushNotificationToggle } from "@/components/ui/PushNotificationToggle.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 
 export default function SuperAdminSettingsPage() {
@@ -69,6 +70,8 @@ export default function SuperAdminSettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Platform settings</h1>
+
+      <PushNotificationToggle token={token} />
 
       {loading ? (
         <FormSkeleton fields={2} />

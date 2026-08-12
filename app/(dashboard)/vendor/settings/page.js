@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
+import { PushNotificationToggle } from "@/components/ui/PushNotificationToggle.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { uploadFile } from "@/lib/clientUpload.js";
@@ -154,6 +155,8 @@ export default function VendorSettingsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-xl font-bold text-slate-900">Store settings</h1>
+
+      <PushNotificationToggle token={token} />
 
       {!loading && store && !store.isActive && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">

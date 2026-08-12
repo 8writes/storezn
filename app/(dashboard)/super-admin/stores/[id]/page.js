@@ -124,7 +124,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">{store.name}</h1>
-          <p className="text-sm text-slate-500">{store.slug}.ourplatform.com</p>
+          <p className="text-sm text-slate-500">{store.slug}.storezn.com.com</p>
         </div>
         <div className="flex items-center gap-3">
           <Badge color={store.isActive ? "green" : "red"}>{store.isActive ? "Active" : "Inactive"}</Badge>

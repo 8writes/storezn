@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { users } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, submitNinSchema } from "../../../../../lib/validate.js";
+import { sendPushToRole } from "../../../../../lib/push.js";
 
 export async function GET(req) {
   const user = await getUser(req);
@@ -47,6 +48,14 @@ export async function POST(req) {
     })
     .where(eq(users.id, user.id))
     .returning();
+
+  after(() =>
+    sendPushToRole("super_admin", {
+      title: "Vendor verification submitted",
+      body: `${updated.firstName} ${updated.lastName} submitted their NIN for review.`,
+      url: "/super-admin/vendors",
+    }).catch((err) => console.error("sendPushToRole failed (NIN submission):", err)),
+  );
 
   return NextResponse.json({
     approvalStatus: updated.approvalStatus,

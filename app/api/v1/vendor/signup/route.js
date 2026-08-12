@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { validate, vendorSignupSchema } from "../../../../../lib/validate.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { sendVerificationEmail } from "../../../../../lib/emailVerification.js";
+import { sendPushToRole } from "../../../../../lib/push.js";
 
 // Public self-signup for vendors: anyone can create their own store and
 // vendor account, no super_admin involved. Same store+vendor transaction
@@ -63,9 +64,14 @@ export async function POST(req) {
 
   // Wrapped in after() rather than left as a bare fire-and-forget promise
   // - see the identical comment in forgot-password/route.js.
-  after(() =>
-    sendVerificationEmail({ user: created.vendorUser, req }).catch((err) => console.error("sendVerificationEmail failed (vendor signup):", err)),
-  );
+  after(() => {
+    sendVerificationEmail({ user: created.vendorUser, req }).catch((err) => console.error("sendVerificationEmail failed (vendor signup):", err));
+    sendPushToRole("super_admin", {
+      title: "New vendor signup",
+      body: `${created.vendorUser.firstName} ${created.vendorUser.lastName} signed up "${created.store.name}" - pending verification.`,
+      url: "/super-admin/stores",
+    }).catch((err) => console.error("sendPushToRole failed (vendor signup):", err));
+  });
 
   const { passwordHash: _, ...safeVendor } = created.vendorUser;
   return NextResponse.json({ store: created.store, vendor: safeVendor }, { status: 201 });
