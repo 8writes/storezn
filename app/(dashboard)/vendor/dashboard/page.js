@@ -153,7 +153,7 @@ export default function VendorDashboardPage() {
       </div>
 
       {stores.length === 0 ? (
-        <p className="text-sm text-slate-400">No store set up yet, contact the platform admin.</p>
+        <p className="text-sm text-slate-700">No store set up yet, contact the platform admin.</p>
       ) : (
         <>
           {store && verification?.approvalStatus === "approved" && (
@@ -172,7 +172,7 @@ export default function VendorDashboardPage() {
           {store && verification && verification.approvalStatus !== "approved" && (
             <div className="max-w-md bg-slate-50 border border-dashed border-slate-200 rounded-sm p-4">
               <p className="text-sm font-semibold text-slate-500">Your store&apos;s link will appear here</p>
-              <p className="text-xs text-slate-400 mt-0.5">Once your identity is verified below, you&apos;ll get a shareable link customers can use to shop from you.</p>
+              <p className="text-xs text-slate-700 mt-0.5">Once your identity is verified below, you&apos;ll get a shareable link customers can use to shop from you.</p>
             </div>
           )}
 

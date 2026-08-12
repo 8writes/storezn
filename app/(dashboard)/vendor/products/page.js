@@ -56,7 +56,7 @@ export default function VendorProductsPage() {
   }, [q, storeId]);
 
   if (!storesLoading && stores.length === 0) {
-    return <p className="text-sm text-slate-400">No store set up yet.</p>;
+    return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
   return (
@@ -90,7 +90,7 @@ export default function VendorProductsPage() {
               <TableRowSkeleton cols={6} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">{q ? "No products match your search" : "No products yet"}</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-700">{q ? "No products match your search" : "No products yet"}</td>
               </tr>
             ) : (
               products.map((p) => (
@@ -104,7 +104,7 @@ export default function VendorProductsPage() {
                   <td className="px-4 py-3 text-slate-500 capitalize">
                     {p.productType}
                     {p.productType === "physical" && p.condition !== "new" && (
-                      <span className="text-slate-400"> · {formatCondition(p.condition)}</span>
+                      <span className="text-slate-700"> · {formatCondition(p.condition)}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-500">

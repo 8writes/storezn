@@ -19,7 +19,7 @@ export default function AccountLayout({ children }) {
             key={t.href}
             href={t.href}
             className={`pb-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              pathname.startsWith(t.href) ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400 hover:text-slate-700"
+              pathname.startsWith(t.href) ? "border-slate-900 text-slate-900" : "border-transparent text-slate-700 hover:text-slate-700"
             }`}
           >
             {t.label}

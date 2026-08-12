@@ -94,7 +94,7 @@ export default function SuperAdminStoresPage() {
               <TableRowSkeleton cols={5} />
             ) : stores.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">{q ? "No stores match your search" : "No stores yet"}</td>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-700">{q ? "No stores match your search" : "No stores yet"}</td>
               </tr>
             ) : (
               stores.map((s) => (
@@ -105,7 +105,7 @@ export default function SuperAdminStoresPage() {
                 >
                   <td className="px-4 py-3">
                     <p className="font-medium">{s.name}</p>
-                    <p className="text-xs text-slate-400">{s.slug}</p>
+                    <p className="text-xs text-slate-700">{s.slug}</p>
                   </td>
                   <td className="px-4 py-3 text-slate-500">
                     {s.owner ? `${s.owner.firstName} ${s.owner.lastName}` : "-"}
@@ -114,7 +114,7 @@ export default function SuperAdminStoresPage() {
                     <Badge color={s.isActive ? "green" : "red"}>{s.isActive ? "Active" : "Inactive"}</Badge>
                   </td>
                   <td className="px-4 py-3 text-slate-500">
-                    {s.subAccountCode ? `${s.bankName} · ${s.accountNumber}` : <span className="text-slate-400">Not set</span>}
+                    {s.subAccountCode ? `${s.bankName} · ${s.accountNumber}` : <span className="text-slate-700">Not set</span>}
                   </td>
                   <td className="px-4 py-3 text-right space-x-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <Link href={`/super-admin/stores/${s.id}`} className="text-brand-600 hover:underline">View</Link>
@@ -122,7 +122,7 @@ export default function SuperAdminStoresPage() {
                       type="button"
                       onClick={() => toggleActive(s)}
                       disabled={togglingId === s.id}
-                      className="text-brand-600 hover:underline cursor-pointer disabled:text-slate-400 disabled:cursor-wait"
+                      className="text-brand-600 hover:underline cursor-pointer disabled:text-slate-700 disabled:cursor-wait"
                     >
                       {s.isActive ? "Disable" : "Enable"}
                     </button>

@@ -67,7 +67,7 @@ export default function CustomerOrderDetailPage() {
     }
   };
 
-  if (authLoading || loading) return <p className="text-center text-slate-400 py-20">Loading…</p>;
+  if (authLoading || loading) return <p className="text-center text-slate-700 py-20">Loading…</p>;
   if (!data) return null;
 
   const { order, items, refundRequest } = data;

@@ -47,7 +47,7 @@ export function SetupGuideModal({ open, onClose, steps }) {
               Tip: Tap on the <Info size={12} className="inline align-text-bottom mx-0.5" /> icon next to a field for more details.
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="shrink-0 text-slate-400 hover:text-slate-700 cursor-pointer">
+          <button type="button" onClick={onClose} aria-label="Close" className="shrink-0 text-slate-700 hover:text-slate-700 cursor-pointer">
             <X size={18} />
           </button>
         </div>
@@ -71,7 +71,7 @@ export function SetupGuideModal({ open, onClose, steps }) {
                 <Circle size={20} className="text-slate-300 shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${step.done ? "text-slate-400 line-through" : "text-slate-900"}`}>{step.label}</p>
+                <p className={`text-sm font-medium ${step.done ? "text-slate-700 line-through" : "text-slate-900"}`}>{step.label}</p>
                 {!step.done && step.description && <p className="text-xs text-slate-500 mt-0.5">{step.description}</p>}
               </div>
               {!step.done && (

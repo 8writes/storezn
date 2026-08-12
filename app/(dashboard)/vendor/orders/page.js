@@ -66,7 +66,7 @@ export default function VendorOrdersPage() {
   }, [status, q, storeId]);
 
   if (!storesLoading && stores.length === 0) {
-    return <p className="text-sm text-slate-400">No store set up yet.</p>;
+    return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
   return (
@@ -103,7 +103,7 @@ export default function VendorOrdersPage() {
               <TableRowSkeleton cols={5} />
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">{q ? "No orders match your search" : "No orders yet"}</td>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-700">{q ? "No orders match your search" : "No orders yet"}</td>
               </tr>
             ) : (
               orders.map((o) => (

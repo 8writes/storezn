@@ -61,7 +61,7 @@ function QrModal({ storeName, storeUrl, onClose }) {
       <div className="relative bg-white rounded-sm shadow-xl w-full max-w-sm overflow-hidden my-auto">
         <div className="flex items-center justify-between px-4 h-12 border-b border-slate-200">
           <span className="text-sm font-semibold text-slate-900">Your storefront QR code</span>
-          <button type="button" onClick={onClose} className="cursor-pointer text-slate-400 hover:text-slate-700">
+          <button type="button" onClick={onClose} className="cursor-pointer text-slate-700 hover:text-slate-700">
             <X size={18} />
           </button>
         </div>

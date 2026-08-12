@@ -105,7 +105,7 @@ export default function VendorVerificationPage() {
             onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
             required
           />
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-700">
             Your NIN is encrypted on your device before it&apos;s sent - it&apos;s stored encrypted and only decrypted by a super-admin when reviewing your submission.
           </p>
           <Button type="submit" loading={submitting}>Submit for review</Button>

@@ -57,12 +57,12 @@ export default function CartPage() {
     }
   };
 
-  if (loading) return <p className="text-center text-slate-400 py-20">Loading your cart…</p>;
+  if (loading) return <p className="text-center text-slate-700 py-20">Loading your cart…</p>;
 
   if (!cart || cart.items.length === 0) {
     return (
       <div className="text-center py-20 space-y-4">
-        <p className="text-slate-400">Your cart is empty.</p>
+        <p className="text-slate-700">Your cart is empty.</p>
         <Link href="/" className="text-brand-600 hover:underline text-sm">Continue shopping</Link>
       </div>
     );
@@ -89,7 +89,7 @@ export default function CartPage() {
             <div className="flex-1 min-w-40">
               <p className="text-sm font-medium text-slate-900 truncate">{item.product.name}</p>
               {item.variant && (
-                <p className="text-xs text-slate-400 mt-0.5">{Object.entries(item.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ")}</p>
+                <p className="text-xs text-slate-700 mt-0.5">{Object.entries(item.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ")}</p>
               )}
               <p className="text-sm text-slate-500 mt-1">{formatCurrency(item.unitPrice)}</p>
             </div>
@@ -120,7 +120,7 @@ export default function CartPage() {
                 disabled={busyId === item.id}
                 onClick={() => removeItem(item.id)}
                 aria-label="Remove item"
-                className="text-slate-400 hover:text-red-600 disabled:opacity-50 cursor-pointer"
+                className="text-slate-700 hover:text-red-600 disabled:opacity-50 cursor-pointer"
               >
                 <Trash2 size={16} />
               </button>

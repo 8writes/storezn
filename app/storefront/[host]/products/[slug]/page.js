@@ -85,12 +85,12 @@ export default async function StorefrontProductPage({ params }) {
               </div>
               <ShareButton url={`${getStorefrontUrl(store)}/products/${product.slug}`} title={product.name} className="shrink-0 mt-1" />
             </div>
-            {product.sku && <p className="text-xs text-slate-400">SKU: {product.sku}</p>}
+            {product.sku && <p className="text-xs text-slate-700">SKU: {product.sku}</p>}
           </div>
 
           {product.description && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{product.description}</p>}
 
-          <p className="text-xs text-slate-400 uppercase tracking-wide">
+          <p className="text-xs text-slate-700 uppercase tracking-wide">
             {product.productType === "physical" ? "Ships to your address" : "Digital delivery"}
             {product.productType === "physical" && variants.length === 0 && product.stock != null && ` · ${product.stock} in stock`}
           </p>

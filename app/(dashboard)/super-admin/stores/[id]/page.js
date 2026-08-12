@@ -145,7 +145,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
               {owner.phone && <p className="text-sm text-slate-500">{owner.phone}</p>}
             </>
           ) : (
-            <p className="text-sm text-slate-400">No owner on record</p>
+            <p className="text-sm text-slate-700">No owner on record</p>
           )}
         </div>
 
@@ -186,7 +186,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
             </Button>
           </>
         ) : (
-          <p className="text-sm text-slate-400">Not yet configured.</p>
+          <p className="text-sm text-slate-700">Not yet configured.</p>
         )}
       </div>
 
@@ -202,7 +202,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
       <div>
         <p className="text-sm font-semibold text-slate-700 mb-3">Transactions</p>
         {transactions.length === 0 ? (
-          <p className="text-sm text-slate-400">No transactions yet.</p>
+          <p className="text-sm text-slate-700">No transactions yet.</p>
         ) : (
           <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">

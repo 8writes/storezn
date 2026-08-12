@@ -94,7 +94,7 @@ export function PushNotificationToggle({ token }) {
         {subscribed ? (
           <Bell size={18} className="text-brand-600 shrink-0" />
         ) : (
-          <BellOff size={18} className="text-slate-400 shrink-0" />
+          <BellOff size={18} className="text-slate-700 shrink-0" />
         )}
         <div>
           <p className="text-sm font-semibold text-slate-900">Push notifications</p>

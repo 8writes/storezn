@@ -114,7 +114,7 @@ export default function RecordOfflineOrderPage() {
   };
 
   if (!loading && stores.length === 0) {
-    return <p className="text-sm text-slate-400">No store set up yet.</p>;
+    return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
   return (
@@ -169,7 +169,7 @@ export default function RecordOfflineOrderPage() {
                     type="button"
                     onClick={() => removeItem(index)}
                     disabled={items.length === 1}
-                    className="h-10 w-10 flex items-center justify-center text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    className="h-10 w-10 flex items-center justify-center text-slate-700 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <Trash2 size={16} />
                   </button>

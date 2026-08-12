@@ -48,7 +48,7 @@ export default function VendorCustomersPage() {
   }, [storeId, q]);
 
   if (!storesLoading && stores.length === 0) {
-    return <p className="text-sm text-slate-400">No store set up yet.</p>;
+    return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
   return (
@@ -75,7 +75,7 @@ export default function VendorCustomersPage() {
               <TableRowSkeleton cols={7} />
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">{q ? "No customers match your search" : "No customers yet"}</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-700">{q ? "No customers match your search" : "No customers yet"}</td>
               </tr>
             ) : (
               customers.map((c) => (

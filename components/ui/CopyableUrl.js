@@ -34,7 +34,7 @@ export function CopyableUrl({ url, shareTitle }) {
         <a href={url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 text-sm text-slate-700 truncate hover:text-brand-700">
           {url}
         </a>
-        <a href={url} target="_blank" rel="noreferrer" aria-label="Open storefront" className="shrink-0 p-1.5 text-slate-400 hover:text-slate-700">
+        <a href={url} target="_blank" rel="noreferrer" aria-label="Open storefront" className="shrink-0 p-1.5 text-slate-700 hover:text-slate-700">
           <ExternalLink size={16} />
         </a>
       </div>

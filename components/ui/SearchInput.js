@@ -23,7 +23,7 @@ export function SearchInput({ value, onSearch, placeholder = "Search...", classN
 
   return (
     <div className={`relative ${className}`}>
-      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 pointer-events-none" />
       <input
         type="text"
         value={text}

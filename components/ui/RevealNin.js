@@ -11,13 +11,13 @@ export function RevealNin({ hasNin, apiFetch, endpoint }) {
   const [nin, setNin] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  if (!hasNin) return <span className="text-slate-400">-</span>;
+  if (!hasNin) return <span className="text-slate-700">-</span>;
 
   if (nin) {
     return (
       <span className="font-mono inline-flex items-center gap-2">
         {nin}
-        <button type="button" onClick={() => setNin(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer" title="Hide">
+        <button type="button" onClick={() => setNin(null)} className="text-slate-700 hover:text-slate-600 cursor-pointer" title="Hide">
           <EyeOff size={14} />
         </button>
       </span>

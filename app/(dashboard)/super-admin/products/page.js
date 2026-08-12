@@ -111,7 +111,7 @@ export default function SuperAdminProductsPage() {
               <TableRowSkeleton cols={5} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">No products match</td>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-700">No products match</td>
               </tr>
             ) : (
               products.map((p) => (
@@ -128,7 +128,7 @@ export default function SuperAdminProductsPage() {
                       <Badge color={p.isActive ? "green" : "slate"}>{p.isActive ? "Live" : "Hidden"}</Badge>
                       {p.suspendedAt && <Badge color="red">Suspended</Badge>}
                     </div>
-                    {p.suspendedReason && <p className="text-xs text-slate-400 mt-1">{p.suspendedReason}</p>}
+                    {p.suspendedReason && <p className="text-xs text-slate-700 mt-1">{p.suspendedReason}</p>}
                   </td>
                   <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-3">

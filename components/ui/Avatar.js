@@ -8,7 +8,7 @@ export function Avatar({ url, size = "sm" }) {
     return <img src={url} alt="" className={`${SIZES[size]} rounded-full object-cover border border-slate-200 shrink-0`} />;
   }
   return (
-    <div className={`${SIZES[size]} rounded-full bg-slate-100 flex items-center justify-center text-slate-400 shrink-0`}>
+    <div className={`${SIZES[size]} rounded-full bg-slate-100 flex items-center justify-center text-slate-700 shrink-0`}>
       <User size={ICON_SIZES[size]} />
     </div>
   );

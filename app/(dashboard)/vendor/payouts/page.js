@@ -152,7 +152,7 @@ export default function VendorPayoutsPage() {
   };
 
   if (!storesLoading && stores.length === 0) {
-    return <p className="text-sm text-slate-400">No store set up yet.</p>;
+    return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
   return (
@@ -206,13 +206,13 @@ export default function VendorPayoutsPage() {
                 <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-sm bg-slate-50 text-base min-h-[42px]">
                   {resolving ? (
                     <>
-                      <Loader2 size={15} className="animate-spin text-slate-400" />
-                      <span className="text-slate-400">Resolving…</span>
+                      <Loader2 size={15} className="animate-spin text-slate-700" />
+                      <span className="text-slate-700">Resolving…</span>
                     </>
                   ) : payoutForm.accountName ? (
                     <span className="text-slate-900">{payoutForm.accountName}</span>
                   ) : (
-                    <span className="text-slate-400">Enter your bank and account number above</span>
+                    <span className="text-slate-700">Enter your bank and account number above</span>
                   )}
                 </div>
                 {resolveError && <p className="text-xs text-red-500">{resolveError}</p>}
@@ -311,7 +311,7 @@ export default function VendorPayoutsPage() {
               <tr>
                 <td
                   colSpan={7}
-                  className="px-4 py-6 text-center text-slate-400"
+                  className="px-4 py-6 text-center text-slate-700"
                 >
                   {q ? "No payouts match your search" : "No payouts yet"}
                 </td>
@@ -354,7 +354,7 @@ export default function VendorPayoutsPage() {
                     </td>
                     <td className="px-4 py-3">
                       {t.isOffline ? (
-                        <span className="text-slate-400">
+                        <span className="text-slate-700">
                           Collected in person
                         </span>
                       ) : t.settledAt ? (
@@ -364,7 +364,7 @@ export default function VendorPayoutsPage() {
                       ) : (
                         <div>
                           <Badge color="amber">Pending</Badge>
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          <p className="text-xs text-slate-700 mt-0.5">
                             Expected{" "}
                             {formatDate(estimatedSettlementDate(paidAt))}
                           </p>

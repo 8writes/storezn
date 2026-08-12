@@ -25,7 +25,7 @@ export function CopyButton({ value, label = "Copy" }) {
       type="button"
       onClick={handleCopy}
       aria-label={label}
-      className="inline-flex items-center justify-center text-slate-400 hover:text-brand-600 cursor-pointer"
+      className="inline-flex items-center justify-center text-slate-700 hover:text-brand-600 cursor-pointer"
     >
       {copied ? <Check size={14} className="text-brand-600" /> : <Copy size={14} />}
     </button>

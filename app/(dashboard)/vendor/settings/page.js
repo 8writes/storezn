@@ -149,7 +149,7 @@ export default function VendorSettingsPage() {
   };
 
   if (!storesLoading && stores.length === 0) {
-    return <p className="text-sm text-slate-400">No store set up yet.</p>;
+    return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
   return (

@@ -48,19 +48,19 @@ export default function VendorCustomerDetailPage({ params }) {
 
       <div className="bg-white border border-slate-200 rounded-sm p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
-          <p className="text-slate-400">Email</p>
+          <p className="text-slate-700">Email</p>
           <p className="text-slate-900 font-medium">{customer.email}</p>
         </div>
         <div>
-          <p className="text-slate-400">Phone</p>
+          <p className="text-slate-700">Phone</p>
           <p className="text-slate-900 font-medium">{customer.phone || "-"}</p>
         </div>
         <div>
-          <p className="text-slate-400">Orders placed</p>
+          <p className="text-slate-700">Orders placed</p>
           <p className="text-slate-900 font-medium">{stats.orderCount}</p>
         </div>
         <div>
-          <p className="text-slate-400">Total spent</p>
+          <p className="text-slate-700">Total spent</p>
           <p className="text-slate-900 font-medium">{formatCurrency(stats.totalSpent)}</p>
         </div>
       </div>
@@ -69,7 +69,7 @@ export default function VendorCustomerDetailPage({ params }) {
         <h2 className="text-sm font-semibold text-slate-700 mb-2">Order history</h2>
         <div className="bg-white border border-slate-200 rounded-sm divide-y divide-slate-100">
           {orders.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-slate-400">No orders yet</p>
+            <p className="px-4 py-6 text-center text-sm text-slate-700">No orders yet</p>
           ) : (
             orders.map((o) => (
               <Link
@@ -79,7 +79,7 @@ export default function VendorCustomerDetailPage({ params }) {
               >
                 <div>
                   <p className="text-sm font-medium text-slate-900">{o.orderNumber}</p>
-                  <p className="text-xs text-slate-400">{formatDateTime(o.createdAt)}</p>
+                  <p className="text-xs text-slate-700">{formatDateTime(o.createdAt)}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-slate-700">{formatCurrency(o.totalAmount)}</span>

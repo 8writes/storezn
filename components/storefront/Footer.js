@@ -29,7 +29,7 @@ export function Footer({ store }) {
       <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="text-sm text-slate-500 text-center sm:text-left">
           <p>© {new Date().getFullYear()} {store?.name}</p>
-          {store?.address && <p className="text-xs text-slate-400 mt-0.5">{store.address}</p>}
+          {store?.address && <p className="text-xs text-slate-700 mt-0.5">{store.address}</p>}
         </div>
 
         {hasAnySocial && (
@@ -41,7 +41,7 @@ export function Footer({ store }) {
                 target="_blank"
                 rel="noreferrer"
                 aria-label={label}
-                className="text-slate-400 hover:text-brand-600 transition-colors"
+                className="text-slate-700 hover:text-brand-600 transition-colors"
               >
                 <Icon size={18} />
               </a>
@@ -49,7 +49,7 @@ export function Footer({ store }) {
           </div>
         )}
 
-        <div className="flex items-center gap-4 text-xs text-slate-400">
+        <div className="flex items-center gap-4 text-xs text-slate-700">
           <a href={getPlatformUrl("/signup")} className="font-medium hover:text-brand-600 transition-colors">
             Get your own store
           </a>

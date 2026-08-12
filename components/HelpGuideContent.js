@@ -213,7 +213,7 @@ export function HelpGuideContent() {
       </div>
 
       <div className="relative max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 pointer-events-none" />
         <input
           type="text"
           value={search}
@@ -246,7 +246,7 @@ export function HelpGuideContent() {
           <button
             type="button"
             onClick={() => setActiveId(null)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-700 cursor-pointer whitespace-nowrap"
+            className="text-xs font-semibold px-3 py-1.5 rounded-full text-slate-700 hover:text-slate-700 cursor-pointer whitespace-nowrap"
           >
             Show all
           </button>
@@ -254,7 +254,7 @@ export function HelpGuideContent() {
       </nav>
 
       {query && visibleSections.length === 0 && (
-        <p className="text-sm text-slate-400">Nothing matches &quot;{search.trim()}&quot; - try a different word, or contact support below.</p>
+        <p className="text-sm text-slate-700">Nothing matches &quot;{search.trim()}&quot; - try a different word, or contact support below.</p>
       )}
 
       {visibleSections.map((section) => (

@@ -131,7 +131,7 @@ export default function SuperAdminTransactionsPage() {
               <TableRowSkeleton cols={7} />
             ) : transactions.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">{q ? "No transactions match your search" : "No transactions yet"}</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-700">{q ? "No transactions match your search" : "No transactions yet"}</td>
               </tr>
             ) : (
               transactions.map((t) => (
@@ -141,7 +141,7 @@ export default function SuperAdminTransactionsPage() {
                   <td className="px-4 py-3 text-slate-500">{formatDateTime(t.createdAt)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(t.totalAmount)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(t.commissionAmount)}</td>
-                  <td className="px-4 py-3 text-slate-400 font-mono text-xs">{t.isOffline ? "offline sale" : t.paymentReference}</td>
+                  <td className="px-4 py-3 text-slate-700 font-mono text-xs">{t.isOffline ? "offline sale" : t.paymentReference}</td>
                   <td className="px-4 py-3">
                     <Badge color={STATUS_COLOR[t.paymentStatus] || "slate"}>{t.paymentStatus}</Badge>
                   </td>

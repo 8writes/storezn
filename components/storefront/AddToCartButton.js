@@ -123,7 +123,7 @@ export function AddToCartButton({ productId, basePrice, baseStock, productType, 
       ))}
 
       {needsSelection && hasChosen && stock != null && productType === "physical" && (
-        <p className="text-sm text-slate-400">{stock} in stock</p>
+        <p className="text-sm text-slate-700">{stock} in stock</p>
       )}
 
       {needsSelection && !hasChosen ? (

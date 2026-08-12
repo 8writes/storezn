@@ -35,7 +35,7 @@ export default function CustomerOrdersPage() {
       .finally(() => setLoading(false));
   }, [authLoading, user, token, page, router]);
 
-  if (authLoading || loading) return <p className="text-center text-slate-400 py-20">Loading…</p>;
+  if (authLoading || loading) return <p className="text-center text-slate-700 py-20">Loading…</p>;
   if (!user) return null;
 
   return (
@@ -43,14 +43,14 @@ export default function CustomerOrdersPage() {
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Your orders</h1>
 
       {orders.length === 0 ? (
-        <p className="text-sm text-slate-400">You haven&apos;t placed any orders yet.</p>
+        <p className="text-sm text-slate-700">You haven&apos;t placed any orders yet.</p>
       ) : (
         <div className="divide-y divide-slate-100 border-y border-slate-200">
           {orders.map((o) => (
             <Link key={o.id} href={`/account/orders/${o.id}`} className="flex items-center justify-between py-4 hover:bg-slate-50 transition-colors -mx-2 px-2">
               <div>
                 <p className="text-sm font-medium text-slate-900">{o.orderNumber}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{formatDate(o.createdAt)}</p>
+                <p className="text-xs text-slate-700 mt-0.5">{formatDate(o.createdAt)}</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-slate-700">{formatCurrency(o.totalAmount)}</span>

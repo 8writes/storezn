@@ -60,7 +60,7 @@ export default function SuperAdminCustomersPage() {
               <TableRowSkeleton cols={6} />
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">{q ? "No customers match your search" : "No customers yet"}</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-700">{q ? "No customers match your search" : "No customers yet"}</td>
               </tr>
             ) : (
               customers.map((c) => (

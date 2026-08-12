@@ -120,7 +120,7 @@ export default function VendorProductViewPage({ params }) {
             <Badge color={product.isActive ? "green" : "slate"}>{product.isActive ? "Live" : "Archived"}</Badge>
             {product.suspendedAt && <Badge color="red">Suspended</Badge>}
           </div>
-          {product.sku && <p className="text-xs text-slate-400 mt-1">SKU: {product.sku}</p>}
+          {product.sku && <p className="text-xs text-slate-700 mt-1">SKU: {product.sku}</p>}
         </div>
 
         <div className="flex items-center gap-2">
@@ -170,19 +170,19 @@ export default function VendorProductViewPage({ params }) {
           <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
             <p className="text-2xl font-bold text-slate-900">{formatCurrency(product.price)}</p>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              <dt className="text-slate-400">Type</dt>
+              <dt className="text-slate-700">Type</dt>
               <dd className="text-slate-700 capitalize">{product.productType}</dd>
               {product.productType === "physical" && (
                 <>
-                  <dt className="text-slate-400">Condition</dt>
+                  <dt className="text-slate-700">Condition</dt>
                   <dd className="text-slate-700">{formatCondition(product.condition)}</dd>
-                  <dt className="text-slate-400">Stock</dt>
+                  <dt className="text-slate-700">Stock</dt>
                   <dd className="text-slate-700">{product.stock ?? "Unlimited"}</dd>
                 </>
               )}
-              <dt className="text-slate-400">Category</dt>
+              <dt className="text-slate-700">Category</dt>
               <dd className="text-slate-700">{category?.name || "None"}</dd>
-              <dt className="text-slate-400">Sold</dt>
+              <dt className="text-slate-700">Sold</dt>
               <dd className="text-slate-700">{product.unitsSold} unit{product.unitsSold === 1 ? "" : "s"}</dd>
             </dl>
           </div>

@@ -115,14 +115,14 @@ export default function SuperAdminVendorsPage() {
               <TableRowSkeleton cols={6} />
             ) : vendors.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">No vendors match{q ? " your search" : ""}</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-700">No vendors match{q ? " your search" : ""}</td>
               </tr>
             ) : (
               vendors.map((v) => (
                 <tr key={v.id} className="border-t border-slate-100">
                   <td className="px-4 py-3">
                     <p className="font-medium text-slate-900">{v.firstName} {v.lastName}</p>
-                    <p className="text-xs text-slate-400">{v.email}</p>
+                    <p className="text-xs text-slate-700">{v.email}</p>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{v.storeNames.join(", ") || "-"}</td>
                   <td className="px-4 py-3 text-slate-500">

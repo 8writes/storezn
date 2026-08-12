@@ -45,7 +45,7 @@ export default async function StorefrontHomePage({ params, searchParams }) {
       <StorefrontFilters categories={categoryList} />
 
       {items.length === 0 ? (
-        <p className="text-center text-slate-400 py-24">{q || categoryId || minPrice || maxPrice ? "No products match your filters." : "No products yet, check back soon."}</p>
+        <p className="text-center text-slate-700 py-24">{q || categoryId || minPrice || maxPrice ? "No products match your filters." : "No products yet, check back soon."}</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
           {items.map((p) => (
@@ -65,7 +65,7 @@ export default async function StorefrontHomePage({ params, searchParams }) {
                 <p className="text-sm text-slate-800 group-hover:text-slate-950 transition-colors">
                   {p.name}
                   {p.productType === "physical" && p.condition !== "new" && (
-                    <span className="ml-1.5 text-xs text-slate-400 uppercase tracking-wide">{formatCondition(p.condition)}</span>
+                    <span className="ml-1.5 text-xs text-slate-700 uppercase tracking-wide">{formatCondition(p.condition)}</span>
                   )}
                 </p>
                 <p className="text-sm font-medium text-slate-900">{formatCurrency(p.price)}</p>

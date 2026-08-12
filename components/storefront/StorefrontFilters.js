@@ -48,7 +48,7 @@ export function StorefrontFilters({ categories }) {
           type="submit"
           disabled={isPending}
           aria-label="Search"
-          className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors disabled:cursor-not-allowed cursor-pointer"
+          className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-700 hover:text-slate-900 transition-colors disabled:cursor-not-allowed cursor-pointer"
         >
           {isPending ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
         </button>

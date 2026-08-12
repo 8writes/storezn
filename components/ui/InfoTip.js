@@ -37,7 +37,7 @@ export function InfoTip({ children }) {
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         aria-label="More info"
-        className="p-1 -m-1 text-slate-400 hover:text-brand-600 cursor-pointer"
+        className="p-1 -m-1 text-slate-700 hover:text-brand-600 cursor-pointer"
       >
         <Info size={16} />
       </button>

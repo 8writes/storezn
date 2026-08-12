@@ -83,7 +83,7 @@ export default function SuperAdminOrdersPage() {
               <TableRowSkeleton cols={6} />
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">{q ? "No orders match your search" : "No orders yet"}</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-700">{q ? "No orders match your search" : "No orders yet"}</td>
               </tr>
             ) : (
               orders.map((o) => (

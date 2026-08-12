@@ -75,7 +75,7 @@ export default function CustomerAddressesPage() {
     }
   };
 
-  if (authLoading || loading) return <p className="text-center text-slate-400 py-20">Loading…</p>;
+  if (authLoading || loading) return <p className="text-center text-slate-700 py-20">Loading…</p>;
   if (!user) return null;
 
   return (

@@ -39,7 +39,7 @@ export function MobileNavDrawer({ open, onClose, title, children, footer }) {
             type="button"
             onClick={onClose}
             aria-label="Close menu"
-            className="w-9 h-9 -mr-2 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="w-9 h-9 -mr-2 rounded-full flex items-center justify-center text-slate-700 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X size={20} />
           </button>

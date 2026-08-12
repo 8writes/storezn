@@ -18,7 +18,7 @@ export function PasswordInput({ label, className = "", ...props }) {
           type="button"
           onClick={() => setShow((s) => !s)}
           tabIndex={-1}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-700 hover:text-slate-700 cursor-pointer"
         >
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>

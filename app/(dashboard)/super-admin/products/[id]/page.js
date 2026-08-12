@@ -108,31 +108,31 @@ export default function SuperAdminProductDetailPage({ params }) {
 
       <div className="bg-white border border-slate-200 rounded-sm p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
-          <p className="text-slate-400">Price</p>
+          <p className="text-slate-700">Price</p>
           <p className="text-slate-900 font-medium">{formatCurrency(product.price)}</p>
         </div>
         <div>
-          <p className="text-slate-400">SKU</p>
+          <p className="text-slate-700">SKU</p>
           <p className="text-slate-900 font-medium">{product.sku || "-"}</p>
         </div>
         <div>
-          <p className="text-slate-400">Type</p>
+          <p className="text-slate-700">Type</p>
           <p className="text-slate-900 font-medium capitalize">{product.productType}</p>
         </div>
         {product.productType === "physical" && (
           <>
             <div>
-              <p className="text-slate-400">Condition</p>
+              <p className="text-slate-700">Condition</p>
               <p className="text-slate-900 font-medium">{formatCondition(product.condition)}</p>
             </div>
             <div>
-              <p className="text-slate-400">Stock</p>
+              <p className="text-slate-700">Stock</p>
               <p className="text-slate-900 font-medium">{product.stock ?? "Unlimited"}</p>
             </div>
           </>
         )}
         <div>
-          <p className="text-slate-400">Category</p>
+          <p className="text-slate-700">Category</p>
           <p className="text-slate-900 font-medium">{product.categoryName || "-"}</p>
         </div>
       </div>

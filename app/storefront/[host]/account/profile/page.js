@@ -86,7 +86,7 @@ export default function CustomerProfilePage() {
     }
   };
 
-  if (authLoading || !form) return <p className="text-center text-slate-400 py-20">Loading…</p>;
+  if (authLoading || !form) return <p className="text-center text-slate-700 py-20">Loading…</p>;
 
   return (
     <div className="max-w-xl mx-auto space-y-6">

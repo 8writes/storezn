@@ -93,12 +93,12 @@ export default function CheckoutPage() {
     }
   };
 
-  if (loading || authLoading) return <p className="text-center text-slate-400 py-20">Loading…</p>;
+  if (loading || authLoading) return <p className="text-center text-slate-700 py-20">Loading…</p>;
 
   if (!cart || cart.items.length === 0) {
     return (
       <div className="text-center py-20 space-y-4">
-        <p className="text-slate-400">Your cart is empty.</p>
+        <p className="text-slate-700">Your cart is empty.</p>
         <Link href="/" className="text-brand-600 hover:underline text-sm">Continue shopping</Link>
       </div>
     );
@@ -113,7 +113,7 @@ export default function CheckoutPage() {
           <div className="space-y-3">
             <p className="text-xs font-medium text-slate-700 uppercase tracking-wide">Contact</p>
             <Input label="Email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} required />
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-700">
               Have an account?{" "}
               <Link href="/login?next=checkout" className="text-slate-900 underline underline-offset-2">Sign in</Link> for faster checkout.
             </p>

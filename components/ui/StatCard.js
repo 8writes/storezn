@@ -23,7 +23,7 @@ export function StatCard({ icon: Icon, label, value, sub, color = "brand" }) {
             fit on one line before that happens. */}
         <p className="text-base sm:text-lg font-bold text-slate-900 break-words">{value}</p>
         <p className="text-xs text-slate-500">{label}</p>
-        {sub && <p className="text-xs text-slate-400 mt-0.5 break-words">{sub}</p>}
+        {sub && <p className="text-xs text-slate-700 mt-0.5 break-words">{sub}</p>}
       </div>
     </div>
   );

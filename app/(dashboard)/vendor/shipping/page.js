@@ -53,7 +53,7 @@ export default function VendorShippingPage() {
   };
 
   if (!storesLoading && stores.length === 0) {
-    return <p className="text-sm text-slate-400">No store set up yet.</p>;
+    return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
   return (
@@ -156,7 +156,7 @@ function ShippingRatesManager({ storeId, apiFetch, token }) {
                 <p className="text-slate-900">{r.city ? `${r.city}, ${r.state}` : `${r.state} (whole state)`}</p>
                 <p className="text-xs text-slate-500">{formatCurrency(r.fee)}</p>
               </div>
-              <button type="button" onClick={() => handleDelete(r.id)} disabled={deletingId === r.id} className="text-slate-400 hover:text-red-600 disabled:opacity-50 cursor-pointer">
+              <button type="button" onClick={() => handleDelete(r.id)} disabled={deletingId === r.id} className="text-slate-700 hover:text-red-600 disabled:opacity-50 cursor-pointer">
                 <Trash2 size={16} />
               </button>
             </div>

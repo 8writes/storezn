@@ -281,7 +281,7 @@ export default function VendorProductEditPage({ params }) {
             ))}
 
             {form.images.length + pendingUploads.length < MAX_IMAGES && (
-              <label className="w-24 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-400 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
+              <label className="w-24 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-700 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
                 <ImagePlus size={20} />
                 <span className="text-[11px] font-medium">Add photos</span>
                 <input
@@ -399,7 +399,7 @@ function VariantsManager({ storeId, productId, apiFetch }) {
                 type="button"
                 onClick={() => handleDelete(v.id)}
                 disabled={deletingId === v.id}
-                className="text-slate-400 hover:text-red-600 disabled:opacity-50 cursor-pointer"
+                className="text-slate-700 hover:text-red-600 disabled:opacity-50 cursor-pointer"
               >
                 <Trash2 size={16} />
               </button>

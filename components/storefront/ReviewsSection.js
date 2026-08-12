@@ -93,7 +93,7 @@ export function ReviewsSection({ productId }) {
       )}
 
       {data.reviews.length === 0 ? (
-        <p className="text-sm text-slate-400">No reviews yet.</p>
+        <p className="text-sm text-slate-700">No reviews yet.</p>
       ) : (
         <div className="space-y-4">
           {data.reviews.map((r) => (
@@ -101,7 +101,7 @@ export function ReviewsSection({ productId }) {
               <div className="flex items-center gap-2">
                 <Stars value={r.rating} />
                 <span className="text-sm font-medium text-slate-700">{r.firstName || "Customer"}</span>
-                <span className="text-xs text-slate-400">{formatDate(r.createdAt)}</span>
+                <span className="text-xs text-slate-700">{formatDate(r.createdAt)}</span>
               </div>
               {r.comment && <p className="text-sm text-slate-700 mt-1">{r.comment}</p>}
             </div>

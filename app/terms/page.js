@@ -12,7 +12,7 @@ export default function TermsPage() {
         <div>
           <Link href="/" className="text-sm text-brand-600 hover:underline"> Storezn</Link>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 mt-4">Terms of Service</h1>
-          <p className="text-sm text-slate-400 mt-1">Last updated August 2026</p>
+          <p className="text-sm text-slate-700 mt-1">Last updated August 2026</p>
         </div>
 
         <div className="space-y-8 text-sm text-slate-700 leading-relaxed">
