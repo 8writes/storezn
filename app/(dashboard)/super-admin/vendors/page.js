@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
+import { RevealNin } from "@/components/ui/RevealNin.js";
 import { formatDateTime } from "@/lib/format.js";
 
 const STATUS_COLOR = { pending: "amber", approved: "green", rejected: "red" };
@@ -124,7 +125,9 @@ export default function SuperAdminVendorsPage() {
                     <p className="text-xs text-slate-400">{v.email}</p>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{v.storeNames.join(", ") || "-"}</td>
-                  <td className="px-4 py-3 text-slate-500">{v.nin || "-"}</td>
+                  <td className="px-4 py-3 text-slate-500">
+                    <RevealNin hasNin={v.hasNin} apiFetch={apiFetch} endpoint={`/api/v1/super-admin/vendors/${v.id}/nin`} />
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{v.ninSubmittedAt ? formatDateTime(v.ninSubmittedAt) : "-"}</td>
                   <td className="px-4 py-3">
                     <Badge color={STATUS_COLOR[v.approvalStatus] || "slate"}>{v.approvalStatus}</Badge>

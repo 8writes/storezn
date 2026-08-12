@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDateTime } from "@/lib/format.js";
+import { encryptNin } from "@/lib/ninClient.js";
 
 export default function VendorVerificationPage() {
   const { token } = useAuth(true);
@@ -33,9 +34,16 @@ export default function VendorVerificationPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (nin.length !== 11) {
+      toast.error("NIN must be exactly 11 digits");
+      return;
+    }
     setSubmitting(true);
     try {
-      const data = await apiFetch("/api/v1/vendor/verification", { method: "POST", body: JSON.stringify({ nin }) });
+      // Encrypted in the browser - the server (and its DB) only ever
+      // sees ciphertext, never the raw NIN.
+      const encryptedNin = await encryptNin(nin);
+      const data = await apiFetch("/api/v1/vendor/verification", { method: "POST", body: JSON.stringify({ nin: encryptedNin }) });
       setStatus(data);
       setNin("");
       toast.success("NIN submitted for review");
@@ -97,6 +105,9 @@ export default function VendorVerificationPage() {
             onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
             required
           />
+          <p className="text-xs text-slate-400">
+            Your NIN is encrypted on your device before it&apos;s sent - it&apos;s stored encrypted and only decrypted by a super-admin when reviewing your submission.
+          </p>
           <Button type="submit" loading={submitting}>Submit for review</Button>
         </form>
       )}

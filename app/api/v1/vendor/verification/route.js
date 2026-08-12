@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, submitNinSchema } from "../../../../../lib/validate.js";
 import { sendPushToRole } from "../../../../../lib/push.js";
+import { decryptNin } from "../../../../../lib/nin.js";
 
 export async function GET(req) {
   const user = await getUser(req);
@@ -35,6 +36,20 @@ export async function POST(req) {
 
   const result = validate(submitNinSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+
+  // Decrypted only transiently, to check it's actually a real 11-digit
+  // NIN and not garbage from a broken client - the plaintext is never
+  // logged or stored, only the ciphertext the vendor sent (result.data.nin)
+  // is persisted below, same as everywhere else NIN is at rest.
+  let plainNin;
+  try {
+    plainNin = decryptNin(result.data.nin);
+  } catch {
+    return NextResponse.json({ error: "Could not process NIN - please try again" }, { status: 400 });
+  }
+  if (!/^\d{11}$/.test(plainNin)) {
+    return NextResponse.json({ error: "NIN must be exactly 11 digits" }, { status: 400 });
+  }
 
   const [updated] = await db
     .update(users)

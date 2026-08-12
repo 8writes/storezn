@@ -55,7 +55,10 @@ export async function GET(req) {
     }
   }
 
-  const vendors = rows.map((r) => ({ ...r, storeNames: namesByOwner.get(r.id) || [] }));
+  // nin holds RSA-OAEP ciphertext (see lib/ninClient.js) - never returned
+  // in bulk, only whether one exists. GET /api/v1/super-admin/vendors/
+  // [id]/nin decrypts one at a time, on demand, when an admin reveals it.
+  const vendors = rows.map(({ nin, ...r }) => ({ ...r, hasNin: !!nin, storeNames: namesByOwner.get(r.id) || [] }));
 
   return NextResponse.json({
     vendors,

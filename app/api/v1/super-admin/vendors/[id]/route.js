@@ -38,6 +38,6 @@ export async function PATCH(req, { params }) {
     .where(eq(users.id, id))
     .returning();
 
-  const { passwordHash: _, ...safeVendor } = updated;
+  const { passwordHash: _, nin: __, ...safeVendor } = updated;
   return NextResponse.json({ vendor: safeVendor });
 }
