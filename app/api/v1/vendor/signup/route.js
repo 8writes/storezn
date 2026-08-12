@@ -46,11 +46,7 @@ export async function POST(req) {
         email: vendor.email,
         passwordHash,
         role: "vendor",
-        // Verified by default, on purpose: a slow/failed email send must
-        // never block or delay account creation. The verification email
-        // still goes out (fire-and-forget below, logged on failure), this
-        // just means it's a courtesy notification, not a signup gate.
-        emailVerified: true,
+        emailVerified: false,
         termsAcceptedAt: new Date(),
         // Every other role defaults to "approved" (see
         // users.approvalStatus in lib/db/schema.js) - a new vendor

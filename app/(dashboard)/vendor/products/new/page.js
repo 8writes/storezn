@@ -13,7 +13,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { slugify } from "@/lib/slugify.js";
-import { X, ImagePlus, Loader2, GripVertical } from "lucide-react";
+import { X, ImagePlus, Loader2, GripVertical, ChevronDown } from "lucide-react";
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
@@ -43,6 +43,7 @@ export default function VendorNewProductPage() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [showOptional, setShowOptional] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [pendingUploads, setPendingUploads] = useState([]);
@@ -211,28 +212,42 @@ export default function VendorNewProductPage() {
               }}
               required
             />
-            <Input
-              label="URL slug"
-              value={form.slug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                setForm((f) => ({ ...f, slug: e.target.value }));
-              }}
-              required
-            />
-            <Input label="SKU (optional)" placeholder="e.g. RTB-001" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
             <PriceInput label="Price" placeholder="0.00" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />
             <Select label="Type" options={PRODUCT_TYPE_OPTIONS} value={form.productType} onChange={(v) => setForm((f) => ({ ...f, productType: v }))} />
             {form.productType === "physical" && (
-              <>
-                <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
-                <Input label="Stock (optional)" type="number" min="0" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} />
-              </>
+              <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
             )}
-            <Select label="Category (optional)" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />
           </div>
 
-          <Textarea label="Description (optional)" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+          <button
+            type="button"
+            onClick={() => setShowOptional((v) => !v)}
+            className="flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700 cursor-pointer"
+          >
+            <ChevronDown size={16} className={`transition-transform ${showOptional ? "rotate-180" : ""}`} />
+            {showOptional ? "Hide optional fields" : "Show optional fields"}
+          </button>
+
+          {showOptional && (
+            <div className="space-y-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="URL slug"
+                  value={form.slug}
+                  onChange={(e) => {
+                    setSlugTouched(true);
+                    setForm((f) => ({ ...f, slug: e.target.value }));
+                  }}
+                />
+                <Input label="SKU" placeholder="e.g. RTB-001" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
+                {form.productType === "physical" && (
+                  <Input label="Stock" type="number" min="0" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} />
+                )}
+                <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />
+              </div>
+              <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Photos</label>
