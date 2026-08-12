@@ -1,7 +1,6 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -12,6 +11,7 @@ import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { CopyButton } from "@/components/ui/CopyButton.js";
+import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { downloadOrderPdf } from "@/lib/orderPdf.js";
 
@@ -32,6 +32,7 @@ export default function VendorOrderDetailPage({ params }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [activeItem, setActiveItem] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -104,8 +105,8 @@ export default function VendorOrderDetailPage({ params }) {
       storeName: order.isOffline ? "Offline sale" : undefined,
       shippingAddress: order.shippingAddress,
       totalsLines: [
-        { label: `Commission (${order.commissionRatePercent}%)`, value: `-${formatCurrency(order.commissionAmount)}` },
-        { label: "Your payout", value: formatCurrency(order.vendorPayoutAmount), bold: true },
+        { label: `Commission (${order.commissionRatePercent}%)`, value: -order.commissionAmount },
+        { label: "Your payout", value: order.vendorPayoutAmount, bold: true },
       ],
     });
 
@@ -154,7 +155,12 @@ export default function VendorOrderDetailPage({ params }) {
 
       <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="flex items-center justify-between gap-3 text-sm text-slate-600">
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveItem(item)}
+            className="flex items-center justify-between gap-3 text-sm text-slate-600 w-full text-left cursor-pointer hover:text-slate-900"
+          >
             <div className="flex items-center gap-3 min-w-0">
               {item.productImage ? (
                 <img src={item.productImage} alt="" className="w-10 h-10 rounded-sm object-cover border border-slate-200 shrink-0" />
@@ -162,14 +168,12 @@ export default function VendorOrderDetailPage({ params }) {
                 <div className="w-10 h-10 rounded-sm bg-slate-100 shrink-0" />
               )}
               <span className="truncate">
-                <Link href={`/vendor/products/${item.productId}?storeId=${storeId}`} className="hover:text-brand-600 hover:underline">
-                  {item.productName}
-                </Link>
+                {item.productName}
                 {item.variantLabel ? ` (${item.variantLabel})` : ""} × {item.quantity}
               </span>
             </div>
             <span className="shrink-0">{formatCurrency(item.lineTotal)}</span>
-          </div>
+          </button>
         ))}
         <div className="flex justify-between pt-2 border-t border-slate-100 text-sm text-slate-500">
           <span>Commission ({order.commissionRatePercent}%)</span>
@@ -214,6 +218,12 @@ export default function VendorOrderDetailPage({ params }) {
           ))}
         </div>
       )}
+
+      <OrderItemModal
+        item={activeItem}
+        productHref={activeItem ? `/vendor/products/${activeItem.productId}?storeId=${storeId}` : null}
+        onClose={() => setActiveItem(null)}
+      />
     </div>
   );
 }

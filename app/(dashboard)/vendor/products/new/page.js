@@ -273,17 +273,22 @@ export default function VendorNewProductPage() {
                       Cover
                     </span>
                   )}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-start justify-between p-1 opacity-0 group-hover:opacity-100">
-                    <GripVertical size={16} className="text-white drop-shadow" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(url)}
-                      aria-label="Remove photo"
-                      className="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center cursor-pointer shrink-0"
-                    >
-                      <X size={12} />
-                    </button>
+                  {/* Grip handle is a hover-only desktop drag hint (fine to
+                      lose on touch, dragging itself is desktop-only), but
+                      the remove button must stay visible unconditionally -
+                      group-hover never fires on touch devices, which made
+                      this untappable on phones/tablets. */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none">
+                    <GripVertical size={16} className="absolute top-1 left-1 text-white drop-shadow opacity-0 group-hover:opacity-100" />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(url)}
+                    aria-label="Remove photo"
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center cursor-pointer shrink-0"
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
               ))}
 

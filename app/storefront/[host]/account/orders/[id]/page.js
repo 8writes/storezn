@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
+import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { downloadOrderPdf } from "@/lib/orderPdf.js";
 import { Download } from "lucide-react";
@@ -22,6 +22,7 @@ export default function CustomerOrderDetailPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
+  const [activeItem, setActiveItem] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -77,7 +78,7 @@ export default function CustomerOrderDetailPage() {
       items,
       storeName: order.storeName,
       shippingAddress: order.shippingAddress,
-      totalsLines: [{ label: "Total", value: formatCurrency(order.totalAmount), bold: true }],
+      totalsLines: [{ label: "Total", value: order.totalAmount, bold: true }],
     });
 
   return (
@@ -98,7 +99,12 @@ export default function CustomerOrderDetailPage() {
 
       <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="flex items-center justify-between gap-3 text-sm text-slate-600">
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveItem(item)}
+            className="flex items-center justify-between gap-3 text-sm text-slate-600 w-full text-left cursor-pointer hover:text-slate-900"
+          >
             <div className="flex items-center gap-3 min-w-0">
               {item.productImage ? (
                 <img src={item.productImage} alt="" className="w-10 h-10 rounded-sm object-cover border border-slate-200 shrink-0" />
@@ -106,18 +112,12 @@ export default function CustomerOrderDetailPage() {
                 <div className="w-10 h-10 rounded-sm bg-slate-100 shrink-0" />
               )}
               <span className="truncate">
-                {item.productSlug ? (
-                  <Link href={`/products/${item.productSlug}`} className="hover:text-brand-600 hover:underline">
-                    {item.productName}
-                  </Link>
-                ) : (
-                  item.productName
-                )}
+                {item.productName}
                 {item.variantLabel ? ` (${item.variantLabel})` : ""} × {item.quantity}
               </span>
             </div>
             <span className="shrink-0">{formatCurrency(item.lineTotal)}</span>
-          </div>
+          </button>
         ))}
         <div className="flex justify-between pt-2 border-t border-slate-100 font-semibold text-slate-900">
           <span>Total</span>
@@ -135,6 +135,12 @@ export default function CustomerOrderDetailPage() {
       ) : order.status === "delivered" ? (
         <Button variant="outline" onClick={handleRequestRefund} loading={requesting}>Request a refund</Button>
       ) : null}
+
+      <OrderItemModal
+        item={activeItem}
+        productHref={activeItem?.productSlug ? `/products/${activeItem.productSlug}` : null}
+        onClose={() => setActiveItem(null)}
+      />
     </div>
   );
 }
