@@ -24,9 +24,9 @@ import {
   Wallet,
   HelpCircle,
   Receipt,
-  RotateCw,
 } from "lucide-react";
 import Image from "next/image";
+import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
 
 // Grouped so the sidebar reads as sections instead of one flat list of 9+
 // items - each group is a distinct concern (running the store day-to-day
@@ -187,21 +187,7 @@ export default function DashboardLayout({ children }) {
           onClick={() => setDrawerOpen(true)}
           className="sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 bg-brand-900 text-white shrink-0 cursor-pointer"
         >
-          {/* Installed PWAs have no browser chrome at all, so there's no
-              native reload button/pull-to-refresh some users expect -
-              this gives them an explicit one. stopPropagation so tapping
-              it reloads instead of just opening the drawer underneath it. */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.location.reload();
-            }}
-            aria-label="Refresh"
-            className="w-5.5 shrink-0 cursor-pointer"
-          >
-            <RotateCw size={20} />
-          </button>
+          <span className="w-5.5 shrink-0" />
           {isVendor ? (
             <StoreSwitcher textClassName="font-extrabold tracking-tight text-sm" />
           ) : (
@@ -230,7 +216,11 @@ export default function DashboardLayout({ children }) {
           <NavLinks groups={groups} pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
         </MobileNavDrawer>
 
-        <main className="flex-1 bg-slate-50 p-4 sm:p-8">{children}</main>
+        <main className="flex-1 bg-slate-50">
+          <PullToRefresh>
+            <div className="p-4 sm:p-8">{children}</div>
+          </PullToRefresh>
+        </main>
       </div>
     </div>
   );
