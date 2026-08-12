@@ -11,7 +11,7 @@ import { formatDateTime } from "@/lib/format.js";
 import { encryptNin } from "@/lib/ninClient.js";
 
 export default function VendorVerificationPage() {
-  const { token } = useAuth(true);
+  const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
   const [status, setStatus] = useState(null);
@@ -53,6 +53,14 @@ export default function VendorVerificationPage() {
       setSubmitting(false);
     }
   };
+
+  // Identity verification is the vendor's own, personal to them - staff
+  // never see or touch it (the API already only accepts role "vendor"
+  // here, this just avoids an infinite skeleton for a fetch that will
+  // never succeed for them).
+  if (user && user.role !== "vendor") {
+    return <p className="text-sm text-slate-500">This page is only available to the store owner.</p>;
+  }
 
   if (loading || !status) return <FormSkeleton fields={3} />;
 

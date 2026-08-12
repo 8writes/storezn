@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { stores } from "../../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
-import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
+import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, linkPayoutAccountSchema } from "../../../../../../../lib/validate.js";
 import { getBanks, ensureSubAccount } from "../../../../../../../lib/paystack.js";
 
@@ -13,7 +13,7 @@ export async function GET(req, { params }) {
   const { storeId } = await params;
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
-  if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isStoreOwner(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const banks = await getBanks();
@@ -37,7 +37,7 @@ export async function POST(req, { params }) {
   const { storeId } = await params;
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
-  if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isStoreOwner(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   // Locked once set - matches the UI, which hides the form entirely once
   // a payout account exists. A vendor who wants to change banks has to go
   // through support (see super-admin's "Unlock payout account" action),

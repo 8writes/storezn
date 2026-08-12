@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth.js";
 const REDIRECT_BY_ROLE = {
   super_admin: "/super-admin/analytics",
   vendor: "/vendor/dashboard",
+  staff: "/vendor/dashboard",
 };
 
 // Every role has a more specific landing page - this route only exists

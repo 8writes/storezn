@@ -73,18 +73,29 @@ function buildSetupSteps({ store, verification, stats, pushSubscribed, onEnableP
   return steps;
 }
 
-function SHORTCUTS(storeId, onOpenGuide) {
-  return [
+function SHORTCUTS(storeId, onOpenGuide, isOwner) {
+  const shortcuts = [
     { label: "Add product", icon: Plus, href: `/vendor/products/new?storeId=${storeId}` },
     { label: "Orders", icon: ShoppingBag, href: "/vendor/orders" },
-    { label: "Payouts", icon: Wallet, href: "/vendor/payouts" },
-    { label: "Store settings", icon: Settings, href: "/vendor/settings" },
-    { label: "Verification", icon: ShieldCheck, href: "/vendor/verification" },
-    { label: "Shipping", icon: Truck, href: "/vendor/shipping" },
     { label: "Customers", icon: Users, href: "/vendor/customers" },
+    { label: "Shipping", icon: Truck, href: "/vendor/shipping" },
     { label: "Help", icon: HelpCircle, href: "/vendor/help" },
-    { label: "Setup guide", icon: ListChecks, onClick: onOpenGuide },
   ];
+  // Payouts, store settings, verification, and the setup guide are all
+  // owner-only concerns (see isOwner above) - left out of a staff
+  // member's shortcuts entirely rather than linking somewhere they'd
+  // just get turned away from.
+  if (isOwner) {
+    shortcuts.splice(
+      2,
+      0,
+      { label: "Payouts", icon: Wallet, href: "/vendor/payouts" },
+      { label: "Store settings", icon: Settings, href: "/vendor/settings" },
+      { label: "Verification", icon: ShieldCheck, href: "/vendor/verification" },
+    );
+    shortcuts.push({ label: "Setup guide", icon: ListChecks, onClick: onOpenGuide });
+  }
+  return shortcuts;
 }
 
 export default function VendorDashboardPage() {
@@ -149,7 +160,12 @@ export default function VendorDashboardPage() {
     );
   }
 
-  const steps = store ? buildSetupSteps({ store, verification, stats, pushSubscribed, onEnablePush: handleEnablePush }) : [];
+  // Setup steps, the store link, and the verification/payment nudges are
+  // all the owner's own concerns - a staff member can't act on any of
+  // them (identity verification and payout linking are owner-only, see
+  // isStoreOwner in lib/auth.js), so none of it is shown to them.
+  const isOwner = user?.role === "vendor";
+  const steps = store && isOwner ? buildSetupSteps({ store, verification, stats, pushSubscribed, onEnablePush: handleEnablePush }) : [];
   const allStepsDone = steps.length > 0 && steps.every((s) => s.done);
   // Read once per render, only reached after the client-only fetches above
   // have already resolved (loading is false) - never evaluated during SSR
@@ -157,7 +173,7 @@ export default function VendorDashboardPage() {
   // guard against here the way a top-level "on mount" read would need.
   const dismissKey = store ? `setup_guide_dismissed_${store.id}` : null;
   const previouslyDismissed = dismissKey && typeof window !== "undefined" && !!localStorage.getItem(dismissKey);
-  const guideOpen = guideForceOpen || (!!store && !allStepsDone && !guideDismissed && !previouslyDismissed);
+  const guideOpen = isOwner && (guideForceOpen || (!!store && !allStepsDone && !guideDismissed && !previouslyDismissed));
 
   const closeGuide = () => {
     setGuideForceOpen(false);
@@ -167,7 +183,7 @@ export default function VendorDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />
+      {isOwner && <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />}
 
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-slate-900">Welcome, {user?.firstName}</h1>
@@ -185,7 +201,7 @@ export default function VendorDashboardPage() {
         <p className="text-sm text-slate-700">No store set up yet, contact the platform admin.</p>
       ) : (
         <>
-          {store && verification?.approvalStatus === "approved" && (
+          {isOwner && store && verification?.approvalStatus === "approved" && (
             <div className="space-y-1.5 max-w-md bg-brand-50 border border-brand-100 rounded-sm p-4">
               <label className="text-sm font-semibold text-slate-900">This is your store&apos;s link</label>
               <p className="text-xs text-slate-500">Anyone who opens it can browse and buy from you - copy it and share it on WhatsApp, Instagram, anywhere.</p>
@@ -198,14 +214,14 @@ export default function VendorDashboardPage() {
             </div>
           )}
 
-          {store && verification && verification.approvalStatus !== "approved" && (
+          {isOwner && store && verification && verification.approvalStatus !== "approved" && (
             <div className="max-w-md bg-slate-50 border border-dashed border-slate-200 rounded-sm p-4">
               <p className="text-sm font-semibold text-slate-500">Your store&apos;s link will appear here</p>
               <p className="text-xs text-slate-700 mt-0.5">Once your identity is verified below, you&apos;ll get a shareable link customers can use to shop from you.</p>
             </div>
           )}
 
-          {verification && verification.approvalStatus !== "approved" && (
+          {isOwner && verification && verification.approvalStatus !== "approved" && (
             <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-sm p-4">
               <ShieldAlert size={18} className="text-amber-600 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-800">
@@ -235,7 +251,7 @@ export default function VendorDashboardPage() {
             </div>
           )}
 
-          {store && !store.subAccountCode && (
+          {isOwner && store && !store.subAccountCode && (
             <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-sm p-4">
               <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-800">
@@ -264,7 +280,7 @@ export default function VendorDashboardPage() {
           <div>
             <p className="text-sm font-semibold text-slate-700 mb-3">Quick actions</p>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-              {SHORTCUTS(storeId, () => setGuideForceOpen(true)).map(({ label, icon: Icon, href, onClick }) => {
+              {SHORTCUTS(storeId, () => setGuideForceOpen(true), isOwner).map(({ label, icon: Icon, href, onClick }) => {
                 const content = (
                   <>
                     <Icon size={20} className="text-brand-600" />

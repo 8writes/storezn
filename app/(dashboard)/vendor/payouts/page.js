@@ -29,7 +29,7 @@ const EMPTY_PAYOUT_FORM = { bankCode: "", accountNumber: "", accountName: "" };
 
 export default function VendorPayoutsPage() {
   const router = useRouter();
-  const { token } = useAuth(true);
+  const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
   const { stores, storeId, loading: storesLoading, updateStore } = useVendorStore();
@@ -153,6 +153,12 @@ export default function VendorPayoutsPage() {
 
   if (!storesLoading && stores.length === 0) {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
+  }
+
+  // Payout account/bank details are owner-only (see isStoreOwner in
+  // lib/auth.js) - staff never see them, even read-only.
+  if (user && user.role !== "vendor") {
+    return <p className="text-sm text-slate-500">This page is only available to the store owner.</p>;
   }
 
   return (

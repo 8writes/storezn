@@ -34,7 +34,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Please verify your email before signing in", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });
   }
 
-  if (user.role === "customer" && user.storeId) {
+  if ((user.role === "customer" || user.role === "staff") && user.storeId) {
     const [store] = await db.select({ isActive: stores.isActive }).from(stores).where(eq(stores.id, user.storeId)).limit(1);
     if (store && !store.isActive) {
       return NextResponse.json({ error: "This store is currently unavailable." }, { status: 403 });

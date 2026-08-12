@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
 import { stores } from "../../../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
-import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
+import { getUser, isStoreOwner } from "../../../../../../../../lib/auth.js";
 import { resolveAccountName } from "../../../../../../../../lib/paystack.js";
 
 // Name-only lookup, called live as the vendor types (see the payouts
@@ -16,7 +16,7 @@ export async function POST(req, { params }) {
   const { storeId } = await params;
   const [store] = await db.select({ id: stores.id, ownerId: stores.ownerId }).from(stores).where(eq(stores.id, storeId)).limit(1);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
-  if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isStoreOwner(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const bankCode = body?.bankCode;

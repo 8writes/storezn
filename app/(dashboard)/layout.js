@@ -25,6 +25,7 @@ import {
   HelpCircle,
   Receipt,
   Bell,
+  UserCog,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -81,6 +82,32 @@ const NAV_BY_ROLE = {
         { href: "/vendor/settings", label: "Store settings", icon: Settings },
         { href: "/vendor/shipping", label: "Shipping", icon: Truck },
         { href: "/vendor/verification", label: "Verification", icon: ShieldCheck },
+      ],
+    },
+    {
+      title: "Team",
+      items: [{ href: "/vendor/staff", label: "Staff", icon: UserCog }],
+    },
+    {
+      title: "Support",
+      items: [{ href: "/vendor/help", label: "Help", icon: HelpCircle }],
+    },
+    {
+      title: "Account",
+      items: [{ href: "/profile", label: "Profile", icon: User }],
+    },
+  ],
+  // Trimmed vendor nav - a staff member helps run the store day-to-day
+  // (see canManageStore in lib/auth.js) but never sees payouts, store
+  // settings/verification, or the staff list itself (isStoreOwner-gated,
+  // both at the API and in vendor/staff/page.js's own guard).
+  staff: [
+    {
+      title: "Store",
+      items: [
+        { href: "/vendor/products", label: "Products", icon: Package },
+        { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
+        { href: "/vendor/customers", label: "Customers", icon: Users },
       ],
     },
     {
@@ -153,7 +180,10 @@ export default function DashboardLayout({ children }) {
   }
 
   const groups = NAV_BY_ROLE[user.role] || [];
-  const isVendor = user.role === "vendor";
+  // Staff share the vendor dashboard shell (StoreSwitcher, VendorStoreProvider)
+  // scoped to the one store they were invited to - see canManageStore in
+  // lib/auth.js and /api/v1/vendor/stores' staff branch.
+  const isVendor = user.role === "vendor" || user.role === "staff";
 
   const layout = (
     // Sticky sidebar, not a fixed-height internally-scrolled container -
