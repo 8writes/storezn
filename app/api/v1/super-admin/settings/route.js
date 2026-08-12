@@ -35,11 +35,7 @@ export async function PATCH(req) {
   await getOrCreateSettings();
   const [updated] = await db
     .update(platformSettings)
-    .set({
-      defaultCommissionRatePercent: result.data.defaultCommissionRatePercent,
-      maxCommissionAmount: result.data.maxCommissionAmount,
-      updatedAt: new Date(),
-    })
+    .set({ ...result.data, updatedAt: new Date() })
     .where(eq(platformSettings.id, "singleton"))
     .returning();
 

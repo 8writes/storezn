@@ -173,6 +173,10 @@ export default function SuperAdminStoreDetailPage({ params }) {
                 <dt className="text-slate-500">Account name</dt>
                 <dd className="text-slate-900 font-medium">{store.accountName}</dd>
               </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Paystack sub-account</dt>
+                <dd className="text-slate-900 font-medium font-mono text-xs">{store.subAccountCode}</dd>
+              </div>
             </dl>
             <p className="text-xs text-slate-500">
               This is locked on the vendor&apos;s side once set. Only unlock it after verifying the change with the vendor directly.

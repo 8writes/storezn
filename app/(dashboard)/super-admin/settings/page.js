@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Input } from "@/components/ui/Input.js";
@@ -13,8 +14,10 @@ export default function SuperAdminSettingsPage() {
 
   const [rate, setRate] = useState("");
   const [cap, setCap] = useState("");
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [togglingMaintenance, setTogglingMaintenance] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -22,6 +25,7 @@ export default function SuperAdminSettingsPage() {
       .then((data) => {
         setRate(String(data.settings.defaultCommissionRatePercent));
         setCap(data.settings.maxCommissionAmount != null ? String(data.settings.maxCommissionAmount) : "");
+        setMaintenanceMode(!!data.settings.maintenanceMode);
       })
       .catch((err) => toast.error(err.message || "Failed to load settings"))
       .finally(() => setLoading(false));
@@ -46,6 +50,22 @@ export default function SuperAdminSettingsPage() {
     }
   };
 
+  const toggleMaintenance = async () => {
+    setTogglingMaintenance(true);
+    try {
+      const data = await apiFetch("/api/v1/super-admin/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ maintenanceMode: !maintenanceMode }),
+      });
+      setMaintenanceMode(!!data.settings.maintenanceMode);
+      toast.success(data.settings.maintenanceMode ? "Maintenance mode is on" : "Maintenance mode is off");
+    } catch (err) {
+      toast.error(err.message || "Failed to update maintenance mode");
+    } finally {
+      setTogglingMaintenance(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Platform settings</h1>
@@ -53,7 +73,42 @@ export default function SuperAdminSettingsPage() {
       {loading ? (
         <FormSkeleton fields={2} />
       ) : (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
+        <>
+          <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-700">Maintenance mode</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Shows every visitor a &quot;we&apos;ll be back soon&quot; page instead of the app - storefronts, vendor dashboard, customer sign-in.
+                  Super-admin and login stay reachable so you can turn this back off.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={maintenanceMode}
+                disabled={togglingMaintenance}
+                onClick={toggleMaintenance}
+                className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                  maintenanceMode ? "bg-red-600" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    maintenanceMode ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+            {maintenanceMode && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-sm p-3 text-xs text-red-800">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <p>Maintenance mode is currently on. The live site is showing the maintenance page to everyone but super-admins.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
           <div>
             <p className="text-sm font-semibold text-slate-700">Commission</p>
             <p className="text-xs text-slate-500 mt-1">
@@ -69,7 +124,8 @@ export default function SuperAdminSettingsPage() {
             </p>
           </div>
           <Button onClick={save} loading={saving}>Save</Button>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

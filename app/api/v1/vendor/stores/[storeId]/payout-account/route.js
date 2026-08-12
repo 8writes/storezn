@@ -70,6 +70,7 @@ export async function POST(req, { params }) {
         accountNumber,
         accountName: subAccount.accountName,
         subAccountCode: subAccount.subAccountCode,
+        subAccountId: subAccount.subAccountId,
       })
       .where(eq(stores.id, storeId))
       .returning();

@@ -4,8 +4,10 @@ import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
+import { useConfirm } from "@/hooks/useConfirm.js";
 import { Select } from "@/components/ui/Select.js";
 import { Badge } from "@/components/ui/Badge.js";
+import { Button } from "@/components/ui/Button.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
@@ -27,6 +29,7 @@ const STATUS_OPTIONS = [
 export default function SuperAdminTransactionsPage() {
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
+  const { confirm, confirmDialog } = useConfirm();
 
   const [transactions, setTransactions] = useState([]);
   const [pagination, setPagination] = useState(null);
@@ -35,8 +38,9 @@ export default function SuperAdminTransactionsPage() {
   const [paymentStatus, setPaymentStatus] = useState("");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [failingStale, setFailingStale] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
     if (!token) return;
     setLoading(true);
     const params = new URLSearchParams({ page: String(page) });
@@ -50,20 +54,46 @@ export default function SuperAdminTransactionsPage() {
       })
       .catch((err) => toast.error(err.message || "Failed to load transactions"))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, paymentStatus, q]);
+  };
+
+  useEffect(load, [token, page, paymentStatus, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setPage(1);
   }, [paymentStatus, q]);
 
+  const failStale = async () => {
+    const ok = await confirm({
+      title: "Fail stale pending transactions?",
+      description: "Marks every transaction still pending after 1 hour as failed. This runs automatically on a schedule too - use this to run it right now.",
+      confirmLabel: "Fail stale transactions",
+      variant: "danger",
+    });
+    if (!ok) return;
+    setFailingStale(true);
+    try {
+      const data = await apiFetch("/api/v1/super-admin/transactions/fail-stale", { method: "POST" });
+      toast.success(data.failed > 0 ? `${data.failed} transaction${data.failed === 1 ? "" : "s"} marked failed` : "Nothing was stale");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to run cleanup");
+    } finally {
+      setFailingStale(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Transactions</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Every checkout attempt platform-wide - initiated, pending, paid, or failed - so nothing gets lost between a customer paying and an order updating.
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Transactions</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Every checkout attempt platform-wide - initiated, pending, paid, or failed - so nothing gets lost between a customer paying and an order updating.
+          </p>
+        </div>
+        <Button size="sm" variant="danger" onClick={failStale} loading={failingStale}>
+          Fail stale pending (&gt;1h)
+        </Button>
       </div>
 
       {summary?.pendingCount > 0 && (
@@ -122,6 +152,7 @@ export default function SuperAdminTransactionsPage() {
         </table>
         <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
+      {confirmDialog}
     </div>
   );
 }
