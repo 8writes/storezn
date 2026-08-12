@@ -58,6 +58,15 @@ export async function PATCH(req, { params }) {
   if (data.isActive === true) data.disabledReason = null;
   if (data.isActive === false) data.disabledReason = "manual";
 
+  if (data.unlockPayoutAccount) {
+    delete data.unlockPayoutAccount;
+    data.bankCode = null;
+    data.bankName = null;
+    data.accountNumber = null;
+    data.accountName = null;
+    data.subAccountCode = null;
+  }
+
   const [updated] = await db.update(stores).set(data).where(eq(stores.id, id)).returning();
   return NextResponse.json({ store: updated });
 }

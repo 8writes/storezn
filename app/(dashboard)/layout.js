@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   Wallet,
   HelpCircle,
+  Receipt,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -42,6 +43,7 @@ const NAV_BY_ROLE = {
         { href: "/super-admin/vendors", label: "Vendors", icon: ShieldCheck },
         { href: "/super-admin/products", label: "Products", icon: Package },
         { href: "/super-admin/orders", label: "Orders", icon: ShoppingBag },
+        { href: "/super-admin/transactions", label: "Transactions", icon: Receipt },
         { href: "/super-admin/customers", label: "Customers", icon: Users },
       ],
     },

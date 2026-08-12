@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { uploadFile } from "@/lib/clientUpload.js";
+import { AlertTriangle } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
 const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false };
@@ -30,9 +31,11 @@ export default function VendorSettingsPage() {
 
   const { stores, storeId, loading: storesLoading, updateStore } = useVendorStore();
   const [form, setForm] = useState(null);
+  const [store, setStore] = useState(null);
   const [commissionRate, setCommissionRate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [togglingOpen, setTogglingOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
   const [cropTarget, setCropTarget] = useState(null);
@@ -54,6 +57,7 @@ export default function VendorSettingsPage() {
           feeChargedToCustomer: !!data.store.feeChargedToCustomer,
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
+        setStore(data.store);
         updateStore(data.store);
       })
       .catch((err) => toast.error(err.message || "Failed to load store"))
@@ -101,6 +105,23 @@ export default function VendorSettingsPage() {
     }
   };
 
+  const handleToggleOpen = async () => {
+    setTogglingOpen(true);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isOpen: !store.isOpen }),
+      });
+      setStore(data.store);
+      updateStore(data.store);
+      toast.success(data.store.isOpen ? "Your store is now live" : "Your store is now offline");
+    } catch (err) {
+      toast.error(err.message || "Failed to update store status");
+    } finally {
+      setTogglingOpen(false);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -122,6 +143,42 @@ export default function VendorSettingsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-xl font-bold text-slate-900">Store settings</h1>
+
+      {!loading && store && !store.isActive && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
+          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+          <p>Your store has been disabled by Storezn and isn&apos;t visible to customers. Contact support for details.</p>
+        </div>
+      )}
+
+      {!loading && store && (
+        <div className="bg-white border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-slate-900">Store status</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {store.isOpen
+                ? "Your store is live - customers can browse and order."
+                : "Your store is offline - customers see a closed page instead of your storefront."}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={store.isOpen}
+            disabled={togglingOpen || !store.isActive}
+            onClick={handleToggleOpen}
+            className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              store.isOpen ? "bg-brand-600" : "bg-slate-300"
+            }`}
+          >
+            <span
+              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                store.isOpen ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      )}
 
       {loading || !form ? (
         <FormSkeleton fields={4} />

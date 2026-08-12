@@ -133,37 +133,40 @@ export default function VendorPayoutsPage() {
             <div>
               <p className="font-medium">{data.payoutAccount.accountName}</p>
               <p>{data.payoutAccount.bankName} · {data.payoutAccount.accountNumber}</p>
-              <p className="text-xs text-green-700 mt-1">Online orders pay out to this account automatically. To change it, link a new account below.</p>
+              <p className="text-xs text-green-700 mt-1">
+                Online orders pay out to this account automatically. Bank details are locked once set, for security - contact support to change your payout account.
+              </p>
             </div>
           </div>
         ) : (
-          <p className="text-xs text-slate-500">
-            Enter your bank account below - we verify it and set up automatic payouts through Paystack. Customers can&apos;t check out from your store until this is done.
-          </p>
+          <>
+            <p className="text-xs text-slate-500">
+              Enter your bank account below - we verify it and set up automatic payouts through Paystack. Customers can&apos;t check out from your store until this is done.
+            </p>
+            <form onSubmit={handleLinkAccount} className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+              <Select
+                label="Bank"
+                options={banks.map((b) => ({ value: b.code, label: b.name }))}
+                loading={banksLoading}
+                searchable
+                value={payoutForm.bankCode}
+                onChange={(v) => setPayoutForm((f) => ({ ...f, bankCode: v }))}
+                required
+              />
+              <Input
+                label="Account number"
+                placeholder="0123456789"
+                maxLength={10}
+                value={payoutForm.accountNumber}
+                onChange={(e) => setPayoutForm((f) => ({ ...f, accountNumber: e.target.value.replace(/\D/g, "") }))}
+                required
+              />
+              <Button type="submit" loading={linkingAccount} className="sm:col-span-2 w-fit">
+                Verify &amp; link account
+              </Button>
+            </form>
+          </>
         )}
-
-        <form onSubmit={handleLinkAccount} className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-          <Select
-            label="Bank"
-            options={banks.map((b) => ({ value: b.code, label: b.name }))}
-            loading={banksLoading}
-            searchable
-            value={payoutForm.bankCode}
-            onChange={(v) => setPayoutForm((f) => ({ ...f, bankCode: v }))}
-            required
-          />
-          <Input
-            label="Account number"
-            placeholder="0123456789"
-            maxLength={10}
-            value={payoutForm.accountNumber}
-            onChange={(e) => setPayoutForm((f) => ({ ...f, accountNumber: e.target.value.replace(/\D/g, "") }))}
-            required
-          />
-          <Button type="submit" loading={linkingAccount} className="sm:col-span-2 w-fit">
-            {data?.payoutAccount ? "Link a different account" : "Verify & link account"}
-          </Button>
-        </form>
       </div>
 
       <div className="flex items-start gap-3 bg-brand-50 border border-brand-100 rounded-sm p-4">

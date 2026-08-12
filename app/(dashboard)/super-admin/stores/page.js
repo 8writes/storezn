@@ -85,15 +85,16 @@ export default function SuperAdminStoresPage() {
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Vendor</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Payout account</th>
               <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <TableRowSkeleton cols={4} />
+              <TableRowSkeleton cols={5} />
             ) : stores.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">{q ? "No stores match your search" : "No stores yet"}</td>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">{q ? "No stores match your search" : "No stores yet"}</td>
               </tr>
             ) : (
               stores.map((s) => (
@@ -111,6 +112,9 @@ export default function SuperAdminStoresPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Badge color={s.isActive ? "green" : "red"}>{s.isActive ? "Active" : "Inactive"}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">
+                    {s.subAccountCode ? `${s.bankName} · ${s.accountNumber}` : <span className="text-slate-400">Not set</span>}
                   </td>
                   <td className="px-4 py-3 text-right space-x-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <Link href={`/super-admin/stores/${s.id}`} className="text-brand-600 hover:underline">View</Link>

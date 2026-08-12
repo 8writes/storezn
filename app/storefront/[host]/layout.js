@@ -7,6 +7,7 @@ import { CartBadge } from "@/components/storefront/CartBadge.js";
 import { AccountMenu } from "@/components/storefront/AccountMenu.js";
 import { Footer } from "@/components/storefront/Footer.js";
 import { WhatsAppButton } from "@/components/storefront/WhatsAppButton.js";
+import { StoreOfflineNotice } from "@/components/storefront/StoreOfflineNotice.js";
 
 // Uses the vendor's own uploaded logo as the browser tab icon on their
 // storefront (falls back to the platform default when they haven't set
@@ -55,7 +56,8 @@ export async function generateMetadata({ params }) {
 export default async function StorefrontLayout({ children, params }) {
   const { host } = await params;
   const store = await resolveStoreByHost(decodeURIComponent(host));
-  if (!store || !isStoreLive(store)) return notFound();
+  if (!store) return notFound();
+  if (!isStoreLive(store)) return <StoreOfflineNotice store={store} />;
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

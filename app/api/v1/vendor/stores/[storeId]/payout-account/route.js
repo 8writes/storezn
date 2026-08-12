@@ -38,6 +38,14 @@ export async function POST(req, { params }) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Locked once set - matches the UI, which hides the form entirely once
+  // a payout account exists. A vendor who wants to change banks has to go
+  // through support (see super-admin's "Unlock payout account" action),
+  // not resubmit this form - a bad actor with a stolen session shouldn't
+  // be able to silently redirect future payouts.
+  if (store.subAccountCode) {
+    return NextResponse.json({ error: "A payout account is already linked. Contact support to change it." }, { status: 409 });
+  }
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });

@@ -24,6 +24,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -84,6 +85,29 @@ export default function SuperAdminStoreDetailPage({ params }) {
     }
   };
 
+  const unlockPayoutAccount = async () => {
+    const ok = await confirm({
+      title: "Unlock payout account?",
+      description: "Clears the vendor's linked bank account so they can link a new one. Only do this after verifying the request with the vendor directly.",
+      confirmLabel: "Unlock",
+      variant: "danger",
+    });
+    if (!ok) return;
+    setUnlocking(true);
+    try {
+      const data = await apiFetch(`/api/v1/super-admin/stores/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ unlockPayoutAccount: true }),
+      });
+      setStore(data.store);
+      toast.success("Payout account unlocked - the vendor can now link a new one");
+    } catch (err) {
+      toast.error(err.message || "Failed to unlock payout account");
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
   if (loading || !store) {
     return (
       <div className="space-y-6">
@@ -104,6 +128,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         </div>
         <div className="flex items-center gap-3">
           <Badge color={store.isActive ? "green" : "red"}>{store.isActive ? "Active" : "Inactive"}</Badge>
+          <Badge color={store.isOpen ? "green" : "slate"}>{store.isOpen ? "Open" : "Closed by vendor"}</Badge>
           <Button size="sm" variant={store.isActive ? "danger" : "primary"} onClick={toggleActive} loading={toggling}>
             {store.isActive ? "Disable store" : "Enable store"}
           </Button>
@@ -128,10 +153,37 @@ export default function SuperAdminStoreDetailPage({ params }) {
           <p className="text-sm font-semibold text-slate-700">Store details</p>
           <p className="text-sm text-slate-500">Currency: {store.currency}</p>
           <p className="text-sm text-slate-500">Custom domain: {store.customDomain || "not set"} ({store.domainStatus})</p>
-          <p className="text-sm text-slate-500">
-            Payout setup: {store.subAccountCode ? `complete (${store.bankName} · ${store.accountNumber})` : "not yet configured"}
-          </p>
         </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+        <p className="text-sm font-semibold text-slate-700">Payout account</p>
+        {store.subAccountCode ? (
+          <>
+            <dl className="text-sm space-y-1.5">
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Bank</dt>
+                <dd className="text-slate-900 font-medium">{store.bankName}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Account number</dt>
+                <dd className="text-slate-900 font-medium">{store.accountNumber}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">Account name</dt>
+                <dd className="text-slate-900 font-medium">{store.accountName}</dd>
+              </div>
+            </dl>
+            <p className="text-xs text-slate-500">
+              This is locked on the vendor&apos;s side once set. Only unlock it after verifying the change with the vendor directly.
+            </p>
+            <Button size="sm" variant="danger" onClick={unlockPayoutAccount} loading={unlocking}>
+              Unlock payout account
+            </Button>
+          </>
+        ) : (
+          <p className="text-sm text-slate-400">Not yet configured.</p>
+        )}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
