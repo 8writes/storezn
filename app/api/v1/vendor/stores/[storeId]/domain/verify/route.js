@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { resolve4 } from "node:dns/promises";
-import { db } from "../../../../../../../lib/db/index.js";
-import { stores } from "../../../../../../../lib/db/schema.js";
+import { db } from "../../../../../../../../lib/db/index.js";
+import { stores } from "../../../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
-import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
+import { getUser, isStoreOwner } from "../../../../../../../../lib/auth.js";
 
 // Vendor-triggered, not automatic - DNS propagation can take anywhere
 // from minutes to a day, so this is a button ("Verify now") they click

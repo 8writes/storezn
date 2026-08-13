@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { db } from "../../../../../../lib/db/index.js";
-import { stores } from "../../../../../../lib/db/schema.js";
+import { db } from "../../../../../../../lib/db/index.js";
+import { stores } from "../../../../../../../lib/db/schema.js";
 import { eq, and, ne } from "drizzle-orm";
-import { getUser, isStoreOwner } from "../../../../../../lib/auth.js";
-import { validate, setCustomDomainSchema } from "../../../../../../lib/validate.js";
+import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
+import { validate, setCustomDomainSchema } from "../../../../../../../lib/validate.js";
 
 // storezn.com itself and any *.storezn.com subdomain are already how
 // every store is reachable by default (see lib/resolveStore.js) - a
