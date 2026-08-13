@@ -2,7 +2,7 @@ import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "../../../../../../../lib/db/index.js";
 import { stores, users, tokens } from "../../../../../../../lib/db/schema.js";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, inviteStaffSchema } from "../../../../../../../lib/validate.js";
 import { sendMail } from "../../../../../../../lib/email/sendMail.js";
@@ -26,8 +26,20 @@ export async function GET(req, { params }) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!isStoreOwner(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // activatedAt: null until the staff member actually opens the invite
+  // email and sets their password (POST /api/v1/auth/reset-password,
+  // which stamps usedAt on the same "reset" token created at invite
+  // time) - no separate status column needed, this token already is the
+  // record of whether they've done that.
   const staff = await db
-    .select({ id: users.id, firstName: users.firstName, lastName: users.lastName, email: users.email, createdAt: users.createdAt })
+    .select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+      createdAt: users.createdAt,
+      activatedAt: sql`(select min(${tokens.usedAt}) from ${tokens} where ${tokens.userId} = ${users.id} and ${tokens.type} = 'reset' and ${tokens.usedAt} is not null)`,
+    })
     .from(users)
     .where(and(eq(users.storeId, storeId), eq(users.role, "staff"), isNull(users.deletedAt)))
     .orderBy(users.createdAt);

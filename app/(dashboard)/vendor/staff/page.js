@@ -8,6 +8,7 @@ import { useConfirm } from "@/hooks/useConfirm.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
+import { Badge } from "@/components/ui/Badge.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDate } from "@/lib/format.js";
 
@@ -95,15 +96,16 @@ export default function VendorStaffPage() {
             <tr>
               <th className="px-4 py-3 font-medium">Staff member</th>
               <th className="px-4 py-3 font-medium">Added</th>
+              <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {storeLoading || staff === null ? (
-              <TableRowSkeleton cols={3} />
+              <TableRowSkeleton cols={4} />
             ) : staff.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-slate-400">No staff yet</td>
+                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">No staff yet</td>
               </tr>
             ) : (
               staff.map((member) => (
@@ -113,6 +115,13 @@ export default function VendorStaffPage() {
                     <p className="text-xs text-slate-400">{member.email}</p>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(member.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    {member.activatedAt ? (
+                      <Badge color="green">Active</Badge>
+                    ) : (
+                      <Badge color="amber">Invited</Badge>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <button
                       type="button"

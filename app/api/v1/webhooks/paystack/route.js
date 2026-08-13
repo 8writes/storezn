@@ -5,7 +5,7 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { verifyWebhookSignature, verifyTransaction } from "../../../../../lib/paystack.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { formatCurrency } from "../../../../../lib/format.js";
-import { sendPushToUser } from "../../../../../lib/push.js";
+import { sendPushToStore } from "../../../../../lib/push.js";
 import { LOW_STOCK_THRESHOLD } from "../../../../../lib/inventory.js";
 
 // This is registered directly on Paystack only in local/single-product
@@ -122,18 +122,21 @@ export async function POST(req) {
     .limit(1);
 
   if (store?.ownerId) {
-    sendPushToUser(store.ownerId, {
+    // Operational, not owner-only - staff can act on both of these
+    // (see canManageStore vs isStoreOwner in lib/auth.js), so the whole
+    // store team gets notified, not just the vendor.
+    sendPushToStore(order.storeId, {
       title: "New order",
       body: `Order ${order.orderNumber} for ${formatCurrency(order.totalAmount)} just came in.`,
       url: "/vendor/orders",
-    }).catch((err) => console.error("sendPushToUser failed (new order):", err));
+    }).catch((err) => console.error("sendPushToStore failed (new order):", err));
 
     for (const p of lowStockNow) {
-      sendPushToUser(store.ownerId, {
+      sendPushToStore(order.storeId, {
         title: "Low stock",
         body: `${p.name}${p.variantLabel ? ` (${p.variantLabel})` : ""} is down to ${p.stock} left.`,
         url: "/vendor/products",
-      }).catch((err) => console.error("sendPushToUser failed (low stock):", err));
+      }).catch((err) => console.error("sendPushToStore failed (low stock):", err));
     }
   }
 

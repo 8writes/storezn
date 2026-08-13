@@ -98,9 +98,13 @@ const NAV_BY_ROLE = {
     },
   ],
   // Trimmed vendor nav - a staff member helps run the store day-to-day
-  // (see canManageStore in lib/auth.js) but never sees payouts, store
-  // settings/verification, or the staff list itself (isStoreOwner-gated,
-  // both at the API and in vendor/staff/page.js's own guard).
+  // (see canManageStore in lib/auth.js) but never sees payouts,
+  // verification, or the staff list itself (isStoreOwner-gated, both at
+  // the API and in vendor/staff/page.js's own guard). Store settings
+  // stays in, though - staff can edit it (canManageStore covers it), and
+  // it's also where the push-notification toggle lives, which staff need
+  // too now that new-order/low-stock pushes go to the whole store team
+  // (see sendPushToStore in lib/push.js), not just the owner.
   staff: [
     {
       title: "Store",
@@ -108,6 +112,7 @@ const NAV_BY_ROLE = {
         { href: "/vendor/products", label: "Products", icon: Package },
         { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
         { href: "/vendor/customers", label: "Customers", icon: Users },
+        { href: "/vendor/settings", label: "Store settings", icon: Settings },
       ],
     },
     {
