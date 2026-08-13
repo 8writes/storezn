@@ -24,7 +24,7 @@ import { StatCard } from "@/components/ui/StatCard.js";
 import { CopyableUrl } from "@/components/ui/CopyableUrl.js";
 import { StoreQrCodeButton } from "@/components/ui/StoreQrCodeButton.js";
 import { SetupGuideModal } from "@/components/ui/SetupGuideModal.js";
-import { Skeleton, StatGridSkeleton } from "@/components/ui/Skeleton.js";
+import { StatGridSkeleton, VendorDashboardSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { pushSupported, getPushSubscription, subscribeToPush } from "@/lib/pushClient.js";
@@ -152,12 +152,7 @@ export default function VendorDashboardPage() {
   const store = stores.find((s) => s.id === storeId);
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-6 w-40" />
-        <StatGridSkeleton count={3} />
-      </div>
-    );
+    return <VendorDashboardSkeleton />;
   }
 
   // Setup steps, the store link, and the verification/payment nudges are

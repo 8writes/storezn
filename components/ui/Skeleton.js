@@ -131,6 +131,46 @@ export function AuthCardSkeleton({ fields = 2 }) {
   );
 }
 
+// Matches app/(dashboard)/vendor/dashboard/page.js's shape once a store
+// exists: title row, the store-link card, the 4-stat grid, and the quick
+// actions grid - shown while useVendorStore is still resolving, so the
+// page doesn't jump from a near-empty skeleton into a much taller real
+// layout once stores load.
+export function VendorDashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-9 w-32" />
+      </div>
+
+      <div className="space-y-2 max-w-md bg-slate-50 border border-slate-200 rounded-sm p-4">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-3.5 w-full" />
+        <Skeleton className="h-3.5 w-3/4" />
+        <div className="flex items-start gap-2 pt-1">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-28 shrink-0" />
+        </div>
+      </div>
+
+      <StatGridSkeleton count={4} />
+
+      <div>
+        <Skeleton className="h-4 w-28 mb-3" />
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div key={i} className="flex flex-col items-center justify-center gap-2 bg-white border border-slate-200 rounded-sm p-4">
+              <Skeleton className="w-5 h-5 rounded-full" />
+              <Skeleton className="h-2.5 w-12" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Matches app/e/[slug]/checkout: header bar, step badges, a couple of
 // ticket-type rows on the left, an order-summary card on the right.
 export function CheckoutSkeleton() {
