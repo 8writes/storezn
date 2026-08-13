@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, linkPayoutAccountSchema } from "../../../../../../../lib/validate.js";
 import { getBanks, ensureSubAccount } from "../../../../../../../lib/paystack.js";
+import { sendPushToRole } from "../../../../../../../lib/push.js";
 
 export async function GET(req, { params }) {
   const user = await getUser(req);
@@ -74,6 +75,16 @@ export async function POST(req, { params }) {
       })
       .where(eq(stores.id, storeId))
       .returning();
+
+    // Informational only - the sub-account is already live on Paystack by
+    // this point (ensureSubAccount above), this just flags it for a human
+    // to review/approve in the Paystack dashboard. A failed push shouldn't
+    // fail the vendor's request, so this is fire-and-forget.
+    sendPushToRole("super_admin", {
+      title: "New payout account linked",
+      body: `${updated.name} linked ${bankName || bankCode} •••${accountNumber.slice(-4)} (${subAccount.accountName})`,
+      url: `/super-admin/stores/${storeId}`,
+    }).catch((err) => console.error("payout-account: admin push failed", err));
 
     return NextResponse.json({ store: updated });
   } catch (err) {

@@ -67,7 +67,7 @@ export function CustomDomainSettings({ store, apiFetch, storeId, onUpdated }) {
       <form onSubmit={save} className="flex items-end gap-2">
         <Input
           label="Domain"
-          placeholder="shop.example.com"
+          placeholder="example.com"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           className="flex-1"
