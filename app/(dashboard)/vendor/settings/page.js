@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { PushNotificationToggle } from "@/components/ui/PushNotificationToggle.js";
+import { CustomDomainSettings } from "@/components/ui/CustomDomainSettings.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { uploadFile } from "@/lib/clientUpload.js";
@@ -190,6 +191,18 @@ export default function VendorSettingsPage() {
             />
           </button>
         </div>
+      )}
+
+      {!loading && store && (
+        <CustomDomainSettings
+          store={store}
+          apiFetch={apiFetch}
+          storeId={storeId}
+          onUpdated={(updated) => {
+            setStore(updated);
+            updateStore(updated);
+          }}
+        />
       )}
 
       {loading || !form ? (
