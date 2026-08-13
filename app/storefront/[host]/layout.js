@@ -84,7 +84,12 @@ export default async function StorefrontLayout({ children, params }) {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-12 flex-1 w-full">{children}</main>
       <Footer store={store} />
       <WhatsAppButton store={store} />
-      <Toaster position="top-right" offset="10vh" closeButton={true} />
+      {/* top-center, not top-right - the cart icon lives in that corner
+          of the sticky header (see CartBadge above), and a toast stacking
+          there would sit right on top of it. offset clears the header's
+          fixed 80px height (h-20) rather than a viewport-relative unit,
+          which could land short of it on a short screen. */}
+      <Toaster position="top-center" offset="90px" closeButton={true} />
     </div>
   );
 }

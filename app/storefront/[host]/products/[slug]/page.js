@@ -9,6 +9,7 @@ import { AddToCartButton } from "@/components/storefront/AddToCartButton.js";
 import { ReviewsSection } from "@/components/storefront/ReviewsSection.js";
 import { ProductGallery } from "@/components/storefront/ProductGallery.js";
 import { ShareButton } from "@/components/storefront/ShareButton.js";
+import { BackButton } from "@/components/storefront/BackButton.js";
 
 async function loadProduct(host, slug) {
   const store = await resolveStoreByHost(decodeURIComponent(host));
@@ -69,6 +70,8 @@ export default async function StorefrontProductPage({ params }) {
 
   return (
     <div>
+      <BackButton className="mb-6" />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
         <ProductGallery images={product.images || []} name={product.name} />
 
