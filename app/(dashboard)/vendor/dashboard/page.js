@@ -205,11 +205,12 @@ export default function VendorDashboardPage() {
             <div className="space-y-1.5 max-w-md bg-brand-50 border border-brand-100 rounded-sm p-4">
               <label className="text-sm font-semibold text-slate-900">This is your store&apos;s link</label>
               <p className="text-xs text-slate-500">Anyone who opens it can browse and buy from you - copy it and share it on WhatsApp, Instagram, anywhere.</p>
-              <div className="flex items-start gap-2 pt-1">
-                <div className="flex-1 min-w-0">
-                  <CopyableUrl url={getStorefrontUrl(store)} shareTitle={store.name} />
-                </div>
-                <StoreQrCodeButton storeName={store.name} storeUrl={getStorefrontUrl(store)} />
+              <div className="pt-1">
+                <CopyableUrl
+                  url={getStorefrontUrl(store)}
+                  shareTitle={store.name}
+                  extra={<StoreQrCodeButton storeName={store.name} storeUrl={getStorefrontUrl(store)} />}
+                />
               </div>
             </div>
           )}

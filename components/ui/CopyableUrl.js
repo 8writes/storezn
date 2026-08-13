@@ -9,7 +9,7 @@ import { Copy, Check, ExternalLink, Share2 } from "lucide-react";
 // button is spelled out in words, not just an icon - vendors kept asking
 // where customers actually see their store, and a bare clipboard glyph
 // was easy to miss as "the answer" to that question.
-export function CopyableUrl({ url, shareTitle }) {
+export function CopyableUrl({ url, shareTitle, extra }) {
   const [copied, setCopied] = useState(false);
   const canShare = typeof navigator !== "undefined" && !!navigator.share;
 
@@ -30,13 +30,20 @@ export function CopyableUrl({ url, shareTitle }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-sm pl-3 pr-2 py-2">
-        <a href={url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 text-sm text-slate-700 truncate hover:text-brand-700">
-          {url}
-        </a>
-        <a href={url} target="_blank" rel="noreferrer" aria-label="Open storefront" className="shrink-0 p-1.5 text-slate-700 hover:text-slate-700">
-          <ExternalLink size={16} />
-        </a>
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-sm pl-3 pr-2 py-2">
+          <a href={url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 text-sm text-slate-700 truncate hover:text-brand-700">
+            {url}
+          </a>
+          <a href={url} target="_blank" rel="noreferrer" aria-label="Open storefront" className="shrink-0 p-1.5 text-slate-700 hover:text-slate-700">
+            <ExternalLink size={16} />
+          </a>
+        </div>
+        {/* Rendered here (inside the same row as the URL box) rather than
+            as a sibling in the parent layout, so it only ever narrows the
+            URL row above - the action buttons below stay full width
+            instead of being squeezed to match. */}
+        {extra}
       </div>
       <div className={canShare ? "grid grid-cols-2 gap-2" : "grid grid-cols-1 gap-2"}>
         <button
