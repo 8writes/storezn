@@ -88,8 +88,11 @@ export default async function StorefrontLayout({ children, params }) {
           of the sticky header (see CartBadge above), and a toast stacking
           there would sit right on top of it. offset clears the header's
           fixed 80px height (h-20) rather than a viewport-relative unit,
-          which could land short of it on a short screen. */}
-      <Toaster position="top-center" offset="90px" closeButton={true} />
+          which could land short of it on a short screen. mobileOffset is
+          taller than offset since the header's px-4 gutter is narrower
+          there, so a toast sitting right at the edge of the nav reads as
+          cramped in a way it doesn't on desktop's wider header. */}
+      <Toaster position="top-center" offset="90px" mobileOffset="120px" closeButton={true} />
     </div>
   );
 }
