@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -12,7 +12,21 @@ import { Badge } from "@/components/ui/Badge.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
+import { InfoTip } from "@/components/ui/InfoTip.js";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
+import { parseCsv, downloadCsv } from "@/lib/csv.js";
+
+const BULK_HEADERS = ["name", "price", "sku", "description", "productType", "condition", "stock", "categoryName"];
+const BULK_TEMPLATE_ROW = {
+  name: "Red Tote Bag",
+  price: "15000",
+  sku: "BAG-RED-01",
+  description: "Spacious everyday tote in red canvas",
+  productType: "physical",
+  condition: "new",
+  stock: "20",
+  categoryName: "Bags",
+};
 
 export default function VendorProductsPage() {
   const router = useRouter();
@@ -25,6 +39,11 @@ export default function VendorProductsPage() {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const [bulkRows, setBulkRows] = useState([]);
+  const [bulkFileName, setBulkFileName] = useState("");
+  const [bulkResults, setBulkResults] = useState(null);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
   const loadProducts = () => {
     if (!token || !storeId) return;
@@ -55,6 +74,55 @@ export default function VendorProductsPage() {
     setPage(1);
   }, [q, storeId]);
 
+  const downloadTemplate = () => downloadCsv("products-import-template.csv", BULK_HEADERS, [BULK_TEMPLATE_ROW]);
+
+  const handleBulkFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkResults(null);
+    setBulkFileName(file.name);
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text);
+      if (rows.length === 0) {
+        toast.error("No rows found in that file");
+        setBulkRows([]);
+        return;
+      }
+      setBulkRows(rows);
+    } catch {
+      toast.error("Couldn't read that file");
+      setBulkRows([]);
+    }
+  };
+
+  const handleBulkImport = async () => {
+    setBulkSubmitting(true);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/bulk`, { method: "POST", body: JSON.stringify({ rows: bulkRows }) });
+      setBulkResults(data.results);
+      toast.success(`${data.summary.created} of ${data.summary.total} rows imported`);
+      if (data.summary.created > 0) {
+        if (page === 1) loadProducts();
+        else setPage(1);
+      }
+    } catch (err) {
+      toast.error(err.message || "Bulk import failed");
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
+  const downloadFailedRows = () => {
+    const failed = bulkResults.filter((r) => r.status === "error");
+    const rowsByNumber = new Map(bulkRows.map((r, i) => [i + 2, r]));
+    downloadCsv(
+      "products-import-failed.csv",
+      [...BULK_HEADERS, "error"],
+      failed.map((f) => ({ ...(rowsByNumber.get(f.row) || {}), error: f.error })),
+    );
+  };
+
   if (!storesLoading && stores.length === 0) {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
@@ -69,6 +137,70 @@ export default function VendorProductsPage() {
             Add product
           </Button>
         </Link>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+            Bulk import (CSV)
+            <InfoTip>
+              Migrating a catalog from a spreadsheet? Columns: {BULK_HEADERS.join(", ")}. Only <code>name</code> and <code>price</code> are
+              required - <code>categoryName</code> must match an existing category exactly. No images or variants here - add those
+              afterward by editing each product.
+            </InfoTip>
+          </p>
+          <button type="button" onClick={downloadTemplate} className="text-sm text-brand-600 hover:underline cursor-pointer">
+            Download template
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <input type="file" accept=".csv,text/csv" onChange={handleBulkFile} className="text-sm" />
+          {bulkRows.length > 0 && (
+            <>
+              <span className="text-sm text-slate-500">{bulkRows.length} row{bulkRows.length === 1 ? "" : "s"} ready from {bulkFileName}</span>
+              <Button size="sm" onClick={handleBulkImport} loading={bulkSubmitting}>
+                <Upload size={14} /> Import {bulkRows.length} row{bulkRows.length === 1 ? "" : "s"}
+              </Button>
+            </>
+          )}
+        </div>
+
+        {bulkResults && (
+          <div className="pt-3 border-t border-slate-100 space-y-3">
+            <p className="text-sm">
+              <span className="text-green-700 font-medium">{bulkResults.filter((r) => r.status === "created").length} created</span>
+              {" · "}
+              <span className="text-red-700 font-medium">{bulkResults.filter((r) => r.status === "error").length} failed</span>
+            </p>
+            {bulkResults.some((r) => r.status === "error") && (
+              <>
+                <div className="max-h-56 overflow-auto border border-slate-200 rounded-sm">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-500 text-left sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Row</th>
+                        <th className="px-3 py-2 font-medium">Name</th>
+                        <th className="px-3 py-2 font-medium">Error</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkResults.filter((r) => r.status === "error").map((r) => (
+                        <tr key={r.row} className="border-t border-slate-100">
+                          <td className="px-3 py-2 text-slate-500">{r.row}</td>
+                          <td className="px-3 py-2">{r.name || "-"}</td>
+                          <td className="px-3 py-2 text-red-600">{r.error}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button type="button" onClick={downloadFailedRows} className="text-sm text-brand-600 hover:underline cursor-pointer">
+                  Download failed rows (CSV)
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="max-w-sm" />

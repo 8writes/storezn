@@ -32,7 +32,7 @@ export async function POST(req, { params }) {
 
   const result = validate(createOfflineOrderSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  const { buyerName, buyerEmail, buyerPhone, note, items } = result.data;
+  const { buyerName, buyerEmail, buyerPhone, note, delivered, items } = result.data;
 
   const productIds = [...new Set(items.map((i) => i.productId))];
   const variantIds = [...new Set(items.map((i) => i.variantId).filter(Boolean))];
@@ -96,7 +96,7 @@ export async function POST(req, { params }) {
         guestEmail: buyerEmail || null,
         buyerName,
         buyerPhone: buyerPhone || null,
-        status: "processing",
+        status: delivered ? "delivered" : "processing",
         paymentStatus: "paid",
         subtotal,
         shippingFee: 0,
@@ -108,6 +108,7 @@ export async function POST(req, { params }) {
         note: note || null,
         isOffline: true,
         paidAt: new Date(),
+        ...(delivered ? { deliveredAt: new Date() } : {}),
       })
       .returning();
 

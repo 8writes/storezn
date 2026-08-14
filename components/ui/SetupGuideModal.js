@@ -79,41 +79,57 @@ export function SetupGuideModal({ open, onClose, steps }) {
         </div>
 
         <div className="space-y-2">
-          {steps.map((step) => (
-            <div
-              key={step.label}
-              className={`flex items-center gap-3 rounded-sm border p-3 ${step.done ? "border-slate-100 bg-slate-50" : "border-slate-200"}`}
-            >
-              {step.done ? (
-                <CheckCircle2 size={20} className="text-brand-600 shrink-0" />
-              ) : (
-                <Circle size={20} className="text-slate-300 shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${step.done ? "text-slate-700 line-through" : "text-slate-900"}`}>{step.label}</p>
-                {!step.done && step.description && <p className="text-xs text-slate-500 mt-0.5">{step.description}</p>}
-              </div>
-              {!step.done && step.onAction && (
+          {steps.map((step) => {
+            const rowClass = `flex items-center gap-3 rounded-sm border p-3 w-full text-left ${
+              step.done ? "border-slate-100 bg-slate-50" : "border-slate-200 hover:border-brand-300 hover:bg-brand-50/30 transition-colors cursor-pointer"
+            }`;
+            const content = (
+              <>
+                {step.done ? (
+                  <CheckCircle2 size={20} className="text-brand-600 shrink-0" />
+                ) : (
+                  <Circle size={20} className="text-slate-300 shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${step.done ? "text-slate-700 line-through" : "text-slate-900"}`}>{step.label}</p>
+                  {!step.done && step.description && <p className="text-xs text-slate-500 mt-0.5">{step.description}</p>}
+                </div>
+                {!step.done && (
+                  <span className="shrink-0 text-xs font-semibold text-brand-600 whitespace-nowrap">
+                    {actioningLabel === step.label ? "Enabling…" : step.cta || "Do this"}
+                  </span>
+                )}
+              </>
+            );
+
+            // The whole row is the click target now, not just the small
+            // "Do this" text - easier to hit, especially on mobile.
+            if (step.done) {
+              return (
+                <div key={step.label} className={rowClass}>
+                  {content}
+                </div>
+              );
+            }
+            if (step.onAction) {
+              return (
                 <button
+                  key={step.label}
                   type="button"
                   disabled={actioningLabel === step.label}
                   onClick={() => runAction(step)}
-                  className="shrink-0 text-xs font-semibold text-brand-600 hover:underline whitespace-nowrap disabled:opacity-50 cursor-pointer"
+                  className={`${rowClass} disabled:opacity-50 disabled:cursor-wait`}
                 >
-                  {actioningLabel === step.label ? "Enabling…" : step.cta || "Do this "}
+                  {content}
                 </button>
-              )}
-              {!step.done && step.href && (
-                <Link
-                  href={step.href}
-                  onClick={onClose}
-                  className="shrink-0 text-xs font-semibold text-brand-600 hover:underline whitespace-nowrap"
-                >
-                  {step.cta || "Do this "}
-                </Link>
-              )}
-            </div>
-          ))}
+              );
+            }
+            return (
+              <Link key={step.label} href={step.href} onClick={onClose} className={rowClass}>
+                {content}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>

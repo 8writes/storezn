@@ -9,11 +9,12 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { BackLink } from "@/components/ui/BackLink.js";
+import { InfoTip } from "@/components/ui/InfoTip.js";
 import { formatCurrency } from "@/lib/format.js";
 import { Plus, Trash2 } from "lucide-react";
 
 const EMPTY_ITEM = { productId: "", variantId: "", quantity: "1" };
-const EMPTY_BUYER = { buyerName: "Walk In Customer", buyerEmail: "", buyerPhone: "", note: "" };
+const EMPTY_BUYER = { buyerName: "Walk In Customer", buyerEmail: "", buyerPhone: "", note: "", delivered: false };
 
 export default function RecordOfflineOrderPage() {
   const router = useRouter();
@@ -93,6 +94,7 @@ export default function RecordOfflineOrderPage() {
     try {
       const payload = {
         buyerName: buyer.buyerName,
+        delivered: buyer.delivered,
         items: validItems.map((row) => ({
           productId: row.productId,
           ...(row.variantId ? { variantId: row.variantId } : {}),
@@ -122,10 +124,12 @@ export default function RecordOfflineOrderPage() {
       <BackLink href="/vendor/orders" label="Back to orders" />
 
       <div>
-        <h1 className="text-xl font-bold text-slate-900">Record an offline order</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          For a sale that happened in person, by phone, or in cash - not through your storefront checkout. It&apos;s recorded as paid immediately and stock is deducted right away.
-        </p>
+        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-1.5">
+          Record an offline order
+          <InfoTip>
+            For a sale that happened in person, by phone, or in cash - not through your storefront checkout. It&apos;s recorded as paid immediately and stock is deducted right away.
+          </InfoTip>
+        </h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -190,6 +194,15 @@ export default function RecordOfflineOrderPage() {
         <div className="bg-white border border-slate-200 rounded-sm p-5">
           <Textarea label="Note (optional)" rows={2} placeholder="e.g. paid by cash, delivered by hand" value={buyer.note} onChange={(e) => setBuyer((b) => ({ ...b, note: e.target.value }))} />
         </div>
+
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={buyer.delivered}
+            onChange={(e) => setBuyer((b) => ({ ...b, delivered: e.target.checked }))}
+          />
+          This order has already been delivered
+        </label>
 
         <Button type="submit" loading={submitting}>Record order</Button>
       </form>
