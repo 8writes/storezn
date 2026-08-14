@@ -10,11 +10,12 @@ import { Button } from "@/components/ui/Button.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
+import { Switch } from "@/components/ui/Switch.js";
 import { formatCurrency } from "@/lib/format.js";
 import { Plus, Trash2 } from "lucide-react";
 
 const EMPTY_ITEM = { productId: "", variantId: "", quantity: "1" };
-const EMPTY_BUYER = { buyerName: "Walk In Customer", buyerEmail: "", buyerPhone: "", note: "", delivered: false };
+const EMPTY_BUYER = { buyerName: "Walk In Customer", buyerEmail: "", buyerPhone: "", note: "", delivered: true };
 
 export default function RecordOfflineOrderPage() {
   const router = useRouter();
@@ -195,14 +196,12 @@ export default function RecordOfflineOrderPage() {
           <Textarea label="Note (optional)" rows={2} placeholder="e.g. paid by cash, delivered by hand" value={buyer.note} onChange={(e) => setBuyer((b) => ({ ...b, note: e.target.value }))} />
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={buyer.delivered}
-            onChange={(e) => setBuyer((b) => ({ ...b, delivered: e.target.checked }))}
-          />
-          This order has already been delivered
-        </label>
+        <Switch
+          checked={buyer.delivered}
+          onChange={(delivered) => setBuyer((b) => ({ ...b, delivered }))}
+          label="This order has already been delivered"
+          description={buyer.delivered ? "Recorded straight to delivered - no shipping steps in between." : "Recorded as processing, same as a fresh online order."}
+        />
 
         <Button type="submit" loading={submitting}>Record order</Button>
       </form>
