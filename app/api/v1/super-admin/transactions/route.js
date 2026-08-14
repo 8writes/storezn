@@ -52,6 +52,7 @@ export async function GET(req) {
       paidAt: r.order.paidAt,
       totalAmount: r.order.totalAmount,
       commissionAmount: r.order.commissionAmount,
+      flatFeeAmount: r.order.flatFeeAmount,
       paymentStatus: r.order.paymentStatus,
       paymentReference: r.order.paymentReference,
       isOffline: r.order.isOffline,

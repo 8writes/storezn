@@ -22,7 +22,10 @@ export async function GET(req) {
   const [revenueRow] = await db
     .select({
       totalGMV: sql`coalesce(sum(${orders.totalAmount}), 0)`.mapWith(Number),
-      totalCommission: sql`coalesce(sum(${orders.commissionAmount}), 0)`.mapWith(Number),
+      // Total platform revenue - percentage commission plus the flat fee
+      // per order (see platformSettings.defaultFlatFee), both are money
+      // the platform actually kept, not just the percentage piece.
+      totalCommission: sql`coalesce(sum(${orders.commissionAmount} + ${orders.flatFeeAmount}), 0)`.mapWith(Number),
     })
     .from(orders)
     .where(sql`${orders.paymentStatus} = 'paid'`);

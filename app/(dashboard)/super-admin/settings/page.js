@@ -15,6 +15,7 @@ export default function SuperAdminSettingsPage() {
 
   const [rate, setRate] = useState("");
   const [cap, setCap] = useState("");
+  const [flatFee, setFlatFee] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,6 +27,7 @@ export default function SuperAdminSettingsPage() {
       .then((data) => {
         setRate(String(data.settings.defaultCommissionRatePercent));
         setCap(data.settings.maxCommissionAmount != null ? String(data.settings.maxCommissionAmount) : "");
+        setFlatFee(String(data.settings.defaultFlatFee ?? 0));
         setMaintenanceMode(!!data.settings.maintenanceMode);
       })
       .catch((err) => toast.error(err.message || "Failed to load settings"))
@@ -41,6 +43,7 @@ export default function SuperAdminSettingsPage() {
         body: JSON.stringify({
           defaultCommissionRatePercent: Number(rate),
           maxCommissionAmount: cap.trim() === "" ? null : Number(cap),
+          defaultFlatFee: flatFee.trim() === "" ? 0 : Number(flatFee),
         }),
       });
       toast.success("Platform settings saved");
@@ -90,6 +93,7 @@ export default function SuperAdminSettingsPage() {
                 type="button"
                 role="switch"
                 aria-checked={maintenanceMode}
+                aria-label="Toggle maintenance mode"
                 disabled={togglingMaintenance}
                 onClick={toggleMaintenance}
                 className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
@@ -124,6 +128,12 @@ export default function SuperAdminSettingsPage() {
             <Input label="Commission cap (₦ per order, optional)" type="number" min="0" step="1" placeholder="No cap" value={cap} onChange={(e) => setCap(e.target.value)} />
             <p className="text-xs text-slate-500 mt-1">
               The commission never charges more than this per order, regardless of the rate above or the order&apos;s subtotal. Leave blank for no cap.
+            </p>
+          </div>
+          <div>
+            <Input label="Flat fee (₦ per order)" type="number" min="0" step="1" value={flatFee} onChange={(e) => setFlatFee(e.target.value)} />
+            <p className="text-xs text-slate-500 mt-1">
+              A fixed amount charged on every order on top of the commission above - not capped by the commission cap, since it's already a fixed amount. 0 disables it.
             </p>
           </div>
           <Button onClick={save} loading={saving}>Save</Button>

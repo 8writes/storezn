@@ -78,10 +78,11 @@ export async function POST(req) {
   const feeChargedToCustomer = store.feeChargedToCustomer ?? false;
   const { subtotal } = computeCartTotals(items);
   const shippingFee = needsShipping ? await resolveShippingFee(store, shippingAddress) : 0;
-  const { totalAmount, commissionAmount, vendorPayoutAmount } = computeOrderTotals({
+  const { totalAmount, commissionAmount, flatFeeAmount, vendorPayoutAmount } = computeOrderTotals({
     subtotal,
     shippingFee,
     commissionRatePercent,
+    flatFee: settings?.defaultFlatFee ?? 0,
     feeChargedToCustomer,
     maxCommissionAmount: settings?.maxCommissionAmount,
   });
@@ -109,6 +110,7 @@ export async function POST(req) {
         totalAmount,
         commissionRatePercent,
         commissionAmount,
+        flatFeeAmount,
         vendorPayoutAmount,
         feeChargedToCustomer,
         shippingAddress,

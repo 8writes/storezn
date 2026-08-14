@@ -304,7 +304,7 @@ export default function VendorPayoutsPage() {
               <th className="px-4 py-3 font-medium">Order</th>
               <th className="px-4 py-3 font-medium">Paid on</th>
               <th className="px-4 py-3 font-medium">Order total</th>
-              <th className="px-4 py-3 font-medium">Commission</th>
+              <th className="px-4 py-3 font-medium">Fees</th>
               <th className="px-4 py-3 font-medium">Your payout</th>
               <th className="px-4 py-3 font-medium">Channel</th>
               <th className="px-4 py-3 font-medium">Settlement</th>
@@ -347,8 +347,8 @@ export default function VendorPayoutsPage() {
                       {formatCurrency(t.totalAmount)}
                     </td>
                     <td className="px-4 py-3 text-slate-500">
-                      {formatCurrency(t.commissionAmount)} (
-                      {t.commissionRatePercent}%)
+                      {formatCurrency(t.commissionAmount + (t.flatFeeAmount || 0))} (
+                      {t.commissionRatePercent}%{t.flatFeeAmount > 0 ? ` + ${formatCurrency(t.flatFeeAmount)} flat` : ""})
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-900">
                       {formatCurrency(t.vendorPayoutAmount)}

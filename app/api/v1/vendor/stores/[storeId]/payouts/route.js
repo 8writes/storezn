@@ -64,6 +64,7 @@ export async function GET(req, { params }) {
         totalAmount: orders.totalAmount,
         commissionRatePercent: orders.commissionRatePercent,
         commissionAmount: orders.commissionAmount,
+        flatFeeAmount: orders.flatFeeAmount,
         vendorPayoutAmount: orders.vendorPayoutAmount,
         isOffline: orders.isOffline,
         status: orders.status,

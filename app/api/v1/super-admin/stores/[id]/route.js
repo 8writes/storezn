@@ -29,7 +29,7 @@ export async function GET(req, { params }) {
       id: o.id,
       createdAt: o.createdAt,
       amount: o.totalAmount,
-      commission: o.commissionAmount,
+      commission: o.commissionAmount + (o.flatFeeAmount || 0),
       status: o.paymentStatus === "paid" ? o.status : o.paymentStatus,
     })),
   });

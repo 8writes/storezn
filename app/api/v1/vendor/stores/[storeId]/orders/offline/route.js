@@ -73,11 +73,12 @@ export async function POST(req, { params }) {
   // no "add a fee on top" moment for a cash/offline sale the way there is
   // at online checkout, so this always uses the vendor-absorbs math
   // (totalAmount = subtotal) regardless of the store's own feeChargedToCustomer setting.
-  // Commission is always 0 here, unlike online checkout - nothing is
-  // actually processed/split through Paystack for a sale that happened
-  // in cash/in person, so the platform hasn't earned a cut of it.
+  // Commission and the flat fee are always 0 here, unlike online checkout
+  // - nothing is actually processed/split through Paystack for a sale
+  // that happened in cash/in person, so the platform hasn't earned a cut
+  // of it (flatFee defaults to 0, left unset intentionally).
   const commissionRatePercent = 0;
-  const { totalAmount, commissionAmount, vendorPayoutAmount } = computeOrderTotals({
+  const { totalAmount, commissionAmount, flatFeeAmount, vendorPayoutAmount } = computeOrderTotals({
     subtotal,
     shippingFee: 0,
     commissionRatePercent,
@@ -103,6 +104,7 @@ export async function POST(req, { params }) {
         totalAmount,
         commissionRatePercent,
         commissionAmount,
+        flatFeeAmount,
         vendorPayoutAmount,
         feeChargedToCustomer: false,
         note: note || null,

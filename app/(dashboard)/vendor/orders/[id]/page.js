@@ -105,9 +105,14 @@ export default function VendorOrderDetailPage({ params }) {
       storeName: order.isOffline ? "Offline sale" : undefined,
       shippingAddress: order.shippingAddress,
       totalsLines: [
-        // No commission line at all for an offline sale - the platform
-        // never took a cut of it, unlike a real online checkout.
-        ...(order.isOffline ? [] : [{ label: `Commission (${order.commissionRatePercent}%)`, value: -order.commissionAmount }]),
+        // No fee lines at all for an offline sale - the platform never
+        // took a cut of it, unlike a real online checkout.
+        ...(order.isOffline
+          ? []
+          : [
+              { label: `Commission (${order.commissionRatePercent}%)`, value: -order.commissionAmount },
+              ...(order.flatFeeAmount > 0 ? [{ label: "Platform fee", value: -order.flatFeeAmount }] : []),
+            ]),
         { label: "Your payout", value: order.vendorPayoutAmount, bold: true },
       ],
     });
@@ -178,9 +183,17 @@ export default function VendorOrderDetailPage({ params }) {
           </button>
         ))}
         {!order.isOffline && (
-          <div className="flex justify-between pt-2 border-t border-slate-100 text-sm text-slate-500">
-            <span>Commission ({order.commissionRatePercent}%)</span>
-            <span>-{formatCurrency(order.commissionAmount)}</span>
+          <div className="pt-2 border-t border-slate-100 space-y-1">
+            <div className="flex justify-between text-sm text-slate-500">
+              <span>Commission ({order.commissionRatePercent}%)</span>
+              <span>-{formatCurrency(order.commissionAmount)}</span>
+            </div>
+            {order.flatFeeAmount > 0 && (
+              <div className="flex justify-between text-sm text-slate-500">
+                <span>Platform fee</span>
+                <span>-{formatCurrency(order.flatFeeAmount)}</span>
+              </div>
+            )}
           </div>
         )}
         <div className={`flex justify-between font-semibold text-slate-900 ${order.isOffline ? "pt-2 border-t border-slate-100" : ""}`}>

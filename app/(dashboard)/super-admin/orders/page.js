@@ -92,7 +92,7 @@ export default function SuperAdminOrdersPage() {
                   <td className="px-4 py-3 text-slate-500">{o.storeName}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(o.createdAt)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(o.totalAmount)}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatCurrency(o.commissionAmount)}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatCurrency(o.commissionAmount + (o.flatFeeAmount || 0))}</td>
                   <td className="px-4 py-3">
                     <Badge color={STATUS_COLOR[o.status] || "slate"}>{o.status.replace("_", " ")}</Badge>
                   </td>
