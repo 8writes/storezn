@@ -136,12 +136,19 @@ function NavLinkHint() {
   return <span aria-hidden className={`nav-link-hint ${pending ? "is-pending" : ""}`} />;
 }
 
-function NavLinks({ groups, pathname, onNavigate }) {
+// Vendor/staff get a calmer, low-contrast nav (light sidebar, thin accent
+// instead of a solid fill) - super_admin keeps the original dark sidebar
+// untouched, see DashboardLayout's isVendor split.
+function NavLinks({ groups, pathname, onNavigate, muted = false }) {
   return (
     <>
       {groups.map((group) => (
         <div key={group.title}>
-          <p className="px-4 pt-4 pb-1 text-[11px] font-semibold text-white/40 uppercase tracking-wider first:pt-2">
+          <p
+            className={`px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider first:pt-2 ${
+              muted ? "text-slate-400" : "text-white/40"
+            }`}
+          >
             {group.title}
           </p>
           {group.items.map(({ href, label, icon: Icon }) => (
@@ -149,11 +156,19 @@ function NavLinks({ groups, pathname, onNavigate }) {
               key={href}
               href={href}
               onClick={onNavigate}
-              className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors ${
-                pathname === href
-                  ? "bg-brand-600 text-white"
-                  : "text-white hover:bg-white/10"
-              }`}
+              className={
+                muted
+                  ? `flex items-center gap-3 px-4 py-2.5 text-sm font-medium border-l-2 transition-colors ${
+                      pathname === href
+                        ? "border-brand-500 bg-brand-50 text-brand-700"
+                        : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`
+                  : `flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors ${
+                      pathname === href
+                        ? "bg-brand-600 text-white"
+                        : "text-white hover:bg-white/10"
+                    }`
+              }
             >
               <Icon size={18} />
               {label}
@@ -198,22 +213,28 @@ export default function DashboardLayout({ children }) {
     <div className="min-h-screen flex">
       <Toaster position="top-right" offset="10vh" closeButton={true} />
 
-      <aside className="hidden sm:flex sm:w-60 shrink-0 flex-col bg-brand-900 h-dvh sticky top-0">
-        <div className="flex items-center px-4 h-16 border-b border-slate-800 shrink-0">
+      <aside
+        className={`hidden sm:flex sm:w-60 shrink-0 flex-col h-dvh sticky top-0 ${
+          isVendor ? "bg-white border-r border-slate-200" : "bg-brand-900"
+        }`}
+      >
+        <div className={`flex items-center px-4 h-16 border-b shrink-0 ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
           {isVendor ? (
-            <StoreSwitcher textClassName="text-white font-extrabold tracking-tight text-sm" />
+            <StoreSwitcher textClassName="text-slate-900 font-extrabold tracking-tight text-sm" />
           ) : (
             <Image src="/storezn-logo.png" alt="Storezn" width={120} height={29} priority unoptimized />
           )}
         </div>
         <nav className="flex-1 py-2 overflow-y-auto">
-          <NavLinks groups={groups} pathname={pathname} />
+          <NavLinks groups={groups} pathname={pathname} muted={isVendor} />
         </nav>
-        <div className="border-t border-slate-800 shrink-0">
+        <div className={`border-t shrink-0 ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
           <button
             type="button"
             onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white hover:bg-white/10 cursor-pointer"
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium cursor-pointer ${
+              isVendor ? "text-slate-600 hover:bg-slate-50 hover:text-red-600" : "text-white hover:bg-white/10"
+            }`}
           >
             <LogOut size={18} />
             Sign out
@@ -224,7 +245,9 @@ export default function DashboardLayout({ children }) {
       <div className="flex-1 flex flex-col min-w-0">
         <header
           onClick={() => setDrawerOpen(true)}
-          className="sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 bg-brand-900 text-white shrink-0 cursor-pointer"
+          className={`sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 shrink-0 cursor-pointer ${
+            isVendor ? "bg-white border-b border-slate-200 text-slate-900" : "bg-brand-900 text-white"
+          }`}
         >
           <span className="w-5.5 shrink-0" />
           {isVendor ? (
