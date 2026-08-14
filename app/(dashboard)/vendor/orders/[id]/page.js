@@ -105,7 +105,9 @@ export default function VendorOrderDetailPage({ params }) {
       storeName: order.isOffline ? "Offline sale" : undefined,
       shippingAddress: order.shippingAddress,
       totalsLines: [
-        { label: `Commission (${order.commissionRatePercent}%)`, value: -order.commissionAmount },
+        // No commission line at all for an offline sale - the platform
+        // never took a cut of it, unlike a real online checkout.
+        ...(order.isOffline ? [] : [{ label: `Commission (${order.commissionRatePercent}%)`, value: -order.commissionAmount }]),
         { label: "Your payout", value: order.vendorPayoutAmount, bold: true },
       ],
     });
@@ -175,11 +177,13 @@ export default function VendorOrderDetailPage({ params }) {
             <span className="shrink-0">{formatCurrency(item.lineTotal)}</span>
           </button>
         ))}
-        <div className="flex justify-between pt-2 border-t border-slate-100 text-sm text-slate-500">
-          <span>Commission ({order.commissionRatePercent}%)</span>
-          <span>-{formatCurrency(order.commissionAmount)}</span>
-        </div>
-        <div className="flex justify-between font-semibold text-slate-900">
+        {!order.isOffline && (
+          <div className="flex justify-between pt-2 border-t border-slate-100 text-sm text-slate-500">
+            <span>Commission ({order.commissionRatePercent}%)</span>
+            <span>-{formatCurrency(order.commissionAmount)}</span>
+          </div>
+        )}
+        <div className={`flex justify-between font-semibold text-slate-900 ${order.isOffline ? "pt-2 border-t border-slate-100" : ""}`}>
           <span>Your payout</span>
           <span>{formatCurrency(order.vendorPayoutAmount)}</span>
         </div>

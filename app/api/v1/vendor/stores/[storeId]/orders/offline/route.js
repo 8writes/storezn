@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { orders, orderItems, products, productVariants, stores, platformSettings } from "../../../../../../../../lib/db/schema.js";
+import { orders, orderItems, products, productVariants, stores } from "../../../../../../../../lib/db/schema.js";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, createOfflineOrderSchema } from "../../../../../../../../lib/validate.js";
@@ -68,21 +68,20 @@ export async function POST(req, { params }) {
     });
   }
 
-  const [settings] = await db.select().from(platformSettings).limit(1);
-  const commissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
   const subtotal = resolvedItems.reduce((sum, i) => sum + i.lineTotal, 0);
   // The vendor already collected exactly the item price in person - there's
   // no "add a fee on top" moment for a cash/offline sale the way there is
   // at online checkout, so this always uses the vendor-absorbs math
   // (totalAmount = subtotal) regardless of the store's own feeChargedToCustomer setting.
-  // Commission is still tracked for reporting even though nothing is
-  // actually split/collected automatically for an offline sale.
+  // Commission is always 0 here, unlike online checkout - nothing is
+  // actually processed/split through Paystack for a sale that happened
+  // in cash/in person, so the platform hasn't earned a cut of it.
+  const commissionRatePercent = 0;
   const { totalAmount, commissionAmount, vendorPayoutAmount } = computeOrderTotals({
     subtotal,
     shippingFee: 0,
     commissionRatePercent,
     feeChargedToCustomer: false,
-    maxCommissionAmount: settings?.maxCommissionAmount,
   });
 
   const orderNumber = generateOrderNumber();

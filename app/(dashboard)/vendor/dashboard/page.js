@@ -15,6 +15,7 @@ import {
   Users,
   HelpCircle,
   ListChecks,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -77,6 +78,7 @@ function SHORTCUTS(storeId, onOpenGuide, isOwner) {
   const shortcuts = [
     { label: "Add product", icon: Plus, href: `/vendor/products/new?storeId=${storeId}` },
     { label: "Orders", icon: ShoppingBag, href: "/vendor/orders" },
+    { label: "Record order", icon: ClipboardList, href: "/vendor/orders/new" },
     { label: "Customers", icon: Users, href: "/vendor/customers" },
     { label: "Shipping", icon: Truck, href: "/vendor/shipping" },
     { label: "Help", icon: HelpCircle, href: "/vendor/help" },

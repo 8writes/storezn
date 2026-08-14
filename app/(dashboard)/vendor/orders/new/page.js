@@ -13,7 +13,7 @@ import { formatCurrency } from "@/lib/format.js";
 import { Plus, Trash2 } from "lucide-react";
 
 const EMPTY_ITEM = { productId: "", variantId: "", quantity: "1" };
-const EMPTY_BUYER = { buyerName: "", buyerEmail: "", buyerPhone: "", note: "" };
+const EMPTY_BUYER = { buyerName: "Walk In Customer", buyerEmail: "", buyerPhone: "", note: "" };
 
 export default function RecordOfflineOrderPage() {
   const router = useRouter();
