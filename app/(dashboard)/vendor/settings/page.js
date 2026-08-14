@@ -13,6 +13,7 @@ import { CustomDomainSettings } from "@/components/ui/CustomDomainSettings.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { uploadFile } from "@/lib/clientUpload.js";
+import { formatCurrency } from "@/lib/format.js";
 import { AlertTriangle } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
@@ -44,6 +45,7 @@ export default function VendorSettingsPage() {
   const [form, setForm] = useState(null);
   const [store, setStore] = useState(null);
   const [commissionRate, setCommissionRate] = useState(null);
+  const [flatFee, setFlatFee] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [togglingOpen, setTogglingOpen] = useState(false);
@@ -70,6 +72,7 @@ export default function VendorSettingsPage() {
           address: data.store.address || "",
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
+        setFlatFee(data.effectiveFlatFee || 0);
         setStore(data.store);
         updateStore(data.store);
       })
@@ -304,7 +307,11 @@ export default function VendorSettingsPage() {
             <div>
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-slate-700">Who pays the commission?</label>
-                {commissionRate != null && <Badge color="slate">{commissionRate}%</Badge>}
+                {commissionRate != null && (
+                  <Badge color="slate">
+                    {commissionRate}%{flatFee > 0 ? ` + ${formatCurrency(flatFee)}` : ""}
+                  </Badge>
+                )}
                 <InfoTip>
                   {form.feeChargedToCustomer
                     ? "Shown as a separate \"Platform fee\" at checkout, added on top of the total. You receive your full subtotal + shipping."

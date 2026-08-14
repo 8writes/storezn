@@ -30,8 +30,11 @@ export async function GET(req, { params }) {
   // either way, so the vendor isn't left guessing which one is in effect.
   const [settings] = await db.select().from(platformSettings).limit(1);
   const effectiveCommissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
+  // Flat fee is platform-wide only (no per-store override, unlike the
+  // commission rate) - see platformSettings.defaultFlatFee.
+  const effectiveFlatFee = settings?.defaultFlatFee ?? 0;
 
-  return NextResponse.json({ store, effectiveCommissionRatePercent });
+  return NextResponse.json({ store, effectiveCommissionRatePercent, effectiveFlatFee });
 }
 
 // Self-service fields only (logo, socials, who pays the commission) - the
