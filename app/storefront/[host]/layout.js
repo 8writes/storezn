@@ -25,7 +25,7 @@ export async function generateMetadata({ params }) {
   const store = await resolveStoreByHost(decodeURIComponent(host));
   if (!store || !isStoreLive(store)) return {};
 
-  const description = `Shop ${store.name} online - browse products and order directly, powered by Storezn.`;
+  const description = store.description || `Shop ${store.name} online - browse products and order directly, powered by Storezn.`;
   // logoUrl is already an absolute Cloudinary URL once a vendor uploads
   // one (see lib/storage/index.js); og:image needs an absolute URL either
   // way, so the platform default is built out to one too rather than

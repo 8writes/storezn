@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Input } from "@/components/ui/Input.js";
+import { Textarea } from "@/components/ui/Textarea.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
@@ -17,7 +18,7 @@ import { formatCurrency, formatDate } from "@/lib/format.js";
 import { AlertTriangle, Sparkles } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", storefrontAccentColor: "" };
+const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", description: "", storefrontAccentColor: "" };
 const DEFAULT_ACCENT = "#9333ea";
 
 // Two separate uploads with different shapes: the navbar logo is a wide
@@ -75,6 +76,7 @@ export default function VendorSettingsPage() {
           feeChargedToCustomer: !!data.store.feeChargedToCustomer,
           returnWindowDays: String(data.store.returnWindowDays ?? 7),
           address: data.store.address || "",
+          description: data.store.description || "",
           storefrontAccentColor: data.store.storefrontAccentColor || "",
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
@@ -286,6 +288,21 @@ export default function VendorSettingsPage() {
                 </label>
                 <InfoTip>Your browser tab icon - separate from the logo above, since it needs to be a small circle.</InfoTip>
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <label className="text-sm font-medium text-slate-700">Store description</label>
+                <InfoTip>Shown on the public Storezn store directory and used as your storefront&apos;s preview text when a link to it is shared.</InfoTip>
+              </div>
+              <Textarea
+                rows={3}
+                maxLength={240}
+                placeholder="A short line about what you sell and what makes your store worth a visit."
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              />
+              <p className="text-xs text-slate-400 text-right">{form.description.length}/240</p>
             </div>
           </div>
 
