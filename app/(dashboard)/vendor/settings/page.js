@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -231,14 +232,18 @@ export default function VendorSettingsPage() {
       ) : (
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
-            <SectionLabel>Branding</SectionLabel>
-
-            {storageLimitBytes > 0 && (
+          {storageLimitBytes > 0 && (
+            <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <SectionLabel>Storage</SectionLabel>
+                <Link href="/vendor/plus" className="text-xs font-semibold text-brand-600 hover:text-brand-700">
+                  Get more storage
+                </Link>
+              </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Storage used</span>
-                  <span className={storageUsedBytes >= storageLimitBytes ? "font-medium text-red-600" : "text-slate-500"}>
+                  <span className="text-slate-500">Used across logos, favicons, and product photos</span>
+                  <span className={storageUsedBytes >= storageLimitBytes ? "font-medium text-red-600" : "text-slate-700 font-medium"}>
                     {formatBytes(storageUsedBytes)} of {formatBytes(storageLimitBytes)}
                   </span>
                 </div>
@@ -249,7 +254,11 @@ export default function VendorSettingsPage() {
                   />
                 </div>
               </div>
-            )}
+            </div>
+          )}
+
+          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+            <SectionLabel>Branding</SectionLabel>
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Store logo</label>

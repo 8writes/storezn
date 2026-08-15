@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
+import { InfoTip } from "@/components/ui/InfoTip.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { slugify } from "@/lib/slugify.js";
@@ -30,7 +31,7 @@ const CONDITION_OPTIONS = [
   { value: "used", label: "Used" },
 ];
 
-const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", price: "", productType: "physical", condition: "new", stock: "", categoryId: "", images: [] };
+const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", price: "", compareAtPrice: "", productType: "physical", condition: "new", stock: "", categoryId: "", images: [] };
 const EMPTY_CATEGORY = { name: "", slug: "" };
 
 export default function VendorNewProductPage() {
@@ -168,6 +169,7 @@ export default function VendorNewProductPage() {
       if (form.categoryId) payload.categoryId = form.categoryId;
       if (form.sku) payload.sku = form.sku;
       if (form.description) payload.description = form.description;
+      if (form.compareAtPrice !== "") payload.compareAtPrice = Number(form.compareAtPrice);
 
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products`, { method: "POST", body: JSON.stringify(payload) });
       toast.success("Product created");
@@ -247,6 +249,13 @@ export default function VendorNewProductPage() {
                   <Input label="Stock" type="number" min="0" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} />
                 )}
                 <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <label className="text-sm font-medium text-slate-700">Compare-at price</label>
+                    <InfoTip>Shown struck through next to the price, e.g. a ₦5,000 product with a ₦7,000 compare-at price shows as "was ₦7,000, now ₦5,000". Leave blank for no discount shown.</InfoTip>
+                  </div>
+                  <PriceInput placeholder="0.00" value={form.compareAtPrice} onChange={(v) => setForm((f) => ({ ...f, compareAtPrice: v }))} />
+                </div>
               </div>
               <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
             </div>

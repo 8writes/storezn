@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
-import { Sparkles, CalendarClock, Receipt } from "lucide-react";
+import { Sparkles, CalendarClock, Receipt, Check, X } from "lucide-react";
 
 const FEATURES = [
   { title: "Offline orders", text: "Record in-person, phone, and cash sales." },
@@ -32,6 +32,8 @@ export default function VendorPlusPage() {
   const [subscribing, setSubscribing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [transactions, setTransactions] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -49,6 +51,11 @@ export default function VendorPlusPage() {
       .then((data) => setTransactions(data.transactions))
       .catch(() => setTransactions([]));
   }, [token, storeId, apiFetch]);
+
+  const openConfirm = () => {
+    setAgreed(false);
+    setConfirmOpen(true);
+  };
 
   const handleSubscribe = async () => {
     setSubscribing(true);
@@ -89,34 +96,30 @@ export default function VendorPlusPage() {
         <FormSkeleton fields={3} />
       ) : (
         <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
-          {/* Branded header band - the one place this page gets to feel
-              like a real upgrade, not just another settings form. */}
+          {/* Branded header band - the price is the single biggest thing
+              on it, deliberately, so there's no ambiguity about what
+              you're agreeing to before you even reach the confirm step. */}
           <div className="bg-gradient-to-br from-brand-700 to-brand-900 px-6 py-8 text-white relative overflow-hidden">
             <div
               className="absolute inset-0 opacity-20"
               style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
             />
             <div className="relative flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-2.5">
-                <span className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15">
-                  <Sparkles size={18} />
-                </span>
-                <div>
-                  <p className="font-bold text-lg leading-tight">Storezn+</p>
-                  <p className="text-sm text-brand-100">
-                    {formatCurrency(plusMonthlyPrice)}
-                    <span className="text-brand-200">/month</span>
-                  </p>
-                </div>
+              <div className="flex items-center gap-2 text-brand-100 text-sm font-medium">
+                <Sparkles size={16} />
+                Storezn+
               </div>
               {isPlus && (
-                <div className="flex items-center gap-2">
-                  <Badge color={store.planCancelled ? "amber" : "green"}>
-                    {store.planCancelled ? "Not renewing" : "Active"}
-                  </Badge>
-                </div>
+                <Badge color={store.planCancelled ? "amber" : "green"}>
+                  {store.planCancelled ? "Not renewing" : "Active"}
+                </Badge>
               )}
             </div>
+            <p className="relative mt-2 text-4xl font-extrabold tracking-tight">
+              {formatCurrency(plusMonthlyPrice)}
+              <span className="text-lg font-medium text-brand-200">/month</span>
+            </p>
+            <p className="relative mt-1 text-sm text-brand-100">Billed every month, cancel anytime.</p>
           </div>
 
           <div className="p-6 space-y-6">
@@ -131,12 +134,19 @@ export default function VendorPlusPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {FEATURES.map(({ title }) => (
-                    <div key={title} className="text-sm font-medium text-slate-700 bg-brand-50 border border-brand-100 rounded-sm px-3 py-2.5">
-                      {title}
-                    </div>
-                  ))}
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">What you get</p>
+                  <ul className="space-y-2">
+                    {FEATURES.map(({ title, text }) => (
+                      <li key={title} className="flex items-start gap-2.5 text-sm">
+                        <Check size={16} className="text-brand-600 shrink-0 mt-0.5" />
+                        <span>
+                          <span className="font-medium text-slate-900">{title}</span>{" "}
+                          <span className="text-slate-500">- {text}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
                 {!store.planCancelled && (
@@ -147,18 +157,26 @@ export default function VendorPlusPage() {
               </>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {FEATURES.map(({ title, text }) => (
-                    <div key={title} className="bg-slate-50 border border-slate-200 rounded-sm p-4">
-                      <p className="text-sm font-semibold text-slate-900">{title}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">{text}</p>
-                    </div>
-                  ))}
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">What you get</p>
+                  <ul className="space-y-2">
+                    {FEATURES.map(({ title, text }) => (
+                      <li key={title} className="flex items-start gap-2.5 text-sm">
+                        <Check size={16} className="text-brand-600 shrink-0 mt-0.5" />
+                        <span>
+                          <span className="font-medium text-slate-900">{title}</span>{" "}
+                          <span className="text-slate-500">- {text}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <Button type="button" loading={subscribing} onClick={handleSubscribe} fullWidth size="lg">
+                <Button type="button" onClick={openConfirm} fullWidth size="lg">
                   Upgrade to Storezn+
                 </Button>
-                <p className="text-xs text-slate-400 text-center">Cancel anytime.</p>
+                <p className="text-xs text-slate-400 text-center">
+                  {formatCurrency(plusMonthlyPrice)}/month, billed automatically until you cancel.
+                </p>
               </>
             )}
           </div>
@@ -189,6 +207,48 @@ export default function VendorPlusPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setConfirmOpen(false)} />
+          <div className="relative bg-white rounded-sm shadow-xl w-full max-w-sm p-6 space-y-5 my-auto">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Confirm subscription</p>
+                <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                  {formatCurrency(plusMonthlyPrice)}
+                  <span className="text-sm font-medium text-slate-400">/month</span>
+                </p>
+              </div>
+              <button type="button" onClick={() => setConfirmOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-sm p-3 text-xs text-amber-800">
+              This is a recurring monthly charge. {formatCurrency(plusMonthlyPrice)} will be deducted from your card
+              automatically every month, starting today, until you cancel from this page.
+            </div>
+
+            <label className="flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 shrink-0"
+              />
+              <span>
+                I understand I&apos;ll be charged {formatCurrency(plusMonthlyPrice)} every month until I cancel my
+                subscription.
+              </span>
+            </label>
+
+            <Button type="button" fullWidth loading={subscribing} disabled={!agreed} onClick={handleSubscribe}>
+              Continue to Paystack
+            </Button>
+          </div>
         </div>
       )}
     </div>

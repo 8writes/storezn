@@ -102,6 +102,7 @@ export default async function StorefrontProductPage({ params }) {
             <AddToCartButton
               productId={product.id}
               basePrice={product.price}
+              baseCompareAtPrice={product.compareAtPrice}
               baseStock={product.stock}
               productType={product.productType}
               variants={variants}

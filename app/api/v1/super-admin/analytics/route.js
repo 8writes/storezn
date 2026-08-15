@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { stores, orders } from "../../../../../lib/db/schema.js";
-import { sql } from "drizzle-orm";
+import { sql, desc } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
+
+const TIMESERIES_DAYS = 30;
 
 // Platform-wide numbers for the super-admin landing page.
 export async function GET(req) {
@@ -30,8 +32,40 @@ export async function GET(req) {
     .from(orders)
     .where(sql`${orders.paymentStatus} = 'paid'`);
 
+  // One row per calendar day over the trailing window, zero-filled for
+  // days with no paid orders (generate_series left-joined against actual
+  // orders) - a chart with gaps for empty days reads as broken, not as
+  // "no sales that day".
+  const dailyRows = await db.execute(sql`
+    select
+      d::date as day,
+      coalesce(sum(o.total_amount), 0)::float as gmv,
+      coalesce(sum(o.commission_amount + o.flat_fee_amount), 0)::float as commission,
+      count(o.id)::int as order_count
+    from generate_series(current_date - interval '${sql.raw(String(TIMESERIES_DAYS - 1))} days', current_date, interval '1 day') as d
+    left join ${orders} o on o.payment_status = 'paid' and o.paid_at::date = d::date
+    group by d
+    order by d
+  `);
+
+  // Top 5 stores by paid GMV, all-time - a quick "who's actually driving
+  // the platform" glance next to the trend chart.
+  const topStores = await db
+    .select({
+      id: stores.id,
+      name: stores.name,
+      gmv: sql`coalesce(sum(${orders.totalAmount}), 0)`.mapWith(Number),
+    })
+    .from(stores)
+    .leftJoin(orders, sql`${orders.storeId} = ${stores.id} and ${orders.paymentStatus} = 'paid'`)
+    .groupBy(stores.id, stores.name)
+    .orderBy(desc(sql`coalesce(sum(${orders.totalAmount}), 0)`))
+    .limit(5);
+
   return NextResponse.json({
     stores: { total: storeRow?.total || 0, active: storeRow?.active || 0, inactive: (storeRow?.total || 0) - (storeRow?.active || 0) },
     revenue: { totalGMV: revenueRow?.totalGMV || 0, totalCommission: revenueRow?.totalCommission || 0 },
+    daily: dailyRows.map((r) => ({ day: r.day, gmv: r.gmv, commission: r.commission, orderCount: r.order_count })),
+    topStores: topStores.filter((s) => s.gmv > 0),
   });
 }

@@ -50,7 +50,12 @@ export default async function StorefrontHomePage({ params, searchParams }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
           {items.map((p) => (
             <Link key={p.id} href={`/products/${p.slug}`} className="group block">
-              <div className="aspect-square bg-slate-100 overflow-hidden">
+              <div className="relative aspect-square bg-slate-100 overflow-hidden">
+                {p.compareAtPrice > p.price && (
+                  <span className="absolute top-2 left-2 z-10 bg-red-600 text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-sm">
+                    -{Math.round((1 - p.price / p.compareAtPrice) * 100)}%
+                  </span>
+                )}
                 {p.images?.[0] ? (
                   <img
                     src={p.images[0]}
@@ -68,7 +73,12 @@ export default async function StorefrontHomePage({ params, searchParams }) {
                     <span className="ml-1.5 text-xs text-slate-700 uppercase tracking-wide">{formatCondition(p.condition)}</span>
                   )}
                 </p>
-                <p className="text-sm font-medium text-slate-900">{formatCurrency(p.price)}</p>
+                <p className="flex items-baseline gap-1.5">
+                  <span className="text-sm font-medium text-slate-900">{formatCurrency(p.price)}</span>
+                  {p.compareAtPrice > p.price && (
+                    <span className="text-xs text-slate-400 line-through">{formatCurrency(p.compareAtPrice)}</span>
+                  )}
+                </p>
               </div>
             </Link>
           ))}

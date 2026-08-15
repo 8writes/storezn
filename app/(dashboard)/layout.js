@@ -233,7 +233,11 @@ export default function DashboardLayout({ children }) {
     // the 100vh math wrong across embedded webviews/mobile browser chrome
     // and end up dragging the sidebar away as the page scroll.
     <div className="min-h-screen flex">
-      <Toaster position="top-right" offset="10vh" closeButton={true} />
+      {/* offset clears the sticky mobile header (h-16 = 64px) plus a
+          small gap - top-right on desktop sits below nothing (the
+          sidebar has no top bar), but the fixed offset doesn't hurt
+          there either. */}
+      <Toaster position="top-right" offset="80px" mobileOffset="80px" closeButton={true} />
 
       <aside
         className={`hidden sm:flex sm:w-60 shrink-0 flex-col h-dvh sticky top-0 ${

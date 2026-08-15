@@ -14,7 +14,7 @@ import { formatCurrency } from "@/lib/format.js";
 // vendor adding a Color variant later shouldn't silently make the plain
 // item unbuyable just because they never created an explicit "no color"
 // variant row for it.
-export function AddToCartButton({ productId, basePrice, baseStock, productType, variants = [] }) {
+export function AddToCartButton({ productId, basePrice, baseCompareAtPrice, baseStock, productType, variants = [] }) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState({});
   const [useBase, setUseBase] = useState(false);
@@ -77,9 +77,24 @@ export function AddToCartButton({ productId, basePrice, baseStock, productType, 
     }
   };
 
+  // compareAtPrice is base-product-only (see products.compareAtPrice) -
+  // once a specific variant is matched, its own price takes over and the
+  // discount display doesn't carry over to it.
+  const showCompareAt = !matchedVariant && baseCompareAtPrice > basePrice;
+
   return (
     <div className="space-y-5">
-      <p className="text-2xl font-medium text-slate-900">{formatCurrency(price)}</p>
+      <div className="flex items-baseline gap-2.5">
+        <p className="text-2xl font-medium text-slate-900">{formatCurrency(price)}</p>
+        {showCompareAt && (
+          <>
+            <p className="text-base text-slate-400 line-through">{formatCurrency(baseCompareAtPrice)}</p>
+            <span className="text-xs font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-sm">
+              -{Math.round((1 - basePrice / baseCompareAtPrice) * 100)}%
+            </span>
+          </>
+        )}
+      </div>
 
       {needsSelection && (
         <div className="space-y-2">
