@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
-import { Sparkles, CalendarClock } from "lucide-react";
+import { Sparkles, CalendarClock, Receipt } from "lucide-react";
 
 const FEATURES = [
   { title: "Offline orders", text: "Record in-person, phone, and cash sales." },
@@ -31,6 +31,7 @@ export default function VendorPlusPage() {
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [transactions, setTransactions] = useState(null);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -43,6 +44,10 @@ export default function VendorPlusPage() {
       })
       .catch((err) => toast.error(err.message || "Failed to load store"))
       .finally(() => setLoading(false));
+
+    apiFetch(`/api/v1/vendor/stores/${storeId}/plus-transactions`)
+      .then((data) => setTransactions(data.transactions))
+      .catch(() => setTransactions([]));
   }, [token, storeId, apiFetch]);
 
   const handleSubscribe = async () => {
@@ -157,6 +162,33 @@ export default function VendorPlusPage() {
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {transactions && transactions.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+          <p className="text-sm font-semibold text-slate-700 px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+            <Receipt size={16} className="text-slate-400" />
+            Billing history
+          </p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-slate-500 border-b border-slate-100">
+                <th className="font-medium px-5 py-2.5">Date</th>
+                <th className="font-medium px-5 py-2.5">Reference</th>
+                <th className="font-medium px-5 py-2.5 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {transactions.map((t) => (
+                <tr key={t.id}>
+                  <td className="px-5 py-3 text-slate-700">{formatDate(t.paidAt)}</td>
+                  <td className="px-5 py-3 text-slate-400 text-xs">{t.paystackReference}</td>
+                  <td className="px-5 py-3 text-right font-medium text-slate-900">{formatCurrency(t.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

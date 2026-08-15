@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { orders, orderItems, products, productVariants, carts, cartItems, users, stores } from "../../../../../lib/db/schema.js";
+import { orders, orderItems, products, productVariants, carts, cartItems, users, stores, storeSubscriptionTransactions } from "../../../../../lib/db/schema.js";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { verifyWebhookSignature, verifyTransaction } from "../../../../../lib/paystack.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
@@ -11,6 +11,22 @@ import { LOW_STOCK_THRESHOLD } from "../../../../../lib/inventory.js";
 // Storezn+ subscription lifecycle - separate from the order-payment flow
 // below, see lib/storePlan.js's getEffectivePlan for how these fields
 // actually get enforced.
+
+// paystackReference is unique, so a webhook retry (Paystack retries on
+// any non-2xx response) can't double-record the same charge - the
+// onConflictDoNothing is what makes this safe to call more than once for
+// the same event.
+async function recordSubscriptionTransaction({ storeId, amount, reference, paidAt }) {
+  if (!storeId || !reference) return;
+  await db
+    .insert(storeSubscriptionTransactions)
+    .values({ storeId, amount, paystackReference: reference, paidAt: paidAt ? new Date(paidAt) : new Date() })
+    .onConflictDoNothing();
+}
+
+// The initial subscribe payment - we generate this charge ourselves (see
+// POST /api/v1/vendor/stores/[storeId]/subscribe), so it carries our own
+// "STOREZNSUB-" reference and metadata.storeId.
 async function handleSubscriptionCharge(event) {
   const storeId = event.data?.metadata?.storeId;
   if (!storeId) return;
@@ -22,6 +38,45 @@ async function handleSubscriptionCharge(event) {
     .update(stores)
     .set({ plan: "plus", planCancelled: false, planRenewsAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) })
     .where(eq(stores.id, storeId));
+  await recordSubscriptionTransaction({
+    storeId,
+    amount: (event.data?.amount || 0) / 100,
+    reference: event.data?.reference,
+    paidAt: event.data?.paid_at,
+  });
+}
+
+// Every renewal after the first - Paystack initiates these itself, so
+// they carry Paystack's own reference (never "STOREZNSUB-") and no
+// metadata, but do carry `data.plan`/`data.subscription_code`, which is
+// how the caller below tells these apart from a regular order payment.
+async function handleSubscriptionRenewal(event) {
+  const subscriptionCode = event.data?.subscription_code;
+  let storeId = null;
+  if (subscriptionCode) {
+    const [store] = await db.select({ id: stores.id }).from(stores).where(eq(stores.paystackSubscriptionCode, subscriptionCode)).limit(1);
+    storeId = store?.id;
+  }
+  if (!storeId) {
+    const email = event.data?.customer?.email;
+    if (!email) return;
+    const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (!owner) return;
+    const [store] = await db.select({ id: stores.id }).from(stores).where(eq(stores.ownerId, owner.id)).limit(1);
+    storeId = store?.id;
+  }
+  if (!storeId) return;
+
+  await db
+    .update(stores)
+    .set({ plan: "plus", planCancelled: false, planRenewsAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) })
+    .where(eq(stores.id, storeId));
+  await recordSubscriptionTransaction({
+    storeId,
+    amount: (event.data?.amount || 0) / 100,
+    reference: event.data?.reference,
+    paidAt: event.data?.paid_at,
+  });
 }
 
 async function handleSubscriptionCreate(event) {
@@ -92,6 +147,15 @@ export async function POST(req) {
 
   if (paymentReference.startsWith("STOREZNSUB-")) {
     await handleSubscriptionCharge(event);
+    return NextResponse.json({ received: true });
+  }
+
+  // A renewal charge - Paystack initiates these itself off the
+  // subscription, so it never carries our "STOREZNSUB-" prefix, but does
+  // carry `data.plan` (only present for plan/subscription-linked
+  // charges, never a regular storefront order).
+  if (event.data?.plan) {
+    await handleSubscriptionRenewal(event);
     return NextResponse.json({ received: true });
   }
 
