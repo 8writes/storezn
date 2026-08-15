@@ -13,7 +13,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
-import { uploadFile } from "@/lib/clientUpload.js";
+import { uploadFile, deleteUploadedFile } from "@/lib/clientUpload.js";
 import { slugify } from "@/lib/slugify.js";
 import { X, ImagePlus, Loader2, GripVertical, ChevronDown } from "lucide-react";
 
@@ -119,7 +119,14 @@ export default function VendorNewProductPage() {
     );
   };
 
-  const removeImage = (url) => setForm((f) => ({ ...f, images: f.images.filter((i) => i !== url) }));
+  const removeImage = (url) => {
+    setForm((f) => ({ ...f, images: f.images.filter((i) => i !== url) }));
+    // The image is already live in storage the moment it uploads (see
+    // handleImageUpload above) - there's no product row yet to PATCH, so
+    // unlike the edit page, nothing else will ever clean this up if it's
+    // removed before the product is actually created.
+    deleteUploadedFile(token, url);
+  };
 
   const handleDrop = (dropIndex) => {
     if (dragIndex === null || dragIndex === dropIndex) return;

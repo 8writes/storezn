@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getUser } from "../../../../../lib/auth.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
-import { uploadPublicFile, generateObjectKey } from "../../../../../lib/storage/index.js";
+import { uploadPublicFile, deletePublicFile, generateObjectKey, isOwnedUploadUrl } from "../../../../../lib/storage/index.js";
 import { db } from "../../../../../lib/db/index.js";
 import { stores, platformSettings } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getStorageLimitBytes } from "../../../../../lib/storePlan.js";
-import { recordStoreUpload, getStoreStorageUsage } from "../../../../../lib/storeUploads.js";
+import { recordStoreUpload, getStoreStorageUsage, removeStoreUpload } from "../../../../../lib/storeUploads.js";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 // store-logo/store-favicon are cropped client-side to a fixed small
@@ -79,4 +79,33 @@ export async function POST(req) {
   } catch (err) {
     return NextResponse.json({ error: `Upload failed: ${err.message}` }, { status: 502 });
   }
+}
+
+// Cleans up a file that was uploaded but never actually got attached to
+// anything - e.g. a product photo added on the "new product" page (which
+// uploads immediately, see that page's handleImageUpload) and then
+// removed again before the product itself was ever created, so there's
+// no product row/PATCH to trigger the usual removed-image cleanup (see
+// PATCH .../products/[id]). Every other page that manages images already
+// attaches its own cleanup to the save/delete that actually removes the
+// reference (store logo/favicon PATCH, product image PATCH/DELETE) - this
+// route only exists for the case where nothing ever referenced the file.
+export async function DELETE(req) {
+  const user = await getUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  const url = body?.url;
+  if (!url || typeof url !== "string") {
+    return NextResponse.json({ error: "No url provided" }, { status: 400 });
+  }
+  // generateObjectKey nests every upload under "<purpose>/<user.id>/...",
+  // so this doubles as the ownership check - a vendor can only ever
+  // delete a file their own account uploaded.
+  if (!isOwnedUploadUrl(url, user.id)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  await Promise.all([deletePublicFile(url), removeStoreUpload(url)]);
+  return NextResponse.json({ ok: true });
 }
