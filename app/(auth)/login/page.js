@@ -6,7 +6,6 @@ import { useAuth } from "../../../hooks/useAuth.js";
 import { Input } from "../../../components/ui/Input.js";
 import { PasswordInput } from "../../../components/ui/PasswordInput.js";
 import { Button } from "../../../components/ui/Button.js";
-import { POST_AUTH_REDIRECT_KEY } from "../../../lib/postAuthRedirect.js";
 import { toast } from "sonner";
 
 function LoginForm() {
@@ -42,13 +41,11 @@ function LoginForm() {
       toast.success("Login successful");
       login(data.token, data.user);
       // A signup-time "?next=" (e.g. from the Storezn+ pricing card) is
-      // stashed here since signup itself never logs the vendor in - see
-      // app/(auth)/signup/page.js. Takes priority over login's own
-      // "?next=" or the default, and is cleared once used so it doesn't
-      // stick around for a later, unrelated login.
-      const stashedNext = localStorage.getItem(POST_AUTH_REDIRECT_KEY);
-      if (stashedNext) localStorage.removeItem(POST_AUTH_REDIRECT_KEY);
-      router.replace(stashedNext || next);
+      // handled once inside the vendor dashboard layout instead of here
+      // (see app/(dashboard)/layout.js) - that's the one place it's safe
+      // to apply regardless of the account's actual role, since it's
+      // where VendorStoreProvider is already correctly wrapped.
+      router.replace(next);
     } catch {
       toast.error("Something went wrong");
     } finally {

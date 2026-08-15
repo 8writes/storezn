@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link, { useLinkStatus } from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Toaster } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -9,6 +9,7 @@ import { MobileNavDrawer } from "@/components/ui/MobileNavDrawer.js";
 import { StoreSwitcher } from "@/components/ui/StoreSwitcher.js";
 import { VendorStoreProvider } from "@/components/VendorStoreContext.js";
 import { Skeleton } from "@/components/ui/Skeleton.js";
+import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
 import {
   Menu,
   LogOut,
@@ -185,7 +186,24 @@ export default function DashboardLayout({ children }) {
   const { user, token, loading, logout } = useAuth(true);
   const { apiFetch } = useApi(token);
   const pathname = usePathname();
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // A signup-time "?next=" (e.g. from the Storezn+ pricing card) is
+  // stashed in localStorage since signup doesn't auto-login (email
+  // verification comes first, see app/(auth)/signup/page.js) - applied
+  // here rather than in the login page itself, since this is the one
+  // place it's safe regardless of which account actually logs in: only
+  // vendors ever get redirected (a super_admin or staff hitting a stashed
+  // vendor-only URL like /vendor/settings would otherwise crash, since
+  // VendorStoreProvider below only wraps for isVendor accounts).
+  useEffect(() => {
+    if (loading || !user || user.role !== "vendor") return;
+    const stashedNext = localStorage.getItem(POST_AUTH_REDIRECT_KEY);
+    if (!stashedNext) return;
+    localStorage.removeItem(POST_AUTH_REDIRECT_KEY);
+    router.replace(stashedNext);
+  }, [loading, user, router]);
 
   if (loading || !user) {
     return (
