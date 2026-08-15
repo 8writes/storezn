@@ -43,7 +43,7 @@ const STEPS = [
 export const revalidate = 300;
 
 export default async function Home() {
-  const { list: featuredStores } = await getLiveStores({ page: 1, pageSize: 6 });
+  const { list: featuredStores } = await getLiveStores({ page: 1, pageSize: 3 });
 
   return (
     <div className="min-h-screen flex flex-col bg-white overflow-x-clip">
@@ -185,7 +185,7 @@ export default async function Home() {
                 <ArrowRight size={15} />
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               {featuredStores.map((store) => (
                 <a
                   key={store.id}
