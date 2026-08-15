@@ -2,33 +2,10 @@ import Link from "next/link";
 import { Store as StoreIcon, MapPin, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
-import { db } from "@/lib/db/index.js";
-import { stores, users } from "@/lib/db/schema.js";
-import { and, eq, count } from "drizzle-orm";
+import { getLiveStores } from "@/lib/liveStores.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 
 const PAGE_SIZE = 24;
-
-// Same "live" definition as isStoreLive in lib/resolveStore.js, applied
-// as a join/filter instead of a per-row host lookup - this lists many
-// stores at once rather than resolving one by host.
-async function getLiveStores(page) {
-  const where = and(eq(stores.isActive, true), eq(stores.isOpen, true), eq(users.approvalStatus, "approved"));
-
-  const [rows, [{ total }]] = await Promise.all([
-    db
-      .select({ store: stores })
-      .from(stores)
-      .innerJoin(users, eq(stores.ownerId, users.id))
-      .where(where)
-      .orderBy(stores.createdAt)
-      .limit(PAGE_SIZE)
-      .offset((page - 1) * PAGE_SIZE),
-    db.select({ total: count() }).from(stores).innerJoin(users, eq(stores.ownerId, users.id)).where(where),
-  ]);
-
-  return { list: rows.map((r) => r.store), total };
-}
 
 // Public directory of live stores - a promotional page for the platform
 // (visitors can browse and click straight into a real storefront) as much
@@ -39,7 +16,7 @@ export const revalidate = 300;
 export default async function StoresDirectoryPage({ searchParams }) {
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, parseInt(pageParam, 10) || 1);
-  const { list, total } = await getLiveStores(page);
+  const { list, total } = await getLiveStores({ page, pageSize: PAGE_SIZE });
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (

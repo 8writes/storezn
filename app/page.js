@@ -5,16 +5,26 @@ import {
   Truck,
   LayoutDashboard,
   Percent,
-  ShieldCheck,
-  Landmark,
-  BadgeCheck,
   ArrowRight,
   ShoppingBag,
   TrendingUp,
   Package,
+  Check,
+  X as XIcon,
+  MapPin,
 } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
+import { getLiveStores } from "@/lib/liveStores.js";
+import { getStorefrontUrl } from "@/lib/storeUrl.js";
+
+const COMPARISON = [
+  { feature: "Getting started", others: "Hire a developer or fight with a page builder", storezn: "Live store in minutes, no code" },
+  { feature: "Getting paid", others: "Manual reconciliation, delayed transfers", storezn: "Automatic payouts straight to your bank" },
+  { feature: "Platform fees", others: "Fixed, buried in the fine print", storezn: "You choose who pays it - you or your customer" },
+  { feature: "Buyer trust", others: "No verification, buyers hesitate", storezn: "Every vendor identity-verified (NIN)" },
+  { feature: "Adding your catalog", others: "One product at a time", storezn: "Bulk upload with a CSV template" },
+];
 
 const PERKS = [
   { icon: Store, title: "Your own store", text: "Live in minutes, with a custom domain if you want one." },
@@ -31,7 +41,11 @@ const STEPS = [
   { n: "03", title: "Start sharing & selling", text: "Share your link, take orders, get paid straight to your bank." },
 ];
 
-export default function Home() {
+export const revalidate = 300;
+
+export default async function Home() {
+  const { list: featuredStores } = await getLiveStores({ page: 1, pageSize: 6 });
+
   return (
     <div className="min-h-screen flex flex-col bg-white overflow-x-clip">
       <MarketingHeader />
@@ -48,7 +62,7 @@ export default function Home() {
         />
         <div className="max-w-3xl mx-auto text-center relative">
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
-            Your own store,<br className="hidden sm:block" /> your own domain. Easy business management.
+            Easy Business Management
           </h1>
           <p className="mt-5 text-base sm:text-lg text-slate-500 max-w-xl mx-auto">
             Manage products, orders, shipping, and payouts from one dashboard, so you can spend less time on admin
@@ -119,23 +133,110 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How it works - numbered, an actual sequence */}
+      {/* Why Storezn? - a grounded comparison against the DIY/other-platform
+          alternative, not naming any specific competitor. */}
       <section className="bg-slate-50/60 border-y border-slate-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
           <div className="text-center max-w-lg mx-auto mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Three steps to your first sale</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Why Storezn?</h2>
+            <p className="mt-3 text-slate-500">Built for people running a business, not fighting their platform.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {STEPS.map(({ n, title, text }) => (
-              <div key={n} className="relative bg-white border border-slate-100 rounded-sm p-6 shadow-sm">
-                <span className="text-3xl font-extrabold text-brand-100">{n}</span>
-                <p className="mt-2 font-semibold text-slate-900">{title}</p>
-                <p className="mt-1.5 text-sm text-slate-500">{text}</p>
+          <div className="bg-white border border-slate-200 rounded-sm shadow-sm overflow-hidden">
+            <div className="grid grid-cols-[1fr_1.2fr_1.2fr] text-xs font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100 px-4 sm:px-6 py-3">
+              <span />
+              <span>Others</span>
+              <span className="text-brand-700">Storezn</span>
+            </div>
+            {COMPARISON.map((row) => (
+              <div
+                key={row.feature}
+                className="grid grid-cols-[1fr_1.2fr_1.2fr] items-start gap-2 px-4 sm:px-6 py-4 border-b border-slate-50 last:border-0"
+              >
+                <p className="text-sm font-medium text-slate-900 pt-0.5">{row.feature}</p>
+                <div className="flex items-start gap-1.5 text-sm text-slate-400">
+                  <XIcon size={14} className="shrink-0 mt-0.5" />
+                  {row.others}
+                </div>
+                <div className="flex items-start gap-1.5 text-sm text-slate-700 font-medium">
+                  <Check size={14} className="shrink-0 mt-0.5 text-brand-600" />
+                  {row.storezn}
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
+
+      {/* How it works - numbered, an actual sequence */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
+        <div className="text-center max-w-lg mx-auto mb-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Three steps to your first sale</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {STEPS.map(({ n, title, text }) => (
+            <div key={n} className="relative bg-white border border-slate-100 rounded-sm p-6 shadow-sm">
+              <span className="text-3xl font-extrabold text-brand-100">{n}</span>
+              <p className="mt-2 font-semibold text-slate-900">{title}</p>
+              <p className="mt-1.5 text-sm text-slate-500">{text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Discover stores - a teaser for /stores, doubles as social proof
+          once there are real stores to show. Hidden entirely rather than
+          rendered empty when there aren't any yet. */}
+      {featuredStores.length > 0 && (
+        <section className="bg-slate-50/60 border-y border-slate-100">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+            <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Discover stores</h2>
+                <p className="mt-2 text-slate-500">Real businesses already selling on Storezn.</p>
+              </div>
+              <Link href="/stores" className="text-sm font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1.5 shrink-0">
+                See all stores
+                <ArrowRight size={15} />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {featuredStores.map((store) => (
+                <a
+                  key={store.id}
+                  href={getStorefrontUrl(store)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group bg-white border border-slate-100 rounded-sm overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                >
+                  <div className="h-24 bg-slate-50 flex items-center justify-center border-b border-slate-100 px-6">
+                    {store.logoUrl ? (
+                      <img src={store.logoUrl} alt={store.name} className="max-h-12 max-w-full object-contain" />
+                    ) : (
+                      <span className="flex items-center justify-center h-10 w-10 rounded-full bg-brand-600 text-white text-sm font-bold">
+                        {store.name.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                      {store.name}
+                      <ArrowRight size={13} className="text-slate-300 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all" />
+                    </p>
+                    {store.description ? (
+                      <p className="mt-1 text-xs text-slate-500 line-clamp-2">{store.description}</p>
+                    ) : store.address ? (
+                      <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-400">
+                        <MapPin size={11} className="shrink-0" />
+                        <span className="line-clamp-1">{store.address}</span>
+                      </p>
+                    ) : null}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Pricing teaser */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center w-full">
