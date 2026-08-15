@@ -77,7 +77,7 @@ export default function VendorShippingPage() {
               value={form.defaultShippingFee}
               onChange={(v) => setForm({ defaultShippingFee: v })}
             />
-            <Button type="submit" loading={saving}>Save</Button>
+            <Button type="submit" loading={saving} fullWidth>Save</Button>
           </form>
 
           <ShippingRatesManager storeId={storeId} apiFetch={apiFetch} token={token} />

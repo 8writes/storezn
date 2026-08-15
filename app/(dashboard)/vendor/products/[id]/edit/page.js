@@ -296,7 +296,7 @@ export default function VendorProductEditPage({ params }) {
           </div>
         </div>
 
-        <Button type="submit" loading={saving} disabled={pendingUploads.length > 0}>Save changes</Button>
+        <Button type="submit" loading={saving} disabled={pendingUploads.length > 0} fullWidth>Save changes</Button>
       </form>
 
       <VariantsManager storeId={storeId} productId={id} apiFetch={apiFetch} />

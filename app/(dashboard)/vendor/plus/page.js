@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
-import { Sparkles, Check, ShoppingBag, Users, HardDrive } from "lucide-react";
+import { Sparkles, ShoppingBag, Users, HardDrive, CalendarClock, CircleCheck } from "lucide-react";
 
 const FEATURES = [
-  { icon: ShoppingBag, text: "Record offline orders (in-person, phone, cash sales)" },
-  { icon: Users, text: "More staff seats" },
-  { icon: HardDrive, text: "More image storage" },
+  { icon: ShoppingBag, title: "Offline orders", text: "Record in-person, phone, and cash sales." },
+  { icon: Users, title: "More staff", text: "Bring on more people to help run the store." },
+  { icon: HardDrive, title: "More storage", text: "Room for a bigger product catalog." },
 ];
 
 // Team management, payouts, and this billing page are all owner-only
@@ -77,55 +77,90 @@ export default function VendorPlusPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-        <Sparkles size={20} className="text-brand-600" />
-        Storezn+
-      </h1>
+    <div className="space-y-6 max-w-3xl">
+      <h1 className="text-xl font-bold text-slate-900">Storezn+</h1>
 
       {loading || !store ? (
         <FormSkeleton fields={3} />
       ) : (
-        <div className="bg-white border border-slate-200 rounded-sm p-6 space-y-5">
-          {isPlus ? (
-            <>
-              <div className="flex items-center gap-2">
-                <Badge color="green">Active</Badge>
-                {store.planCancelled && <Badge color="amber">Not renewing</Badge>}
+        <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+          {/* Branded header band - the one place this page gets to feel
+              like a real upgrade, not just another settings form. */}
+          <div className="bg-gradient-to-br from-brand-700 to-brand-900 px-6 py-8 text-white relative overflow-hidden">
+            <div
+              className="absolute inset-0 opacity-20"
+              style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
+            />
+            <div className="relative flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <span className="flex items-center justify-center w-9 h-9 rounded-full bg-white/15">
+                  <Sparkles size={18} />
+                </span>
+                <div>
+                  <p className="font-bold text-lg leading-tight">Storezn+</p>
+                  <p className="text-sm text-brand-100">
+                    {formatCurrency(plusMonthlyPrice)}
+                    <span className="text-brand-200">/month</span>
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-slate-600">
-                {store.planCancelled
-                  ? `Cancelled - you'll keep Storezn+ until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "your current period ends"}.`
-                  : `Renews ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "monthly"} at ${formatCurrency(plusMonthlyPrice)}/month.`}
-              </p>
-              {!store.planCancelled && (
-                <Button type="button" variant="outline" loading={cancelling} onClick={handleCancelSubscription}>
-                  Cancel subscription
-                </Button>
+              {isPlus && (
+                <div className="flex items-center gap-2">
+                  <Badge color={store.planCancelled ? "amber" : "green"}>
+                    {store.planCancelled ? "Not renewing" : "Active"}
+                  </Badge>
+                </div>
               )}
-            </>
-          ) : (
-            <>
-              <div>
-                <p className="text-3xl font-extrabold text-slate-900">
-                  {formatCurrency(plusMonthlyPrice)}
-                  <span className="text-sm font-medium text-slate-400">/month</span>
-                </p>
-                <p className="text-sm text-slate-500 mt-1">Cancel anytime.</p>
-              </div>
-              <ul className="space-y-2.5">
-                {FEATURES.map(({ icon: Icon, text }) => (
-                  <li key={text} className="flex items-start gap-2.5 text-sm text-slate-700">
-                    <Check size={16} className="text-brand-600 shrink-0 mt-0.5" />
-                    {text}
-                  </li>
-                ))}
-              </ul>
-              <Button type="button" loading={subscribing} onClick={handleSubscribe} fullWidth size="lg">
-                Upgrade to Storezn+
-              </Button>
-            </>
-          )}
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {isPlus ? (
+              <>
+                <div className="flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-sm p-4 text-sm text-slate-700">
+                  <CalendarClock size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                  <p>
+                    {store.planCancelled
+                      ? `Cancelled - you'll keep Storezn+ until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "your current period ends"}.`
+                      : `Renews ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "monthly"} at ${formatCurrency(plusMonthlyPrice)}/month.`}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {FEATURES.map(({ icon: Icon, title }) => (
+                    <div key={title} className="flex items-center gap-2 text-sm text-slate-700 bg-brand-50 border border-brand-100 rounded-sm px-3 py-2.5">
+                      <CircleCheck size={15} className="text-brand-600 shrink-0" />
+                      {title}
+                    </div>
+                  ))}
+                </div>
+
+                {!store.planCancelled && (
+                  <Button type="button" variant="outline" fullWidth loading={cancelling} onClick={handleCancelSubscription}>
+                    Cancel subscription
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {FEATURES.map(({ icon: Icon, title, text }) => (
+                    <div key={title} className="bg-slate-50 border border-slate-200 rounded-sm p-4">
+                      <div className="w-8 h-8 rounded-sm bg-brand-100 flex items-center justify-center">
+                        <Icon size={16} className="text-brand-700" />
+                      </div>
+                      <p className="mt-3 text-sm font-semibold text-slate-900">{title}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{text}</p>
+                    </div>
+                  ))}
+                </div>
+                <Button type="button" loading={subscribing} onClick={handleSubscribe} fullWidth size="lg">
+                  Upgrade to Storezn+
+                </Button>
+                <p className="text-xs text-slate-400 text-center">Cancel anytime.</p>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

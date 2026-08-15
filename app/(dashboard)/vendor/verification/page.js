@@ -116,7 +116,7 @@ export default function VendorVerificationPage() {
           <p className="text-xs text-slate-700">
             Your NIN is encrypted on your device before it&apos;s sent - it&apos;s stored encrypted.
           </p>
-          <Button type="submit" loading={submitting}>Submit for review</Button>
+          <Button type="submit" loading={submitting} fullWidth>Submit for review</Button>
         </form>
       )}
     </div>

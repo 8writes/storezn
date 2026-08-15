@@ -163,7 +163,7 @@ export default function VendorStaffPage() {
               <Input label="Last name" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} required />
             </div>
             <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
-            <Button type="submit" loading={inviting}>
+            <Button type="submit" loading={inviting} fullWidth>
               <UserPlus size={16} />
               Send invite
             </Button>

@@ -133,7 +133,7 @@ export default function RecordOfflineOrderPage() {
           <p className="text-sm text-slate-500 max-w-sm mx-auto">
             Upgrade to record sales made in person, by phone, or in cash, so they show up in your order history and stock alongside real checkouts.
           </p>
-          <Link href="/vendor/settings" className="inline-block">
+          <Link href="/vendor/plus" className="inline-block">
             <Button type="button">Upgrade to Storezn+</Button>
           </Link>
         </div>
@@ -224,7 +224,7 @@ export default function RecordOfflineOrderPage() {
           description={buyer.delivered ? "Recorded straight to delivered - no shipping steps in between." : "Recorded as processing, same as a fresh online order."}
         />
 
-        <Button type="submit" loading={submitting}>Record order</Button>
+        <Button type="submit" loading={submitting} fullWidth>Record order</Button>
       </form>
     </div>
   );

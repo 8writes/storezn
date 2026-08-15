@@ -311,7 +311,7 @@ export default function VendorNewProductPage() {
             </div>
           </div>
 
-          <Button type="submit" loading={submitting} disabled={pendingUploads.length > 0}>Create product</Button>
+          <Button type="submit" loading={submitting} disabled={pendingUploads.length > 0} fullWidth>Create product</Button>
         </form>
 
         <form onSubmit={handleAddCategory} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">

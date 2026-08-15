@@ -392,7 +392,7 @@ export default function VendorSettingsPage() {
           </div>
           </div>
 
-          <Button type="submit" loading={saving}>Save settings</Button>
+          <Button type="submit" loading={saving} fullWidth>Save settings</Button>
         </form>
       )}
 

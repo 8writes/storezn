@@ -123,7 +123,7 @@ export default function VendorProductViewPage({ params }) {
           {product.sku && <p className="text-xs text-slate-700 mt-1">SKU: {product.sku}</p>}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
           <Link href={`/vendor/products/${id}/edit?storeId=${storeId}`}>
             <Button type="button" variant="outline" size="sm">
               <Pencil size={14} />

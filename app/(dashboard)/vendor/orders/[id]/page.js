@@ -219,7 +219,7 @@ export default function VendorOrderDetailPage({ params }) {
         <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
           <p className="text-sm font-semibold text-slate-700">Refund requested</p>
           <p className="text-sm text-slate-700">{refundRequest.reason}</p>
-          <div className="flex gap-3">
+          <div className="flex justify-end gap-3">
             <Button size="sm" onClick={() => handleRefundDecision("approved")} loading={updating}>Approve</Button>
             <Button size="sm" variant="danger" onClick={() => handleRefundDecision("rejected")} loading={updating}>Reject</Button>
           </div>
@@ -227,7 +227,7 @@ export default function VendorOrderDetailPage({ params }) {
       )}
 
       {(NEXT_ACTIONS[order.status] || []).length > 0 && (
-        <div className="flex gap-3">
+        <div className="flex justify-end gap-3">
           {NEXT_ACTIONS[order.status].map((action) => (
             <Button key={action.status} variant={action.variant || "primary"} onClick={() => handleStatusChange(action.status, action.label)} loading={updating}>
               {action.label}
