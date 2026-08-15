@@ -14,12 +14,11 @@ import { CustomDomainSettings } from "@/components/ui/CustomDomainSettings.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { uploadFile } from "@/lib/clientUpload.js";
-import { formatCurrency, formatDate } from "@/lib/format.js";
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { formatCurrency } from "@/lib/format.js";
+import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", description: "", storefrontAccentColor: "" };
-const DEFAULT_ACCENT = "#9333ea";
+const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", description: "" };
 
 // Two separate uploads with different shapes: the navbar logo is a wide
 // rectangle (vendors' real logos are rarely square), the favicon is a
@@ -48,16 +47,12 @@ export default function VendorSettingsPage() {
   const [store, setStore] = useState(null);
   const [commissionRate, setCommissionRate] = useState(null);
   const [flatFee, setFlatFee] = useState(0);
-  const [isPlus, setIsPlus] = useState(false);
-  const [plusMonthlyPrice, setPlusMonthlyPrice] = useState(5000);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [togglingOpen, setTogglingOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
   const [cropTarget, setCropTarget] = useState(null);
-  const [subscribing, setSubscribing] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     // Also gated on token, not just storeId - see VendorStoreContext.js:
@@ -77,12 +72,9 @@ export default function VendorSettingsPage() {
           returnWindowDays: String(data.store.returnWindowDays ?? 7),
           address: data.store.address || "",
           description: data.store.description || "",
-          storefrontAccentColor: data.store.storefrontAccentColor || "",
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
         setFlatFee(data.effectiveFlatFee || 0);
-        setIsPlus(!!data.isPlus);
-        setPlusMonthlyPrice(data.plusMonthlyPrice || 5000);
         setStore(data.store);
         updateStore(data.store);
       })
@@ -131,34 +123,6 @@ export default function VendorSettingsPage() {
     }
   };
 
-  const handleSubscribe = async () => {
-    setSubscribing(true);
-    try {
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/subscribe`, {
-        method: "POST",
-        body: JSON.stringify({ redirectUrl: window.location.href }),
-      });
-      window.location.href = data.authorizationUrl;
-    } catch (err) {
-      toast.error(err.message || "Failed to start subscription");
-      setSubscribing(false);
-    }
-  };
-
-  const handleCancelSubscription = async () => {
-    setCancelling(true);
-    try {
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/unsubscribe`, { method: "POST" });
-      setStore(data.store);
-      updateStore(data.store);
-      toast.success("Subscription cancelled - you'll keep Storezn+ until your current period ends");
-    } catch (err) {
-      toast.error(err.message || "Failed to cancel subscription");
-    } finally {
-      setCancelling(false);
-    }
-  };
-
   const handleToggleOpen = async () => {
     setTogglingOpen(true);
     try {
@@ -180,12 +144,7 @@ export default function VendorSettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      // storefrontAccentColor is Storezn+-only server-side - only send it
-      // for a Plus store, otherwise every save (even unrelated fields)
-      // would get rejected by that gate.
-      const { storefrontAccentColor, ...payload } = form;
-      if (isPlus) payload.storefrontAccentColor = storefrontAccentColor;
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify(payload) });
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify(form) });
       updateStore(data.store);
       toast.success("Settings saved");
     } catch (err) {
@@ -200,7 +159,7 @@ export default function VendorSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-5xl">
       <h1 className="text-xl font-bold text-slate-900">Store settings</h1>
 
       <PushNotificationToggle token={token} />
@@ -213,6 +172,7 @@ export default function VendorSettingsPage() {
       )}
 
       {!loading && store && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <div className="bg-white border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-slate-900">Store status</p>
@@ -237,9 +197,7 @@ export default function VendorSettingsPage() {
             />
           </button>
         </div>
-      )}
 
-      {!loading && store && (
         <CustomDomainSettings
           store={store}
           apiFetch={apiFetch}
@@ -249,12 +207,14 @@ export default function VendorSettingsPage() {
             updateStore(updated);
           }}
         />
+        </div>
       )}
 
       {loading || !form ? (
         <FormSkeleton fields={4} />
       ) : (
         <form onSubmit={handleSave} className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
             <SectionLabel>Branding</SectionLabel>
 
@@ -418,68 +378,18 @@ export default function VendorSettingsPage() {
             </div>
           </div>
 
-          <div id="storezn-plus" className="bg-white border border-slate-200 rounded-sm p-5 space-y-4 scroll-mt-20">
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-brand-600" />
-              <SectionLabel>Storezn+</SectionLabel>
-            </div>
-
-            {isPlus ? (
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Badge color="green">Active</Badge>
-                    {store?.planCancelled && <Badge color="amber">Not renewing</Badge>}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1.5">
-                    {store?.planCancelled
-                      ? `Cancelled - you'll keep Storezn+ until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "your current period ends"}.`
-                      : `Renews ${store?.planRenewsAt ? formatDate(store.planRenewsAt) : "monthly"} at ${formatCurrency(plusMonthlyPrice)}/month.`}
-                  </p>
-                </div>
-                {!store?.planCancelled && (
-                  <Button type="button" variant="outline" size="sm" loading={cancelling} onClick={handleCancelSubscription}>
-                    Cancel subscription
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <p className="text-sm text-slate-700">Offline orders, a custom storefront accent color, and more staff and storage.</p>
-                  <p className="text-xs text-slate-500 mt-1">{formatCurrency(plusMonthlyPrice)}/month</p>
-                </div>
-                <Button type="button" size="sm" loading={subscribing} onClick={handleSubscribe}>
-                  Upgrade to Storezn+
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3 opacity-60">
             <div className="flex items-center justify-between gap-3">
-              <SectionLabel>Storefront theme</SectionLabel>
-              {!isPlus && <Badge color="slate">Storezn+</Badge>}
-            </div>
-
-            {isPlus ? (
-              <div className="flex items-center gap-4">
-                <input
-                  type="color"
-                  value={form.storefrontAccentColor || DEFAULT_ACCENT}
-                  onChange={(e) => setForm((f) => ({ ...f, storefrontAccentColor: e.target.value }))}
-                  className="w-12 h-10 rounded-sm border border-slate-200 cursor-pointer"
-                />
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Accent color</p>
-                  <p className="text-xs text-slate-500">Used for your storefront&apos;s header, buttons, and price highlights.</p>
-                </div>
+              <div className="flex items-center gap-2">
+                <Palette size={16} className="text-slate-400" />
+                <SectionLabel>Storefront theme</SectionLabel>
               </div>
-            ) : (
-              <p className="text-sm text-slate-500">
-                Pick your own accent color for your storefront&apos;s header, buttons, and prices - part of Storezn+ (₦{plusMonthlyPrice.toLocaleString("en-NG")}/month). See the Storezn+ card above to upgrade.
-              </p>
-            )}
+              <Badge color="slate">Coming soon</Badge>
+            </div>
+            <p className="text-sm text-slate-500">
+              Customizing your storefront&apos;s accent color is on the way.
+            </p>
+          </div>
           </div>
 
           <Button type="submit" loading={saving}>Save settings</Button>
