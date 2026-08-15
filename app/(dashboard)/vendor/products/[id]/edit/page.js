@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
+import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { X, Trash2, ImagePlus, Loader2, GripVertical } from "lucide-react";
 
@@ -53,6 +54,7 @@ export default function VendorProductEditPage({ params }) {
   // a ref sidesteps that race without smuggling the PATCH network call
   // inside a setState updater (which React may invoke more than once).
   const imagesRef = useRef([]);
+  const [storageDialogOpen, setStorageDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -130,7 +132,8 @@ export default function VendorProductEditPage({ params }) {
           const url = await uploadFile(token, entry.file, "product-image");
           await persistImages([...imagesRef.current, url]);
         } catch (err) {
-          toast.error(err.message || "Upload failed");
+          if (err.status === 402) setStorageDialogOpen(true);
+          else toast.error(err.message || "Upload failed");
         } finally {
           URL.revokeObjectURL(entry.localUrl);
           setPendingUploads((p) => p.filter((e2) => e2.key !== entry.key));
@@ -302,6 +305,8 @@ export default function VendorProductEditPage({ params }) {
 
       <VariantsManager storeId={storeId} productId={id} apiFetch={apiFetch} />
       </div>
+
+      <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
     </div>
   );
 }

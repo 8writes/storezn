@@ -13,6 +13,7 @@ import { PushNotificationToggle } from "@/components/ui/PushNotificationToggle.j
 import { CustomDomainSettings } from "@/components/ui/CustomDomainSettings.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
+import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { formatCurrency, formatBytes } from "@/lib/format.js";
 import { AlertTriangle, Palette } from "lucide-react";
@@ -55,6 +56,7 @@ export default function VendorSettingsPage() {
   const [cropTarget, setCropTarget] = useState(null);
   const [storageUsedBytes, setStorageUsedBytes] = useState(0);
   const [storageLimitBytes, setStorageLimitBytes] = useState(0);
+  const [storageDialogOpen, setStorageDialogOpen] = useState(false);
 
   useEffect(() => {
     // Also gated on token, not just storeId - see VendorStoreContext.js:
@@ -129,7 +131,8 @@ export default function VendorSettingsPage() {
         })
         .catch(() => {});
     } catch (err) {
-      toast.error(err.message || "Upload failed");
+      if (err.status === 402) setStorageDialogOpen(true);
+      else toast.error(err.message || "Upload failed");
     } finally {
       setUploading(false);
       if (src) URL.revokeObjectURL(src);
@@ -433,6 +436,8 @@ export default function VendorSettingsPage() {
         onCropped={handleCropped}
         {...(cropTarget ? CROP_CONFIG[cropTarget] : {})}
       />
+
+      <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
     </div>
   );
 }

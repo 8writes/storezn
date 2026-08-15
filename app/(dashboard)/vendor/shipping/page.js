@@ -164,7 +164,7 @@ function ShippingRatesManager({ storeId, apiFetch, token }) {
         </div>
       )}
 
-      <form onSubmit={handleAdd} className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
+      <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
         <Select
           label="State"
           options={NIGERIA_STATE_OPTIONS}
@@ -181,7 +181,7 @@ function ShippingRatesManager({ storeId, apiFetch, token }) {
           placeholder="Whole state"
         />
         <PriceInput label="Fee" value={form.fee} onChange={(v) => setForm((f) => ({ ...f, fee: v }))} required />
-        <Button type="submit" size="sm" variant="outline" loading={adding} className="col-span-2 sm:col-span-1 w-fit">
+        <Button type="submit" size="sm" variant="outline" loading={adding} fullWidth>
           Add rate
         </Button>
       </form>

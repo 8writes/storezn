@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
+import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { slugify } from "@/lib/slugify.js";
 import { X, ImagePlus, Loader2, GripVertical, ChevronDown } from "lucide-react";
@@ -51,6 +52,7 @@ export default function VendorNewProductPage() {
   const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY);
   const [categorySlugTouched, setCategorySlugTouched] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
+  const [storageDialogOpen, setStorageDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -106,7 +108,8 @@ export default function VendorNewProductPage() {
           const url = await uploadFile(token, entry.file, "product-image");
           setForm((f) => ({ ...f, images: [...f.images, url] }));
         } catch (err) {
-          toast.error(err.message || "Upload failed");
+          if (err.status === 402) setStorageDialogOpen(true);
+          else toast.error(err.message || "Upload failed");
         } finally {
           URL.revokeObjectURL(entry.localUrl);
           setPendingUploads((p) => p.filter((e2) => e2.key !== entry.key));
@@ -337,6 +340,8 @@ export default function VendorNewProductPage() {
           <Button type="submit" variant="outline" size="sm" loading={addingCategory}>Add category</Button>
         </form>
       </div>
+
+      <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
     </div>
   );
 }
