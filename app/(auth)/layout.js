@@ -14,7 +14,7 @@ export default function AuthLayout({ children }) {
 
         <div className="space-y-3 max-w-sm">
           <h1 className="text-3xl font-bold leading-tight">
-            Your own store, <br /> your own domain.
+            Easy Business Management
           </h1>
         </div>
 

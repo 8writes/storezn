@@ -418,7 +418,7 @@ export default function VendorSettingsPage() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+          <div id="storezn-plus" className="bg-white border border-slate-200 rounded-sm p-5 space-y-4 scroll-mt-20">
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-brand-600" />
               <SectionLabel>Storezn+</SectionLabel>

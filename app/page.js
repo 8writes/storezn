@@ -10,7 +10,6 @@ import {
   TrendingUp,
   Package,
   Check,
-  X as XIcon,
   MapPin,
 } from "lucide-react";
 import { Footer } from "@/components/Footer";
@@ -19,11 +18,11 @@ import { getLiveStores } from "@/lib/liveStores.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 
 const COMPARISON = [
-  { feature: "Getting started", others: "Hire a developer or fight with a page builder", storezn: "Live store in minutes, no code" },
-  { feature: "Getting paid", others: "Manual reconciliation, delayed transfers", storezn: "Automatic payouts straight to your bank" },
-  { feature: "Platform fees", others: "Fixed, buried in the fine print", storezn: "You choose who pays it - you or your customer" },
-  { feature: "Buyer trust", others: "No verification, buyers hesitate", storezn: "Every vendor identity-verified (NIN)" },
-  { feature: "Adding your catalog", others: "One product at a time", storezn: "Bulk upload with a CSV template" },
+  { feature: "Getting started", storezn: "Live store in minutes, no code" },
+  { feature: "Getting paid", storezn: "Automatic payouts straight to your bank" },
+  { feature: "Platform fees", storezn: "You choose who pays it - you or your customer" },
+  { feature: "Buyer trust", storezn: "Every vendor identity-verified (NIN)" },
+  { feature: "Adding your catalog", storezn: "Bulk upload with a CSV template" },
 ];
 
 const PERKS = [
@@ -133,34 +132,21 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Why Storezn? - a grounded comparison against the DIY/other-platform
-          alternative, not naming any specific competitor. */}
+      {/* Why Storezn? */}
       <section className="bg-slate-50/60 border-y border-slate-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
           <div className="text-center max-w-lg mx-auto mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Why Storezn?</h2>
             <p className="mt-3 text-slate-500">Built for people running a business, not fighting their platform.</p>
           </div>
           <div className="bg-white border border-slate-200 rounded-sm shadow-sm overflow-hidden">
-            <div className="grid grid-cols-[1fr_1.2fr_1.2fr] text-xs font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100 px-4 sm:px-6 py-3">
-              <span />
-              <span>Others</span>
-              <span className="text-brand-700">Storezn</span>
-            </div>
             {COMPARISON.map((row) => (
-              <div
-                key={row.feature}
-                className="grid grid-cols-[1fr_1.2fr_1.2fr] items-start gap-2 px-4 sm:px-6 py-4 border-b border-slate-50 last:border-0"
-              >
-                <p className="text-sm font-medium text-slate-900 pt-0.5">{row.feature}</p>
-                <div className="flex items-start gap-1.5 text-sm text-slate-400">
-                  <XIcon size={14} className="shrink-0 mt-0.5" />
-                  {row.others}
+              <div key={row.feature} className="flex items-start justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-50 last:border-0">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{row.feature}</p>
+                  <p className="text-sm text-slate-500">{row.storezn}</p>
                 </div>
-                <div className="flex items-start gap-1.5 text-sm text-slate-700 font-medium">
-                  <Check size={14} className="shrink-0 mt-0.5 text-brand-600" />
-                  {row.storezn}
-                </div>
+                <Check size={16} className="shrink-0 mt-0.5 text-brand-600" />
               </div>
             ))}
           </div>

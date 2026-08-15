@@ -95,7 +95,7 @@ export default async function PricingPage() {
               ))}
             </ul>
             <Link
-              href="/signup"
+              href="/signup?next=%2Fvendor%2Fsettings%3Fupgrade%3Dplus%23storezn-plus"
               className="mt-8 flex items-center justify-center gap-2 text-sm font-semibold bg-brand-600 text-white px-5 py-3 rounded-sm hover:bg-brand-700 transition-colors cursor-pointer shadow-lg shadow-brand-600/20"
             >
               Get started

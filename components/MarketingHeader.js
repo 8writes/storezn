@@ -30,6 +30,9 @@ export function MarketingHeader() {
               {label}
             </Link>
           ))}
+          <Link href="/login" className="text-white hover:text-white/80 transition-colors">
+            Log in
+          </Link>
           <Link
             href="/signup"
             className="font-semibold bg-white text-brand-900 px-4 py-2 rounded-sm hover:bg-brand-50 transition-colors"
@@ -60,6 +63,13 @@ export function MarketingHeader() {
               {label}
             </Link>
           ))}
+          <Link
+            href="/login"
+            onClick={() => setOpen(false)}
+            className="px-2 py-2.5 text-sm text-white/90 hover:text-white transition-colors"
+          >
+            Log in
+          </Link>
           <Link
             href="/signup"
             onClick={() => setOpen(false)}

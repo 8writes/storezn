@@ -1,11 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
 import { slugify } from "@/lib/slugify.js";
+import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
 
 const EMPTY_FORM = {
   name: "",
@@ -14,11 +16,24 @@ const EMPTY_FORM = {
   acceptTerms: false,
 };
 
-export default function VendorSignupPage() {
+function VendorSignupForm() {
+  const searchParams = useSearchParams();
   const [form, setForm] = useState(EMPTY_FORM);
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState(false);
+
+  // Signup doesn't auto-login (email must be verified first, see below),
+  // so a "?next=" here can't just be handed to a redirect the way
+  // login's is - it has to survive signup -> verify email -> login as a
+  // separate step. Stashed in localStorage, which outlives the query
+  // string across that whole round trip, and read back on the eventual
+  // successful login (see LoginForm in ../login/page.js).
+  useEffect(() => {
+    const next = searchParams.get("next");
+    if (next) localStorage.setItem(POST_AUTH_REDIRECT_KEY, next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const setVendorField = (key) => (e) => setForm((f) => ({ ...f, vendor: { ...f.vendor, [key]: e.target.value } }));
@@ -127,5 +142,21 @@ export default function VendorSignupPage() {
         <Link href="/login" className="text-brand-600 hover:underline">Sign in</Link>
       </p>
     </form>
+  );
+}
+
+export default function VendorSignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-5 animate-pulse">
+          <div className="h-8 bg-slate-100 rounded" />
+          <div className="h-10 bg-slate-100 rounded" />
+          <div className="h-10 bg-slate-100 rounded" />
+        </div>
+      }
+    >
+      <VendorSignupForm />
+    </Suspense>
   );
 }
