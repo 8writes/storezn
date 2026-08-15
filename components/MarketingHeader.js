@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 
 const LINKS = [
-  { href: "/stores", label: "Discover stores" },
+  { href: "/stores", label: "Discover Businesses" },
   { href: "/pricing", label: "Pricing" },
 ];
 

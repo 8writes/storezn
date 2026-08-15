@@ -183,7 +183,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Discover stores - a teaser for /stores, doubles as social proof
+      {/* Discover Businesses - a teaser for /stores, doubles as social proof
           once there are real stores to show. Hidden entirely rather than
           rendered empty when there aren't any yet. */}
       {featuredStores.length > 0 && (
@@ -191,7 +191,7 @@ export default async function Home() {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
             <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
               <div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Discover stores</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Discover Businesses</h2>
                 <p className="mt-2 text-slate-500">Real businesses already selling on Storezn.</p>
               </div>
               <Link href="/stores" className="text-sm font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1.5 shrink-0">
