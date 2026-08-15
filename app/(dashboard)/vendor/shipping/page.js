@@ -57,13 +57,13 @@ export default function VendorShippingPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-5xl">
       <h1 className="text-xl font-bold text-slate-900">Shipping</h1>
 
       {loading || !form ? (
         <FormSkeleton fields={3} />
       ) : (
-        <>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
             <div>
               <label className="text-sm font-medium text-slate-700">Default shipping fee</label>
@@ -81,7 +81,7 @@ export default function VendorShippingPage() {
           </form>
 
           <ShippingRatesManager storeId={storeId} apiFetch={apiFetch} token={token} />
-        </>
+        </div>
       )}
     </div>
   );

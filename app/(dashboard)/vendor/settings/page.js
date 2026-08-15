@@ -378,16 +378,16 @@ export default function VendorSettingsPage() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3 opacity-60">
+          <div className="bg-white border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Palette size={16} className="text-slate-400" />
                 <SectionLabel>Storefront theme</SectionLabel>
               </div>
-              <Badge color="slate">Coming soon</Badge>
+              <Badge color="slate">Storezn+</Badge>
             </div>
             <p className="text-sm text-slate-500">
-              Customizing your storefront&apos;s accent color is on the way.
+              Pick a custom accent color for your storefront&apos;s header, buttons, and prices. Coming soon to Storezn+.
             </p>
           </div>
           </div>

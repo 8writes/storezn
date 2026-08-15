@@ -193,18 +193,19 @@ export default function VendorProductEditPage({ params }) {
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl">
       <BackLink href={`/vendor/products/${id}?storeId=${storeId}`} label="Back to product" />
       <h1 className="text-xl font-bold text-slate-900">Edit product</h1>
 
       {suspension && (
-        <div className="max-w-2xl bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
+        <div className="bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
           <p className="font-medium">Suspended by admin</p>
           <p>{suspension.reason || "No reason given."} It won&apos;t show on your storefront until an admin lifts the suspension - changing it to Live here won&apos;t override it.</p>
         </div>
       )}
 
-      <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4 max-w-2xl">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
           <Input label="URL slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />
@@ -300,6 +301,7 @@ export default function VendorProductEditPage({ params }) {
       </form>
 
       <VariantsManager storeId={storeId} productId={id} apiFetch={apiFetch} />
+      </div>
     </div>
   );
 }
@@ -362,7 +364,7 @@ function VariantsManager({ storeId, productId, apiFetch }) {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4 max-w-2xl">
+    <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-slate-700">Variants</p>
         <p className="text-xs text-slate-500">

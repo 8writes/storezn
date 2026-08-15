@@ -93,82 +93,84 @@ export default function VendorStaffPage() {
         </p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
-            <tr>
-              <th className="px-4 py-3 font-medium">Staff member</th>
-              <th className="px-4 py-3 font-medium">Added</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {storeLoading || staff === null ? (
-              <TableRowSkeleton cols={4} />
-            ) : staff.length === 0 ? (
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+        <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500 text-left">
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">No staff yet</td>
+                <th className="px-4 py-3 font-medium">Staff member</th>
+                <th className="px-4 py-3 font-medium">Added</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
               </tr>
-            ) : (
-              staff.map((member) => (
-                <tr key={member.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-slate-900">{member.firstName} {member.lastName}</p>
-                    <p className="text-xs text-slate-400">{member.email}</p>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(member.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    {member.activatedAt ? (
-                      <Badge color="green">Active</Badge>
-                    ) : (
-                      <Badge color="amber">Invited</Badge>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      disabled={removingId === member.id}
-                      onClick={() => remove(member)}
-                      className="inline-flex items-center gap-1.5 text-red-600 hover:underline disabled:opacity-50 cursor-pointer"
-                    >
-                      <Trash2 size={14} />
-                      Remove
-                    </button>
-                  </td>
+            </thead>
+            <tbody>
+              {storeLoading || staff === null ? (
+                <TableRowSkeleton cols={4} />
+              ) : staff.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">No staff yet</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-700">Invite staff</p>
-          <span className="text-xs text-slate-400">{staff?.length ?? 0} of {maxStaff}</span>
+              ) : (
+                staff.map((member) => (
+                  <tr key={member.id} className="border-t border-slate-100">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-slate-900">{member.firstName} {member.lastName}</p>
+                      <p className="text-xs text-slate-400">{member.email}</p>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">{formatDate(member.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      {member.activatedAt ? (
+                        <Badge color="green">Active</Badge>
+                      ) : (
+                        <Badge color="amber">Invited</Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        disabled={removingId === member.id}
+                        onClick={() => remove(member)}
+                        className="inline-flex items-center gap-1.5 text-red-600 hover:underline disabled:opacity-50 cursor-pointer"
+                      >
+                        <Trash2 size={14} />
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-        {atLimit ? (
-          <p className="text-sm text-slate-500">
-            You&apos;ve reached the {maxStaff}-staff limit{maxStaff <= 1 ? " on the free plan" : ""}. {maxStaff <= 1 ? (
-              <>Upgrade to Storezn+ for more staff seats.</>
-            ) : (
-              "Remove someone before inviting another."
-            )}
-          </p>
-        ) : (
-          <form onSubmit={invite} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="First name" value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} required />
-              <Input label="Last name" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} required />
-            </div>
-            <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
-            <Button type="submit" loading={inviting} fullWidth>
-              <UserPlus size={16} />
-              Send invite
-            </Button>
-          </form>
-        )}
+
+        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-700">Invite staff</p>
+            <span className="text-xs text-slate-400">{staff?.length ?? 0} of {maxStaff}</span>
+          </div>
+          {atLimit ? (
+            <p className="text-sm text-slate-500">
+              You&apos;ve reached the {maxStaff}-staff limit{maxStaff <= 1 ? " on the free plan" : ""}. {maxStaff <= 1 ? (
+                <>Upgrade to Storezn+ for more staff seats.</>
+              ) : (
+                "Remove someone before inviting another."
+              )}
+            </p>
+          ) : (
+            <form onSubmit={invite} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="First name" value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} required />
+                <Input label="Last name" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} required />
+              </div>
+              <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
+              <Button type="submit" loading={inviting} fullWidth>
+                <UserPlus size={16} />
+                Send invite
+              </Button>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );
