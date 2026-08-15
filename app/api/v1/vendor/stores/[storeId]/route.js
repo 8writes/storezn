@@ -5,8 +5,8 @@ import { eq } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../lib/auth.js";
 import { validate, updateVendorStoreSchema } from "../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../lib/storage/index.js";
-import { removeStoreUpload } from "../../../../../../lib/storeUploads.js";
-import { isPlusStore } from "../../../../../../lib/storePlan.js";
+import { removeStoreUpload, getStoreStorageUsage } from "../../../../../../lib/storeUploads.js";
+import { isPlusStore, getStorageLimitBytes } from "../../../../../../lib/storePlan.js";
 
 // The two upload-backed fields - PATCHing over (or clearing) either one
 // orphans the previous file in storage unless we clean it up here.
@@ -37,8 +37,18 @@ export async function GET(req, { params }) {
   const effectiveFlatFee = settings?.defaultFlatFee ?? 0;
   const isPlus = isPlusStore(store);
   const plusMonthlyPrice = settings?.plusMonthlyPrice ?? 5000;
+  const storageUsedBytes = await getStoreStorageUsage(storeId);
+  const storageLimitBytes = getStorageLimitBytes(store, settings || { freeStorageMb: 500, plusStorageMb: 5000 });
 
-  return NextResponse.json({ store, effectiveCommissionRatePercent, effectiveFlatFee, isPlus, plusMonthlyPrice });
+  return NextResponse.json({
+    store,
+    effectiveCommissionRatePercent,
+    effectiveFlatFee,
+    isPlus,
+    plusMonthlyPrice,
+    storageUsedBytes,
+    storageLimitBytes,
+  });
 }
 
 // Self-service fields only (logo, socials, who pays the commission) - the

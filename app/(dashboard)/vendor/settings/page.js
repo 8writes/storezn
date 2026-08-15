@@ -14,7 +14,7 @@ import { CustomDomainSettings } from "@/components/ui/CustomDomainSettings.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { uploadFile } from "@/lib/clientUpload.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, formatBytes } from "@/lib/format.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
@@ -53,6 +53,8 @@ export default function VendorSettingsPage() {
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
   const [cropTarget, setCropTarget] = useState(null);
+  const [storageUsedBytes, setStorageUsedBytes] = useState(0);
+  const [storageLimitBytes, setStorageLimitBytes] = useState(0);
 
   useEffect(() => {
     // Also gated on token, not just storeId - see VendorStoreContext.js:
@@ -75,6 +77,8 @@ export default function VendorSettingsPage() {
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
         setFlatFee(data.effectiveFlatFee || 0);
+        setStorageUsedBytes(data.storageUsedBytes || 0);
+        setStorageLimitBytes(data.storageLimitBytes || 0);
         setStore(data.store);
         updateStore(data.store);
       })
@@ -115,6 +119,15 @@ export default function VendorSettingsPage() {
       setForm((f) => ({ ...f, [field]: url }));
       updateStore(data.store);
       toast.success(field === "logoUrl" ? "Logo updated" : "Favicon updated");
+      // Storage usage changed (new file added, old one best-effort removed
+      // server-side) - refetch rather than estimate locally, since the
+      // old file's exact size isn't known client-side.
+      apiFetch(`/api/v1/vendor/stores/${storeId}`)
+        .then((d) => {
+          setStorageUsedBytes(d.storageUsedBytes || 0);
+          setStorageLimitBytes(d.storageLimitBytes || 0);
+        })
+        .catch(() => {});
     } catch (err) {
       toast.error(err.message || "Upload failed");
     } finally {
@@ -217,6 +230,23 @@ export default function VendorSettingsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
             <SectionLabel>Branding</SectionLabel>
+
+            {storageLimitBytes > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Storage used</span>
+                  <span className={storageUsedBytes >= storageLimitBytes ? "font-medium text-red-600" : "text-slate-500"}>
+                    {formatBytes(storageUsedBytes)} of {formatBytes(storageLimitBytes)}
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${storageUsedBytes / storageLimitBytes >= 0.9 ? "bg-red-500" : "bg-brand-600"}`}
+                    style={{ width: `${Math.min(100, (storageUsedBytes / storageLimitBytes) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Store logo</label>
