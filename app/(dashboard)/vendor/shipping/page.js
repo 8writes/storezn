@@ -57,7 +57,7 @@ export default function VendorShippingPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <h1 className="text-xl font-bold text-slate-900">Shipping</h1>
 
       {loading || !form ? (

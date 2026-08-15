@@ -76,7 +76,7 @@ export function Select({
           onClick={() => setOpen((o) => !o)}
           className="w-full flex items-center justify-between px-3 py-2 border border-slate-300 rounded-sm text-base outline-none focus:border-brand-500 bg-white cursor-pointer disabled:bg-slate-50 disabled:cursor-not-allowed text-left"
         >
-          <span className={selected ? "text-slate-900" : "text-slate-700"}>
+          <span className={`truncate min-w-0 ${selected ? "text-slate-900" : "text-slate-700"}`}>
             {loading ? "Loading…" : selected ? selected.label : placeholder}
           </span>
           {loading ? (
@@ -113,9 +113,9 @@ export function Select({
                     onChange(opt.value);
                     setOpen(false);
                   }}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-brand-50 cursor-pointer"
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-brand-50 cursor-pointer"
                 >
-                  <span className={opt.value === value ? "text-brand-700 font-medium" : "text-slate-700"}>
+                  <span className={`truncate min-w-0 ${opt.value === value ? "text-brand-700 font-medium" : "text-slate-700"}`}>
                     {opt.label}
                   </span>
                   {opt.value === value && <Check size={14} className="text-brand-600 shrink-0" />}

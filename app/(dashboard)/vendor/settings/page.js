@@ -159,7 +159,7 @@ export default function VendorSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <h1 className="text-xl font-bold text-slate-900">Store settings</h1>
 
       <PushNotificationToggle token={token} />

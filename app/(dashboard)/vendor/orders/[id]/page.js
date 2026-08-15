@@ -118,7 +118,7 @@ export default function VendorOrderDetailPage({ params }) {
     });
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="max-w-xl mx-auto space-y-6">
       {confirmDialog}
       <BackLink href="/vendor/orders" label="Back to orders" />
 

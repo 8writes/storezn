@@ -103,11 +103,11 @@ export default function VendorProductViewPage({ params }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <BackLink href="/vendor/products" label="Back to products" />
 
       {product.suspendedAt && (
-        <div className="max-w-2xl bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
+        <div className="bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
           <p className="font-medium">Suspended by admin</p>
           <p>{product.suspendedReason || "No reason given."} It won&apos;t show on your storefront until an admin lifts the suspension.</p>
         </div>
@@ -141,7 +141,7 @@ export default function VendorProductViewPage({ params }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-3">
           <div className="aspect-square bg-slate-100 rounded-sm overflow-hidden border border-slate-200">
             {product.images?.[activeImage] ? (

@@ -193,7 +193,7 @@ export default function VendorProductEditPage({ params }) {
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <BackLink href={`/vendor/products/${id}?storeId=${storeId}`} label="Back to product" />
       <h1 className="text-xl font-bold text-slate-900">Edit product</h1>
 

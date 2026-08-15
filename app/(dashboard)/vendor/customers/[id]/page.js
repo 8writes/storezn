@@ -38,7 +38,7 @@ export default function VendorCustomerDetailPage({ params }) {
   const { customer, orders, stats } = data;
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <BackLink href="/vendor/customers" label="Back to customers" />
 
       <div>

@@ -65,7 +65,7 @@ export default function VendorVerificationPage() {
   if (loading || !status) return <FormSkeleton fields={3} />;
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="max-w-xl mx-auto space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Verification</h1>
         <p className="text-sm text-slate-500 mt-1">

@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
-import { Sparkles, ShoppingBag, Users, HardDrive, CalendarClock, CircleCheck } from "lucide-react";
+import { Sparkles, CalendarClock } from "lucide-react";
 
 const FEATURES = [
-  { icon: ShoppingBag, title: "Offline orders", text: "Record in-person, phone, and cash sales." },
-  { icon: Users, title: "More staff", text: "Bring on more people to help run the store." },
-  { icon: HardDrive, title: "More storage", text: "Room for a bigger product catalog." },
+  { title: "Offline orders", text: "Record in-person, phone, and cash sales." },
+  { title: "More staff", text: "Bring on more people to help run the store." },
+  { title: "More storage", text: "Room for a bigger product catalog." },
 ];
 
 // Team management, payouts, and this billing page are all owner-only
@@ -77,7 +77,7 @@ export default function VendorPlusPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-3xl mx-auto">
       <h1 className="text-xl font-bold text-slate-900">Storezn+</h1>
 
       {loading || !store ? (
@@ -127,9 +127,8 @@ export default function VendorPlusPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {FEATURES.map(({ icon: Icon, title }) => (
-                    <div key={title} className="flex items-center gap-2 text-sm text-slate-700 bg-brand-50 border border-brand-100 rounded-sm px-3 py-2.5">
-                      <CircleCheck size={15} className="text-brand-600 shrink-0" />
+                  {FEATURES.map(({ title }) => (
+                    <div key={title} className="text-sm font-medium text-slate-700 bg-brand-50 border border-brand-100 rounded-sm px-3 py-2.5">
                       {title}
                     </div>
                   ))}
@@ -144,12 +143,9 @@ export default function VendorPlusPage() {
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {FEATURES.map(({ icon: Icon, title, text }) => (
+                  {FEATURES.map(({ title, text }) => (
                     <div key={title} className="bg-slate-50 border border-slate-200 rounded-sm p-4">
-                      <div className="w-8 h-8 rounded-sm bg-brand-100 flex items-center justify-center">
-                        <Icon size={16} className="text-brand-700" />
-                      </div>
-                      <p className="mt-3 text-sm font-semibold text-slate-900">{title}</p>
+                      <p className="text-sm font-semibold text-slate-900">{title}</p>
                       <p className="mt-0.5 text-xs text-slate-500">{text}</p>
                     </div>
                   ))}

@@ -125,7 +125,7 @@ export default function RecordOfflineOrderPage() {
   const activeStore = stores.find((s) => s.id === storeId);
   if (activeStore && !isPlusStore(activeStore)) {
     return (
-      <div className="max-w-2xl space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6">
         <BackLink href="/vendor/orders" label="Back to orders" />
         <div className="bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <Lock className="mx-auto text-slate-300" size={28} />
@@ -142,7 +142,7 @@ export default function RecordOfflineOrderPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <BackLink href="/vendor/orders" label="Back to orders" />
 
       <div>
