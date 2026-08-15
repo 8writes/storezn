@@ -5,7 +5,7 @@ import { Footer } from "@/components/Footer";
 
 const PERKS = [
   { icon: Store, text: "Your own store, live in minutes - custom domain supported." },
-  { icon: Wallet, text: "Automatic payouts - your share of every sale goes straight to your bank account." },
+  { icon: Wallet, text: "Automatic payouts straight to your bank account the next day." },
   { icon: Truck, text: "Set your own shipping rates by state or city, or one flat rate for everything." },
   { icon: LayoutDashboard, text: "A simple dashboard for orders, customers, and products - no clutter." },
   { icon: Percent, text: "You decide who pays the platform fee - absorb it, or pass it to your customers." },
