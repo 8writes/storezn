@@ -1,17 +1,21 @@
 import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "../../../../../../../lib/db/index.js";
-import { stores, users, tokens } from "../../../../../../../lib/db/schema.js";
+import { stores, users, tokens, platformSettings } from "../../../../../../../lib/db/schema.js";
 import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, inviteStaffSchema } from "../../../../../../../lib/validate.js";
 import { sendMail } from "../../../../../../../lib/email/sendMail.js";
-
-const MAX_STAFF_PER_STORE = 5;
+import { getStaffLimit } from "../../../../../../../lib/storePlan.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
   return store;
+}
+
+async function loadSettings() {
+  const [row] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
+  return row || { freeStaffLimit: 1, plusStaffLimit: 10 };
 }
 
 // Team management is owner-only, unlike most other store routes (see
@@ -44,7 +48,8 @@ export async function GET(req, { params }) {
     .where(and(eq(users.storeId, storeId), eq(users.role, "staff"), isNull(users.deletedAt)))
     .orderBy(users.createdAt);
 
-  return NextResponse.json({ staff, max: MAX_STAFF_PER_STORE });
+  const settings = await loadSettings();
+  return NextResponse.json({ staff, max: getStaffLimit(store, settings) });
 }
 
 // Invites work the same way as a password reset: create the account
@@ -61,12 +66,17 @@ export async function POST(req, { params }) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!isStoreOwner(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const settings = await loadSettings();
+  const staffLimit = getStaffLimit(store, settings);
   const [{ activeCount }] = await db
     .select({ activeCount: count() })
     .from(users)
     .where(and(eq(users.storeId, storeId), eq(users.role, "staff"), isNull(users.deletedAt)));
-  if (activeCount >= MAX_STAFF_PER_STORE) {
-    return NextResponse.json({ error: `You can have at most ${MAX_STAFF_PER_STORE} staff members` }, { status: 400 });
+  if (activeCount >= staffLimit) {
+    return NextResponse.json(
+      { error: `You can have at most ${staffLimit} staff members${staffLimit <= 1 ? " on the free plan - upgrade to Storezn+ for more" : ""}` },
+      { status: 400 },
+    );
   }
 
   const body = await req.json().catch(() => null);

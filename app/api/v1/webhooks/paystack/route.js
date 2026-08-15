@@ -8,6 +8,50 @@ import { formatCurrency } from "../../../../../lib/format.js";
 import { sendPushToStore } from "../../../../../lib/push.js";
 import { LOW_STOCK_THRESHOLD } from "../../../../../lib/inventory.js";
 
+// Storezn+ subscription lifecycle - separate from the order-payment flow
+// below, see lib/storePlan.js's getEffectivePlan for how these fields
+// actually get enforced.
+async function handleSubscriptionCharge(event) {
+  const storeId = event.data?.metadata?.storeId;
+  if (!storeId) return;
+  // charge.success fires before subscription.create - this just marks the
+  // store Plus immediately so the vendor isn't waiting on two webhooks in
+  // sequence; subscription.create (below) fills in the authoritative
+  // subscription code/token/renewal date moments later.
+  await db
+    .update(stores)
+    .set({ plan: "plus", planCancelled: false, planRenewsAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) })
+    .where(eq(stores.id, storeId));
+}
+
+async function handleSubscriptionCreate(event) {
+  const email = event.data?.customer?.email;
+  if (!email) return;
+  const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  if (!owner) return;
+  const [store] = await db.select({ id: stores.id }).from(stores).where(eq(stores.ownerId, owner.id)).limit(1);
+  if (!store) return;
+
+  const nextPaymentDate = event.data?.next_payment_date || event.data?.subscription?.next_payment_date;
+  await db
+    .update(stores)
+    .set({
+      plan: "plus",
+      planCancelled: false,
+      paystackSubscriptionCode: event.data?.subscription_code,
+      paystackSubscriptionToken: event.data?.email_token,
+      paystackCustomerCode: event.data?.customer?.customer_code,
+      ...(nextPaymentDate ? { planRenewsAt: new Date(nextPaymentDate) } : {}),
+    })
+    .where(eq(stores.id, store.id));
+}
+
+async function handleSubscriptionDisable(event) {
+  const code = event.data?.subscription_code;
+  if (!code) return;
+  await db.update(stores).set({ planCancelled: true }).where(eq(stores.paystackSubscriptionCode, code));
+}
+
 // This is registered directly on Paystack only in local/single-product
 // dev. In production, website-ozmictech's shared webhook router receives
 // every Paystack event for the shared account (Paystack allows exactly
@@ -29,12 +73,27 @@ export async function POST(req) {
   }
 
   const event = JSON.parse(rawBody);
+
+  if (event.event === "subscription.create") {
+    await handleSubscriptionCreate(event);
+    return NextResponse.json({ received: true });
+  }
+  if (event.event === "subscription.disable" || event.event === "subscription.not_renew") {
+    await handleSubscriptionDisable(event);
+    return NextResponse.json({ received: true });
+  }
+
   if (event.event !== "charge.success") {
     return NextResponse.json({ received: true });
   }
 
   const paymentReference = event.data?.reference;
   if (!paymentReference) return NextResponse.json({ error: "Missing payment reference" }, { status: 400 });
+
+  if (paymentReference.startsWith("STOREZNSUB-")) {
+    await handleSubscriptionCharge(event);
+    return NextResponse.json({ received: true });
+  }
 
   const [order] = await db.select().from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });

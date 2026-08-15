@@ -5,6 +5,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, updateProductSchema } from "../../../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../../../lib/storage/index.js";
+import { removeStoreUpload } from "../../../../../../../../lib/storeUploads.js";
 
 async function loadStoreAndProduct(storeId, productId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -75,7 +76,7 @@ export async function PATCH(req, { params }) {
   // fail the save itself.
   if (result.data.images) {
     const removed = (product.images || []).filter((url) => !result.data.images.includes(url));
-    Promise.all(removed.map((url) => deletePublicFile(url))).catch(() => {});
+    Promise.all(removed.map((url) => Promise.all([deletePublicFile(url), removeStoreUpload(url)]))).catch(() => {});
   }
 
   return NextResponse.json({ product: updated });
@@ -115,7 +116,7 @@ export async function DELETE(req, { params }) {
 
   // Best-effort, after the DB delete has committed - a storage hiccup
   // here shouldn't undo (or block reporting) the actual product delete.
-  Promise.all((product.images || []).map((url) => deletePublicFile(url))).catch(() => {});
+  Promise.all((product.images || []).map((url) => Promise.all([deletePublicFile(url), removeStoreUpload(url)]))).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

@@ -13,7 +13,6 @@ import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDate } from "@/lib/format.js";
 
 const EMPTY_FORM = { firstName: "", lastName: "", email: "" };
-const MAX_STAFF = 5;
 
 export default function VendorStaffPage() {
   const { user, token } = useAuth(true);
@@ -22,6 +21,7 @@ export default function VendorStaffPage() {
   const { storeId, loading: storeLoading } = useVendorStore();
 
   const [staff, setStaff] = useState(null);
+  const [maxStaff, setMaxStaff] = useState(1);
   const [form, setForm] = useState(EMPTY_FORM);
   const [inviting, setInviting] = useState(false);
   const [removingId, setRemovingId] = useState(null);
@@ -29,7 +29,10 @@ export default function VendorStaffPage() {
   const load = () => {
     if (!token || !storeId) return;
     apiFetch(`/api/v1/vendor/stores/${storeId}/staff`)
-      .then((data) => setStaff(data.staff))
+      .then((data) => {
+        setStaff(data.staff);
+        setMaxStaff(data.max);
+      })
       .catch((err) => toast.error(err.message || "Failed to load staff"));
   };
 
@@ -78,7 +81,7 @@ export default function VendorStaffPage() {
     }
   };
 
-  const atLimit = (staff?.length ?? 0) >= MAX_STAFF;
+  const atLimit = (staff?.length ?? 0) >= maxStaff;
 
   return (
     <div className="space-y-6">
@@ -143,11 +146,15 @@ export default function VendorStaffPage() {
       <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-slate-700">Invite staff</p>
-          <span className="text-xs text-slate-400">{staff?.length ?? 0} of {MAX_STAFF}</span>
+          <span className="text-xs text-slate-400">{staff?.length ?? 0} of {maxStaff}</span>
         </div>
         {atLimit ? (
           <p className="text-sm text-slate-500">
-            You&apos;ve reached the {MAX_STAFF}-staff limit. Remove someone before inviting another.
+            You&apos;ve reached the {maxStaff}-staff limit{maxStaff <= 1 ? " on the free plan" : ""}. {maxStaff <= 1 ? (
+              <>Upgrade to Storezn+ for more staff seats.</>
+            ) : (
+              "Remove someone before inviting another."
+            )}
           </p>
         ) : (
           <form onSubmit={invite} className="space-y-4">

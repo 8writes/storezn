@@ -4,6 +4,7 @@ import { platformSettings } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, updatePlatformSettingsSchema } from "../../../../../lib/validate.js";
+import { createPlan, updatePlan } from "../../../../../lib/paystack.js";
 
 async function getOrCreateSettings() {
   const [row] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
@@ -32,10 +33,29 @@ export async function PATCH(req) {
   const result = validate(updatePlatformSettingsSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  await getOrCreateSettings();
+  const current = await getOrCreateSettings();
+
+  // Keep the Storezn+ Paystack Plan's price in sync with this single
+  // source of truth - create it once (first time a price is saved),
+  // update its amount on every price change after that. Best-effort: a
+  // Paystack outage shouldn't block saving the rest of the settings.
+  const data = { ...result.data };
+  if ("plusMonthlyPrice" in data) {
+    try {
+      if (!current.paystackPlanCode) {
+        const { planCode } = await createPlan({ name: "Storezn+", amount: data.plusMonthlyPrice });
+        data.paystackPlanCode = planCode;
+      } else {
+        await updatePlan(current.paystackPlanCode, { amount: data.plusMonthlyPrice });
+      }
+    } catch (err) {
+      console.error("Failed to sync Storezn+ Paystack plan:", err);
+    }
+  }
+
   const [updated] = await db
     .update(platformSettings)
-    .set({ ...result.data, updatedAt: new Date() })
+    .set({ ...data, updatedAt: new Date() })
     .where(eq(platformSettings.id, "singleton"))
     .returning();
 

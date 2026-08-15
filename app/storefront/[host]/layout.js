@@ -8,6 +8,8 @@ import { AccountMenu } from "@/components/storefront/AccountMenu.js";
 import { Footer } from "@/components/storefront/Footer.js";
 import { WhatsAppButton } from "@/components/storefront/WhatsAppButton.js";
 import { StoreOfflineNotice } from "@/components/storefront/StoreOfflineNotice.js";
+import { isPlusStore } from "@/lib/storePlan.js";
+import { generateBrandShades } from "@/lib/colorShades.js";
 
 // Uses the vendor's own uploaded logo as the browser tab icon on their
 // storefront (falls back to the platform default when they haven't set
@@ -59,8 +61,14 @@ export default async function StorefrontLayout({ children, params }) {
   if (!store) return notFound();
   if (!isStoreLive(store)) return <StoreOfflineNotice store={store} />;
 
+  // Storezn+ only - a free store's accent color (if any stale value is
+  // present from a lapsed subscription) is ignored, the storefront just
+  // renders the platform default brand-* ramp already in globals.css.
+  const accentStyle =
+    isPlusStore(store) && store.storefrontAccentColor ? generateBrandShades(store.storefrontAccentColor) : undefined;
+
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col" style={accentStyle}>
       <header className="bg-white/90 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">

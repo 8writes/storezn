@@ -5,6 +5,8 @@ import { eq } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../lib/auth.js";
 import { validate, updateVendorStoreSchema } from "../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../lib/storage/index.js";
+import { removeStoreUpload } from "../../../../../../lib/storeUploads.js";
+import { isPlusStore } from "../../../../../../lib/storePlan.js";
 
 // The two upload-backed fields - PATCHing over (or clearing) either one
 // orphans the previous file in storage unless we clean it up here.
@@ -33,8 +35,10 @@ export async function GET(req, { params }) {
   // Flat fee is platform-wide only (no per-store override, unlike the
   // commission rate) - see platformSettings.defaultFlatFee.
   const effectiveFlatFee = settings?.defaultFlatFee ?? 0;
+  const isPlus = isPlusStore(store);
+  const plusMonthlyPrice = settings?.plusMonthlyPrice ?? 5000;
 
-  return NextResponse.json({ store, effectiveCommissionRatePercent, effectiveFlatFee });
+  return NextResponse.json({ store, effectiveCommissionRatePercent, effectiveFlatFee, isPlus, plusMonthlyPrice });
 }
 
 // Self-service fields only (logo, socials, who pays the commission) - the
@@ -57,6 +61,10 @@ export async function PATCH(req, { params }) {
   const result = validate(updateVendorStoreSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
+  if ("storefrontAccentColor" in result.data && !isPlusStore(store)) {
+    return NextResponse.json({ error: "Storefront theme color is a Storezn+ feature" }, { status: 402 });
+  }
+
   // Empty string means "clear this field", distinct from omitting the key
   // entirely (which leaves it untouched).
   const data = {};
@@ -68,7 +76,7 @@ export async function PATCH(req, { params }) {
 
   const stale = REPLACEABLE_IMAGE_FIELDS.filter((field) => field in data && store[field] && store[field] !== data[field]).map((field) => store[field]);
   if (stale.length > 0) {
-    Promise.all(stale.map((url) => deletePublicFile(url))).catch(() => {});
+    Promise.all(stale.map((url) => Promise.all([deletePublicFile(url), removeStoreUpload(url)]))).catch(() => {});
   }
 
   return NextResponse.json({ store: updated });

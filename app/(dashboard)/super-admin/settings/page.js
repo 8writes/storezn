@@ -17,6 +17,11 @@ export default function SuperAdminSettingsPage() {
   const [cap, setCap] = useState("");
   const [flatFee, setFlatFee] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [plusPrice, setPlusPrice] = useState("");
+  const [freeStorageMb, setFreeStorageMb] = useState("");
+  const [plusStorageMb, setPlusStorageMb] = useState("");
+  const [freeStaffLimit, setFreeStaffLimit] = useState("");
+  const [plusStaffLimit, setPlusStaffLimit] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [togglingMaintenance, setTogglingMaintenance] = useState(false);
@@ -29,6 +34,11 @@ export default function SuperAdminSettingsPage() {
         setCap(data.settings.maxCommissionAmount != null ? String(data.settings.maxCommissionAmount) : "");
         setFlatFee(String(data.settings.defaultFlatFee ?? 0));
         setMaintenanceMode(!!data.settings.maintenanceMode);
+        setPlusPrice(String(data.settings.plusMonthlyPrice ?? 5000));
+        setFreeStorageMb(String(data.settings.freeStorageMb ?? 500));
+        setPlusStorageMb(String(data.settings.plusStorageMb ?? 5000));
+        setFreeStaffLimit(String(data.settings.freeStaffLimit ?? 1));
+        setPlusStaffLimit(String(data.settings.plusStaffLimit ?? 10));
       })
       .catch((err) => toast.error(err.message || "Failed to load settings"))
       .finally(() => setLoading(false));
@@ -44,6 +54,11 @@ export default function SuperAdminSettingsPage() {
           defaultCommissionRatePercent: Number(rate),
           maxCommissionAmount: cap.trim() === "" ? null : Number(cap),
           defaultFlatFee: flatFee.trim() === "" ? 0 : Number(flatFee),
+          plusMonthlyPrice: Number(plusPrice),
+          freeStorageMb: Number(freeStorageMb),
+          plusStorageMb: Number(plusStorageMb),
+          freeStaffLimit: Number(freeStaffLimit),
+          plusStaffLimit: Number(plusStaffLimit),
         }),
       });
       toast.success("Platform settings saved");
@@ -137,6 +152,25 @@ export default function SuperAdminSettingsPage() {
             </p>
           </div>
           <Button onClick={save} loading={saving}>Save</Button>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Storezn+</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Pricing and limits for the Storezn+ paid tier (offline orders, storefront theme color, higher staff and storage limits).
+              </p>
+            </div>
+            <Input label="Storezn+ monthly price (₦)" type="number" min="0" step="1" value={plusPrice} onChange={(e) => setPlusPrice(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Free plan storage (MB)" type="number" min="0" step="1" value={freeStorageMb} onChange={(e) => setFreeStorageMb(e.target.value)} />
+              <Input label="Storezn+ storage (MB)" type="number" min="0" step="1" value={plusStorageMb} onChange={(e) => setPlusStorageMb(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Free plan staff limit" type="number" min="0" step="1" value={freeStaffLimit} onChange={(e) => setFreeStaffLimit(e.target.value)} />
+              <Input label="Storezn+ staff limit" type="number" min="0" step="1" value={plusStaffLimit} onChange={(e) => setPlusStaffLimit(e.target.value)} />
+            </div>
+            <Button onClick={save} loading={saving}>Save</Button>
           </div>
         </>
       )}

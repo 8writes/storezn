@@ -5,6 +5,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, createOfflineOrderSchema } from "../../../../../../../../lib/validate.js";
 import { generateOrderNumber, computeOrderTotals } from "../../../../../../../../lib/orders.js";
+import { isPlusStore } from "../../../../../../../../lib/storePlan.js";
 import { sendMail } from "../../../../../../../../lib/email/sendMail.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
 
@@ -26,6 +27,9 @@ export async function POST(req, { params }) {
   const store = await loadStore(storeId);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isPlusStore(store)) {
+    return NextResponse.json({ error: "Offline orders are a Storezn+ feature - upgrade to record sales made outside the storefront" }, { status: 402 });
+  }
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
