@@ -90,12 +90,22 @@ export default function OrderConfirmationPage() {
       </div>
 
       {order.shippingAddress && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
-          <p className="font-semibold text-slate-700 mb-1">Shipping to</p>
-          <p>{order.shippingAddress.fullName}</p>
-          <p>{order.shippingAddress.line1}{order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}</p>
-          <p>{order.shippingAddress.city}, {order.shippingAddress.state}</p>
-          <p>{order.shippingAddress.phone}</p>
+        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700 space-y-3">
+          <div>
+            <p className="font-semibold text-slate-700 mb-1">Shipping to</p>
+            <p>{order.shippingAddress.fullName}</p>
+            <p>{order.shippingAddress.line1}{order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}</p>
+            <p>{order.shippingAddress.city}, {order.shippingAddress.state}</p>
+            <p>{order.shippingAddress.phone}</p>
+          </div>
+          <div className="pt-3 border-t border-slate-100">
+            <p className="font-semibold text-slate-700 mb-1">Delivery fee</p>
+            {order.shippingFeeTBD && !order.shippingFeeConfirmedAt ? (
+              <p className="text-slate-500">To be determined - the seller will confirm your delivery fee directly.</p>
+            ) : (
+              <p>{formatCurrency(order.shippingFee)}{order.shippingFeeTBD ? " (paid separately, not included in your total above)" : ""}</p>
+            )}
+          </div>
         </div>
       )}
     </div>

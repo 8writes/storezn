@@ -12,7 +12,7 @@ import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
 
-const EMPTY_FORM = { defaultShippingFee: "0" };
+const EMPTY_FORM = { defaultShippingFee: "0", defaultShippingIsTBD: true };
 const EMPTY_RATE_FORM = { state: "", city: "", fee: "" };
 
 export default function VendorShippingPage() {
@@ -33,7 +33,12 @@ export default function VendorShippingPage() {
     if (!token || !storeId) return;
     setLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}`)
-      .then((data) => setForm({ defaultShippingFee: String(data.store.defaultShippingFee ?? 0) }))
+      .then((data) =>
+        setForm({
+          defaultShippingFee: String(data.store.defaultShippingFee ?? 0),
+          defaultShippingIsTBD: data.store.defaultShippingIsTBD ?? true,
+        }),
+      )
       .catch((err) => toast.error(err.message || "Failed to load store"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,17 +71,50 @@ export default function VendorShippingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
             <div>
-              <label className="text-sm font-medium text-slate-700">Default shipping fee</label>
+              <label className="text-sm font-medium text-slate-700">Default delivery fee</label>
               <p className="text-xs text-slate-500 mt-0.5">
-                Charged on any order that needs shipping, unless a more specific rate below matches the delivery state/city.
+                Used on any order that needs shipping, unless a more specific rate below matches the delivery state/city.
               </p>
             </div>
-            <PriceInput
-              label="Fee"
-              className="max-w-xs"
-              value={form.defaultShippingFee}
-              onChange={(v) => setForm({ defaultShippingFee: v })}
-            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, defaultShippingIsTBD: true }))}
+                className={`text-left rounded-sm border p-3 cursor-pointer transition-colors ${
+                  form.defaultShippingIsTBD ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <p className="text-sm font-semibold text-slate-900">To be determined</p>
+                <p className="text-xs text-slate-500 mt-0.5">Recommended</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, defaultShippingIsTBD: false }))}
+                className={`text-left rounded-sm border p-3 cursor-pointer transition-colors ${
+                  !form.defaultShippingIsTBD ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <p className="text-sm font-semibold text-slate-900">Fixed amount</p>
+                <p className="text-xs text-slate-500 mt-0.5">Same fee every time</p>
+              </button>
+            </div>
+
+            {form.defaultShippingIsTBD ? (
+              <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-sm p-3">
+                Buyers won&apos;t be charged shipping at checkout for orders that fall under this default - they&apos;ll be told
+                you confirm delivery pricing after they order. You&apos;ll record the real delivery fee on each order once you
+                know it (for your own records).
+              </p>
+            ) : (
+              <PriceInput
+                label="Fee"
+                className="max-w-xs"
+                value={form.defaultShippingFee}
+                onChange={(v) => setForm((f) => ({ ...f, defaultShippingFee: v }))}
+              />
+            )}
+
             <Button type="submit" loading={saving} fullWidth>Save</Button>
           </form>
 
@@ -145,7 +183,10 @@ function ShippingRatesManager({ storeId, apiFetch, token }) {
     <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-slate-700">Shipping rates by state/city</p>
-        <p className="text-xs text-slate-500">Leave city blank for a rate that covers the whole state.</p>
+        <p className="text-xs text-slate-500">
+          Add a fixed rate for areas you already know the cost for. Everywhere else uses your default above. Leave city
+          blank for a rate that covers the whole state.
+        </p>
       </div>
 
       {!loading && rates.length > 0 && (

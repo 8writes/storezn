@@ -48,11 +48,13 @@ export async function GET(req) {
   const state = url.searchParams.get("state");
   const city = url.searchParams.get("city");
   const needsShipping = items.some((i) => i.product.productType === "physical");
-  const shippingFee = needsShipping && state ? await resolveShippingFee(store, { state, city }) : 0;
+  const { fee: resolvedShippingFee, isTBD: shippingFeeTBD } =
+    needsShipping && state ? await resolveShippingFee(store, { state, city }) : { fee: 0, isTBD: false };
+  const shippingFee = shippingFeeTBD ? 0 : resolvedShippingFee;
 
   const fees = await computeDisplayFees(store, totals.subtotal, shippingFee);
 
-  return NextResponse.json({ items, ...totals, shippingFee, ...fees });
+  return NextResponse.json({ items, ...totals, shippingFee, shippingFeeTBD, ...fees });
 }
 
 // Live preview of what checkout will actually charge/split, so the cart

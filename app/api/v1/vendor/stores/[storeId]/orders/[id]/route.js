@@ -49,7 +49,19 @@ export async function PATCH(req, { params }) {
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   const result = validate(updateOrderStatusSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  const { status, refundDecision, reviewNote } = result.data;
+  const { status, refundDecision, reviewNote, shippingFee } = result.data;
+
+  // Order-level shipping fee still needs recording, even if this request
+  // is purely a "set the fee" call with no status change alongside it.
+  const shippingFeeUnconfirmed = order.shippingFeeTBD && !order.shippingFeeConfirmedAt;
+  if (shippingFee != null && shippingFeeUnconfirmed) {
+    await db
+      .update(orders)
+      .set({ shippingFee, shippingFeeConfirmedAt: new Date(), updatedAt: new Date() })
+      .where(eq(orders.id, id));
+    order.shippingFee = shippingFee;
+    order.shippingFeeConfirmedAt = new Date();
+  }
 
   if (refundDecision) {
     const [refundRequest] = await db.select().from(refundRequests).where(eq(refundRequests.orderId, id)).limit(1);
@@ -75,12 +87,23 @@ export async function PATCH(req, { params }) {
     if (!allowed.includes(status)) {
       return NextResponse.json({ error: `Cannot move an order from "${order.status}" to "${status}"` }, { status: 400 });
     }
+    if (order.shippingFeeTBD && !order.shippingFeeConfirmedAt) {
+      return NextResponse.json(
+        { error: "Set the actual delivery fee before updating this order's status" },
+        { status: 400 },
+      );
+    }
     const data = { status, updatedAt: new Date() };
     // Anchor for the store's return window (see stores.returnWindowDays
     // and POST /api/v1/customer/orders/[id]/refund-request) - counts from
     // when the customer actually received the item, not from payment.
     if (status === "delivered") data.deliveredAt = new Date();
     const [updated] = await db.update(orders).set(data).where(eq(orders.id, id)).returning();
+    return NextResponse.json({ order: updated });
+  }
+
+  if (shippingFee != null && shippingFeeUnconfirmed) {
+    const [updated] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
     return NextResponse.json({ order: updated });
   }
 

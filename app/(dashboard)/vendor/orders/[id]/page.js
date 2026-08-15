@@ -12,6 +12,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { CopyButton } from "@/components/ui/CopyButton.js";
 import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
+import { PriceInput } from "@/components/ui/PriceInput.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { downloadOrderPdf } from "@/lib/orderPdf.js";
 
@@ -33,6 +34,8 @@ export default function VendorOrderDetailPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [activeItem, setActiveItem] = useState(null);
+  const [shippingFeeInput, setShippingFeeInput] = useState("");
+  const [savingShippingFee, setSavingShippingFee] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -60,6 +63,23 @@ export default function VendorOrderDetailPage({ params }) {
       toast.error(err.message || "Could not update order");
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleSaveShippingFee = async () => {
+    if (shippingFeeInput === "") return;
+    setSavingShippingFee(true);
+    try {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ shippingFee: Number(shippingFeeInput) }),
+      });
+      toast.success("Delivery fee saved");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Could not save delivery fee");
+    } finally {
+      setSavingShippingFee(false);
     }
   };
 
@@ -215,6 +235,31 @@ export default function VendorOrderDetailPage({ params }) {
         </div>
       )}
 
+      {order.shippingAddress && (
+        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+          <p className="font-semibold text-slate-700 text-sm">Delivery fee</p>
+          {!order.shippingFeeTBD ? (
+            <p className="text-sm text-slate-700">{formatCurrency(order.shippingFee)}</p>
+          ) : order.shippingFeeConfirmedAt ? (
+            <p className="text-sm text-slate-700 flex items-center gap-2">
+              {formatCurrency(order.shippingFee)}
+              <Badge color="green">Confirmed</Badge>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500">
+                Delivery for this order is to be determined - enter what you actually charged before you can update its
+                status.
+              </p>
+              <div className="flex items-end gap-2">
+                <PriceInput label="Fee" className="max-w-40" value={shippingFeeInput} onChange={setShippingFeeInput} />
+                <Button size="sm" onClick={handleSaveShippingFee} loading={savingShippingFee}>Save</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {refundRequest?.status === "pending" && (
         <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
           <p className="text-sm font-semibold text-slate-700">Refund requested</p>
@@ -227,13 +272,17 @@ export default function VendorOrderDetailPage({ params }) {
       )}
 
       {(NEXT_ACTIONS[order.status] || []).length > 0 && (
-        <div className="flex justify-end gap-3">
-          {NEXT_ACTIONS[order.status].map((action) => (
-            <Button key={action.status} variant={action.variant || "primary"} onClick={() => handleStatusChange(action.status, action.label)} loading={updating}>
-              {action.label}
-            </Button>
-          ))}
-        </div>
+        order.shippingFeeTBD && !order.shippingFeeConfirmedAt ? (
+          <p className="text-xs text-slate-500 text-right">Enter the delivery fee above before updating this order's status.</p>
+        ) : (
+          <div className="flex justify-end gap-3">
+            {NEXT_ACTIONS[order.status].map((action) => (
+              <Button key={action.status} variant={action.variant || "primary"} onClick={() => handleStatusChange(action.status, action.label)} loading={updating}>
+                {action.label}
+              </Button>
+            ))}
+          </div>
+        )
       )}
 
       <OrderItemModal

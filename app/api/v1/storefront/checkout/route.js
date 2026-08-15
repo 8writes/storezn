@@ -77,7 +77,10 @@ export async function POST(req) {
   // not a platform-wide setting.
   const feeChargedToCustomer = store.feeChargedToCustomer ?? false;
   const { subtotal } = computeCartTotals(items);
-  const shippingFee = needsShipping ? await resolveShippingFee(store, shippingAddress) : 0;
+  const { fee: resolvedShippingFee, isTBD: shippingFeeTBD } = needsShipping
+    ? await resolveShippingFee(store, shippingAddress)
+    : { fee: 0, isTBD: false };
+  const shippingFee = shippingFeeTBD ? 0 : resolvedShippingFee;
   const { totalAmount, commissionAmount, flatFeeAmount, vendorPayoutAmount } = computeOrderTotals({
     subtotal,
     shippingFee,
@@ -107,6 +110,7 @@ export async function POST(req) {
         guestEmail: user ? null : guestEmail,
         subtotal,
         shippingFee,
+        shippingFeeTBD,
         totalAmount,
         commissionRatePercent,
         commissionAmount,

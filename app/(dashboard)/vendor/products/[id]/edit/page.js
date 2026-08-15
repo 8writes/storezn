@@ -300,7 +300,7 @@ export default function VendorProductEditPage({ params }) {
                 <span className="text-[11px] font-medium">Add photos</span>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/*"
                   multiple
                   onChange={handleImageUpload}
                   className="hidden"

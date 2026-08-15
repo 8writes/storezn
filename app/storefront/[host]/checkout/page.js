@@ -173,8 +173,19 @@ export default function CheckoutPage() {
           {needsShipping && (
             <div className="flex justify-between pt-2 border-t border-slate-100 text-sm text-slate-700">
               <span>Shipping</span>
-              <span>{effectiveState ? formatCurrency(cart.shippingFee || 0) : "Enter your address"}</span>
+              <span>
+                {!effectiveState
+                  ? "Enter your address"
+                  : cart.shippingFeeTBD
+                  ? "To be determined"
+                  : formatCurrency(cart.shippingFee || 0)}
+              </span>
             </div>
+          )}
+          {needsShipping && effectiveState && cart.shippingFeeTBD && (
+            <p className="text-xs text-slate-500 -mt-1">
+              This seller confirms delivery pricing after you order. You won&apos;t be charged for shipping now, it&apos;s arranged directly with the seller.
+            </p>
           )}
           {cart.feeChargedToCustomer && cart.platformFee > 0 && (
             <div className="flex justify-between text-sm text-slate-700">
