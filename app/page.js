@@ -26,12 +26,14 @@ const COMPARISON = [
 ];
 
 const PERKS = [
-  { icon: Store, title: "Your own store", text: "Live in minutes, with a custom domain if you want one." },
+  { icon: Store, title: "Your own store", text: "Live in minutes, on your own storezn.com address." },
   { icon: Wallet, title: "Direct payouts", text: "Sales settle straight to your bank account, automatically." },
   { icon: Truck, title: "Shipping, your way", text: "Set rates by state or city, or one flat rate for everything." },
   { icon: LayoutDashboard, title: "A dashboard that stays out of your way", text: "Orders, customers, and products - no clutter." },
   { icon: Percent, title: "You choose who pays the fee", text: "Absorb it yourself, or pass it to your customers at checkout." },
-  { icon: Package, title: "Bulk product upload", text: "Import your whole catalog at once with a CSV template, no adding items one by one." },
+  { icon: Package, title: "Stock kept in check", text: "Inventory updates automatically as orders come in, so you always know what's left." },
+  { icon: TrendingUp, title: "See what's selling", text: "Sales and order analytics, right there in your dashboard." },
+  { icon: ShoppingBag, title: "Bulk product upload", text: "Import your whole catalog at once with a CSV template, no adding items one by one." },
 ];
 
 const STEPS = [
@@ -228,8 +230,8 @@ export default async function Home() {
       <section className="max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center w-full">
         <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Free to start. Upgrade when you outgrow it.</h2>
         <p className="mt-3 text-slate-500 max-w-md mx-auto">
-          Every store gets the essentials for free. Storezn+ adds offline order recording, a custom storefront color, and
-          more staff seats and storage.
+          Every store gets the essentials for free. Storezn+ adds offline order recording, your own custom domain, a
+          custom storefront color, and more staff seats and storage.
         </p>
         <Link
           href="/pricing"

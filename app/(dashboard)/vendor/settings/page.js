@@ -58,6 +58,7 @@ export default function VendorSettingsPage() {
   const [storageUsedBytes, setStorageUsedBytes] = useState(0);
   const [storageLimitBytes, setStorageLimitBytes] = useState(0);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
+  const [isPlus, setIsPlus] = useState(false);
 
   useEffect(() => {
     // Also gated on token, not just storeId - see VendorStoreContext.js:
@@ -80,6 +81,7 @@ export default function VendorSettingsPage() {
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
         setFlatFee(data.effectiveFlatFee || 0);
+        setIsPlus(!!data.isPlus);
         setStorageUsedBytes(data.storageUsedBytes || 0);
         setStorageLimitBytes(data.storageLimitBytes || 0);
         setStore(data.store);
@@ -217,6 +219,7 @@ export default function VendorSettingsPage() {
 
         <CustomDomainSettings
           store={store}
+          isPlus={isPlus}
           apiFetch={apiFetch}
           storeId={storeId}
           onUpdated={(updated) => {

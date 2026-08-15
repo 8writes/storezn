@@ -4,6 +4,7 @@ import { stores } from "../../../../../../../lib/db/schema.js";
 import { eq, and, ne } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, setCustomDomainSchema } from "../../../../../../../lib/validate.js";
+import { isPlusStore } from "../../../../../../../lib/storePlan.js";
 
 // storezn.com itself and any *.storezn.com subdomain are already how
 // every store is reachable by default (see lib/resolveStore.js) - a
@@ -47,6 +48,10 @@ export async function POST(req, { params }) {
       .where(eq(stores.id, storeId))
       .returning();
     return NextResponse.json({ store: updated });
+  }
+
+  if (!isPlusStore(store)) {
+    return NextResponse.json({ error: "Custom domains are a Storezn+ feature" }, { status: 402 });
   }
 
   if (isReservedDomain(customDomain)) {

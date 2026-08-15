@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Globe, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/Input.js";
@@ -17,12 +18,32 @@ const STATUS_BADGE = {
 // storage credentials elsewhere in this app's env.
 const SERVER_IP = process.env.NEXT_PUBLIC_SERVER_IP;
 
-export function CustomDomainSettings({ store, apiFetch, storeId, onUpdated }) {
+export function CustomDomainSettings({ store, isPlus, apiFetch, storeId, onUpdated }) {
   const [value, setValue] = useState(store.customDomain || "");
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
   const badge = STATUS_BADGE[store.domainStatus];
+
+  // A store that already had a domain linked before this became a Plus
+  // feature (or downgraded since) keeps seeing its own status/verify UI
+  // below - only the "link a new domain" form is what's actually gated.
+  if (!isPlus && !store.customDomain) {
+    return (
+      <div className="bg-white border border-dashed border-slate-300 rounded-sm p-5 max-w-md space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-700">Custom domain</p>
+          <Badge color="slate">Storezn+</Badge>
+        </div>
+        <p className="text-xs text-slate-500">
+          Use your own domain instead of {`{slug}`}.storezn.com - part of Storezn+.
+        </p>
+        <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
+          Upgrade to Storezn+
+        </Link>
+      </div>
+    );
+  }
 
   const save = async (e) => {
     e.preventDefault();
