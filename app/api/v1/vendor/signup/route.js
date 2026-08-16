@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "../../../../../lib/db/index.js";
-import { stores, users } from "../../../../../lib/db/schema.js";
+import { stores, users, branches } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { validate, vendorSignupSchema } from "../../../../../lib/validate.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
@@ -59,6 +59,10 @@ export async function POST(req) {
       })
       .returning();
     const [store] = await tx.insert(stores).values({ ownerId: vendorUser.id, ...storeData }).returning();
+    // Every store needs at least one branch for reservation to resolve
+    // against (see resolveFulfillingBranch in lib/inventory.js) - this
+    // is the one every single-location vendor never has to think about.
+    await tx.insert(branches).values({ storeId: store.id, name: store.name, isDefault: true });
     return { store, vendorUser };
   });
 
