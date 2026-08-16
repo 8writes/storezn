@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { stores, orders } from "../../../../../lib/db/schema.js";
+import { stores, orders, storeSubscriptionTransactions } from "../../../../../lib/db/schema.js";
 import { sql, desc } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 
@@ -48,6 +48,20 @@ export async function GET(req) {
     order by d
   `);
 
+  // Storezn+ - total revenue ever collected (initial + renewal charges,
+  // see the webhook's recordSubscriptionTransaction) and how many stores
+  // are Plus right now. Not "MRR" - plan is self-healing (see
+  // lib/storePlan.js's getEffectivePlan), so counting stores.plan = 'plus'
+  // directly already excludes anyone whose subscription has actually
+  // lapsed.
+  const [subscriptionRow] = await db
+    .select({ totalRevenue: sql`coalesce(sum(${storeSubscriptionTransactions.amount}), 0)`.mapWith(Number) })
+    .from(storeSubscriptionTransactions);
+  const [plusStoreRow] = await db
+    .select({ count: sql`count(*)`.mapWith(Number) })
+    .from(stores)
+    .where(sql`${stores.plan} = 'plus'`);
+
   // Top 5 stores by paid GMV, all-time - a quick "who's actually driving
   // the platform" glance next to the trend chart.
   const topStores = await db
@@ -65,6 +79,7 @@ export async function GET(req) {
   return NextResponse.json({
     stores: { total: storeRow?.total || 0, active: storeRow?.active || 0, inactive: (storeRow?.total || 0) - (storeRow?.active || 0) },
     revenue: { totalGMV: revenueRow?.totalGMV || 0, totalCommission: revenueRow?.totalCommission || 0 },
+    subscriptions: { totalRevenue: subscriptionRow?.totalRevenue || 0, plusStores: plusStoreRow?.count || 0 },
     daily: dailyRows.map((r) => ({ day: r.day, gmv: r.gmv, commission: r.commission, orderCount: r.order_count })),
     topStores: topStores.filter((s) => s.gmv > 0),
   });
