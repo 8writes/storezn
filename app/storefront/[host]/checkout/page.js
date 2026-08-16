@@ -93,7 +93,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (loading || authLoading) return <p className="text-center text-slate-700 py-20">Loading…</p>;
+  if (loading || authLoading) return <p className="text-center text-slate-700 py-20">Loading checkout…</p>;
 
   if (!cart || cart.items.length === 0) {
     return (
