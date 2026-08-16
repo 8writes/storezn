@@ -81,7 +81,7 @@ export default function CartPage() {
           <div key={item.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 py-5">
             <div className="h-20 w-20 shrink-0 bg-slate-100 overflow-hidden flex items-center justify-center">
               {item.product.images?.[0] ? (
-                <img src={item.product.images[0]} alt="" className="w-full h-full object-contain" />
+                <img src={item.product.images[0]} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-slate-300 text-xs">No image</span>
               )}

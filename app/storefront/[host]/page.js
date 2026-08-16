@@ -58,7 +58,7 @@ export default async function StorefrontHomePage({ params, searchParams }) {
             const effectivePrice = getEffectivePrice(p.price, p.discountPercent);
             return (
               <Link key={p.id} href={`/products/${p.slug}`} className="group block">
-                <div className="relative aspect-square bg-slate-100 overflow-hidden">
+                <div className="relative aspect-4/5 bg-slate-100 overflow-hidden">
                   {p.discountPercent > 0 && (
                     <span className="absolute top-2 left-2 z-10 bg-red-600 text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-sm">
                       -{p.discountPercent}%
@@ -68,7 +68,7 @@ export default async function StorefrontHomePage({ params, searchParams }) {
                     <img
                       src={p.images[0]}
                       alt={p.name}
-                      className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
                     <span className="flex h-full items-center justify-center text-slate-300 text-xs">No image</span>
