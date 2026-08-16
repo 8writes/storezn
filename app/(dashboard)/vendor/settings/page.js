@@ -20,7 +20,9 @@ import { formatCurrency, formatBytes } from "@/lib/format.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", description: "" };
+const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", description: "", storefrontAccentColor: "" };
+const DEFAULT_ACCENT = "#14915b";
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 // Two separate uploads with different shapes: the navbar logo is a wide
 // rectangle (vendors' real logos are rarely square), the favicon is a
@@ -78,6 +80,7 @@ export default function VendorSettingsPage() {
           returnWindowDays: String(data.store.returnWindowDays ?? 7),
           address: data.store.address || "",
           description: data.store.description || "",
+          storefrontAccentColor: data.store.storefrontAccentColor || "",
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
         setFlatFee(data.effectiveFlatFee || 0);
@@ -161,6 +164,10 @@ export default function VendorSettingsPage() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (form.storefrontAccentColor && !HEX_RE.test(form.storefrontAccentColor)) {
+      toast.error("Enter a valid hex color, e.g. #7c3aed");
+      return;
+    }
     setSaving(true);
     try {
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify(form) });
@@ -260,21 +267,57 @@ export default function VendorSettingsPage() {
             </div>
           )}
 
-          <div className="bg-white border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
-            <div className="flex items-center justify-between gap-3">
+          {isPlus ? (
+            <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <Palette size={16} className="text-slate-400" />
                 <SectionLabel>Storefront theme</SectionLabel>
               </div>
-              <Badge color="slate">Storezn+</Badge>
+              <p className="text-xs text-slate-500">Sets the accent color for your storefront&apos;s header, buttons, and prices.</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={HEX_RE.test(form.storefrontAccentColor) ? form.storefrontAccentColor : DEFAULT_ACCENT}
+                  onChange={(e) => setForm((f) => ({ ...f, storefrontAccentColor: e.target.value }))}
+                  className="h-10 w-14 rounded-sm border border-slate-200 cursor-pointer shrink-0"
+                />
+                <Input
+                  placeholder={DEFAULT_ACCENT}
+                  value={form.storefrontAccentColor}
+                  onChange={(e) => setForm((f) => ({ ...f, storefrontAccentColor: e.target.value }))}
+                  className="flex-1"
+                />
+                {form.storefrontAccentColor && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, storefrontAccentColor: "" }))}
+                    className="text-xs text-slate-500 hover:text-slate-700 shrink-0 cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              {form.storefrontAccentColor && !HEX_RE.test(form.storefrontAccentColor) && (
+                <p className="text-xs text-red-600">Enter a valid hex color, e.g. #7c3aed</p>
+              )}
             </div>
-            <p className="text-sm text-slate-500">
-              Pick a custom accent color for your storefront&apos;s header, buttons, and prices.
-            </p>
-            <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
-              Upgrade to Storezn+
-            </Link>
-          </div>
+          ) : (
+            <div className="bg-white border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Palette size={16} className="text-slate-400" />
+                  <SectionLabel>Storefront theme</SectionLabel>
+                </div>
+                <Badge color="slate">Storezn+</Badge>
+              </div>
+              <p className="text-sm text-slate-500">
+                Pick a custom accent color for your storefront&apos;s header, buttons, and prices.
+              </p>
+              <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
+                Upgrade to Storezn+
+              </Link>
+            </div>
+          )}
 
           <div className="lg:col-span-2 bg-white border border-slate-200 rounded-sm p-5 space-y-4">
             <SectionLabel>Branding</SectionLabel>

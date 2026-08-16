@@ -54,6 +54,7 @@ export default function VendorNewProductPage() {
   const [categorySlugTouched, setCategorySlugTouched] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
+  const [branchCount, setBranchCount] = useState(1);
 
   useEffect(() => {
     if (!token) return;
@@ -71,6 +72,15 @@ export default function VendorNewProductPage() {
     if (!storeId) return;
     apiFetch(`/api/v1/vendor/stores/${storeId}/categories`)
       .then((data) => setCategories(data.categories))
+      .catch(() => {});
+    // A brand-new product only ever starts stocked at the store's
+    // default branch (see seedBranchStockForNewItem in lib/inventory.js)
+    // - once there's more than one branch, the plain Stock field below
+    // would silently mean "the default branch only", which is confusing
+    // enough to just disable in favor of allocating stock per branch
+    // after creating the product.
+    apiFetch(`/api/v1/vendor/stores/${storeId}`)
+      .then((data) => setBranchCount(data.branchCount || 1))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId]);
@@ -253,7 +263,17 @@ export default function VendorNewProductPage() {
                 />
                 <Input label="SKU" placeholder="e.g. RTB-001" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
                 {form.productType === "physical" && (
-                  <Input label="Stock" type="number" min="0" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} />
+                  <div>
+                    <Input
+                      label="Stock"
+                      type="number"
+                      min="0"
+                      value={form.stock}
+                      onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+                      disabled={branchCount > 1}
+                    />
+                    {branchCount > 1 && <p className="text-xs text-slate-400 mt-1">Set per branch after creating.</p>}
+                  </div>
                 )}
                 <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />
                 <div>

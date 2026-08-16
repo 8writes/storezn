@@ -8,14 +8,17 @@ import { Input } from "@/components/ui/Input.js";
 // which routes straight to the default branch server-side (see PATCH
 // .../products/[id]), so this panel would just be a redundant second way
 // to edit the same one number.
-export function BranchStockPanel({ apiFetch, storeId, productId }) {
+export function BranchStockPanel({ apiFetch, storeId, productId, onTotalBranches }) {
   const [data, setData] = useState(null);
   const [variants, setVariants] = useState([]);
   const [saving, setSaving] = useState(null);
 
   const load = () => {
     apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/branch-stock`)
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        onTotalBranches?.(d.totalBranches);
+      })
       .catch((err) => toast.error(err.message || "Failed to load branch stock"));
   };
 

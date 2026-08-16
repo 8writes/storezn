@@ -57,6 +57,12 @@ export default function VendorProductEditPage({ params }) {
   // inside a setState updater (which React may invoke more than once).
   const imagesRef = useRef([]);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
+  // Reported up by BranchStockPanel once it knows the store's real branch
+  // count (see its own totalBranches, which stays store-wide even for a
+  // branch-scoped staff member whose own view is filtered to one row) -
+  // >1 means the plain Stock field below is redundant/ambiguous (which
+  // branch would it even mean?), so it's disabled in favor of the panel.
+  const [branchCount, setBranchCount] = useState(1);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -177,7 +183,12 @@ export default function VendorProductEditPage({ params }) {
         images: form.images,
         isActive: form.isActive === true || form.isActive === "true",
       };
-      if (form.stock !== "") payload.stock = Number(form.stock);
+      // Disabled (and left out of the payload) once there's more than one
+      // branch - form.stock is the store-wide aggregate in that case, not
+      // any one branch's number, so submitting it would silently
+      // overwrite the default branch with a total that was never really
+      // "its" stock. See Stock by branch instead.
+      if (form.stock !== "" && branchCount <= 1) payload.stock = Number(form.stock);
       await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
       toast.success("Product updated");
       router.push(`/vendor/products/${id}?storeId=${storeId}`);
@@ -236,7 +247,17 @@ export default function VendorProductEditPage({ params }) {
           {form.productType === "physical" && (
             <>
               <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
-              <Input label="Stock" type="number" min="0" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} />
+              <div>
+                <Input
+                  label="Stock"
+                  type="number"
+                  min="0"
+                  value={form.stock}
+                  onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+                  disabled={branchCount > 1}
+                />
+                {branchCount > 1 && <p className="text-xs text-slate-400 mt-1">Use Stock by branch below instead.</p>}
+              </div>
             </>
           )}
           <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />
@@ -321,10 +342,11 @@ export default function VendorProductEditPage({ params }) {
         <Button type="submit" loading={saving} disabled={pendingUploads.length > 0} fullWidth>Save changes</Button>
       </form>
 
-      <VariantsManager storeId={storeId} productId={id} apiFetch={apiFetch} />
       </div>
 
-      <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} />
+      <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} onTotalBranches={setBranchCount} />
+
+      <VariantsManager storeId={storeId} productId={id} apiFetch={apiFetch} branchCount={branchCount} />
 
       <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
     </div>
@@ -337,7 +359,7 @@ const EMPTY_VARIANT_FORM = { optionName: "", optionValue: "", sku: "", price: ""
 // variants - once any variant exists, the storefront requires picking
 // one before add-to-cart, and each variant's own price/stock is what
 // actually gets sold (see lib/db/schema.js).
-function VariantsManager({ storeId, productId, apiFetch }) {
+function VariantsManager({ storeId, productId, apiFetch, branchCount }) {
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_VARIANT_FORM);
@@ -364,7 +386,7 @@ function VariantsManager({ storeId, productId, apiFetch }) {
       const payload = { options: { [form.optionName]: form.optionValue } };
       if (form.sku) payload.sku = form.sku;
       if (form.price !== "") payload.price = Number(form.price);
-      if (form.stock !== "") payload.stock = Number(form.stock);
+      if (form.stock !== "" && branchCount <= 1) payload.stock = Number(form.stock);
       await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`, { method: "POST", body: JSON.stringify(payload) });
       setForm(EMPTY_VARIANT_FORM);
       toast.success("Variant added");
@@ -473,6 +495,8 @@ function VariantsManager({ storeId, productId, apiFetch }) {
           min="0"
           value={form.stock}
           onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+          disabled={branchCount > 1}
+          placeholder={branchCount > 1 ? "Set per branch after adding" : undefined}
         />
         <Button
           type="submit"
