@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { orders, orderItems, products, productVariants, carts, cartItems, users, stores, storeSubscriptionTransactions } from "../../../../../lib/db/schema.js";
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { verifyWebhookSignature, verifyTransaction } from "../../../../../lib/paystack.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { formatCurrency } from "../../../../../lib/format.js";
@@ -178,38 +178,29 @@ export async function POST(req) {
       .set({ paymentStatus: "paid", status: "processing", paidAt: new Date(), updatedAt: new Date() })
       .where(eq(orders.id, order.id));
 
-    // Decremented via a raw SQL expression (not a read-then-write) to
-    // stay correct under concurrent orders for the same product/variant.
-    // Only touches rows that actually track stock (physical, non-null
-    // stock) - a variant's own stock is authoritative when one was
-    // ordered, since the parent product's stock is ignored once it has
-    // variants. .returning() gives back the post-decrement stock, which
-    // is enough (added to this item's own quantity) to derive the
-    // pre-decrement value too, without a separate read - used below to
-    // detect crossing into low stock without a second query.
+    // Stock is no longer decremented here - checkout already reserved it
+    // atomically at order-creation time (see reserveStock in
+    // lib/inventory.js, called from checkout/route.js), so decrementing
+    // again on payment confirmation would double-count. This just reads
+    // the current (already-decremented) stock to detect crossing under
+    // LOW_STOCK_THRESHOLD for the push notification below - "before" is
+    // reconstructed as current + this item's own quantity, same math as
+    // when this used to read it off the decrement's own return value.
     for (const item of items) {
       if (item.variantId) {
-        const [updated] = await tx
-          .update(productVariants)
-          .set({ stock: sql`${productVariants.stock} - ${item.quantity}` })
-          .where(and(eq(productVariants.id, item.variantId), isNotNull(productVariants.stock)))
-          .returning({ stock: productVariants.stock });
-        if (updated) {
-          const before = updated.stock + item.quantity;
-          if (before > LOW_STOCK_THRESHOLD && updated.stock <= LOW_STOCK_THRESHOLD) {
-            lowStockNow.push({ name: item.productName, variantLabel: item.variantLabel, stock: updated.stock });
+        const [row] = await tx.select({ stock: productVariants.stock }).from(productVariants).where(eq(productVariants.id, item.variantId)).limit(1);
+        if (row?.stock != null) {
+          const before = row.stock + item.quantity;
+          if (before > LOW_STOCK_THRESHOLD && row.stock <= LOW_STOCK_THRESHOLD) {
+            lowStockNow.push({ name: item.productName, variantLabel: item.variantLabel, stock: row.stock });
           }
         }
       } else {
-        const [updated] = await tx
-          .update(products)
-          .set({ stock: sql`${products.stock} - ${item.quantity}` })
-          .where(and(eq(products.id, item.productId), isNotNull(products.stock)))
-          .returning({ stock: products.stock });
-        if (updated) {
-          const before = updated.stock + item.quantity;
-          if (before > LOW_STOCK_THRESHOLD && updated.stock <= LOW_STOCK_THRESHOLD) {
-            lowStockNow.push({ name: item.productName, variantLabel: item.variantLabel, stock: updated.stock });
+        const [row] = await tx.select({ stock: products.stock }).from(products).where(eq(products.id, item.productId)).limit(1);
+        if (row?.stock != null) {
+          const before = row.stock + item.quantity;
+          if (before > LOW_STOCK_THRESHOLD && row.stock <= LOW_STOCK_THRESHOLD) {
+            lowStockNow.push({ name: item.productName, variantLabel: item.variantLabel, stock: row.stock });
           }
         }
       }

@@ -4,6 +4,7 @@ import { orders, orderItems, refundRequests, stores } from "../../../../../../..
 import { and, eq } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, updateOrderStatusSchema } from "../../../../../../../../lib/validate.js";
+import { restockItems } from "../../../../../../../../lib/inventory.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -77,6 +78,10 @@ export async function PATCH(req, { params }) {
         .update(orders)
         .set({ status: refundDecision === "approved" ? "refunded" : "refund_declined", updatedAt: new Date() })
         .where(eq(orders.id, id));
+      if (refundDecision === "approved") {
+        const refundedItems = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
+        await restockItems(tx, refundedItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })));
+      }
     });
     const [updated] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
     return NextResponse.json({ order: updated });
@@ -98,7 +103,14 @@ export async function PATCH(req, { params }) {
     // and POST /api/v1/customer/orders/[id]/refund-request) - counts from
     // when the customer actually received the item, not from payment.
     if (status === "delivered") data.deliveredAt = new Date();
-    const [updated] = await db.update(orders).set(data).where(eq(orders.id, id)).returning();
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx.update(orders).set(data).where(eq(orders.id, id)).returning();
+      if (status === "cancelled") {
+        const cancelledItems = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
+        await restockItems(tx, cancelledItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })));
+      }
+      return row;
+    });
     return NextResponse.json({ order: updated });
   }
 

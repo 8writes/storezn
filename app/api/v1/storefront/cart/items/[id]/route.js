@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { cartItems, carts } from "../../../../../../../lib/db/schema.js";
+import { cartItems, carts, products, productVariants } from "../../../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser } from "../../../../../../../lib/auth.js";
 import { validate, updateCartItemSchema } from "../../../../../../../lib/validate.js";
@@ -36,6 +36,17 @@ export async function PATCH(req, { params }) {
 
   const result = validate(updateCartItemSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+
+  // Friendly pre-check only (same reasoning as the add-to-cart route) -
+  // the real, race-safe limit is enforced at checkout via reserveStock.
+  const [product] = await db.select().from(products).where(eq(products.id, owned.item.productId)).limit(1);
+  const variant = owned.item.variantId
+    ? (await db.select().from(productVariants).where(eq(productVariants.id, owned.item.variantId)).limit(1))[0]
+    : null;
+  const stock = variant ? variant.stock : product?.stock;
+  if (product?.productType === "physical" && stock != null && stock < result.data.quantity) {
+    return NextResponse.json({ error: "Not enough stock available" }, { status: 409 });
+  }
 
   await db.update(cartItems).set({ quantity: result.data.quantity }).where(eq(cartItems.id, id));
 

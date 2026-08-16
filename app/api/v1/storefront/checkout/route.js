@@ -10,6 +10,7 @@ import { generateOrderNumber, computeOrderTotals } from "../../../../../lib/orde
 import { resolveShippingFee } from "../../../../../lib/shipping.js";
 import { initializeTransaction } from "../../../../../lib/paystack.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
+import { reserveStock, restockItems, OutOfStockError } from "../../../../../lib/inventory.js";
 
 export async function POST(req) {
   const limit = checkRateLimit(req, "checkout", { max: 10, windowMs: 60_000 });
@@ -100,45 +101,62 @@ export async function POST(req) {
   const email = user?.email || guestEmail;
   const customerName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || email : (shippingAddress?.fullName || email);
 
-  const order = await db.transaction(async (tx) => {
-    const [createdOrder] = await tx
-      .insert(orders)
-      .values({
-        storeId: store.id,
-        userId: user?.id || null,
-        orderNumber,
-        guestEmail: user ? null : guestEmail,
-        subtotal,
-        shippingFee,
-        shippingFeeTBD,
-        totalAmount,
-        commissionRatePercent,
-        commissionAmount,
-        flatFeeAmount,
-        vendorPayoutAmount,
-        feeChargedToCustomer,
-        shippingAddress,
-        note: note || null,
-        paymentReference,
-      })
-      .returning();
+  let order;
+  try {
+    order = await db.transaction(async (tx) => {
+      // The authoritative stock check - the pre-check loop above is only
+      // a fast, friendly error for the common case. This guarded reserve
+      // is what actually prevents overselling under concurrent checkouts
+      // for the same item, see lib/inventory.js.
+      await reserveStock(
+        tx,
+        items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, productName: i.product.name })),
+      );
 
-    await tx.insert(orderItems).values(
-      items.map((i) => ({
-        orderId: createdOrder.id,
-        productId: i.product.id,
-        variantId: i.variant?.id || null,
-        productName: i.product.name,
-        productImage: i.product.images?.[0] || null,
-        variantLabel: i.variant ? Object.entries(i.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ") : null,
-        unitPrice: i.unitPrice,
-        quantity: i.quantity,
-        lineTotal: i.lineTotal,
-      })),
-    );
+      const [createdOrder] = await tx
+        .insert(orders)
+        .values({
+          storeId: store.id,
+          userId: user?.id || null,
+          orderNumber,
+          guestEmail: user ? null : guestEmail,
+          subtotal,
+          shippingFee,
+          shippingFeeTBD,
+          totalAmount,
+          commissionRatePercent,
+          commissionAmount,
+          flatFeeAmount,
+          vendorPayoutAmount,
+          feeChargedToCustomer,
+          shippingAddress,
+          note: note || null,
+          paymentReference,
+        })
+        .returning();
 
-    return createdOrder;
-  });
+      await tx.insert(orderItems).values(
+        items.map((i) => ({
+          orderId: createdOrder.id,
+          productId: i.product.id,
+          variantId: i.variant?.id || null,
+          productName: i.product.name,
+          productImage: i.product.images?.[0] || null,
+          variantLabel: i.variant ? Object.entries(i.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ") : null,
+          unitPrice: i.unitPrice,
+          quantity: i.quantity,
+          lineTotal: i.lineTotal,
+        })),
+      );
+
+      return createdOrder;
+    });
+  } catch (err) {
+    if (err instanceof OutOfStockError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
+    }
+    throw err;
+  }
 
   const protocol = req.headers.get("x-forwarded-proto") || "http";
   try {
@@ -159,9 +177,17 @@ export async function POST(req) {
 
     return NextResponse.json({ authorizationUrl: paystackData.authorizationUrl, orderNumber });
   } catch (err) {
-    // Order stays "pending" with no successful Paystack init - the
-    // customer can retry checkout later; nothing to roll back since no
-    // payment or stock was touched.
+    // Order was already created with stock reserved for it (see the
+    // transaction above) - unlike before, there IS something to roll
+    // back now that Paystack init failed, so release the reservation
+    // immediately instead of leaving it locked up until the 1-hour stale
+    // sweep (lib/failStaleTransactions.js) eventually gets to it.
+    await db.transaction((tx) =>
+      restockItems(
+        tx,
+        items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity })),
+      ),
+    );
     return NextResponse.json({ error: err.message || "Could not start payment" }, { status: 502 });
   }
 }

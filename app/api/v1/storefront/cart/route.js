@@ -108,11 +108,6 @@ export async function POST(req) {
     if (!variant) return NextResponse.json({ error: "That option is no longer available" }, { status: 404 });
   }
 
-  const stock = variant ? variant.stock : product.stock;
-  if (product.productType === "physical" && stock != null && stock < quantity) {
-    return NextResponse.json({ error: "Not enough stock available" }, { status: 409 });
-  }
-
   const user = await getUser(req);
   const existingToken = req.cookies.get(GUEST_CART_COOKIE)?.value;
   const guestToken = user ? null : existingToken || crypto.randomUUID();
@@ -120,6 +115,19 @@ export async function POST(req) {
   const cart = await resolveCart({ storeId: store.id, userId: user?.id, guestToken });
 
   const existingItem = await findCartItem(cart.id, productId, variant?.id || null);
+
+  // Checked against the *combined* quantity (already-in-cart + this add),
+  // not just what's being added now - otherwise adding 3 more to an
+  // already-8-of-10-in-stock cart would pass a check against "3" alone
+  // and silently push the cart past what's actually available. This is
+  // a friendly pre-check only; the real, race-safe limit is enforced at
+  // checkout via reserveStock (see lib/inventory.js).
+  const stock = variant ? variant.stock : product.stock;
+  const totalQuantity = (existingItem?.quantity || 0) + quantity;
+  if (product.productType === "physical" && stock != null && stock < totalQuantity) {
+    return NextResponse.json({ error: "Not enough stock available" }, { status: 409 });
+  }
+
   if (existingItem) {
     await db.update(cartItems).set({ quantity: existingItem.quantity + quantity }).where(eq(cartItems.id, existingItem.id));
   } else {
