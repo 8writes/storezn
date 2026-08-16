@@ -10,7 +10,7 @@ import { generateOrderNumber, computeOrderTotals } from "../../../../../lib/orde
 import { resolveShippingFee } from "../../../../../lib/shipping.js";
 import { initializeTransaction } from "../../../../../lib/paystack.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
-import { reserveStock, restockItems, OutOfStockError } from "../../../../../lib/inventory.js";
+import { reserveStock, restockItems, resolveFulfillingBranch, OutOfStockError } from "../../../../../lib/inventory.js";
 
 export async function POST(req) {
   const limit = checkRateLimit(req, "checkout", { max: 10, windowMs: 60_000 });
@@ -102,21 +102,29 @@ export async function POST(req) {
   const customerName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || email : (shippingAddress?.fullName || email);
 
   let order;
+  let branchId;
   try {
     order = await db.transaction(async (tx) => {
-      // The authoritative stock check - the pre-check loop above is only
-      // a fast, friendly error for the common case. This guarded reserve
-      // is what actually prevents overselling under concurrent checkouts
-      // for the same item, see lib/inventory.js.
+      // Buyers never pick a branch - resolve the first one that can
+      // fulfill the whole cart (see resolveFulfillingBranch in
+      // lib/inventory.js), then reserve against exactly that branch.
+      // This is the authoritative check - the pre-check loop above is
+      // only a fast, friendly error for the common case.
+      branchId = await resolveFulfillingBranch(
+        tx,
+        store.id,
+        items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, productName: i.product.name })),
+      );
       await reserveStock(
         tx,
-        items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, productName: i.product.name })),
+        items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, productName: i.product.name, branchId })),
       );
 
       const [createdOrder] = await tx
         .insert(orders)
         .values({
           storeId: store.id,
+          branchId,
           userId: user?.id || null,
           orderNumber,
           guestEmail: user ? null : guestEmail,
@@ -185,7 +193,7 @@ export async function POST(req) {
     await db.transaction((tx) =>
       restockItems(
         tx,
-        items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity })),
+        items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, branchId })),
       ),
     );
     return NextResponse.json({ error: err.message || "Could not start payment" }, { status: 502 });

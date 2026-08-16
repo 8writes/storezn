@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { orders, orderItems, products, productVariants, stores } from "../../../../../../../../lib/db/schema.js";
+import { orders, orderItems, products, productVariants, stores, branches } from "../../../../../../../../lib/db/schema.js";
 import { and, eq, inArray } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, createOfflineOrderSchema } from "../../../../../../../../lib/validate.js";
@@ -38,7 +38,24 @@ export async function POST(req, { params }) {
 
   const result = validate(createOfflineOrderSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  const { buyerName, buyerEmail, buyerPhone, note, delivered, items } = result.data;
+  const { buyerName, buyerEmail, buyerPhone, note, delivered, items, branchId: requestedBranchId } = result.data;
+
+  // A branch-scoped staff member records the sale at their own branch,
+  // regardless of what's submitted - a vendor/owner (or unscoped staff,
+  // single-branch store) picks or gets auto-assigned the store's one.
+  const storeBranches = await db.select().from(branches).where(eq(branches.storeId, storeId)).orderBy(branches.createdAt);
+  let branchId;
+  if (user.role === "staff" && user.branchId) {
+    branchId = user.branchId;
+  } else if (storeBranches.length === 1) {
+    branchId = storeBranches[0].id;
+  } else {
+    if (!requestedBranchId) return NextResponse.json({ error: "Choose which branch this sale happened at" }, { status: 400 });
+    if (!storeBranches.some((b) => b.id === requestedBranchId)) {
+      return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+    }
+    branchId = requestedBranchId;
+  }
 
   const productIds = [...new Set(items.map((i) => i.productId))];
   const variantIds = [...new Set(items.map((i) => i.variantId).filter(Boolean))];
@@ -102,13 +119,14 @@ export async function POST(req, { params }) {
       // orders for the same item, see lib/inventory.js.
       await reserveStock(
         tx,
-        resolvedItems.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, productName: i.product.name })),
+        resolvedItems.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, productName: i.product.name, branchId })),
       );
 
       const [createdOrder] = await tx
         .insert(orders)
         .values({
           storeId,
+          branchId,
           userId: null,
           orderNumber,
           guestEmail: buyerEmail || null,

@@ -7,12 +7,13 @@ import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Input } from "@/components/ui/Input.js";
+import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDate } from "@/lib/format.js";
 
-const EMPTY_FORM = { firstName: "", lastName: "", email: "" };
+const EMPTY_FORM = { firstName: "", lastName: "", email: "", branchId: "" };
 
 export default function VendorStaffPage() {
   const { user, token } = useAuth(true);
@@ -22,6 +23,7 @@ export default function VendorStaffPage() {
 
   const [staff, setStaff] = useState(null);
   const [maxStaff, setMaxStaff] = useState(1);
+  const [branches, setBranches] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [inviting, setInviting] = useState(false);
   const [removingId, setRemovingId] = useState(null);
@@ -32,6 +34,7 @@ export default function VendorStaffPage() {
       .then((data) => {
         setStaff(data.staff);
         setMaxStaff(data.max);
+        setBranches(data.branches || []);
       })
       .catch((err) => toast.error(err.message || "Failed to load staff"));
   };
@@ -49,7 +52,9 @@ export default function VendorStaffPage() {
     e.preventDefault();
     setInviting(true);
     try {
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/staff`, { method: "POST", body: JSON.stringify(form) });
+      const payload = { ...form };
+      if (!payload.branchId) delete payload.branchId;
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/staff`, { method: "POST", body: JSON.stringify(payload) });
       toast.success(`Invite sent to ${form.email}`);
       setForm(EMPTY_FORM);
       load();
@@ -99,6 +104,7 @@ export default function VendorStaffPage() {
             <thead className="bg-slate-50 text-slate-500 text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Staff member</th>
+                {branches.length > 1 && <th className="px-4 py-3 font-medium">Branch</th>}
                 <th className="px-4 py-3 font-medium">Added</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
@@ -106,10 +112,10 @@ export default function VendorStaffPage() {
             </thead>
             <tbody>
               {storeLoading || staff === null ? (
-                <TableRowSkeleton cols={4} />
+                <TableRowSkeleton cols={branches.length > 1 ? 5 : 4} />
               ) : staff.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">No staff yet</td>
+                  <td colSpan={branches.length > 1 ? 5 : 4} className="px-4 py-6 text-center text-slate-400">No staff yet</td>
                 </tr>
               ) : (
                 staff.map((member) => (
@@ -118,6 +124,7 @@ export default function VendorStaffPage() {
                       <p className="font-medium text-slate-900">{member.firstName} {member.lastName}</p>
                       <p className="text-xs text-slate-400">{member.email}</p>
                     </td>
+                    {branches.length > 1 && <td className="px-4 py-3 text-slate-500">{member.branchName || "—"}</td>}
                     <td className="px-4 py-3 text-slate-500">{formatDate(member.createdAt)}</td>
                     <td className="px-4 py-3">
                       {member.activatedAt ? (
@@ -164,6 +171,15 @@ export default function VendorStaffPage() {
                 <Input label="Last name" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} required />
               </div>
               <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
+              {branches.length > 1 && (
+                <Select
+                  label="Branch"
+                  options={branches.map((b) => ({ value: b.id, label: b.name }))}
+                  value={form.branchId}
+                  onChange={(v) => setForm((f) => ({ ...f, branchId: v }))}
+                  required
+                />
+              )}
               <Button type="submit" loading={inviting} fullWidth>
                 <UserPlus size={16} />
                 Send invite

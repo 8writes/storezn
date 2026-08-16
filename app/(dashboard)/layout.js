@@ -28,6 +28,7 @@ import {
   Bell,
   UserCog,
   Sparkles,
+  Building2,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -91,7 +92,10 @@ const NAV_BY_ROLE = {
     },
     {
       title: "Team",
-      items: [{ href: "/vendor/staff", label: "Staff", icon: UserCog }],
+      items: [
+        { href: "/vendor/staff", label: "Staff", icon: UserCog },
+        { href: "/vendor/branches", label: "Branches", icon: Building2 },
+      ],
     },
     {
       title: "Support",

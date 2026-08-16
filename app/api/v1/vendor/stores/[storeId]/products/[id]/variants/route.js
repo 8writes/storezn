@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../../lib/db/index.js";
-import { products, productVariants, stores } from "../../../../../../../../../lib/db/schema.js";
+import { products, productVariants, stores, branches } from "../../../../../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../../lib/auth.js";
 import { validate, createVariantSchema } from "../../../../../../../../../lib/validate.js";
+import { seedBranchStockForNewItem } from "../../../../../../../../../lib/inventory.js";
 
 async function loadOwnedProduct(user, storeId, productId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -37,6 +38,13 @@ export async function POST(req, { params }) {
   const result = validate(createVariantSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  const [created] = await db.insert(productVariants).values({ productId: id, ...result.data }).returning();
+  const created = await db.transaction(async (tx) => {
+    const [variant] = await tx.insert(productVariants).values({ productId: id, ...result.data }).returning();
+    const [defaultBranch] = await tx.select({ id: branches.id }).from(branches).where(and(eq(branches.storeId, storeId), eq(branches.isDefault, true))).limit(1);
+    if (defaultBranch) {
+      await seedBranchStockForNewItem(tx, { storeId, productId: id, variantId: variant.id, initialBranchId: defaultBranch.id, initialStock: result.data.stock ?? null });
+    }
+    return variant;
+  });
   return NextResponse.json({ variant: created }, { status: 201 });
 }

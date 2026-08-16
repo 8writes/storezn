@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
+import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { X, Trash2, ImagePlus, Loader2, GripVertical } from "lucide-react";
@@ -322,6 +323,8 @@ export default function VendorProductEditPage({ params }) {
 
       <VariantsManager storeId={storeId} productId={id} apiFetch={apiFetch} />
       </div>
+
+      <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} />
 
       <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
     </div>

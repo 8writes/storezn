@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { products, stores, productVariants, cartItems, reviews, orderItems, orders } from "../../../../../../../../lib/db/schema.js";
+import { products, stores, productVariants, cartItems, reviews, orderItems, orders, branches, productBranchStock } from "../../../../../../../../lib/db/schema.js";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, updateProductSchema } from "../../../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../../../lib/storage/index.js";
 import { removeStoreUpload } from "../../../../../../../../lib/storeUploads.js";
+import { setBranchStock } from "../../../../../../../../lib/inventory.js";
 
 async function loadStoreAndProduct(storeId, productId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -64,11 +65,27 @@ export async function PATCH(req, { params }) {
     if (existing) return NextResponse.json({ error: "That product slug already exists" }, { status: 409 });
   }
 
+  // products.stock is a cached aggregate now, not the source of truth
+  // (see lib/inventory.js) - a plain "Stock" field submission (today's
+  // single-branch UI, or a quick edit on a multi-branch store) always
+  // means the default branch specifically, routed through setBranchStock
+  // so the aggregate stays in sync instead of drifting from a direct
+  // write.
+  const { stock, ...rest } = result.data;
   const [updated] = await db
     .update(products)
-    .set({ ...result.data, updatedAt: new Date() })
+    .set({ ...rest, updatedAt: new Date() })
     .where(eq(products.id, id))
     .returning();
+
+  if (stock !== undefined) {
+    const [defaultBranch] = await db.select({ id: branches.id }).from(branches).where(and(eq(branches.storeId, storeId), eq(branches.isDefault, true))).limit(1);
+    if (defaultBranch) {
+      await db.transaction((tx) => setBranchStock(tx, { productId: id, variantId: null, branchId: defaultBranch.id, stock }));
+      const [refreshed] = await db.select({ stock: products.stock }).from(products).where(eq(products.id, id)).limit(1);
+      updated.stock = refreshed.stock;
+    }
+  }
 
   // Any image the vendor removed from the gallery (still in the old row,
   // gone from the new one) is now unreferenced - clean it out of storage
@@ -110,6 +127,9 @@ export async function DELETE(req, { params }) {
     // carries productId, so this alone clears both.
     await tx.delete(cartItems).where(eq(cartItems.productId, id));
     await tx.delete(reviews).where(eq(reviews.productId, id));
+    // Every branch's stock row for this product (and its variants) too -
+    // same FK-blocks-the-delete reasoning as the rest of this list.
+    await tx.delete(productBranchStock).where(eq(productBranchStock.productId, id));
     await tx.delete(productVariants).where(eq(productVariants.productId, id));
     await tx.delete(products).where(eq(products.id, id));
   });

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { products, stores } from "../../../../../../../lib/db/schema.js";
+import { products, stores, branches } from "../../../../../../../lib/db/schema.js";
 import { and, count, eq, ilike } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
+import { seedBranchStockForNewItem, LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -33,6 +34,7 @@ export async function GET(req, { params }) {
 
   return NextResponse.json({
     products: rows,
+    lowStockThreshold: LOW_STOCK_THRESHOLD,
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });
 }
@@ -59,6 +61,18 @@ export async function POST(req, { params }) {
     .limit(1);
   if (existing) return NextResponse.json({ error: "That product slug already exists" }, { status: 409 });
 
-  const [created] = await db.insert(products).values({ storeId, ...result.data }).returning();
+  const created = await db.transaction(async (tx) => {
+    const [product] = await tx.insert(products).values({ storeId, ...result.data }).returning();
+    // A new product only ever starts stocked at the store's default
+    // branch - a vendor allocates it to other branches afterward from
+    // the product edit page (see seedBranchStockForNewItem's own
+    // comment in lib/inventory.js for why every other branch still
+    // needs an explicit 0 row, not just no row at all).
+    const [defaultBranch] = await tx.select({ id: branches.id }).from(branches).where(and(eq(branches.storeId, storeId), eq(branches.isDefault, true))).limit(1);
+    if (defaultBranch) {
+      await seedBranchStockForNewItem(tx, { storeId, productId: product.id, variantId: null, initialBranchId: defaultBranch.id, initialStock: result.data.stock ?? null });
+    }
+    return product;
+  });
   return NextResponse.json({ product: created }, { status: 201 });
 }

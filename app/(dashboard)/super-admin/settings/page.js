@@ -22,6 +22,8 @@ export default function SuperAdminSettingsPage() {
   const [plusStorageMb, setPlusStorageMb] = useState("");
   const [freeStaffLimit, setFreeStaffLimit] = useState("");
   const [plusStaffLimit, setPlusStaffLimit] = useState("");
+  const [freeBranchLimit, setFreeBranchLimit] = useState("");
+  const [plusBranchLimit, setPlusBranchLimit] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [togglingMaintenance, setTogglingMaintenance] = useState(false);
@@ -39,6 +41,8 @@ export default function SuperAdminSettingsPage() {
         setPlusStorageMb(String(data.settings.plusStorageMb ?? 5000));
         setFreeStaffLimit(String(data.settings.freeStaffLimit ?? 1));
         setPlusStaffLimit(String(data.settings.plusStaffLimit ?? 10));
+        setFreeBranchLimit(String(data.settings.freeBranchLimit ?? 1));
+        setPlusBranchLimit(String(data.settings.plusBranchLimit ?? 5));
       })
       .catch((err) => toast.error(err.message || "Failed to load settings"))
       .finally(() => setLoading(false));
@@ -59,6 +63,8 @@ export default function SuperAdminSettingsPage() {
           plusStorageMb: Number(plusStorageMb),
           freeStaffLimit: Number(freeStaffLimit),
           plusStaffLimit: Number(plusStaffLimit),
+          freeBranchLimit: Number(freeBranchLimit),
+          plusBranchLimit: Number(plusBranchLimit),
         }),
       });
       toast.success("Platform settings saved");
@@ -169,6 +175,10 @@ export default function SuperAdminSettingsPage() {
             <div className="grid grid-cols-2 gap-3">
               <Input label="Free plan staff limit" type="number" min="0" step="1" value={freeStaffLimit} onChange={(e) => setFreeStaffLimit(e.target.value)} />
               <Input label="Storezn+ staff limit" type="number" min="0" step="1" value={plusStaffLimit} onChange={(e) => setPlusStaffLimit(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Free plan branch limit" type="number" min="1" step="1" value={freeBranchLimit} onChange={(e) => setFreeBranchLimit(e.target.value)} />
+              <Input label="Storezn+ branch limit" type="number" min="1" step="1" value={plusBranchLimit} onChange={(e) => setPlusBranchLimit(e.target.value)} />
             </div>
             <Button onClick={save} loading={saving}>Save</Button>
           </div>

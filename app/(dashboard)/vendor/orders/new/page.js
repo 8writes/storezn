@@ -22,18 +22,25 @@ const EMPTY_BUYER = { buyerName: "Walk In Customer", buyerEmail: "", buyerPhone:
 
 export default function RecordOfflineOrderPage() {
   const router = useRouter();
-  const { token } = useAuth(true);
+  const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState("");
   const [products, setProducts] = useState([]);
   const [variantsByProduct, setVariantsByProduct] = useState({});
+  const [branches, setBranches] = useState([]);
+  const [branchId, setBranchId] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const [buyer, setBuyer] = useState(EMPTY_BUYER);
   const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
+
+  // A branch-scoped staff member's own branch is used automatically by
+  // the server regardless of what's sent (see the offline order route) -
+  // they never see this selector at all.
+  const branchScoped = user?.role === "staff" && !!user?.branchId;
 
   useEffect(() => {
     if (!token) return;
@@ -56,6 +63,17 @@ export default function RecordOfflineOrderPage() {
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId]);
+
+  useEffect(() => {
+    if (!storeId || branchScoped || user?.role !== "vendor") return;
+    apiFetch(`/api/v1/vendor/stores/${storeId}/branches`)
+      .then((data) => {
+        setBranches(data.branches);
+        setBranchId(data.branches[0]?.id || "");
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId, branchScoped, user?.role]);
 
   const loadVariants = (productId) => {
     if (!productId || variantsByProduct[productId]) return;
@@ -108,6 +126,7 @@ export default function RecordOfflineOrderPage() {
       if (buyer.buyerEmail) payload.buyerEmail = buyer.buyerEmail;
       if (buyer.buyerPhone) payload.buyerPhone = buyer.buyerPhone;
       if (buyer.note) payload.note = buyer.note;
+      if (branchId) payload.branchId = branchId;
 
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/offline`, { method: "POST", body: JSON.stringify(payload) });
       toast.success("Order recorded");
@@ -156,9 +175,14 @@ export default function RecordOfflineOrderPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {stores.length > 1 && (
-          <div className="max-w-xs">
-            <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+        {(stores.length > 1 || branches.length > 1) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+            {stores.length > 1 && (
+              <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+            )}
+            {branches.length > 1 && (
+              <Select label="Branch" options={branches.map((b) => ({ value: b.id, label: b.name }))} value={branchId} onChange={setBranchId} required />
+            )}
           </div>
         )}
 

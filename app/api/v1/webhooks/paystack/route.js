@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { orders, orderItems, products, productVariants, carts, cartItems, users, stores, storeSubscriptionTransactions } from "../../../../../lib/db/schema.js";
-import { and, eq } from "drizzle-orm";
+import { orders, orderItems, carts, cartItems, users, stores, storeSubscriptionTransactions, branches, productBranchStock } from "../../../../../lib/db/schema.js";
+import { and, eq, isNull } from "drizzle-orm";
 import { verifyWebhookSignature, verifyTransaction } from "../../../../../lib/paystack.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { formatCurrency } from "../../../../../lib/format.js";
@@ -182,26 +182,27 @@ export async function POST(req) {
     // atomically at order-creation time (see reserveStock in
     // lib/inventory.js, called from checkout/route.js), so decrementing
     // again on payment confirmation would double-count. This just reads
-    // the current (already-decremented) stock to detect crossing under
-    // LOW_STOCK_THRESHOLD for the push notification below - "before" is
-    // reconstructed as current + this item's own quantity, same math as
-    // when this used to read it off the decrement's own return value.
+    // the current (already-decremented) stock at the branch this order
+    // was fulfilled from to detect crossing under LOW_STOCK_THRESHOLD for
+    // the push notification below - "before" is reconstructed as
+    // current + this item's own quantity, same math as when this used to
+    // read it off the decrement's own return value. Per-branch (not the
+    // storewide aggregate) is what's actually actionable for a vendor
+    // running more than one location.
+    let branchName = null;
+    if (order.branchId) {
+      const [branch] = await tx.select({ name: branches.name }).from(branches).where(eq(branches.id, order.branchId)).limit(1);
+      branchName = branch?.name || null;
+    }
     for (const item of items) {
-      if (item.variantId) {
-        const [row] = await tx.select({ stock: productVariants.stock }).from(productVariants).where(eq(productVariants.id, item.variantId)).limit(1);
-        if (row?.stock != null) {
-          const before = row.stock + item.quantity;
-          if (before > LOW_STOCK_THRESHOLD && row.stock <= LOW_STOCK_THRESHOLD) {
-            lowStockNow.push({ name: item.productName, variantLabel: item.variantLabel, stock: row.stock });
-          }
-        }
-      } else {
-        const [row] = await tx.select({ stock: products.stock }).from(products).where(eq(products.id, item.productId)).limit(1);
-        if (row?.stock != null) {
-          const before = row.stock + item.quantity;
-          if (before > LOW_STOCK_THRESHOLD && row.stock <= LOW_STOCK_THRESHOLD) {
-            lowStockNow.push({ name: item.productName, variantLabel: item.variantLabel, stock: row.stock });
-          }
+      const condition = item.variantId
+        ? and(eq(productBranchStock.variantId, item.variantId), eq(productBranchStock.branchId, order.branchId))
+        : and(eq(productBranchStock.productId, item.productId), isNull(productBranchStock.variantId), eq(productBranchStock.branchId, order.branchId));
+      const [row] = order.branchId ? await tx.select({ stock: productBranchStock.stock }).from(productBranchStock).where(condition).limit(1) : [];
+      if (row?.stock != null) {
+        const before = row.stock + item.quantity;
+        if (before > LOW_STOCK_THRESHOLD && row.stock <= LOW_STOCK_THRESHOLD) {
+          lowStockNow.push({ name: item.productName, variantLabel: item.variantLabel, stock: row.stock, branchName });
         }
       }
     }
@@ -248,7 +249,7 @@ export async function POST(req) {
     for (const p of lowStockNow) {
       sendPushToStore(order.storeId, {
         title: "Low stock",
-        body: `${p.name}${p.variantLabel ? ` (${p.variantLabel})` : ""} is down to ${p.stock} left.`,
+        body: `${p.name}${p.variantLabel ? ` (${p.variantLabel})` : ""}${p.branchName ? ` at ${p.branchName}` : ""} is down to ${p.stock} left.`,
         url: "/vendor/products",
       }).catch((err) => console.error("sendPushToStore failed (low stock):", err));
     }

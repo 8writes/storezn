@@ -35,6 +35,7 @@ export default function VendorProductsPage() {
 
   const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [products, setProducts] = useState([]);
+  const [lowStockThreshold, setLowStockThreshold] = useState(5);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
@@ -53,6 +54,7 @@ export default function VendorProductsPage() {
     apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params.toString()}`)
       .then((data) => {
         setProducts(data.products);
+        if (data.lowStockThreshold != null) setLowStockThreshold(data.lowStockThreshold);
         setPagination(data.pagination);
       })
       .catch((err) => toast.error(err.message || "Failed to load products"))
@@ -243,7 +245,7 @@ export default function VendorProductsPage() {
                     {p.productType === "physical" ? (
                       <span className="inline-flex items-center gap-2">
                         {p.stock ?? "-"}
-                        {p.stock != null && p.stock <= 5 && (
+                        {p.stock != null && p.stock <= lowStockThreshold && (
                           <Badge color={p.stock === 0 ? "red" : "amber"}>{p.stock === 0 ? "Out of stock" : "Low stock"}</Badge>
                         )}
                       </span>

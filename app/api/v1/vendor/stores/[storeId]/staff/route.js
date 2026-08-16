@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "../../../../../../../lib/db/index.js";
-import { stores, users, tokens, platformSettings } from "../../../../../../../lib/db/schema.js";
+import { stores, users, tokens, platformSettings, branches } from "../../../../../../../lib/db/schema.js";
 import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, inviteStaffSchema } from "../../../../../../../lib/validate.js";
@@ -42,14 +42,18 @@ export async function GET(req, { params }) {
       lastName: users.lastName,
       email: users.email,
       createdAt: users.createdAt,
+      branchId: users.branchId,
+      branchName: branches.name,
       activatedAt: sql`(select min(${tokens.usedAt}) from ${tokens} where ${tokens.userId} = ${users.id} and ${tokens.type} = 'reset' and ${tokens.usedAt} is not null)`,
     })
     .from(users)
+    .leftJoin(branches, eq(users.branchId, branches.id))
     .where(and(eq(users.storeId, storeId), eq(users.role, "staff"), isNull(users.deletedAt)))
     .orderBy(users.createdAt);
 
+  const storeBranches = await db.select().from(branches).where(eq(branches.storeId, storeId)).orderBy(branches.createdAt);
   const settings = await loadSettings();
-  return NextResponse.json({ staff, max: getStaffLimit(store, settings) });
+  return NextResponse.json({ staff, max: getStaffLimit(store, settings), branches: storeBranches });
 }
 
 // Invites work the same way as a password reset: create the account
@@ -84,11 +88,25 @@ export async function POST(req, { params }) {
 
   const result = validate(inviteStaffSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  const { firstName, lastName, email } = result.data;
+  const { firstName, lastName, email, branchId } = result.data;
 
   const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
   if (existingUser) {
     return NextResponse.json({ error: "That email is already in use" }, { status: 409 });
+  }
+
+  // A single-branch store has nothing to pick - auto-assign the one
+  // branch. A multi-branch store requires the vendor to choose.
+  const storeBranches = await db.select().from(branches).where(eq(branches.storeId, storeId)).orderBy(branches.createdAt);
+  let resolvedBranchId = null;
+  if (storeBranches.length === 1) {
+    resolvedBranchId = storeBranches[0].id;
+  } else if (storeBranches.length > 1) {
+    if (!branchId) return NextResponse.json({ error: "Choose which branch this staff member belongs to" }, { status: 400 });
+    if (!storeBranches.some((b) => b.id === branchId)) {
+      return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+    }
+    resolvedBranchId = branchId;
   }
 
   const passwordHash = await bcrypt.hash(crypto.randomUUID(), 10);
@@ -97,6 +115,7 @@ export async function POST(req, { params }) {
     .insert(users)
     .values({
       storeId,
+      branchId: resolvedBranchId,
       firstName,
       lastName,
       email,

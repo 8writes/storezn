@@ -27,6 +27,12 @@ export async function GET(req, { params }) {
 
   const [order] = await db.select().from(orders).where(and(eq(orders.id, id), eq(orders.storeId, storeId))).limit(1);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  // A branch-scoped staff member (see users.branchId) only manages
+  // orders fulfilled from their own branch - a vendor/owner (branchId
+  // always null) still sees every branch's orders.
+  if (user.role === "staff" && user.branchId && order.branchId !== user.branchId) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
   const [refundRequest] = await db.select().from(refundRequests).where(eq(refundRequests.orderId, id)).limit(1);
@@ -45,6 +51,9 @@ export async function PATCH(req, { params }) {
 
   const [order] = await db.select().from(orders).where(and(eq(orders.id, id), eq(orders.storeId, storeId))).limit(1);
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  if (user.role === "staff" && user.branchId && order.branchId !== user.branchId) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
@@ -80,7 +89,7 @@ export async function PATCH(req, { params }) {
         .where(eq(orders.id, id));
       if (refundDecision === "approved") {
         const refundedItems = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
-        await restockItems(tx, refundedItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })));
+        await restockItems(tx, refundedItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, branchId: order.branchId })));
       }
     });
     const [updated] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
@@ -107,7 +116,7 @@ export async function PATCH(req, { params }) {
       const [row] = await tx.update(orders).set(data).where(eq(orders.id, id)).returning();
       if (status === "cancelled") {
         const cancelledItems = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
-        await restockItems(tx, cancelledItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })));
+        await restockItems(tx, cancelledItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, branchId: order.branchId })));
       }
       return row;
     });

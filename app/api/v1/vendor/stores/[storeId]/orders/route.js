@@ -26,6 +26,9 @@ export async function GET(req, { params }) {
   const conditions = [eq(orders.storeId, storeId), eq(orders.paymentStatus, "paid")];
   if (status) conditions.push(eq(orders.status, status));
   if (q) conditions.push(ilike(orders.orderNumber, `%${q}%`));
+  // A branch-scoped staff member only sees their own branch's orders -
+  // a vendor/owner (branchId always null) still sees every branch.
+  if (user.role === "staff" && user.branchId) conditions.push(eq(orders.branchId, user.branchId));
 
   const [rows, [{ total }]] = await Promise.all([
     db.select().from(orders).where(and(...conditions)).orderBy(desc(orders.createdAt)).limit(limit).offset(offset),
