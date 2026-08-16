@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/Switch.js";
 import { formatCurrency } from "@/lib/format.js";
 import { isPlusStore } from "@/lib/storePlan.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
-import { Plus, Trash2, Lock } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 const EMPTY_ITEM = { productId: "", variantId: "", quantity: "1" };
@@ -148,7 +148,6 @@ export default function RecordOfflineOrderPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <BackLink href="/vendor/orders" label="Back to orders" />
         <div className="bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
-          <Lock className="mx-auto text-slate-300" size={28} />
           <h1 className="text-lg font-bold text-slate-900">Offline orders are a Storezn+ feature</h1>
           <p className="text-sm text-slate-500 max-w-sm mx-auto">
             Upgrade to record sales made in person, by phone, or in cash, so they show up in your order history and stock alongside real checkouts.

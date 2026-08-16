@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { UserPlus, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -157,13 +158,17 @@ export default function VendorStaffPage() {
             <span className="text-xs text-slate-400">{staff?.length ?? 0} of {maxStaff}</span>
           </div>
           {atLimit ? (
-            <p className="text-sm text-slate-500">
-              You&apos;ve reached the {maxStaff}-staff limit{maxStaff <= 1 ? " on the free plan" : ""}. {maxStaff <= 1 ? (
-                <>Upgrade to Storezn+ for more staff seats.</>
-              ) : (
-                "Remove someone before inviting another."
+            <div className="space-y-2">
+              <p className="text-sm text-slate-500">
+                You&apos;ve reached the {maxStaff}-staff limit{maxStaff <= 1 ? " on the free plan" : ""}.{" "}
+                {maxStaff <= 1 ? "Upgrade to Storezn+ for more staff seats." : "Remove someone before inviting another."}
+              </p>
+              {maxStaff <= 1 && (
+                <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
+                  Upgrade to Storezn+
+                </Link>
               )}
-            </p>
+            </div>
           ) : (
             <form onSubmit={invite} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">

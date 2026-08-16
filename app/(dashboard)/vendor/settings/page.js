@@ -260,7 +260,23 @@ export default function VendorSettingsPage() {
             </div>
           )}
 
-          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+          <div className="bg-white border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Palette size={16} className="text-slate-400" />
+                <SectionLabel>Storefront theme</SectionLabel>
+              </div>
+              <Badge color="slate">Storezn+</Badge>
+            </div>
+            <p className="text-sm text-slate-500">
+              Pick a custom accent color for your storefront&apos;s header, buttons, and prices. Coming soon to Storezn+.
+            </p>
+            <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
+              Upgrade to Storezn+
+            </Link>
+          </div>
+
+          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-sm p-5 space-y-4">
             <SectionLabel>Branding</SectionLabel>
 
             <div className="space-y-1.5">
@@ -311,7 +327,7 @@ export default function VendorSettingsPage() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-sm p-5 space-y-4">
             <SectionLabel>Contact &amp; socials</SectionLabel>
 
             <div className="flex items-center gap-1.5">
@@ -421,19 +437,6 @@ export default function VendorSettingsPage() {
                 onChange={(e) => setForm((f) => ({ ...f, returnWindowDays: e.target.value }))}
               />
             </div>
-          </div>
-
-          <div className="bg-white border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Palette size={16} className="text-slate-400" />
-                <SectionLabel>Storefront theme</SectionLabel>
-              </div>
-              <Badge color="slate">Storezn+</Badge>
-            </div>
-            <p className="text-sm text-slate-500">
-              Pick a custom accent color for your storefront&apos;s header, buttons, and prices. Coming soon to Storezn+.
-            </p>
           </div>
           </div>
 
