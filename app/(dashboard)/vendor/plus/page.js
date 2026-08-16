@@ -13,6 +13,7 @@ import { Sparkles, CalendarClock, Receipt, Check, X } from "lucide-react";
 const FEATURES = [
   { title: "Offline orders", text: "Record in-person, phone, and cash sales." },
   { title: "Custom domain", text: "Use your own domain instead of a storezn.com subdomain." },
+  { title: "Multiple branches", text: "Track stock and staff separately across more than one location." },
   { title: "More staff", text: "Bring on more people to help run the store." },
   { title: "More storage", text: "Room for a bigger product catalog." },
 ];

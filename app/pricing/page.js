@@ -14,7 +14,7 @@ export const revalidate = 300;
 
 async function getSettings() {
   const [row] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
-  return row || { plusMonthlyPrice: 5000, freeStorageMb: 500, plusStorageMb: 5000, freeStaffLimit: 1, plusStaffLimit: 10 };
+  return row || { plusMonthlyPrice: 5000, freeStorageMb: 500, plusStorageMb: 5000, freeStaffLimit: 1, plusStaffLimit: 10, freeBranchLimit: 1, plusBranchLimit: 5 };
 }
 
 export default async function PricingPage() {
@@ -33,6 +33,7 @@ export default async function PricingPage() {
     "Record offline orders (in-person, phone, cash sales)",
     "Use your own custom domain",
     "A custom accent color for your storefront",
+    `Track stock and staff across up to ${settings.plusBranchLimit} branches`,
     `${settings.plusStorageMb.toLocaleString("en-NG")}MB of image storage`,
     `${settings.plusStaffLimit} staff seats`,
   ];

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -145,13 +146,17 @@ export default function VendorBranchesPage() {
             <span className="text-xs text-slate-400">{branches?.length ?? 0} of {maxBranches}</span>
           </div>
           {atLimit ? (
-            <p className="text-sm text-slate-500">
-              You&apos;ve reached the {maxBranches}-branch limit{maxBranches <= 1 ? " on the free plan" : ""}. {maxBranches <= 1 ? (
-                <>Upgrade to Storezn+ for more branches.</>
-              ) : (
-                "Delete one before adding another."
+            <div className="space-y-2">
+              <p className="text-sm text-slate-500">
+                You&apos;ve reached the {maxBranches}-branch limit{maxBranches <= 1 ? " on the free plan" : ""}.{" "}
+                {maxBranches <= 1 ? "Upgrade to Storezn+ for more branches." : "Delete one before adding another."}
+              </p>
+              {maxBranches <= 1 && (
+                <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
+                  Upgrade to Storezn+
+                </Link>
               )}
-            </p>
+            </div>
           ) : (
             <form onSubmit={add} className="space-y-4">
               <Input label="Name" placeholder="e.g. Ikeja branch" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
