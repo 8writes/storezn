@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button.js";
 import { formatCurrency } from "@/lib/format.js";
+import { getEffectivePrice } from "@/lib/pricing.js";
 
 // Guest identity for the cart is an httpOnly cookie the API sets itself -
 // this component doesn't need to know about auth at all, just fire the
@@ -14,7 +15,7 @@ import { formatCurrency } from "@/lib/format.js";
 // vendor adding a Color variant later shouldn't silently make the plain
 // item unbuyable just because they never created an explicit "no color"
 // variant row for it.
-export function AddToCartButton({ productId, basePrice, baseCompareAtPrice, baseStock, productType, variants = [] }) {
+export function AddToCartButton({ productId, basePrice, baseDiscountPercent, baseStock, productType, variants = [] }) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState({});
   const [useBase, setUseBase] = useState(false);
@@ -48,7 +49,7 @@ export function AddToCartButton({ productId, basePrice, baseCompareAtPrice, base
 
   const needsSelection = variants.length > 0;
   const hasChosen = useBase || !!matchedVariant;
-  const price = matchedVariant ? (matchedVariant.price ?? basePrice) : basePrice;
+  const price = matchedVariant ? (matchedVariant.price ?? basePrice) : getEffectivePrice(basePrice, baseDiscountPercent);
   const stock = useBase ? baseStock : matchedVariant ? matchedVariant.stock : null;
   const inStock = needsSelection
     ? hasChosen
@@ -77,20 +78,20 @@ export function AddToCartButton({ productId, basePrice, baseCompareAtPrice, base
     }
   };
 
-  // compareAtPrice is base-product-only (see products.compareAtPrice) -
+  // discountPercent is base-product-only (see products.discountPercent) -
   // once a specific variant is matched, its own price takes over and the
-  // discount display doesn't carry over to it.
-  const showCompareAt = !matchedVariant && baseCompareAtPrice > basePrice;
+  // discount doesn't carry over to it.
+  const showDiscount = !matchedVariant && baseDiscountPercent > 0;
 
   return (
     <div className="space-y-5">
       <div className="flex items-baseline gap-2.5">
         <p className="text-2xl font-medium text-slate-900">{formatCurrency(price)}</p>
-        {showCompareAt && (
+        {showDiscount && (
           <>
-            <p className="text-base text-slate-400 line-through">{formatCurrency(baseCompareAtPrice)}</p>
+            <p className="text-base text-slate-400 line-through">{formatCurrency(basePrice)}</p>
             <span className="text-xs font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-sm">
-              -{Math.round((1 - basePrice / baseCompareAtPrice) * 100)}%
+              -{baseDiscountPercent}%
             </span>
           </>
         )}

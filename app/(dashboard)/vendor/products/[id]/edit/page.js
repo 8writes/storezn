@@ -71,7 +71,7 @@ export default function VendorProductEditPage({ params }) {
           sku: product.sku || "",
           description: product.description || "",
           price: String(product.price),
-          compareAtPrice: product.compareAtPrice != null ? String(product.compareAtPrice) : "",
+          discountPercent: product.discountPercent != null ? String(product.discountPercent) : "",
           productType: product.productType,
           condition: product.condition,
           stock: product.stock != null ? String(product.stock) : "",
@@ -168,7 +168,7 @@ export default function VendorProductEditPage({ params }) {
         slug: form.slug,
         sku: form.sku || undefined,
         price: Number(form.price),
-        compareAtPrice: form.compareAtPrice !== "" ? Number(form.compareAtPrice) : null,
+        discountPercent: form.discountPercent !== "" ? Number(form.discountPercent) : null,
         productType: form.productType,
         condition: form.condition,
         categoryId: form.categoryId || undefined,
@@ -219,10 +219,17 @@ export default function VendorProductEditPage({ params }) {
           <PriceInput label="Price" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />
           <div>
             <div className="flex items-center gap-1.5 mb-1">
-              <label className="text-sm font-medium text-slate-700">Compare-at price</label>
-              <InfoTip>Shown struck through next to the price, e.g. a ₦5,000 product with a ₦7,000 compare-at price shows as "was ₦7,000, now ₦5,000". Leave blank for no discount shown.</InfoTip>
+              <label className="text-sm font-medium text-slate-700">Discount %</label>
+              <InfoTip>Reduces what's actually charged, e.g. a ₦5,000 product with a 20% discount charges ₦4,000 and shows "was ₦5,000, now ₦4,000". Leave blank for no discount.</InfoTip>
             </div>
-            <PriceInput placeholder="0.00" value={form.compareAtPrice} onChange={(v) => setForm((f) => ({ ...f, compareAtPrice: v }))} />
+            <Input
+              type="number"
+              min="1"
+              max="99"
+              placeholder="0"
+              value={form.discountPercent}
+              onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))}
+            />
           </div>
           <Select label="Type" options={PRODUCT_TYPE_OPTIONS} value={form.productType} onChange={(v) => setForm((f) => ({ ...f, productType: v }))} />
           {form.productType === "physical" && (

@@ -8,6 +8,7 @@ import { generateOrderNumber, computeOrderTotals } from "../../../../../../../..
 import { isPlusStore } from "../../../../../../../../lib/storePlan.js";
 import { sendMail } from "../../../../../../../../lib/email/sendMail.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
+import { getEffectivePrice } from "../../../../../../../../lib/pricing.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -62,7 +63,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: `Not enough stock for ${product.name}` }, { status: 409 });
     }
 
-    const unitPrice = variant?.price ?? product.price;
+    const unitPrice = variant?.price ?? getEffectivePrice(product.price, product.discountPercent);
     resolvedItems.push({
       product,
       variant,

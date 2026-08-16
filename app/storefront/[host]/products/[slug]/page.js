@@ -5,6 +5,7 @@ import { products, productVariants } from "@/lib/db/schema.js";
 import { resolveStoreByHost } from "@/lib/resolveStore.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { formatCondition, formatCurrency } from "@/lib/format.js";
+import { getEffectivePrice } from "@/lib/pricing.js";
 import { AddToCartButton } from "@/components/storefront/AddToCartButton.js";
 import { ReviewsSection } from "@/components/storefront/ReviewsSection.js";
 import { ProductGallery } from "@/components/storefront/ProductGallery.js";
@@ -33,7 +34,7 @@ export async function generateMetadata({ params }) {
   const title = `${product.name} - ${store.name}`;
   const description = product.description
     ? product.description.slice(0, 200)
-    : `${formatCurrency(product.price)} at ${store.name}.`;
+    : `${formatCurrency(getEffectivePrice(product.price, product.discountPercent))} at ${store.name}.`;
   const url = `${getStorefrontUrl(store)}/products/${product.slug}`;
   const image = product.images?.[0];
 
@@ -102,7 +103,7 @@ export default async function StorefrontProductPage({ params }) {
             <AddToCartButton
               productId={product.id}
               basePrice={product.price}
-              baseCompareAtPrice={product.compareAtPrice}
+              baseDiscountPercent={product.discountPercent}
               baseStock={product.stock}
               productType={product.productType}
               variants={variants}

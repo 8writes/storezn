@@ -13,6 +13,7 @@ import { InfoTip } from "@/components/ui/InfoTip.js";
 import { Switch } from "@/components/ui/Switch.js";
 import { formatCurrency } from "@/lib/format.js";
 import { isPlusStore } from "@/lib/storePlan.js";
+import { getEffectivePrice } from "@/lib/pricing.js";
 import { Plus, Trash2, Lock } from "lucide-react";
 import Link from "next/link";
 
@@ -75,13 +76,13 @@ export default function RecordOfflineOrderPage() {
   const addItem = () => setItems((rows) => [...rows, { ...EMPTY_ITEM }]);
   const removeItem = (index) => setItems((rows) => rows.filter((_, i) => i !== index));
 
-  const productOptions = products.map((p) => ({ value: p.id, label: `${p.name} (${formatCurrency(p.price)})` }));
+  const productOptions = products.map((p) => ({ value: p.id, label: `${p.name} (${formatCurrency(getEffectivePrice(p.price, p.discountPercent))})` }));
 
   const total = items.reduce((sum, row) => {
     const product = products.find((p) => p.id === row.productId);
     if (!product) return sum;
     const variant = (variantsByProduct[row.productId] || []).find((v) => v.id === row.variantId);
-    const unitPrice = variant?.price ?? product.price;
+    const unitPrice = variant?.price ?? getEffectivePrice(product.price, product.discountPercent);
     return sum + unitPrice * (Number(row.quantity) || 0);
   }, 0);
 
