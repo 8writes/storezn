@@ -269,7 +269,7 @@ export default function VendorSettingsPage() {
               <Badge color="slate">Storezn+</Badge>
             </div>
             <p className="text-sm text-slate-500">
-              Pick a custom accent color for your storefront&apos;s header, buttons, and prices. Coming soon to Storezn+.
+              Pick a custom accent color for your storefront&apos;s header, buttons, and prices.
             </p>
             <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
               Upgrade to Storezn+
