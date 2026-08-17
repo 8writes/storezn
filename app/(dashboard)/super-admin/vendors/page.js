@@ -60,11 +60,18 @@ export default function SuperAdminVendorsPage() {
 
   const handleDecision = async (vendor, decision) => {
     const requireReason = decision === "rejected";
+    const wasApproved = vendor.approvalStatus === "approved";
+    const title = decision === "approved" ? `Approve ${vendor.firstName}?` : wasApproved ? `Unverify ${vendor.firstName}?` : `Reject ${vendor.firstName}?`;
+    const description = requireReason
+      ? wasApproved
+        ? "Tell them why - their store goes offline immediately and they can resubmit their NIN."
+        : "Tell them why - they'll see this note and can resubmit."
+      : undefined;
     const result = await confirm({
-      title: decision === "approved" ? `Approve ${vendor.firstName}?` : `Reject ${vendor.firstName}?`,
-      description: requireReason ? "Tell them why - they'll see this note and can resubmit." : undefined,
+      title,
+      description,
       requireReason,
-      confirmLabel: decision === "approved" ? "Approve" : "Reject",
+      confirmLabel: decision === "approved" ? "Approve" : wasApproved ? "Unverify" : "Reject",
       variant: requireReason ? "danger" : "default",
     });
     // requireReason: result is the reason string, or null if cancelled.
@@ -77,7 +84,7 @@ export default function SuperAdminVendorsPage() {
         method: "PATCH",
         body: JSON.stringify({ decision, reviewNote: requireReason ? result : undefined }),
       });
-      toast.success(decision === "approved" ? "Vendor approved" : "Vendor rejected");
+      toast.success(decision === "approved" ? "Vendor approved" : wasApproved ? "Vendor unverified - their store is now offline" : "Vendor rejected");
       load();
     } catch (err) {
       toast.error(err.message || "Failed to update vendor");
@@ -133,6 +140,18 @@ export default function SuperAdminVendorsPage() {
                     <Badge color={STATUS_COLOR[v.approvalStatus] || "slate"}>{v.approvalStatus}</Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
+                    {v.hasNin && v.approvalStatus === "approved" && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          disabled={decidingId === v.id}
+                          onClick={() => handleDecision(v, "rejected")}
+                          className="text-red-600 hover:underline disabled:opacity-50 cursor-pointer"
+                        >
+                          Unverify
+                        </button>
+                      </div>
+                    )}
                     {v.hasNin && v.approvalStatus !== "approved" && (
                       <div className="flex justify-end gap-3">
                         <button
