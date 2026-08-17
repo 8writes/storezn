@@ -26,8 +26,9 @@ const MAX_VIDEO_SECONDS = 30;
 
 const PRODUCT_TYPE_OPTIONS = [
   { value: "physical", label: "Physical (needs shipping)" },
-  { value: "digital", label: "Digital (no shipping)" },
 ];
+
+// { value: "digital", label: "Digital (no shipping)" },
 
 const CONDITION_OPTIONS = [
   { value: "new", label: "Brand New" },

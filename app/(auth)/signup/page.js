@@ -6,12 +6,15 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
+import { Select } from "@/components/ui/Select.js";
 import { slugify } from "@/lib/slugify.js";
+import { NIGERIA_STATE_OPTIONS } from "@/lib/nigeria.js";
 import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
 
 const EMPTY_FORM = {
   name: "",
   slug: "",
+  state: "",
   vendor: { firstName: "", lastName: "", email: "", password: "" },
   acceptTerms: false,
 };
@@ -108,6 +111,14 @@ function VendorSignupForm() {
           setSlugTouched(true);
           setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }));
         }}
+        required
+      />
+      <Select
+        label="State"
+        options={NIGERIA_STATE_OPTIONS}
+        value={form.state}
+        onChange={(v) => setForm((f) => ({ ...f, state: v }))}
+        placeholder="Where do you ship from?"
         required
       />
 

@@ -1,11 +1,11 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 
-function ProductCard({ p }) {
+function ProductCard({ p, storeState }) {
   const effectivePrice = getEffectivePrice(p.price, p.discountPercent);
   return (
     <Link href={`/products/${p.slug}`} className="group block">
@@ -41,6 +41,12 @@ function ProductCard({ p }) {
           <span className="text-sm font-medium text-slate-900">{formatCurrency(effectivePrice)}</span>
           {p.discountPercent > 0 && <span className="text-xs text-slate-400 line-through">{formatCurrency(p.price)}</span>}
         </p>
+        {storeState && (
+          <p className="flex items-center gap-1 text-xs text-slate-400">
+            <MapPin size={11} className="shrink-0" />
+            {storeState}
+          </p>
+        )}
       </div>
     </Link>
   );
@@ -52,7 +58,7 @@ function ProductCard({ p }) {
 // appending rather than navigating. Remounted (via the `key` the page
 // passes) whenever a filter changes, so stale appended pages from a
 // previous search/filter never linger.
-export function StorefrontProductGrid({ initialProducts, total, filters }) {
+export function StorefrontProductGrid({ initialProducts, total, filters, storeState }) {
   const [items, setItems] = useState(initialProducts);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -75,7 +81,7 @@ export function StorefrontProductGrid({ initialProducts, total, filters }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
       {items.map((p) => (
-        <ProductCard key={p.id} p={p} />
+        <ProductCard key={p.id} p={p} storeState={storeState} />
       ))}
 
       {items.length < total && (

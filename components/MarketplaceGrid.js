@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Package, Loader2 } from "lucide-react";
+import { Package, Loader2, MapPin } from "lucide-react";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { formatCurrency } from "@/lib/format.js";
@@ -39,6 +39,12 @@ function ProductCard({ product }) {
           <span className="text-sm font-medium text-slate-900">{formatCurrency(effectivePrice)}</span>
           {product.discountPercent > 0 && <span className="text-xs text-slate-400 line-through">{formatCurrency(product.price)}</span>}
         </p>
+        {product.store.state && (
+          <p className="flex items-center gap-1 text-xs text-slate-400">
+            <MapPin size={11} className="shrink-0" />
+            {product.store.state}
+          </p>
+        )}
       </div>
     </a>
   );

@@ -6,6 +6,7 @@ import { resolveStoreByHost } from "@/lib/resolveStore.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { formatCondition, formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
+import { MapPin } from "lucide-react";
 import { AddToCartButton } from "@/components/storefront/AddToCartButton.js";
 import { ReviewsSection } from "@/components/storefront/ReviewsSection.js";
 import { ProductGallery } from "@/components/storefront/ProductGallery.js";
@@ -98,6 +99,13 @@ export default async function StorefrontProductPage({ params }) {
             {product.productType === "physical" ? "Ships to your address" : "Digital delivery"}
             {product.productType === "physical" && variants.length === 0 && product.stock != null && ` · ${product.stock} in stock`}
           </p>
+
+          {store.state && (
+            <p className="flex items-center gap-1.5 text-xs text-slate-500">
+              <MapPin size={13} className="shrink-0" />
+              Ships from {store.state}
+            </p>
+          )}
 
           <div className="pt-2 border-t border-slate-100">
             <AddToCartButton

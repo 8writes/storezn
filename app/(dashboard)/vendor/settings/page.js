@@ -15,12 +15,14 @@ import { CustomDomainSettings } from "@/components/ui/CustomDomainSettings.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
+import { Select } from "@/components/ui/Select.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { formatCurrency, formatBytes } from "@/lib/format.js";
+import { NIGERIA_STATE_OPTIONS } from "@/lib/nigeria.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", description: "", storefrontAccentColor: "" };
+const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", description: "", storefrontAccentColor: "" };
 const DEFAULT_ACCENT = "#14915b";
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -80,6 +82,7 @@ export default function VendorSettingsPage() {
           feeChargedToCustomer: !!data.store.feeChargedToCustomer,
           returnWindowDays: String(data.store.returnWindowDays ?? 7),
           address: data.store.address || "",
+          state: data.store.state || "",
           description: data.store.description || "",
           storefrontAccentColor: data.store.storefrontAccentColor || "",
         });
@@ -426,6 +429,12 @@ export default function VendorSettingsPage() {
               <InfoTip>Shown in your storefront&apos;s footer, for a pickup location or just to build trust.</InfoTip>
             </div>
             <Input placeholder="12 Allen Avenue, Ikeja, Lagos" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+
+            <div className="flex items-center gap-1.5 pt-2">
+              <label className="text-sm font-medium text-slate-700">State</label>
+              <InfoTip>Where you ship from - shown as the location on your products&apos; cards and detail pages, both on your storefront and the marketplace.</InfoTip>
+            </div>
+            <Select options={NIGERIA_STATE_OPTIONS} value={form.state} onChange={(v) => setForm((f) => ({ ...f, state: v }))} placeholder="Select a state" />
 
             <div className="flex items-center gap-1.5 pt-2">
               <label className="text-sm font-medium text-slate-700">Socials</label>
