@@ -3,8 +3,8 @@ import { getMarketplaceProducts } from "../../../../../lib/marketplace.js";
 
 const PAGE_SIZE = 24;
 
-// Backs "Load more" and filter changes on /stores (see
-// app/stores/page.js's client-side MarketplaceGrid/MarketplaceFilters) -
+// Backs "Load more" and filter changes on /marketplace (see
+// app/marketplace/page.js's client-side MarketplaceGrid/MarketplaceFilters) -
 // the page itself still server-renders page 1 for SEO/first-paint, this
 // is hit for page 2+ and whenever a filter changes after that.
 export async function GET(req) {

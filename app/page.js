@@ -183,7 +183,7 @@ export default async function Home() {
                 <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Shop the Marketplace</h2>
                 <p className="mt-2 text-slate-500">Real products from real businesses already selling on Storezn.</p>
               </div>
-              <Link href="/stores" className="text-sm font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1.5 shrink-0">
+              <Link href="/marketplace" className="text-sm font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1.5 shrink-0">
                 See the marketplace
                 <ArrowRight size={15} />
               </Link>

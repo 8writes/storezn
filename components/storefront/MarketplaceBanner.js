@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Store } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 
 // Shown once, as a dialog, only when arriving from a marketplace product
@@ -33,16 +32,11 @@ export function MarketplaceBanner({ storeName }) {
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
       <div className="fixed inset-0 bg-black/50" onClick={() => setOpen(false)} />
       <div className="relative bg-white rounded-sm shadow-xl w-full max-w-sm p-6 space-y-4 my-auto">
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-brand-100 text-brand-600">
-            <Store size={18} />
-          </div>
-          <div className="min-w-0">
-            <h2 className="font-semibold text-slate-900">You&apos;re now on {storeName}&apos;s store</h2>
-            <p className="text-sm text-slate-500 mt-1">
-              You followed a product here from the Storezn marketplace. From here on, everything you do - browsing, your cart, checkout - is with <strong>{storeName}</strong> directly, not Storezn itself.
-            </p>
-          </div>
+        <div>
+          <h2 className="font-semibold text-slate-900">You&apos;re now on {storeName}&apos;s store</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            You followed a product here from the Storezn marketplace. From here on, everything you do - browsing, your cart, checkout - is with <strong>{storeName}</strong> directly, not Storezn itself.
+          </p>
         </div>
 
         <Button fullWidth onClick={() => setOpen(false)}>Got it</Button>
