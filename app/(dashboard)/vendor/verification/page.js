@@ -7,6 +7,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
+import { InfoTip } from "@/components/ui/InfoTip.js";
 import { formatDateTime } from "@/lib/format.js";
 import { encryptNin } from "@/lib/ninClient.js";
 
@@ -105,14 +106,21 @@ export default function VendorVerificationPage() {
 
       {status.approvalStatus !== "approved" && (!status.nin || status.approvalStatus === "rejected") && (
         <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
-          <Input
-            label="NIN (National Identification Number)"
-            placeholder="12345678901"
-            maxLength={11}
-            value={nin}
-            onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
-            required
-          />
+          <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <label className="text-sm font-medium text-slate-700">NIN (National Identification Number)</label>
+              <InfoTip>
+                Why do we need your NIN? It confirms you&apos;re a real person behind this store - this is for fraud prevention, so buyers can trust who they&apos;re paying and we can catch impersonation or stolen-identity stores before they take orders. It&apos;s never shown publicly.
+              </InfoTip>
+            </div>
+            <Input
+              placeholder="12345678901"
+              maxLength={11}
+              value={nin}
+              onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
+              required
+            />
+          </div>
           <p className="text-xs text-slate-700">
             Your NIN is encrypted on your device before it&apos;s sent - it&apos;s stored encrypted.
           </p>
