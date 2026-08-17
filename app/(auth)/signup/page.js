@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
 import { Select } from "@/components/ui/Select.js";
-import { slugify } from "@/lib/slugify.js";
+import { slugifyStoreName } from "@/lib/slugify.js";
 import { NIGERIA_STATE_OPTIONS } from "@/lib/nigeria.js";
 import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
 
@@ -95,21 +95,23 @@ function VendorSignupForm() {
         value={form.name}
         onChange={(e) => {
           const name = e.target.value;
-          setForm((f) => ({ ...f, name, slug: slugTouched ? f.slug : slugify(name) }));
+          setForm((f) => ({ ...f, name, slug: slugTouched ? f.slug : slugifyStoreName(name) }));
         }}
         required
       />
       <Input
         label="Store URL"
-        placeholder="janes-boutique"
+        placeholder="janesboutique"
         value={form.slug}
-        // Strips anything that isn't a-z/0-9/- as the vendor types,
-        // rather than letting them type "My Shop.com" and only finding
-        // out it's invalid after submit - matches the server's own
-        // slug regex (see vendorSignupSchema in lib/validate.js).
+        // Strips anything that isn't a-z/0-9 as the vendor types (no
+        // hyphens - a store's slug becomes its actual subdomain, see
+        // slugifyStoreName's own comment), rather than letting them type
+        // "My Shop.com" and only finding out it's invalid after submit -
+        // matches the server's own slug regex (see vendorSignupSchema in
+        // lib/validate.js).
         onChange={(e) => {
           setSlugTouched(true);
-          setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }));
+          setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "") }));
         }}
         required
       />
