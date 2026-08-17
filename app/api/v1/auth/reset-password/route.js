@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "../../../../../lib/db/index.js";
-import { users, tokens, stores } from "../../../../../lib/db/schema.js";
+import { users, staff, customers, tokens, stores } from "../../../../../lib/db/schema.js";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { validate, resetPasswordSchema } from "../../../../../lib/validate.js";
@@ -29,9 +29,14 @@ export async function POST(req) {
     return NextResponse.json({ error: "This reset link is invalid or has expired" }, { status: 400 });
   }
 
+  // Exactly one of these is set on the token row (see
+  // tokens.userId/staffId/customerId in lib/db/schema.js).
+  const isStaff = !!tokenRow.staffId;
+  const [table, id] = tokenRow.customerId ? [customers, tokenRow.customerId] : isStaff ? [staff, tokenRow.staffId] : [users, tokenRow.userId];
+
   const passwordHash = await bcrypt.hash(password, 10);
-  const [updatedUser] = await db.transaction(async (tx) => {
-    const [updated] = await tx.update(users).set({ passwordHash }).where(eq(users.id, tokenRow.userId)).returning();
+  const [updatedAccount] = await db.transaction(async (tx) => {
+    const [updated] = await tx.update(table).set({ passwordHash }).where(eq(table.id, id)).returning();
     await tx.update(tokens).set({ usedAt: new Date() }).where(eq(tokens.id, tokenRow.id));
     return [updated];
   });
@@ -40,12 +45,12 @@ export async function POST(req) {
   // the exact one emailed at invite time (see POST .../staff), so setting
   // a password here doubles as activation. Let the vendor know their
   // staff member is actually in, not just invited.
-  if (updatedUser.role === "staff" && updatedUser.storeId) {
-    const [store] = await db.select({ ownerId: stores.ownerId, name: stores.name }).from(stores).where(eq(stores.id, updatedUser.storeId)).limit(1);
+  if (isStaff) {
+    const [store] = await db.select({ ownerId: stores.ownerId, name: stores.name }).from(stores).where(eq(stores.id, updatedAccount.storeId)).limit(1);
     if (store?.ownerId) {
       sendPushToUser(store.ownerId, {
         title: "Staff member active",
-        body: `${updatedUser.firstName} ${updatedUser.lastName} accepted your invite and can now access ${store.name}.`,
+        body: `${updatedAccount.firstName} ${updatedAccount.lastName} accepted your invite and can now access ${store.name}.`,
         url: "/vendor/staff",
       }).catch((err) => console.error("sendPushToUser failed (staff activated):", err));
     }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { reviews, orders, orderItems, users } from "../../../../../../../lib/db/schema.js";
+import { reviews, orders, orderItems, customers } from "../../../../../../../lib/db/schema.js";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getUser } from "../../../../../../../lib/auth.js";
 import { validate, createReviewSchema } from "../../../../../../../lib/validate.js";
@@ -14,10 +14,10 @@ export async function GET(req, { params }) {
       rating: reviews.rating,
       comment: reviews.comment,
       createdAt: reviews.createdAt,
-      firstName: users.firstName,
+      firstName: customers.firstName,
     })
     .from(reviews)
-    .innerJoin(users, eq(reviews.userId, users.id))
+    .innerJoin(customers, eq(reviews.userId, customers.id))
     .where(eq(reviews.productId, productId))
     .orderBy(desc(reviews.createdAt));
 

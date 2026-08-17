@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "../../../../../lib/db/index.js";
-import { users } from "../../../../../lib/db/schema.js";
+import { users, staff, customers } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { validate, updateProfileAndNotificationsSchema, changePasswordSchema } from "../../../../../lib/validate.js";
+
+// Shared across every account kind (vendor, staff, customer, super_admin) -
+// getUser() already normalizes which table the signed-in principal came
+// from onto `.role`, this just maps that back to the right table to
+// write to.
+function tableForRole(role) {
+  if (role === "staff") return staff;
+  if (role === "customer") return customers;
+  return users;
+}
 
 export async function GET(req) {
   const user = await getUser(req);
@@ -20,6 +30,7 @@ export async function GET(req) {
 export async function PATCH(req) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const table = tableForRole(user.role);
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
@@ -32,14 +43,14 @@ export async function PATCH(req) {
     if (!valid) return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
 
     const passwordHash = await bcrypt.hash(result.data.newPassword, 10);
-    await db.update(users).set({ passwordHash }).where(eq(users.id, user.id));
+    await db.update(table).set({ passwordHash }).where(eq(table.id, user.id));
     return NextResponse.json({ success: true });
   }
 
   const result = validate(updateProfileAndNotificationsSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  const [updated] = await db.update(users).set(result.data).where(eq(users.id, user.id)).returning();
+  const [updated] = await db.update(table).set(result.data).where(eq(table.id, user.id)).returning();
   const { passwordHash: _, ...safeUser } = updated;
-  return NextResponse.json({ user: safeUser });
+  return NextResponse.json({ user: { ...safeUser, role: user.role } });
 }

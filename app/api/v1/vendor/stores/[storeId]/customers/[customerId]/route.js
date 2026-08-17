@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { users, orders, stores } from "../../../../../../../../lib/db/schema.js";
+import { customers, orders, stores } from "../../../../../../../../lib/db/schema.js";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 
@@ -11,8 +11,9 @@ async function loadStore(storeId) {
 
 // A single customer's profile plus their full order history with this
 // store specifically - a customer's account can only belong to one store
-// (users.storeId), so there's no cross-store leakage risk here to guard
-// against beyond confirming the customer actually belongs to this store.
+// (customers.storeId), so there's no cross-store leakage risk here to
+// guard against beyond confirming the customer actually belongs to this
+// store.
 export async function GET(req, { params }) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,15 +25,15 @@ export async function GET(req, { params }) {
 
   const [customer] = await db
     .select({
-      id: users.id,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      email: users.email,
-      phone: users.phone,
-      createdAt: users.createdAt,
+      id: customers.id,
+      firstName: customers.firstName,
+      lastName: customers.lastName,
+      email: customers.email,
+      phone: customers.phone,
+      createdAt: customers.createdAt,
     })
-    .from(users)
-    .where(and(eq(users.id, customerId), eq(users.role, "customer"), eq(users.storeId, storeId)))
+    .from(customers)
+    .where(and(eq(customers.id, customerId), eq(customers.storeId, storeId)))
     .limit(1);
   if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
 

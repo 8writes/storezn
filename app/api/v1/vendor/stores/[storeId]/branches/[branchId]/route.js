@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { stores, branches, users, orders, productBranchStock } from "../../../../../../../../lib/db/schema.js";
+import { stores, branches, staff, orders, productBranchStock } from "../../../../../../../../lib/db/schema.js";
 import { and, eq, isNull, ne, notInArray, or } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../../lib/auth.js";
 import { validate, updateBranchSchema } from "../../../../../../../../lib/validate.js";
@@ -55,7 +55,7 @@ export async function DELETE(req, { params }) {
   if (!branch) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
   if (branch.isDefault) return NextResponse.json({ error: "The default branch can't be deleted" }, { status: 400 });
 
-  const [staffMember] = await db.select({ id: users.id }).from(users).where(and(eq(users.branchId, branchId), eq(users.role, "staff"))).limit(1);
+  const [staffMember] = await db.select({ id: staff.id }).from(staff).where(eq(staff.branchId, branchId)).limit(1);
   if (staffMember) return NextResponse.json({ error: "Reassign this branch's staff before deleting it" }, { status: 409 });
 
   const [pendingOrder] = await db

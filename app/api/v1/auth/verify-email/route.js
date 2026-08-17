@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { users, tokens } from "../../../../../lib/db/schema.js";
+import { users, staff, customers, tokens } from "../../../../../lib/db/schema.js";
 import { and, eq, isNull, gt } from "drizzle-orm";
 import { validate, verifyEmailSchema } from "../../../../../lib/validate.js";
 
@@ -19,8 +19,14 @@ export async function POST(req) {
     .limit(1);
   if (!row) return NextResponse.json({ error: "This verification link is invalid or has expired" }, { status: 400 });
 
+  // Exactly one of these is set on the token row (see
+  // tokens.userId/staffId/customerId in lib/db/schema.js) - staff rows
+  // are already emailVerified:true at invite time so this branch is
+  // effectively customer/vendor-only in practice, kept generic anyway.
+  const [table, id] = row.customerId ? [customers, row.customerId] : row.staffId ? [staff, row.staffId] : [users, row.userId];
+
   await db.transaction(async (tx) => {
-    await tx.update(users).set({ emailVerified: true }).where(eq(users.id, row.userId));
+    await tx.update(table).set({ emailVerified: true }).where(eq(table.id, id));
     await tx.update(tokens).set({ usedAt: new Date() }).where(eq(tokens.id, row.id));
   });
 

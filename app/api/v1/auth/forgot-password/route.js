@@ -1,10 +1,11 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { users, tokens } from "../../../../../lib/db/schema.js";
-import { eq } from "drizzle-orm";
+import { users, staff, customers, tokens } from "../../../../../lib/db/schema.js";
+import { and, eq } from "drizzle-orm";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { validate, forgotPasswordSchema } from "../../../../../lib/validate.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
+import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 
 export async function POST(req) {
   const limit = checkRateLimit(req, "forgot-password", { max: 5, windowMs: 60_000 });
@@ -19,13 +20,42 @@ export async function POST(req) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   const { email } = result.data;
 
+  const host = req.headers.get("host") || "";
+
+  // Which table(s) to search depends on the host, same as login (see
+  // isPlatformHost) - a store subdomain only ever means "this store's
+  // customer", never the platform's own users/staff.
+  let account = null;
+  let tokenCols = null;
+  if (isPlatformHost(host)) {
+    const [vendorOrAdmin] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (vendorOrAdmin) {
+      account = vendorOrAdmin;
+      tokenCols = { userId: vendorOrAdmin.id };
+    } else {
+      const [staffRow] = await db.select().from(staff).where(eq(staff.email, email)).limit(1);
+      if (staffRow) {
+        account = staffRow;
+        tokenCols = { staffId: staffRow.id };
+      }
+    }
+  } else {
+    const store = await resolveStoreByHost(host);
+    if (store) {
+      const [customerRow] = await db.select().from(customers).where(and(eq(customers.storeId, store.id), eq(customers.email, email))).limit(1);
+      if (customerRow) {
+        account = customerRow;
+        tokenCols = { customerId: customerRow.id };
+      }
+    }
+  }
+
   // Always return ok regardless of whether the email matches an account -
   // don't leak which emails are registered.
-  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (user) {
+  if (account) {
     const token = crypto.randomUUID();
     await db.insert(tokens).values({
-      userId: user.id,
+      ...tokenCols,
       type: "reset",
       token,
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
@@ -37,7 +67,6 @@ export async function POST(req) {
     // rewritten by proxy.js), not the vendor/admin one at the platform
     // root, and vice versa for a vendor/admin request.
     const protocol = req.headers.get("x-forwarded-proto") || "http";
-    const host = req.headers.get("host") || "";
     const resetUrl = `${protocol}://${host}/reset-password?token=${token}`;
     // Not awaited - the response below must stay fast regardless of mail
     // provider latency, and always-ok must not depend on send success
@@ -49,7 +78,7 @@ export async function POST(req) {
     // this callback actually settles.
     after(() =>
       sendMail({
-        to: user.email,
+        to: account.email,
         subject: "Reset your password",
         html: `<p>A password reset was requested for your account.</p><p>Click below to reset your password. This link expires in 1 hour.</p><p><a href="${resetUrl}">Reset Password</a></p>`,
       }).catch((err) => console.error("sendMail failed (forgot-password):", err)),

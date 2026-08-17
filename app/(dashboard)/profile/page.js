@@ -3,23 +3,29 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
+import { useConfirm } from "@/hooks/useConfirm.js";
 import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
 
 const EMPTY_PASSWORD_FORM = { currentPassword: "", newPassword: "" };
 
-// Role-agnostic - works the same for a vendor or a super_admin, since
-// both are just `users` rows with the same profile/notification fields.
+// Role-agnostic for the profile/password/notification fields - works the
+// same for a vendor, staff, or a super_admin, whichever of users/staff/
+// customers the signed-in principal's row actually lives in (see
+// lib/auth.js's getUser, PATCH /api/v1/auth/me). The "Leave store" card
+// below is staff-only.
 export default function ProfilePage() {
-  const { user, token, updateUser } = useAuth(true);
+  const { user, token, logout, updateUser } = useAuth(true);
   const { apiFetch } = useApi(token);
+  const { confirm, confirmDialog } = useConfirm();
 
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
   const [changingPassword, setChangingPassword] = useState(false);
   const [notifSaving, setNotifSaving] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -79,10 +85,31 @@ export default function ProfilePage() {
     }
   };
 
+  const handleLeaveStore = async () => {
+    const ok = await confirm({
+      title: "Leave this store?",
+      description: "You'll lose access immediately. The store owner can re-invite you later if needed.",
+      confirmLabel: "Leave store",
+      variant: "danger",
+    });
+    if (!ok) return;
+
+    setLeaving(true);
+    try {
+      await apiFetch("/api/v1/vendor/staff/me", { method: "DELETE" });
+      toast.success("You've left the store");
+      logout();
+    } catch (err) {
+      toast.error(err.message || "Failed to leave the store");
+      setLeaving(false);
+    }
+  };
+
   if (!form) return null;
 
   return (
     <div className="space-y-6 max-w-xl">
+      {confirmDialog}
       <h1 className="text-xl font-bold text-slate-900">Profile</h1>
 
       <form onSubmit={handleSaveProfile} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
@@ -128,6 +155,16 @@ export default function ProfilePage() {
         />
         <Button type="submit" loading={changingPassword}>Change password</Button>
       </form>
+
+      {user.role === "staff" && (
+        <div className="bg-white border border-red-200 rounded-sm p-5 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-700">Leave this store</p>
+            <p className="text-xs text-slate-500 mt-1">You&apos;ll lose access to this store&apos;s dashboard immediately.</p>
+          </div>
+          <Button type="button" variant="danger" loading={leaving} onClick={handleLeaveStore}>Leave store</Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,6 +5,18 @@ import { eq } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { validate, pushSubscribeSchema } from "../../../../../lib/validate.js";
 
+// Which pushSubscriptions column gets the signed-in principal's id -
+// userId/staffId/customerId are mutually exclusive per row (see
+// lib/db/schema.js's users/staff/customers split). Only ever called from
+// the vendor/super_admin/staff dashboard today (see
+// components/ui/PushNotificationToggle.js's call sites), but written to
+// cover a customer-facing subscribe button too if that's ever added.
+function columnForRole(role) {
+  if (role === "staff") return "staffId";
+  if (role === "customer") return "customerId";
+  return "userId";
+}
+
 // Called once per browser/device after the client gets permission and
 // calls PushManager.subscribe() - see components/ui/PushNotificationToggle.js.
 // onConflictDoUpdate on endpoint: the same browser re-subscribing (e.g.
@@ -22,12 +34,15 @@ export async function POST(req) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   const { endpoint, keys } = result.data;
 
+  const column = columnForRole(user.role);
+  const ownerValues = { userId: null, staffId: null, customerId: null, [column]: user.id };
+
   await db
     .insert(pushSubscriptions)
-    .values({ userId: user.id, endpoint, p256dh: keys.p256dh, auth: keys.auth })
+    .values({ ...ownerValues, endpoint, p256dh: keys.p256dh, auth: keys.auth })
     .onConflictDoUpdate({
       target: pushSubscriptions.endpoint,
-      set: { userId: user.id, p256dh: keys.p256dh, auth: keys.auth },
+      set: { ...ownerValues, p256dh: keys.p256dh, auth: keys.auth },
     });
 
   return NextResponse.json({ ok: true });
