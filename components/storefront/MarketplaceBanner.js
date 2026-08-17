@@ -1,30 +1,51 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { getPlatformUrl } from "@/lib/storeUrl.js";
+import { Store } from "lucide-react";
+import { Button } from "@/components/ui/Button.js";
 
-// Shown only when arriving from a marketplace product link (see
-// MarketplaceGrid.js's ProductCard href, which appends ?from=marketplace)
-// - the marketplace itself never hosts checkout, so this makes the
-// handoff to the vendor's own storefront explicit and gives a way back
-// rather than leaving the shopper wondering how they got here.
+// Shown once, as a dialog, only when arriving from a marketplace product
+// link (see MarketplaceGrid.js's ProductCard href, which appends
+// ?from=marketplace) - the marketplace itself never hosts checkout, so
+// this makes the handoff to the vendor's own storefront explicit (browsing,
+// cart, checkout, everything from here on is with this vendor) before the
+// shopper does anything, rather than a passive banner they might not
+// notice. Same chrome as StorageLimitDialog.js.
 export function MarketplaceBanner({ storeName }) {
   const searchParams = useSearchParams();
-  if (searchParams.get("from") !== "marketplace") return null;
+  const fromMarketplace = searchParams.get("from") === "marketplace";
+  const [open, setOpen] = useState(fromMarketplace);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  if (!fromMarketplace || !open) return null;
 
   return (
-    <div className="bg-brand-50 border-b border-brand-100">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-3 text-xs sm:text-sm">
-        <span className="text-brand-800">
-          You&apos;ve left the Storezn marketplace to shop <strong>{storeName}</strong> directly.
-        </span>
-        <a
-          href={getPlatformUrl("/stores")}
-          className="inline-flex items-center gap-1 font-semibold text-brand-700 hover:text-brand-900 shrink-0"
-        >
-          <ArrowLeft size={14} />
-          Back to marketplace
-        </a>
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+      <div className="fixed inset-0 bg-black/50" onClick={() => setOpen(false)} />
+      <div className="relative bg-white rounded-sm shadow-xl w-full max-w-sm p-6 space-y-4 my-auto">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-brand-100 text-brand-600">
+            <Store size={18} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-slate-900">You&apos;re now on {storeName}&apos;s store</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              You followed a product here from the Storezn marketplace. From here on, everything you do - browsing, your cart, checkout - is with <strong>{storeName}</strong> directly, not Storezn itself.
+            </p>
+          </div>
+        </div>
+
+        <Button fullWidth onClick={() => setOpen(false)}>Got it</Button>
       </div>
     </div>
   );
