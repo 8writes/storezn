@@ -31,7 +31,7 @@ export function Footer({ store, themed = false }) {
   return (
     <footer className={themed ? "bg-brand-600" : "border-t border-slate-200 bg-white"}>
       <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className={`text-sm text-center sm:text-left ${themed ? "text-white/90" : "text-slate-500"}`}>
+        <div className={`text-sm text-center sm:text-left ${themed ? "text-white" : "text-slate-500"}`}>
           <p>© {new Date().getFullYear()} {store?.name}</p>
           {store?.address && <p className={`text-xs mt-0.5 ${themed ? "text-white" : "text-slate-700"}`}>{store.address}</p>}
         </div>
