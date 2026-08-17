@@ -14,11 +14,13 @@ import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
-import { uploadFile } from "@/lib/clientUpload.js";
-import { X, Trash2, ImagePlus, Loader2, GripVertical } from "lucide-react";
+import { uploadFile, getVideoDuration } from "@/lib/clientUpload.js";
+import { X, Trash2, ImagePlus, Loader2, GripVertical, Video } from "lucide-react";
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
+const MAX_VIDEO_SECONDS = 30;
 
 const PRODUCT_TYPE_OPTIONS = [
   { value: "physical", label: "Physical (needs shipping)" },
@@ -63,6 +65,7 @@ export default function VendorProductEditPage({ params }) {
   // >1 means the plain Stock field below is redundant/ambiguous (which
   // branch would it even mean?), so it's disabled in favor of the panel.
   const [branchCount, setBranchCount] = useState(1);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -84,6 +87,7 @@ export default function VendorProductEditPage({ params }) {
           stock: product.stock != null ? String(product.stock) : "",
           categoryId: product.categoryId || "",
           images: product.images || [],
+          videoUrl: product.videoUrl || "",
           isActive: product.isActive,
         });
         setSuspension(product.suspendedAt ? { reason: product.suspendedReason } : null);
@@ -152,6 +156,53 @@ export default function VendorProductEditPage({ params }) {
   };
 
   const removeImage = (url) => persistImages(imagesRef.current.filter((i) => i !== url));
+
+  // Same "saves straight to the product" immediacy as photos above - a
+  // video that visibly appears otherwise looks saved even though a
+  // refresh would lose it if left only in local form state.
+  const persistVideo = async (videoUrl) => {
+    setForm((f) => ({ ...f, videoUrl }));
+    try {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${id}`, { method: "PATCH", body: JSON.stringify({ videoUrl }) });
+    } catch (err) {
+      toast.error(err.message || "Failed to save video");
+    }
+  };
+
+  const handleVideoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (file.size > MAX_VIDEO_SIZE) {
+      toast.error(`Video must be smaller than ${MAX_VIDEO_SIZE / (1024 * 1024)}MB`);
+      return;
+    }
+
+    try {
+      const duration = await getVideoDuration(file);
+      if (duration > MAX_VIDEO_SECONDS) {
+        toast.error(`Video must be ${MAX_VIDEO_SECONDS} seconds or shorter (this one is ${Math.round(duration)}s)`);
+        return;
+      }
+    } catch {
+      toast.error("Could not read that video file");
+      return;
+    }
+
+    setUploadingVideo(true);
+    try {
+      const url = await uploadFile(token, file, "product-video");
+      await persistVideo(url);
+    } catch (err) {
+      if (err.status === 402) setStorageDialogOpen(true);
+      else toast.error(err.message || "Upload failed");
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
+  const removeVideo = () => persistVideo("");
 
   const handleDrop = (dropIndex) => {
     if (dragIndex === null || dragIndex === dropIndex) return;
@@ -222,7 +273,6 @@ export default function VendorProductEditPage({ params }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
@@ -256,7 +306,7 @@ export default function VendorProductEditPage({ params }) {
                   onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
                   disabled={branchCount > 1}
                 />
-                {branchCount > 1 && <p className="text-xs text-slate-400 mt-1">Use Stock by branch below instead.</p>}
+                {branchCount > 1 && <p className="text-xs font-medium text-amber-600 mt-1">Use Stock by branch below instead.</p>}
               </div>
             </>
           )}
@@ -339,10 +389,38 @@ export default function VendorProductEditPage({ params }) {
           </div>
         </div>
 
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <label className="text-sm font-medium text-slate-700">Video (optional)</label>
+            <InfoTip>A short clip of the product - up to {MAX_VIDEO_SECONDS}s and {MAX_VIDEO_SIZE / (1024 * 1024)}MB.</InfoTip>
+          </div>
+          {form.videoUrl ? (
+            <div className="relative w-40">
+              <video src={form.videoUrl} controls className="w-40 rounded-sm border border-slate-200" />
+              <button
+                type="button"
+                onClick={removeVideo}
+                aria-label="Remove video"
+                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center cursor-pointer shrink-0"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : uploadingVideo ? (
+            <div className="w-40 h-24 rounded-sm border border-slate-200 flex items-center justify-center bg-slate-50">
+              <Loader2 size={20} className="text-slate-400 animate-spin" />
+            </div>
+          ) : (
+            <label className="w-40 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-700 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
+              <Video size={20} />
+              <span className="text-[11px] font-medium">Add video</span>
+              <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoUpload} className="hidden" />
+            </label>
+          )}
+        </div>
+
         <Button type="submit" loading={saving} disabled={pendingUploads.length > 0} fullWidth>Save changes</Button>
       </form>
-
-      </div>
 
       <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} onTotalBranches={setBranchCount} />
 

@@ -95,6 +95,12 @@ export async function PATCH(req, { params }) {
     const removed = (product.images || []).filter((url) => !result.data.images.includes(url));
     Promise.all(removed.map((url) => Promise.all([deletePublicFile(url), removeStoreUpload(url)]))).catch(() => {});
   }
+  // Same reasoning for the video - "videoUrl" in result.data means the
+  // vendor either replaced or cleared it (see updateProductSchema);
+  // either way the old one (if different) is now unreferenced.
+  if ("videoUrl" in result.data && product.videoUrl && product.videoUrl !== result.data.videoUrl) {
+    Promise.all([deletePublicFile(product.videoUrl), removeStoreUpload(product.videoUrl)]).catch(() => {});
+  }
 
   return NextResponse.json({ product: updated });
 }
@@ -137,6 +143,9 @@ export async function DELETE(req, { params }) {
   // Best-effort, after the DB delete has committed - a storage hiccup
   // here shouldn't undo (or block reporting) the actual product delete.
   Promise.all((product.images || []).map((url) => Promise.all([deletePublicFile(url), removeStoreUpload(url)]))).catch(() => {});
+  if (product.videoUrl) {
+    Promise.all([deletePublicFile(product.videoUrl), removeStoreUpload(product.videoUrl)]).catch(() => {});
+  }
 
   return NextResponse.json({ ok: true });
 }

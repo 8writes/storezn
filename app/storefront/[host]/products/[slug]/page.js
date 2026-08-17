@@ -74,7 +74,7 @@ export default async function StorefrontProductPage({ params }) {
       <BackButton className="mb-6" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
-        <ProductGallery images={product.images || []} name={product.name} />
+        <ProductGallery images={product.images || []} videoUrl={product.videoUrl} name={product.name} />
 
         <div className="space-y-6 md:pt-2">
           <div className="space-y-1.5">

@@ -146,15 +146,15 @@ export default function SuperAdminSettingsPage() {
           </div>
           <Input label="Default commission rate (%)" type="number" min="0" max="100" step="0.1" value={rate} onChange={(e) => setRate(e.target.value)} />
           <div>
-            <Input label="Commission cap (₦ per order, optional)" type="number" min="0" step="1" placeholder="No cap" value={cap} onChange={(e) => setCap(e.target.value)} />
+            <Input label="Platform fee cap (₦ per order, optional)" type="number" min="0" step="1" placeholder="No cap" value={cap} onChange={(e) => setCap(e.target.value)} />
             <p className="text-xs text-slate-500 mt-1">
-              The commission never charges more than this per order, regardless of the rate above or the order&apos;s subtotal. Leave blank for no cap.
+              The platform never takes more than this per order in total - commission plus the flat fee below combined, regardless of the rate above or the order&apos;s subtotal. The flat fee always stays intact; the percentage commission is what shrinks to fit under the cap. Leave blank for no cap.
             </p>
           </div>
           <div>
             <Input label="Flat fee (₦ per order)" type="number" min="0" step="1" value={flatFee} onChange={(e) => setFlatFee(e.target.value)} />
             <p className="text-xs text-slate-500 mt-1">
-              A fixed amount charged on every order on top of the commission above - not capped by the commission cap, since it's already a fixed amount. 0 disables it.
+              A fixed amount charged on every order on top of the commission above. Counts toward the cap above (which the commission makes room for), 0 disables it.
             </p>
           </div>
           <Button onClick={save} loading={saving}>Save</Button>

@@ -30,9 +30,10 @@ export function BranchStockPanel({ apiFetch, storeId, productId, onTotalBranches
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, productId]);
 
-  const save = async (branchId, variantId, value) => {
+  const save = async (branchId, variantId, value, previousStock) => {
     const stock = value.trim() === "" ? null : Number(value);
     if (stock != null && (Number.isNaN(stock) || stock < 0)) return;
+    if (stock === (previousStock ?? null)) return; // unchanged - no need to save or toast
     const key = `${variantId || "base"}-${branchId}`;
     setSaving(key);
     try {
@@ -40,6 +41,7 @@ export function BranchStockPanel({ apiFetch, storeId, productId, onTotalBranches
         method: "PATCH",
         body: JSON.stringify({ branchId, variantId: variantId || undefined, stock }),
       });
+      toast.success("Stock updated");
       load();
     } catch (err) {
       toast.error(err.message || "Failed to save stock");
@@ -57,14 +59,14 @@ export function BranchStockPanel({ apiFetch, storeId, productId, onTotalBranches
         <p className="text-xs text-slate-500 mt-0.5">Leave blank for unlimited at that branch.</p>
       </div>
 
-      <BranchStockRows label={null} rows={data.productStock} saving={saving} onSave={(branchId, value) => save(branchId, null, value)} />
+      <BranchStockRows label={null} rows={data.productStock} saving={saving} onSave={(branchId, value, prev) => save(branchId, null, value, prev)} />
 
       {variants.map((v) => (
         <div key={v.id} className="pt-4 border-t border-slate-100">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
             {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
           </p>
-          <BranchStockRows label={v.id} rows={data.variantStock[v.id] || []} saving={saving} onSave={(branchId, value) => save(branchId, v.id, value)} />
+          <BranchStockRows label={v.id} rows={data.variantStock[v.id] || []} saving={saving} onSave={(branchId, value, prev) => save(branchId, v.id, value, prev)} />
         </div>
       ))}
     </div>
@@ -84,7 +86,7 @@ function BranchStockRows({ rows, saving, onSave }) {
             defaultValue={row.stock ?? ""}
             className="w-32"
             disabled={saving === `${row.variantId || "base"}-${row.branchId}`}
-            onBlur={(e) => onSave(row.branchId, e.target.value)}
+            onBlur={(e) => onSave(row.branchId, e.target.value, row.stock)}
           />
         </div>
       ))}

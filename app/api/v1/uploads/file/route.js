@@ -8,13 +8,19 @@ import { eq } from "drizzle-orm";
 import { getStorageLimitBytes } from "../../../../../lib/storePlan.js";
 import { recordStoreUpload, getStoreStorageUsage, removeStoreUpload } from "../../../../../lib/storeUploads.js";
 
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+// A 30s cap is enforced client-side only (see the product forms' duration
+// check before upload even starts) - there's no ffprobe/media-inspection
+// tooling on this server to re-verify duration server-side. The 20MB size
+// cap below is the real, unbypassable backstop.
+const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 // store-logo/store-favicon are cropped client-side to a fixed small
 // canvas size before upload (see ImageCropModal), so they never approach
 // even this generous ceiling - product-image is the one uploaded as-is
 // straight from the vendor's camera roll, so it gets its own tighter cap.
 const MAX_SIZE_BY_PURPOSE = {
   "product-image": 1 * 1024 * 1024,
+  "product-video": 20 * 1024 * 1024,
   "store-logo": 8 * 1024 * 1024,
   "store-favicon": 8 * 1024 * 1024,
 };
@@ -38,11 +44,19 @@ export async function POST(req) {
   if (!maxSize) {
     return NextResponse.json({ error: "Invalid purpose" }, { status: 400 });
   }
-  if (!ALLOWED_TYPES.has(file.type)) {
-    return NextResponse.json({ error: "Only JPEG, PNG, or WebP images are allowed" }, { status: 400 });
+  const isVideo = purpose === "product-video";
+  const allowedTypes = isVideo ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
+  if (!allowedTypes.has(file.type)) {
+    return NextResponse.json(
+      { error: isVideo ? "Only MP4, WebM, or MOV videos are allowed" : "Only JPEG, PNG, or WebP images are allowed" },
+      { status: 400 },
+    );
   }
   if (file.size > maxSize) {
-    return NextResponse.json({ error: `Image must be smaller than ${Math.round(maxSize / (1024 * 1024))}MB` }, { status: 400 });
+    return NextResponse.json(
+      { error: `${isVideo ? "Video" : "Image"} must be smaller than ${Math.round(maxSize / (1024 * 1024))}MB` },
+      { status: 400 },
+    );
   }
 
   // Storage is metered per store, not per user - resolve which store this
