@@ -28,6 +28,7 @@ export async function GET(req) {
         firstName: users.firstName,
         lastName: users.lastName,
         email: users.email,
+        emailVerified: users.emailVerified,
         approvalStatus: users.approvalStatus,
         nin: users.nin,
         ninSubmittedAt: users.ninSubmittedAt,

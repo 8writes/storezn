@@ -6,13 +6,9 @@ import { getUser, requireRole } from "../../../../../../lib/auth.js";
 import { validate, reviewVendorApprovalSchema } from "../../../../../../lib/validate.js";
 import { sendPushToUser } from "../../../../../../lib/push.js";
 
-// Approves or rejects a vendor - normally reviewing their submitted NIN
-// (see users.approvalStatus in lib/db/schema.js), but a super_admin can
-// also approve a vendor who hasn't submitted one yet at all (verified by
-// some other means - a call, other ID, etc.) rather than being blocked
-// waiting on the vendor's own NIN flow to work. Approving is what
-// actually lets their store go live (lib/resolveStore.js's isStoreLive
-// checks this).
+// Approves or rejects a vendor's submitted NIN - see users.approvalStatus
+// in lib/db/schema.js. Approving is what actually lets their store go
+// live (lib/resolveStore.js's isStoreLive checks this).
 export async function PATCH(req, { params }) {
   const user = await getUser(req);
   if (!requireRole(user, ["super_admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,6 +16,10 @@ export async function PATCH(req, { params }) {
   const { id } = await params;
   const [vendor] = await db.select().from(users).where(and(eq(users.id, id), eq(users.role, "vendor"))).limit(1);
   if (!vendor) return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
+
+  if (!vendor.nin) {
+    return NextResponse.json({ error: "This vendor hasn't submitted a NIN yet" }, { status: 400 });
+  }
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });

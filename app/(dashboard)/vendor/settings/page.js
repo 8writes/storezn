@@ -493,7 +493,7 @@ export default function VendorSettingsPage() {
 
             <div>
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-slate-700">Who pays the commission?</label>
+                <label className="text-sm font-medium text-slate-700">Who pays the platform fee?</label>
                 {commissionRate != null && (
                   <Badge color="slate">
                     {commissionRate}%{flatFee > 0 ? ` + ${formatCurrency(flatFee)}` : ""}

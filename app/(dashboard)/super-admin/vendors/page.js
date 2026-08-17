@@ -33,6 +33,7 @@ export default function SuperAdminVendorsPage() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [decidingId, setDecidingId] = useState(null);
+  const [verifyingEmailId, setVerifyingEmailId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -61,27 +62,18 @@ export default function SuperAdminVendorsPage() {
   const handleDecision = async (vendor, decision) => {
     const requireReason = decision === "rejected";
     const wasApproved = vendor.approvalStatus === "approved";
-    const title =
-      decision === "approved"
-        ? vendor.hasNin
-          ? `Approve ${vendor.firstName}?`
-          : `Verify ${vendor.firstName} without a NIN?`
-        : wasApproved
-          ? `Unverify ${vendor.firstName}?`
-          : `Reject ${vendor.firstName}?`;
+    const title = decision === "approved" ? `Approve ${vendor.firstName}?` : wasApproved ? `Unverify ${vendor.firstName}?` : `Reject ${vendor.firstName}?`;
     const description = requireReason
       ? wasApproved
         ? "Tell them why - their store goes offline immediately and they can resubmit their NIN."
         : "Tell them why - they'll see this note and can resubmit."
-      : decision === "approved" && !vendor.hasNin
-        ? "They haven't submitted a NIN - only do this if you've confirmed their identity some other way. Their store goes live immediately."
-        : undefined;
+      : undefined;
     const result = await confirm({
       title,
       description,
       requireReason,
-      confirmLabel: decision === "approved" ? (vendor.hasNin ? "Approve" : "Verify manually") : wasApproved ? "Unverify" : "Reject",
-      variant: requireReason || (decision === "approved" && !vendor.hasNin) ? "danger" : "default",
+      confirmLabel: decision === "approved" ? "Approve" : wasApproved ? "Unverify" : "Reject",
+      variant: requireReason ? "danger" : "default",
     });
     // requireReason: result is the reason string, or null if cancelled.
     // Otherwise result is a plain true/false - either way, falsy means cancel.
@@ -99,6 +91,23 @@ export default function SuperAdminVendorsPage() {
       toast.error(err.message || "Failed to update vendor");
     } finally {
       setDecidingId(null);
+    }
+  };
+
+  // For a vendor stuck unable to even sign in because their verification
+  // email never arrived (deliverability issue, not something they did
+  // wrong) - separate from the NIN/identity decision above, which only
+  // gates whether their store can go live, not whether they can log in.
+  const handleVerifyEmail = async (vendor) => {
+    setVerifyingEmailId(vendor.id);
+    try {
+      await apiFetch(`/api/v1/super-admin/vendors/${vendor.id}/verify-email`, { method: "PATCH", body: JSON.stringify({}) });
+      toast.success("Email marked as verified - they can sign in now");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to verify email");
+    } finally {
+      setVerifyingEmailId(null);
     }
   };
 
@@ -123,15 +132,16 @@ export default function SuperAdminVendorsPage() {
               <th className="px-4 py-3 font-medium">NIN</th>
               <th className="px-4 py-3 font-medium">Submitted</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Email</th>
               <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <TableRowSkeleton cols={6} />
+              <TableRowSkeleton cols={7} />
             ) : vendors.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-700">No vendors match{q ? " your search" : ""}</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-700">No vendors match{q ? " your search" : ""}</td>
               </tr>
             ) : (
               vendors.map((v) => (
@@ -148,9 +158,22 @@ export default function SuperAdminVendorsPage() {
                   <td className="px-4 py-3">
                     <Badge color={STATUS_COLOR[v.approvalStatus] || "slate"}>{v.approvalStatus}</Badge>
                   </td>
+                  <td className="px-4 py-3">
+                    <Badge color={v.emailVerified ? "green" : "amber"}>{v.emailVerified ? "Verified" : "Unverified"}</Badge>
+                  </td>
                   <td className="px-4 py-3 text-right">
-                    {v.approvalStatus === "approved" ? (
-                      <div className="flex justify-end">
+                    <div className="flex justify-end items-center gap-3 flex-wrap">
+                      {!v.emailVerified && (
+                        <button
+                          type="button"
+                          disabled={verifyingEmailId === v.id}
+                          onClick={() => handleVerifyEmail(v)}
+                          className="text-green-600 hover:underline disabled:opacity-50 cursor-pointer"
+                        >
+                          Verify email
+                        </button>
+                      )}
+                      {v.hasNin && v.approvalStatus === "approved" && (
                         <button
                           type="button"
                           disabled={decidingId === v.id}
@@ -159,18 +182,17 @@ export default function SuperAdminVendorsPage() {
                         >
                           Unverify
                         </button>
-                      </div>
-                    ) : (
-                      <div className="flex justify-end gap-3">
-                        <button
-                          type="button"
-                          disabled={decidingId === v.id}
-                          onClick={() => handleDecision(v, "approved")}
-                          className="text-green-600 hover:underline disabled:opacity-50 cursor-pointer"
-                        >
-                          {v.hasNin ? "Approve" : "Verify manually"}
-                        </button>
-                        {v.hasNin && (
+                      )}
+                      {v.hasNin && v.approvalStatus !== "approved" && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={decidingId === v.id}
+                            onClick={() => handleDecision(v, "approved")}
+                            className="text-green-600 hover:underline disabled:opacity-50 cursor-pointer"
+                          >
+                            Approve
+                          </button>
                           <button
                             type="button"
                             disabled={decidingId === v.id}
@@ -179,9 +201,9 @@ export default function SuperAdminVendorsPage() {
                           >
                             Reject
                           </button>
-                        )}
-                      </div>
-                    )}
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
