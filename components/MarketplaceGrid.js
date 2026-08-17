@@ -20,7 +20,7 @@ function ProductCard({ product }) {
 
   return (
     <a href={href} className="group block">
-      <div className="relative aspect-square bg-slate-100 overflow-hidden">
+      <div className="relative aspect-4/5 bg-slate-100 overflow-hidden">
         {product.discountPercent > 0 && (
           <span className="absolute top-2 left-2 z-10 bg-red-600 text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-sm">
             -{product.discountPercent}%
@@ -34,7 +34,7 @@ function ProductCard({ product }) {
       </div>
       <div className="mt-2.5 space-y-0.5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700 truncate">{product.store.name}</p>
-        <p className="text-sm text-slate-800 group-hover:text-slate-950 transition-colors truncate">{product.name}</p>
+        <p className="text-sm text-slate-800 group-hover:text-slate-950 transition-colors line-clamp-2">{product.name}</p>
         <p className="flex items-baseline gap-1.5">
           <span className="text-sm font-medium text-slate-900">{formatCurrency(effectivePrice)}</span>
           {product.discountPercent > 0 && <span className="text-xs text-slate-400 line-through">{formatCurrency(product.price)}</span>}
