@@ -17,7 +17,9 @@ import { InfoTip } from "@/components/ui/InfoTip.js";
 import { uploadFile, getVideoDuration } from "@/lib/clientUpload.js";
 import { X, Trash2, ImagePlus, Loader2, GripVertical, Video } from "lucide-react";
 
-const MAX_IMAGES = 10;
+// Photos and video share one combined cap - a video eats one of the 5
+// slots, same as a photo would.
+const MAX_MEDIA = 5;
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
 const MAX_VIDEO_SECONDS = 30;
@@ -118,9 +120,10 @@ export default function VendorProductEditPage({ params }) {
     e.target.value = "";
     if (files.length === 0) return;
 
-    const room = MAX_IMAGES - imagesRef.current.length - pendingUploads.length;
+    const videoSlot = form.videoUrl || uploadingVideo ? 1 : 0;
+    const room = MAX_MEDIA - imagesRef.current.length - pendingUploads.length - videoSlot;
     if (room <= 0) {
-      toast.error(`You can only have up to ${MAX_IMAGES} photos`);
+      toast.error(`You can only have up to ${MAX_MEDIA} photos and video combined`);
       return;
     }
 
@@ -129,7 +132,7 @@ export default function VendorProductEditPage({ params }) {
     const sized = files.filter((f) => f.size <= MAX_IMAGE_SIZE);
 
     const toUpload = sized.slice(0, room);
-    if (sized.length > toUpload.length) toast.error(`Only added ${toUpload.length} - max ${MAX_IMAGES} photos per product`);
+    if (sized.length > toUpload.length) toast.error(`Only added ${toUpload.length} - max ${MAX_MEDIA} photos and video combined`);
     if (toUpload.length === 0) return;
 
     const entries = toUpload.map((file) => ({ key: `${Date.now()}-${Math.random()}`, file, localUrl: URL.createObjectURL(file) }));
@@ -173,6 +176,11 @@ export default function VendorProductEditPage({ params }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+
+    if (imagesRef.current.length + pendingUploads.length >= MAX_MEDIA) {
+      toast.error(`You can only have up to ${MAX_MEDIA} photos and video combined`);
+      return;
+    }
 
     if (file.size > MAX_VIDEO_SIZE) {
       toast.error(`Video must be smaller than ${MAX_VIDEO_SIZE / (1024 * 1024)}MB`);
@@ -324,7 +332,7 @@ export default function VendorProductEditPage({ params }) {
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Photos</label>
           <p className="text-xs text-slate-500">
-            Drag to reorder - the first photo is the cover shown in your store. Up to {MAX_IMAGES}.
+            Drag to reorder - the first photo is the cover shown in your store. Up to {MAX_MEDIA} photos and video combined.
           </p>
           <div className="flex flex-wrap gap-3">
             {form.images.map((url, index) => (
@@ -373,7 +381,7 @@ export default function VendorProductEditPage({ params }) {
               </div>
             ))}
 
-            {form.images.length + pendingUploads.length < MAX_IMAGES && (
+            {form.images.length + pendingUploads.length + (form.videoUrl || uploadingVideo ? 1 : 0) < MAX_MEDIA && (
               <label className="w-24 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-700 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
                 <ImagePlus size={20} />
                 <span className="text-[11px] font-medium">Add photos</span>
@@ -410,12 +418,14 @@ export default function VendorProductEditPage({ params }) {
             <div className="w-40 h-24 rounded-sm border border-slate-200 flex items-center justify-center bg-slate-50">
               <Loader2 size={20} className="text-slate-400 animate-spin" />
             </div>
-          ) : (
+          ) : form.images.length + pendingUploads.length < MAX_MEDIA ? (
             <label className="w-40 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-700 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
               <Video size={20} />
               <span className="text-[11px] font-medium">Add video</span>
               <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoUpload} className="hidden" />
             </label>
+          ) : (
+            <p className="text-xs text-slate-500">Remove a photo to make room for a video.</p>
           )}
         </div>
 

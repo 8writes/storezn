@@ -68,9 +68,12 @@ function VendorSignupForm() {
   if (created) {
     return (
       <div className="space-y-4 text-center">
-        <h2 className="text-xl font-bold text-slate-900">Check your email</h2>
+        <h2 className="text-xl font-bold text-slate-900">Verify your email to continue</h2>
         <p className="text-sm text-slate-500">
-          We&apos;ve sent a verification link to <strong>{form.vendor.email}</strong>. Verify it, then sign in to your new store.
+          We&apos;ve sent a verification link to <strong>{form.vendor.email}</strong>. Open it and click the link to activate your account - you won&apos;t be able to sign in until you do.
+        </p>
+        <p className="text-sm text-slate-500">
+          Don&apos;t see it? Check your spam or junk folder.
         </p>
         <Link href="/login" className="text-sm text-brand-600 hover:underline">Sign in</Link>
       </div>
