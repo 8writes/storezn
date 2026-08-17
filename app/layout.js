@@ -11,7 +11,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata = {
-  title: "Storezn",
+  title: "Storezn | Business management & e-commerce platform",
   description: "E-commerce platform, get your own dedicated store.",
   manifest: "/manifest.json",
   appleWebApp: {
