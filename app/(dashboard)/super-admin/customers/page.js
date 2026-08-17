@@ -6,6 +6,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
+import { Badge } from "@/components/ui/Badge.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 
 export default function SuperAdminCustomersPage() {
@@ -17,9 +18,9 @@ export default function SuperAdminCustomersPage() {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [verifyingId, setVerifyingId] = useState(null);
 
-  useEffect(() => {
-    if (!token) return;
+  const load = () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page) });
     if (q.trim()) params.set("q", q.trim());
@@ -30,12 +31,33 @@ export default function SuperAdminCustomersPage() {
       })
       .catch((err) => toast.error(err.message || "Failed to load customers"))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (!token) return;
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, page, q]);
 
   useEffect(() => {
     setPage(1);
   }, [q]);
+
+  // For a customer stuck unverified because the email itself never
+  // arrived (deliverability issue, not something they did wrong) -
+  // see PATCH /api/v1/super-admin/customers/[id].
+  const handleVerify = async (customer) => {
+    setVerifyingId(customer.id);
+    try {
+      await apiFetch(`/api/v1/super-admin/customers/${customer.id}`, { method: "PATCH", body: JSON.stringify({}) });
+      toast.success("Email marked as verified - they can sign in now");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to verify customer");
+    } finally {
+      setVerifyingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -53,14 +75,16 @@ export default function SuperAdminCustomersPage() {
               <th className="px-4 py-3 font-medium">Orders</th>
               <th className="px-4 py-3 font-medium">Total spent</th>
               <th className="px-4 py-3 font-medium">Joined</th>
+              <th className="px-4 py-3 font-medium">Email verified</th>
+              <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <TableRowSkeleton cols={6} />
+              <TableRowSkeleton cols={8} />
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-700">{q ? "No customers match your search" : "No customers yet"}</td>
+                <td colSpan={8} className="px-4 py-6 text-center text-slate-700">{q ? "No customers match your search" : "No customers yet"}</td>
               </tr>
             ) : (
               customers.map((c) => (
@@ -71,6 +95,21 @@ export default function SuperAdminCustomersPage() {
                   <td className="px-4 py-3 text-slate-500">{c.orderCount}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(c.totalSpent)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(c.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    <Badge color={c.emailVerified ? "green" : "amber"}>{c.emailVerified ? "Verified" : "Unverified"}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {!c.emailVerified && (
+                      <button
+                        type="button"
+                        disabled={verifyingId === c.id}
+                        onClick={() => handleVerify(c)}
+                        className="text-green-600 hover:underline disabled:opacity-50 cursor-pointer"
+                      >
+                        Verify manually
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

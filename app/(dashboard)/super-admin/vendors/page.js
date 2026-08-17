@@ -61,18 +61,27 @@ export default function SuperAdminVendorsPage() {
   const handleDecision = async (vendor, decision) => {
     const requireReason = decision === "rejected";
     const wasApproved = vendor.approvalStatus === "approved";
-    const title = decision === "approved" ? `Approve ${vendor.firstName}?` : wasApproved ? `Unverify ${vendor.firstName}?` : `Reject ${vendor.firstName}?`;
+    const title =
+      decision === "approved"
+        ? vendor.hasNin
+          ? `Approve ${vendor.firstName}?`
+          : `Verify ${vendor.firstName} without a NIN?`
+        : wasApproved
+          ? `Unverify ${vendor.firstName}?`
+          : `Reject ${vendor.firstName}?`;
     const description = requireReason
       ? wasApproved
         ? "Tell them why - their store goes offline immediately and they can resubmit their NIN."
         : "Tell them why - they'll see this note and can resubmit."
-      : undefined;
+      : decision === "approved" && !vendor.hasNin
+        ? "They haven't submitted a NIN - only do this if you've confirmed their identity some other way. Their store goes live immediately."
+        : undefined;
     const result = await confirm({
       title,
       description,
       requireReason,
-      confirmLabel: decision === "approved" ? "Approve" : wasApproved ? "Unverify" : "Reject",
-      variant: requireReason ? "danger" : "default",
+      confirmLabel: decision === "approved" ? (vendor.hasNin ? "Approve" : "Verify manually") : wasApproved ? "Unverify" : "Reject",
+      variant: requireReason || (decision === "approved" && !vendor.hasNin) ? "danger" : "default",
     });
     // requireReason: result is the reason string, or null if cancelled.
     // Otherwise result is a plain true/false - either way, falsy means cancel.
@@ -140,7 +149,7 @@ export default function SuperAdminVendorsPage() {
                     <Badge color={STATUS_COLOR[v.approvalStatus] || "slate"}>{v.approvalStatus}</Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {v.hasNin && v.approvalStatus === "approved" && (
+                    {v.approvalStatus === "approved" ? (
                       <div className="flex justify-end">
                         <button
                           type="button"
@@ -151,8 +160,7 @@ export default function SuperAdminVendorsPage() {
                           Unverify
                         </button>
                       </div>
-                    )}
-                    {v.hasNin && v.approvalStatus !== "approved" && (
+                    ) : (
                       <div className="flex justify-end gap-3">
                         <button
                           type="button"
@@ -160,16 +168,18 @@ export default function SuperAdminVendorsPage() {
                           onClick={() => handleDecision(v, "approved")}
                           className="text-green-600 hover:underline disabled:opacity-50 cursor-pointer"
                         >
-                          Approve
+                          {v.hasNin ? "Approve" : "Verify manually"}
                         </button>
-                        <button
-                          type="button"
-                          disabled={decidingId === v.id}
-                          onClick={() => handleDecision(v, "rejected")}
-                          className="text-red-600 hover:underline disabled:opacity-50 cursor-pointer"
-                        >
-                          Reject
-                        </button>
+                        {v.hasNin && (
+                          <button
+                            type="button"
+                            disabled={decidingId === v.id}
+                            onClick={() => handleDecision(v, "rejected")}
+                            className="text-red-600 hover:underline disabled:opacity-50 cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>

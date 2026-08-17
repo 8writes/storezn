@@ -26,6 +26,7 @@ export async function GET(req) {
         firstName: customers.firstName,
         lastName: customers.lastName,
         email: customers.email,
+        emailVerified: customers.emailVerified,
         createdAt: customers.createdAt,
         storeName: stores.name,
         orderCount: sql`count(${orders.id}) filter (where ${orders.paymentStatus} = 'paid')`.mapWith(Number),
