@@ -33,7 +33,7 @@ export function Footer({ store, themed = false }) {
       <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className={`text-sm text-center sm:text-left ${themed ? "text-white/90" : "text-slate-500"}`}>
           <p>© {new Date().getFullYear()} {store?.name}</p>
-          {store?.address && <p className={`text-xs mt-0.5 ${themed ? "text-white/70" : "text-slate-700"}`}>{store.address}</p>}
+          {store?.address && <p className={`text-xs mt-0.5 ${themed ? "text-white" : "text-slate-700"}`}>{store.address}</p>}
         </div>
 
         {hasAnySocial && (
@@ -53,7 +53,7 @@ export function Footer({ store, themed = false }) {
           </div>
         )}
 
-        <div className={`flex items-center gap-4 text-xs ${themed ? "text-white/80" : "text-slate-700"}`}>
+        <div className={`flex items-center gap-4 text-xs ${themed ? "text-white" : "text-slate-700"}`}>
           <a href={getPlatformUrl("/signup")} className={`font-medium transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
             Get your own store
           </a>
