@@ -7,6 +7,7 @@ import { validate, createOfflineOrderSchema } from "../../../../../../../../lib/
 import { generateOrderNumber, computeOrderTotals } from "../../../../../../../../lib/orders.js";
 import { isPlusStore } from "../../../../../../../../lib/storePlan.js";
 import { sendMail } from "../../../../../../../../lib/email/sendMail.js";
+import { escapeHtml } from "../../../../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
 import { getEffectivePrice } from "../../../../../../../../lib/pricing.js";
 import { reserveStock, OutOfStockError } from "../../../../../../../../lib/inventory.js";
@@ -174,7 +175,7 @@ export async function POST(req, { params }) {
 
   if (buyerEmail) {
     const itemsHtml = resolvedItems
-      .map((i) => `<tr><td>${i.product.name}${i.variant ? ` (${Object.values(i.variant.options).join(", ")})` : ""}</td><td>${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`)
+      .map((i) => `<tr><td>${escapeHtml(i.product.name)}${i.variant ? ` (${escapeHtml(Object.values(i.variant.options).join(", "))})` : ""}</td><td>${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`)
       .join("");
     // Wrapped in after() rather than left as a bare fire-and-forget
     // promise - see the identical comment in forgot-password/route.js.
@@ -182,7 +183,7 @@ export async function POST(req, { params }) {
       sendMail({
         to: buyerEmail,
         subject: `Order confirmation - ${order.orderNumber}`,
-        html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${store.name} has been recorded.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
+        html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${escapeHtml(store.name)} has been recorded.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
         fromName: store.name,
       }).catch((err) => console.error("sendMail failed (offline order confirmation):", err)),
     );

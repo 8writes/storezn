@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { orders, orderItems, carts, cartItems, users, stores, storeSubscriptionTransactions, branches, productBranchStock } from "../../../../../lib/db/schema.js";
+import { orders, orderItems, carts, cartItems, users, customers, stores, storeSubscriptionTransactions, branches, productBranchStock } from "../../../../../lib/db/schema.js";
 import { and, eq, isNull } from "drizzle-orm";
 import { verifyWebhookSignature, verifyTransaction } from "../../../../../lib/paystack.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
+import { escapeHtml } from "../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../lib/format.js";
 import { sendPushToStore } from "../../../../../lib/push.js";
 import { LOW_STOCK_THRESHOLD } from "../../../../../lib/inventory.js";
@@ -222,10 +223,13 @@ export async function POST(req) {
 
   let recipient = { email: order.guestEmail, notify: true };
   if (order.userId) {
+    // orders.userId is a customers.id (see lib/db/schema.js) - customer
+    // accounts moved out of `users` when staff/customer got split into
+    // their own tables.
     const [customer] = await db
-      .select({ email: users.email, notify: users.emailNotificationsEnabled })
-      .from(users)
-      .where(eq(users.id, order.userId))
+      .select({ email: customers.email, notify: customers.emailNotificationsEnabled })
+      .from(customers)
+      .where(eq(customers.id, order.userId))
       .limit(1);
     if (customer) recipient = { email: customer.email, notify: customer.notify };
   }
@@ -257,12 +261,12 @@ export async function POST(req) {
 
   if (recipient.email && recipient.notify) {
     const itemsHtml = items
-      .map((i) => `<tr><td>${i.productName}${i.variantLabel ? ` (${i.variantLabel})` : ""}</td><td>${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`)
+      .map((i) => `<tr><td>${escapeHtml(i.productName)}${i.variantLabel ? ` (${escapeHtml(i.variantLabel)})` : ""}</td><td>${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`)
       .join("");
     await sendMail({
       to: recipient.email,
       subject: `Order confirmation - ${order.orderNumber}`,
-      html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${store?.name || "the store"} has been received.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
+      html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${escapeHtml(store?.name) || "the store"} has been received.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
       fromName: store?.name,
     }).catch((err) => console.error("sendMail failed (order confirmation):", err));
   }

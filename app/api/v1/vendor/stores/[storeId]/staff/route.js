@@ -6,6 +6,7 @@ import { and, count, eq, sql } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, inviteStaffSchema } from "../../../../../../../lib/validate.js";
 import { sendMail } from "../../../../../../../lib/email/sendMail.js";
+import { escapeHtml } from "../../../../../../../lib/email/escapeHtml.js";
 import { getStaffLimit } from "../../../../../../../lib/storePlan.js";
 
 async function loadStore(storeId) {
@@ -144,7 +145,7 @@ export async function POST(req, { params }) {
     sendMail({
       to: newStaff.email,
       subject: `You've been added to ${store.name} on Storezn`,
-      html: `<p>Hi ${firstName},</p><p>${user.firstName || "The team"} added you as staff on <strong>${store.name}</strong>'s Storezn dashboard.</p><p>Set your password to get started. This link expires in 7 days.</p><p><a href="${setPasswordUrl}">Set your password</a></p>`,
+      html: `<p>Hi ${escapeHtml(firstName)},</p><p>${escapeHtml(user.firstName) || "The team"} added you as staff on <strong>${escapeHtml(store.name)}</strong>'s Storezn dashboard.</p><p>Set your password to get started. This link expires in 7 days.</p><p><a href="${setPasswordUrl}">Set your password</a></p>`,
       fromName: store.name,
     }).catch((err) => console.error("sendMail failed (staff invite):", err)),
   );
