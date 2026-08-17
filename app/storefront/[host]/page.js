@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { and, asc, desc, eq, gte, ilike, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
-import { products, categories } from "@/lib/db/schema.js";
+import { products, categories, productVariants } from "@/lib/db/schema.js";
 import { resolveStoreByHost } from "@/lib/resolveStore.js";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
@@ -41,6 +41,29 @@ export default async function StorefrontHomePage({ params, searchParams }) {
     db.select().from(categories).where(eq(categories.storeId, store.id)).orderBy(categories.name),
   ]);
 
+  // A variant-less product is out of stock when its own stock hits 0
+  // (null means unlimited, never out of stock). A product sold through
+  // variants instead is only out of stock once every one of its active
+  // variants is - the product's own `stock` column isn't what's actually
+  // sold in that case (see the storefront product page's own stock line).
+  const variantRows = items.length > 0
+    ? await db
+        .select({ productId: productVariants.productId, stock: productVariants.stock })
+        .from(productVariants)
+        .where(and(inArray(productVariants.productId, items.map((p) => p.id)), eq(productVariants.isActive, true)))
+    : [];
+  const variantsByProduct = new Map();
+  for (const v of variantRows) {
+    if (!variantsByProduct.has(v.productId)) variantsByProduct.set(v.productId, []);
+    variantsByProduct.get(v.productId).push(v);
+  }
+  const isOutOfStock = (p) => {
+    if (p.productType !== "physical") return false;
+    const variants = variantsByProduct.get(p.id);
+    if (variants && variants.length > 0) return variants.every((v) => v.stock === 0);
+    return p.stock === 0;
+  };
+
   return (
     <div className="space-y-10">
       <div className="text-center max-w-xl mx-auto space-y-2">
@@ -56,19 +79,25 @@ export default async function StorefrontHomePage({ params, searchParams }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
           {items.map((p) => {
             const effectivePrice = getEffectivePrice(p.price, p.discountPercent);
+            const outOfStock = isOutOfStock(p);
             return (
               <Link key={p.id} href={`/products/${p.slug}`} className="group block">
                 <div className="relative aspect-4/5 bg-slate-100 overflow-hidden">
-                  {p.discountPercent > 0 && (
+                  {p.discountPercent > 0 && !outOfStock && (
                     <span className="absolute top-2 left-2 z-10 bg-red-600 text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-sm">
                       -{p.discountPercent}%
+                    </span>
+                  )}
+                  {outOfStock && (
+                    <span className="absolute top-2 left-2 z-10 bg-slate-900/80 text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-sm">
+                      Out of stock
                     </span>
                   )}
                   {p.images?.[0] ? (
                     <img
                       src={p.images[0]}
                       alt={p.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${outOfStock ? "opacity-50" : ""}`}
                     />
                   ) : (
                     <span className="flex h-full items-center justify-center text-slate-300 text-xs">No image</span>

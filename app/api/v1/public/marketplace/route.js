@@ -11,9 +11,10 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, parseInt(searchParams.get("page"), 10) || 1);
   const q = searchParams.get("q") || undefined;
+  const categoryName = searchParams.get("category") || undefined;
   const minPrice = searchParams.get("min") ? Number(searchParams.get("min")) : null;
   const maxPrice = searchParams.get("max") ? Number(searchParams.get("max")) : null;
   const sort = searchParams.get("sort") || "newest";
-  const { list, total } = await getMarketplaceProducts({ page, pageSize: PAGE_SIZE, q, minPrice, maxPrice, sort });
+  const { list, total } = await getMarketplaceProducts({ page, pageSize: PAGE_SIZE, q, categoryName, minPrice, maxPrice, sort });
   return NextResponse.json({ products: list, total });
 }

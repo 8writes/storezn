@@ -11,10 +11,11 @@ const SORT_OPTIONS = [
 ];
 
 // Same URL-params-drive-the-query shape as the per-store storefront's
-// StorefrontFilters - no category filter here though, since categories
-// are per-store (categories.storeId) and don't have a marketplace-wide
-// equivalent yet.
-export function MarketplaceFilters() {
+// StorefrontFilters - `categories` here is a flat list of distinct names
+// across every marketplace-eligible store (see
+// lib/marketplace.js's getMarketplaceCategoryNames), matched by name
+// rather than id since categories are per-store rows.
+export function MarketplaceFilters({ categories = [] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -29,6 +30,8 @@ export function MarketplaceFilters() {
       router.push(`${pathname}?${params.toString()}`);
     });
   };
+
+  const categoryOptions = [{ value: "", label: "All categories" }, ...categories.map((name) => ({ value: name, label: name }))];
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -55,6 +58,12 @@ export function MarketplaceFilters() {
           {isPending ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
         </button>
       </form>
+
+      {categories.length > 0 && (
+        <div className="w-full sm:w-52">
+          <Select options={categoryOptions} value={searchParams.get("category") || ""} onChange={(v) => setParam("category", v)} placeholder="All categories" />
+        </div>
+      )}
 
       <div className="w-full sm:w-52">
         <Select options={SORT_OPTIONS} value={searchParams.get("sort") || "newest"} onChange={(v) => setParam("sort", v === "newest" ? "" : v)} />

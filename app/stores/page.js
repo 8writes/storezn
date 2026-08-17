@@ -4,7 +4,7 @@ import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
 import { MarketplaceFilters } from "@/components/MarketplaceFilters.js";
 import { MarketplaceGrid } from "@/components/MarketplaceGrid.js";
-import { getMarketplaceProducts } from "@/lib/marketplace.js";
+import { getMarketplaceProducts, getMarketplaceCategoryNames } from "@/lib/marketplace.js";
 
 const PAGE_SIZE = 24;
 
@@ -33,11 +33,15 @@ export const revalidate = 60;
 export default async function MarketplacePage({ searchParams }) {
   const sp = await searchParams;
   const q = sp.q?.trim() || undefined;
+  const categoryName = sp.category?.trim() || undefined;
   const minPrice = sp.min ? Number(sp.min) : null;
   const maxPrice = sp.max ? Number(sp.max) : null;
   const sort = sp.sort || "newest";
 
-  const { list, total } = await getMarketplaceProducts({ page: 1, pageSize: PAGE_SIZE, q, minPrice, maxPrice, sort });
+  const [{ list, total }, categoryNames] = await Promise.all([
+    getMarketplaceProducts({ page: 1, pageSize: PAGE_SIZE, q, categoryName, minPrice, maxPrice, sort }),
+    getMarketplaceCategoryNames(),
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-clip" style={{ backgroundColor: "#fbf6e9" }}>
@@ -66,9 +70,19 @@ export default async function MarketplacePage({ searchParams }) {
           </p>
         </section>
 
-        <section className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-8">
-          <MarketplaceFilters />
-          <MarketplaceGrid key={`${q || ""}-${sort}-${minPrice || ""}-${maxPrice || ""}`} initialProducts={list} total={total} filters={{ q: q || "", sort, min: minPrice || "", max: maxPrice || "" }} />
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-6">
+          <MarketplaceFilters categories={categoryNames} />
+          {q && (
+            <p className="text-sm text-slate-600">
+              Showing results for &quot;<span className="font-semibold text-slate-900">{q}</span>&quot;
+            </p>
+          )}
+          <MarketplaceGrid
+            key={`${q || ""}-${categoryName || ""}-${sort}-${minPrice || ""}-${maxPrice || ""}`}
+            initialProducts={list}
+            total={total}
+            filters={{ q: q || "", category: categoryName || "", sort, min: minPrice || "", max: maxPrice || "" }}
+          />
         </section>
       </main>
 
