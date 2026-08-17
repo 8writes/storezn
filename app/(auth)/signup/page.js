@@ -114,7 +114,7 @@ function VendorSignupForm() {
         required
       />
       <Select
-        label="State"
+        label="Store location"
         options={NIGERIA_STATE_OPTIONS}
         value={form.state}
         onChange={(v) => setForm((f) => ({ ...f, state: v }))}

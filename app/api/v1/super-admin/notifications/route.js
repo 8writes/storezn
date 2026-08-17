@@ -67,7 +67,10 @@ export async function POST(req) {
     );
     for (const r of results) {
       if (r.status === "fulfilled") emailSent++;
-      else emailFailed++;
+      else {
+        emailFailed++;
+        console.error("sendMail failed (super-admin notification):", r.reason);
+      }
     }
   }
 
