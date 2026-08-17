@@ -224,6 +224,10 @@ export default function VendorNewProductPage() {
       toast.error("Wait for photo uploads to finish");
       return;
     }
+    if (uploadingVideo) {
+      toast.error("Wait for the video upload to finish");
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -442,7 +446,7 @@ export default function VendorNewProductPage() {
             )}
           </div>
 
-          <Button type="submit" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0} fullWidth>Create product</Button>
+          <Button type="submit" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>Create product</Button>
         </form>
 
         <form onSubmit={handleAddCategory} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">

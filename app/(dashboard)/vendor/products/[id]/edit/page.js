@@ -227,6 +227,10 @@ export default function VendorProductEditPage({ params }) {
       toast.error("Wait for photo uploads to finish");
       return;
     }
+    if (uploadingVideo) {
+      toast.error("Wait for the video upload to finish");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -429,7 +433,7 @@ export default function VendorProductEditPage({ params }) {
           )}
         </div>
 
-        <Button type="submit" loading={saving} disabled={pendingUploads.length > 0} fullWidth>Save changes</Button>
+        <Button type="submit" loading={saving} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>Save changes</Button>
       </form>
 
       <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} onTotalBranches={setBranchCount} />
