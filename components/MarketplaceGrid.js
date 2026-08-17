@@ -4,6 +4,7 @@ import { Package, Loader2, MapPin } from "lucide-react";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { formatCurrency } from "@/lib/format.js";
+import { formatStateLabel } from "@/lib/nigeria.js";
 
 // Deliberately plainer than the rest of the marketplace's maximalist
 // sticker-and-shadow chrome (see app/marketplace/page.js) - a whole grid
@@ -42,7 +43,7 @@ function ProductCard({ product }) {
         {product.store.state && (
           <p className="flex items-center gap-1 text-xs text-slate-400">
             <MapPin size={11} className="shrink-0" />
-            {product.store.state}
+            {formatStateLabel(product.store.state)}
           </p>
         )}
       </div>

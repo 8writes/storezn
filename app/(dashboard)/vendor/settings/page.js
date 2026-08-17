@@ -431,7 +431,7 @@ export default function VendorSettingsPage() {
             <Input placeholder="12 Allen Avenue, Ikeja, Lagos" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
 
             <div className="flex items-center gap-1.5 pt-2">
-              <label className="text-sm font-medium text-slate-700">State</label>
+              <label className="text-sm font-medium text-slate-700">Store location</label>
               <InfoTip>Where you ship from - shown as the location on your products&apos; cards and detail pages, both on your storefront and the marketplace.</InfoTip>
             </div>
             <Select options={NIGERIA_STATE_OPTIONS} value={form.state} onChange={(v) => setForm((f) => ({ ...f, state: v }))} placeholder="Select a state" />

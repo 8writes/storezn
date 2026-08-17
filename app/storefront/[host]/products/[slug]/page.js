@@ -7,6 +7,7 @@ import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { formatCondition, formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { MapPin } from "lucide-react";
+import { formatStateLabel } from "@/lib/nigeria.js";
 import { AddToCartButton } from "@/components/storefront/AddToCartButton.js";
 import { ReviewsSection } from "@/components/storefront/ReviewsSection.js";
 import { ProductGallery } from "@/components/storefront/ProductGallery.js";
@@ -103,7 +104,7 @@ export default async function StorefrontProductPage({ params }) {
           {store.state && (
             <p className="flex items-center gap-1.5 text-xs text-slate-500">
               <MapPin size={13} className="shrink-0" />
-              Ships from {store.state}
+              Ships from {formatStateLabel(store.state)}
             </p>
           )}
 

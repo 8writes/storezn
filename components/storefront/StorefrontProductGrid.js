@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Loader2, MapPin } from "lucide-react";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
+import { formatStateLabel } from "@/lib/nigeria.js";
 
 function ProductCard({ p, storeState }) {
   const effectivePrice = getEffectivePrice(p.price, p.discountPercent);
@@ -44,7 +45,7 @@ function ProductCard({ p, storeState }) {
         {storeState && (
           <p className="flex items-center gap-1 text-xs text-slate-400">
             <MapPin size={11} className="shrink-0" />
-            {storeState}
+            {formatStateLabel(storeState)}
           </p>
         )}
       </div>
