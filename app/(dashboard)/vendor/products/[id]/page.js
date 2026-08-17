@@ -31,6 +31,7 @@ export default function VendorProductViewPage({ params }) {
   const [product, setProduct] = useState(null);
   const [category, setCategory] = useState(null);
   const [variants, setVariants] = useState([]);
+  const [branchStock, setBranchStock] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [archiving, setArchiving] = useState(false);
@@ -42,11 +43,13 @@ export default function VendorProductViewPage({ params }) {
       apiFetch(`/api/v1/vendor/stores/${storeId}/products/${id}`),
       apiFetch(`/api/v1/vendor/stores/${storeId}/categories`),
       apiFetch(`/api/v1/vendor/stores/${storeId}/products/${id}/variants`),
+      apiFetch(`/api/v1/vendor/stores/${storeId}/products/${id}/branch-stock`),
     ])
-      .then(([{ product }, categoriesData, variantsData]) => {
+      .then(([{ product }, categoriesData, variantsData, branchStockData]) => {
         setProduct(product);
         setCategory(categoriesData.categories.find((c) => c.id === product.categoryId) || null);
         setVariants(variantsData.variants);
+        setBranchStock(branchStockData);
         setActiveImage(0);
       })
       .catch((err) => toast.error(err.message || "Failed to load product"))
@@ -211,10 +214,38 @@ export default function VendorProductViewPage({ params }) {
               </div>
             </div>
           )}
+
+          {branchStock && branchStock.totalBranches > 1 && (
+            <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+              <p className="text-sm font-medium text-slate-700">Stock by branch</p>
+              <BranchStockList label={null} rows={branchStock.productStock} />
+              {variants.map((v) => (
+                <div key={v.id} className="pt-3 border-t border-slate-100">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                    {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
+                  </p>
+                  <BranchStockList rows={branchStock.variantStock[v.id] || []} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {confirmDialog}
+    </div>
+  );
+}
+
+function BranchStockList({ rows }) {
+  return (
+    <div className="space-y-1.5">
+      {rows.map((row) => (
+        <div key={row.branchId} className="flex items-center justify-between text-sm">
+          <span className="text-slate-700">{row.branchName}</span>
+          <span className="text-slate-500">{row.stock != null ? `${row.stock} in stock` : "Unlimited"}</span>
+        </div>
+      ))}
     </div>
   );
 }
