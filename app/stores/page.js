@@ -2,8 +2,9 @@ import { Anton } from "next/font/google";
 import { Sparkles } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
-import { StoresGrid } from "@/components/StoresGrid.js";
-import { getLiveStores } from "@/lib/liveStores.js";
+import { MarketplaceFilters } from "@/components/MarketplaceFilters.js";
+import { MarketplaceGrid } from "@/components/MarketplaceGrid.js";
+import { getMarketplaceProducts } from "@/lib/marketplace.js";
 
 const PAGE_SIZE = 24;
 
@@ -16,15 +17,27 @@ const anton = Anton({ subsets: ["latin"], weight: "400" });
 
 const POP = "#ff7a1a";
 
-// Public directory of live stores - a promotional page for the platform
-// (visitors can browse and click straight into a real storefront) as much
-// as it is a discovery tool for shoppers. Only page 1 is server-rendered
-// (for first-paint/SEO) - "Load more" (see components/StoresGrid.js)
-// fetches subsequent pages client-side from /api/v1/public/stores.
-export const revalidate = 300;
+// Public cross-store product marketplace (was previously a directory of
+// stores - see git history for that version) - lists products from every
+// store that's opted in (stores.listOnMarketplace, see
+// lib/marketplace.js), searchable/sortable. Every product links straight
+// out to its real storefront to buy - this page is discovery-only, never
+// a shared cart/checkout (see MarketplaceGrid's ProductCard href and
+// components/storefront/MarketplaceBanner.js on the receiving end).
+//
+// Only page 1 is server-rendered (for first-paint/SEO); filter changes
+// and "Load more" beyond that are client-side (see MarketplaceFilters/
+// MarketplaceGrid), backed by /api/v1/public/marketplace.
+export const revalidate = 60;
 
-export default async function StoresDirectoryPage() {
-  const { list, total } = await getLiveStores({ page: 1, pageSize: PAGE_SIZE });
+export default async function MarketplacePage({ searchParams }) {
+  const sp = await searchParams;
+  const q = sp.q?.trim() || undefined;
+  const minPrice = sp.min ? Number(sp.min) : null;
+  const maxPrice = sp.max ? Number(sp.max) : null;
+  const sort = sp.sort || "newest";
+
+  const { list, total } = await getMarketplaceProducts({ page: 1, pageSize: PAGE_SIZE, q, minPrice, maxPrice, sort });
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-clip" style={{ backgroundColor: "#fbf6e9" }}>
@@ -43,18 +56,19 @@ export default async function StoresDirectoryPage() {
             style={{ backgroundColor: POP, color: "#1a0f00" }}
           >
             <Sparkles size={13} />
-            {total} live {total === 1 ? "store" : "stores"} right now
+            {total} {total === 1 ? "product" : "products"} up for grabs
           </span>
           <h1 className={`${anton.className} mt-5 uppercase leading-[0.9] text-4xl sm:text-6xl text-slate-900`}>
-            Discover Businesses
+            The Marketplace
           </h1>
           <p className="mt-4 text-base sm:text-lg text-slate-700 max-w-md mx-auto font-medium">
-            Real, verified businesses selling on Storezn. Browse a store and shop directly from it.
+            Products from real, verified businesses on Storezn. Find something you like, buy directly from that vendor&apos;s own store.
           </p>
         </section>
 
-        <section className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-          <StoresGrid initialStores={list} total={total} />
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-8">
+          <MarketplaceFilters />
+          <MarketplaceGrid key={`${q || ""}-${sort}-${minPrice || ""}-${maxPrice || ""}`} initialProducts={list} total={total} filters={{ q: q || "", sort, min: minPrice || "", max: maxPrice || "" }} />
         </section>
       </main>
 

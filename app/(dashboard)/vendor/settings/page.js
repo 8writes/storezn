@@ -54,6 +54,7 @@ export default function VendorSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [togglingOpen, setTogglingOpen] = useState(false);
+  const [togglingMarketplace, setTogglingMarketplace] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
   const [cropTarget, setCropTarget] = useState(null);
@@ -162,6 +163,23 @@ export default function VendorSettingsPage() {
     }
   };
 
+  const handleToggleMarketplace = async () => {
+    setTogglingMarketplace(true);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ listOnMarketplace: !store.listOnMarketplace }),
+      });
+      setStore(data.store);
+      updateStore(data.store);
+      toast.success(data.store.listOnMarketplace ? "Your products now show up in the marketplace" : "Removed from the marketplace");
+    } catch (err) {
+      toast.error(err.message || "Failed to update marketplace listing");
+    } finally {
+      setTogglingMarketplace(false);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (form.storefrontAccentColor && !HEX_RE.test(form.storefrontAccentColor)) {
@@ -219,6 +237,36 @@ export default function VendorSettingsPage() {
             <span
               className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
                 store.isOpen ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-slate-900">Marketplace listing</p>
+              <InfoTip>
+                Shoppers can discover your products from the Storezn marketplace, outside your own store link. Turning this off only removes you from the marketplace - your store link keeps working exactly as before.
+              </InfoTip>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {store.listOnMarketplace ? "Your products show up in the marketplace." : "Not listed in the marketplace."}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={store.listOnMarketplace}
+            disabled={togglingMarketplace || !store.isActive}
+            onClick={handleToggleMarketplace}
+            className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              store.listOnMarketplace ? "bg-brand-600" : "bg-slate-300"
+            }`}
+          >
+            <span
+              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                store.listOnMarketplace ? "translate-x-5" : "translate-x-0"
               }`}
             />
           </button>
@@ -357,7 +405,7 @@ export default function VendorSettingsPage() {
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <label className="text-sm font-medium text-slate-700">Store description</label>
-                <InfoTip>Shown on the public Storezn store directory and used as your storefront&apos;s preview text when a link to it is shared.</InfoTip>
+                <InfoTip>Used as your storefront&apos;s preview text when a link to it is shared, e.g. on WhatsApp or Twitter/X.</InfoTip>
               </div>
               <Textarea
                 rows={3}

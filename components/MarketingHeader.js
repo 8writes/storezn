@@ -5,12 +5,12 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 
 const LINKS = [
-  { href: "/stores", label: "Discover Businesses" },
+  { href: "/stores", label: "Marketplace" },
   { href: "/pricing", label: "Pricing" },
 ];
 
 // Shared header for the public marketing pages (landing, pricing,
-// stores directory) - not used by the dashboard or storefront, which
+// marketplace) - not used by the dashboard or storefront, which
 // have their own headers. Sticky, with a simple slide-down mobile menu
 // rather than the dashboard's full MobileNavDrawer - only 3 links, a
 // full off-canvas drawer would be overkill here.

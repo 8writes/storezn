@@ -10,12 +10,13 @@ import {
   TrendingUp,
   Package,
   Check,
-  MapPin,
 } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
-import { getLiveStores } from "@/lib/liveStores.js";
+import { getMarketplaceProducts } from "@/lib/marketplace.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
+import { getEffectivePrice } from "@/lib/pricing.js";
+import { formatCurrency } from "@/lib/format.js";
 
 const COMPARISON = [
   { feature: "Getting started", storezn: "Live store in minutes, no code" },
@@ -45,7 +46,7 @@ const STEPS = [
 export const revalidate = 300;
 
 export default async function Home() {
-  const { list: featuredStores } = await getLiveStores({ page: 1, pageSize: 3 });
+  const { list: featuredProducts } = await getMarketplaceProducts({ page: 1, pageSize: 3 });
 
   return (
     <div className="min-h-screen flex flex-col bg-white overflow-x-clip">
@@ -171,56 +172,49 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Discover Businesses - a teaser for /stores, doubles as social proof
-          once there are real stores to show. Hidden entirely rather than
+      {/* Marketplace teaser - a preview of /stores, doubles as social proof
+          once there are real products to show. Hidden entirely rather than
           rendered empty when there aren't any yet. */}
-      {featuredStores.length > 0 && (
+      {featuredProducts.length > 0 && (
         <section className="bg-slate-50/60 border-y border-slate-100">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
             <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
               <div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Discover Businesses</h2>
-                <p className="mt-2 text-slate-500">Real businesses already selling on Storezn.</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Shop the Marketplace</h2>
+                <p className="mt-2 text-slate-500">Real products from real businesses already selling on Storezn.</p>
               </div>
               <Link href="/stores" className="text-sm font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1.5 shrink-0">
-                See all stores
+                See the marketplace
                 <ArrowRight size={15} />
               </Link>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              {featuredStores.map((store) => (
-                <a
-                  key={store.id}
-                  href={getStorefrontUrl(store)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group bg-white border border-slate-100 rounded-sm overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all"
-                >
-                  <div className="h-24 bg-slate-50 flex items-center justify-center border-b border-slate-100 px-6">
-                    {store.logoUrl ? (
-                      <img src={store.logoUrl} alt={store.name} className="max-h-12 max-w-full object-contain" />
-                    ) : (
-                      <span className="flex items-center justify-center h-10 w-10 rounded-full bg-brand-600 text-white text-sm font-bold">
-                        {store.name.slice(0, 1).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <p className="font-semibold text-slate-900 text-sm flex items-center gap-1.5">
-                      {store.name}
-                      <ArrowRight size={13} className="text-slate-300 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all" />
-                    </p>
-                    {store.description ? (
-                      <p className="mt-1 text-xs text-slate-500 line-clamp-2">{store.description}</p>
-                    ) : store.address ? (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-400">
-                        <MapPin size={11} className="shrink-0" />
-                        <span className="line-clamp-1">{store.address}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {featuredProducts.map((product) => {
+                const effectivePrice = getEffectivePrice(product.price, product.discountPercent);
+                return (
+                  <a
+                    key={product.id}
+                    href={`${getStorefrontUrl(product.store)}/products/${product.slug}?from=marketplace`}
+                    className="group bg-white border border-slate-100 rounded-sm overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                  >
+                    <div className="aspect-square bg-slate-50 border-b border-slate-100">
+                      {product.images?.[0] ? (
+                        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="flex h-full items-center justify-center text-slate-300 text-xs">No image</span>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700 truncate">{product.store.name}</p>
+                      <p className="mt-0.5 font-semibold text-slate-900 text-sm flex items-center gap-1.5">
+                        <span className="truncate">{product.name}</span>
+                        <ArrowRight size={13} className="shrink-0 text-slate-300 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all" />
                       </p>
-                    ) : null}
-                  </div>
-                </a>
-              ))}
+                      <p className="mt-1 text-sm font-bold text-slate-900">{formatCurrency(effectivePrice)}</p>
+                    </div>
+                  </a>
+                );
+              })}
             </div>
           </div>
         </section>
