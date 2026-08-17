@@ -66,36 +66,46 @@ export default async function StorefrontLayout({ children, params }) {
   // Storezn+ only - a free store's accent color (if any stale value is
   // present from a lapsed subscription) is ignored, the storefront just
   // renders the platform default brand-* ramp already in globals.css.
-  const accentStyle =
-    isPlusStore(store) && store.storefrontAccentColor ? generateBrandShades(store.storefrontAccentColor) : undefined;
+  const themed = isPlusStore(store) && !!store.storefrontAccentColor;
+  const accentStyle = themed ? generateBrandShades(store.storefrontAccentColor) : undefined;
 
   return (
     <div className="min-h-screen bg-white flex flex-col" style={accentStyle}>
       <Suspense fallback={null}>
         <MarketplaceBanner storeName={store.name} />
       </Suspense>
-      <header className="bg-white/90 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-10">
+      <header
+        className={
+          themed
+            ? "bg-brand-600 sticky top-0 z-10"
+            : "bg-white/90 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-10"
+        }
+      >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
             {store.logoUrl ? (
               <img src={store.logoUrl} alt={store.name} className="h-10 max-w-40 object-contain" />
             ) : (
               <>
-                <span className="flex items-center justify-center h-8 w-8 rounded-full bg-slate-900 text-white text-xs font-bold shrink-0">
+                <span
+                  className={`flex items-center justify-center h-8 w-8 rounded-full text-xs font-bold shrink-0 ${
+                    themed ? "bg-white text-brand-700" : "bg-slate-900 text-white"
+                  }`}
+                >
                   {store.name.slice(0, 1).toUpperCase()}
                 </span>
-                <span className="font-semibold tracking-tight text-lg text-slate-900 truncate">{store.name}</span>
+                <span className={`font-semibold tracking-tight text-lg truncate ${themed ? "text-white" : "text-slate-900"}`}>{store.name}</span>
               </>
             )}
           </Link>
-          <div className="flex items-center gap-6 text-slate-700">
+          <div className={`flex items-center gap-6 ${themed ? "text-white" : "text-slate-700"}`}>
             <AccountMenu />
             <CartBadge />
           </div>
         </div>
       </header>
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-12 flex-1 w-full">{children}</main>
-      <Footer store={store} />
+      <Footer store={store} themed={themed} />
       <WhatsAppButton store={store} />
       {/* top-center, not top-right - the cart icon lives in that corner
           of the sticky header (see CartBadge above), and a toast stacking

@@ -20,16 +20,20 @@ const SOCIAL_ICONS = [
 // stores.socialLinks in lib/db/schema.js. WhatsApp isn't listed here, it
 // only drives the fixed quick-help button (WhatsAppButton.js), it'd be
 // redundant to also show it as a footer icon.
-export function Footer({ store }) {
+// `themed` (Storezn+ with a custom accent color set, see
+// app/storefront/[host]/layout.js) swaps the plain white footer for the
+// store's own accent as a solid background, matching the header - text/
+// icon colors flip to a light-on-color palette so they stay legible.
+export function Footer({ store, themed = false }) {
   const links = store?.socialLinks || {};
   const hasAnySocial = SOCIAL_ICONS.some(({ key }) => links[key]);
 
   return (
-    <footer className="border-t border-slate-200 bg-white">
+    <footer className={themed ? "bg-brand-600" : "border-t border-slate-200 bg-white"}>
       <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="text-sm text-slate-500 text-center sm:text-left">
+        <div className={`text-sm text-center sm:text-left ${themed ? "text-white/90" : "text-slate-500"}`}>
           <p>© {new Date().getFullYear()} {store?.name}</p>
-          {store?.address && <p className="text-xs text-slate-700 mt-0.5">{store.address}</p>}
+          {store?.address && <p className={`text-xs mt-0.5 ${themed ? "text-white/70" : "text-slate-700"}`}>{store.address}</p>}
         </div>
 
         {hasAnySocial && (
@@ -41,7 +45,7 @@ export function Footer({ store }) {
                 target="_blank"
                 rel="noreferrer"
                 aria-label={label}
-                className="text-slate-700 hover:text-brand-600 transition-colors"
+                className={themed ? "text-white/90 hover:text-white transition-colors" : "text-slate-700 hover:text-brand-600 transition-colors"}
               >
                 <Icon size={18} />
               </a>
@@ -49,13 +53,13 @@ export function Footer({ store }) {
           </div>
         )}
 
-        <div className="flex items-center gap-4 text-xs text-slate-700">
-          <a href={getPlatformUrl("/signup")} className="font-medium hover:text-brand-600 transition-colors">
+        <div className={`flex items-center gap-4 text-xs ${themed ? "text-white/80" : "text-slate-700"}`}>
+          <a href={getPlatformUrl("/signup")} className={`font-medium transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
             Get your own store
           </a>
           <p>
             Powered by{" "}
-            <a href="https://ozmictech.com" target="_blank" rel="noreferrer" className="hover:text-brand-600 transition-colors">
+            <a href="https://ozmictech.com" target="_blank" rel="noreferrer" className={`transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
               Ozmictech
             </a>
           </p>
