@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/Select.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { formatCurrency, formatBytes } from "@/lib/format.js";
 import { NIGERIA_STATE_OPTIONS } from "@/lib/nigeria.js";
+import { isColorTooLight } from "@/lib/colorShades.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
@@ -189,6 +190,10 @@ export default function VendorSettingsPage() {
       toast.error("Enter a valid hex color, e.g. #7c3aed");
       return;
     }
+    if (form.storefrontAccentColor && isColorTooLight(form.storefrontAccentColor)) {
+      toast.error("That color's too close to white - your header/footer text would be unreadable. Pick something darker.");
+      return;
+    }
     setSaving(true);
     try {
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify(form) });
@@ -350,6 +355,9 @@ export default function VendorSettingsPage() {
               </div>
               {form.storefrontAccentColor && !HEX_RE.test(form.storefrontAccentColor) && (
                 <p className="text-xs text-red-600">Enter a valid hex color, e.g. #7c3aed</p>
+              )}
+              {form.storefrontAccentColor && HEX_RE.test(form.storefrontAccentColor) && isColorTooLight(form.storefrontAccentColor) && (
+                <p className="text-xs text-red-600">Too close to white - your header/footer text (white) would be unreadable on it. Pick something darker.</p>
               )}
             </div>
           ) : (
@@ -540,7 +548,9 @@ export default function VendorSettingsPage() {
           </div>
           </div>
 
-          <Button type="submit" loading={saving} fullWidth>Save settings</Button>
+          <div className="sticky bottom-0 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 bg-white/95 backdrop-blur-sm border-t border-slate-200">
+            <Button type="submit" loading={saving} fullWidth>Save settings</Button>
+          </div>
         </form>
       )}
 

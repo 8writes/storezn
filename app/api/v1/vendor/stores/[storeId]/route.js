@@ -7,6 +7,7 @@ import { validate, updateVendorStoreSchema } from "../../../../../../lib/validat
 import { deletePublicFile } from "../../../../../../lib/storage/index.js";
 import { removeStoreUpload, getStoreStorageUsage } from "../../../../../../lib/storeUploads.js";
 import { isPlusStore, getStorageLimitBytes } from "../../../../../../lib/storePlan.js";
+import { isColorTooLight } from "../../../../../../lib/colorShades.js";
 
 // The two upload-backed fields - PATCHing over (or clearing) either one
 // orphans the previous file in storage unless we clean it up here.
@@ -79,6 +80,14 @@ export async function PATCH(req, { params }) {
 
   if ("storefrontAccentColor" in result.data && !isPlusStore(store)) {
     return NextResponse.json({ error: "Storefront theme color is a Storezn+ feature" }, { status: 402 });
+  }
+
+  // The header/footer render white text over this color once set (see
+  // app/storefront/[host]/layout.js's `themed`) - a white/near-white pick
+  // would make that text unreadable, so it's rejected here too, not just
+  // client-side (see isColorTooLight's own comment for the threshold).
+  if (result.data.storefrontAccentColor && isColorTooLight(result.data.storefrontAccentColor)) {
+    return NextResponse.json({ error: "That color is too close to white - your header/footer text would be unreadable" }, { status: 400 });
   }
 
   // Empty string means "clear this field", distinct from omitting the key
