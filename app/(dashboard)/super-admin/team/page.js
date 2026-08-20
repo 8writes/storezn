@@ -32,6 +32,7 @@ export default function SuperAdminTeamPage() {
   const [suspendingId, setSuspendingId] = useState(null);
 
   const load = () => {
+    if (!token) return;
     apiFetch("/api/v1/super-admin/team")
       .then((data) => setTeam(data.team))
       .catch((err) => toast.error(err.message || "Failed to load team"));
