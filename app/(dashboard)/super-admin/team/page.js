@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { UserPlus, Trash2 } from "lucide-react";
+import { UserPlus, Trash2, Ban, RotateCcw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { Input } from "@/components/ui/Input.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
+import { Badge } from "@/components/ui/Badge.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDate } from "@/lib/format.js";
 
@@ -28,6 +29,7 @@ export default function SuperAdminTeamPage() {
   const [inviting, setInviting] = useState(false);
   const [removingId, setRemovingId] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [suspendingId, setSuspendingId] = useState(null);
 
   const load = () => {
     apiFetch("/api/v1/super-admin/team")
@@ -63,6 +65,30 @@ export default function SuperAdminTeamPage() {
       toast.error(err.message || "Failed to update role");
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const toggleSuspend = async (member) => {
+    const suspending = !member.isBanned;
+    if (suspending) {
+      const ok = await confirm({
+        title: `Suspend ${member.firstName || member.email}?`,
+        description: "They'll immediately lose access to the platform dashboard. You can reactivate them any time - this doesn't remove the account.",
+        confirmLabel: "Suspend",
+        variant: "danger",
+      });
+      if (!ok) return;
+    }
+
+    setSuspendingId(member.id);
+    try {
+      await apiFetch(`/api/v1/super-admin/team/${member.id}`, { method: "PATCH", body: JSON.stringify({ isBanned: suspending }) });
+      toast.success(suspending ? "Team member suspended" : "Team member reactivated");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to update team member");
+    } finally {
+      setSuspendingId(null);
     }
   };
 
@@ -104,16 +130,17 @@ export default function SuperAdminTeamPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">Team member</th>
                 <th className="px-4 py-3 font-medium">Role</th>
+                <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Added</th>
                 <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
               {team === null ? (
-                <TableRowSkeleton cols={4} />
+                <TableRowSkeleton cols={5} />
               ) : team.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">No team members yet</td>
+                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">No team members yet</td>
                 </tr>
               ) : (
                 team.map((member) => (
@@ -132,17 +159,31 @@ export default function SuperAdminTeamPage() {
                         />
                       </div>
                     </td>
+                    <td className="px-4 py-3">
+                      <Badge color={member.isBanned ? "red" : "green"}>{member.isBanned ? "Suspended" : "Active"}</Badge>
+                    </td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(member.createdAt)}</td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        disabled={removingId === member.id}
-                        onClick={() => remove(member)}
-                        className="inline-flex items-center gap-1.5 text-red-600 hover:underline disabled:opacity-50 cursor-pointer"
-                      >
-                        <Trash2 size={14} />
-                        Remove
-                      </button>
+                      <div className="flex justify-end items-center gap-3 flex-wrap">
+                        <button
+                          type="button"
+                          disabled={suspendingId === member.id}
+                          onClick={() => toggleSuspend(member)}
+                          className={`inline-flex items-center gap-1.5 hover:underline disabled:opacity-50 cursor-pointer ${member.isBanned ? "text-green-600" : "text-amber-600"}`}
+                        >
+                          {member.isBanned ? <RotateCcw size={14} /> : <Ban size={14} />}
+                          {member.isBanned ? "Reactivate" : "Suspend"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={removingId === member.id}
+                          onClick={() => remove(member)}
+                          className="inline-flex items-center gap-1.5 text-red-600 hover:underline disabled:opacity-50 cursor-pointer"
+                        >
+                          <Trash2 size={14} />
+                          Remove
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

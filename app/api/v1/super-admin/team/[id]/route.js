@@ -3,7 +3,7 @@ import { db } from "../../../../../../lib/db/index.js";
 import { users, tokens, pushSubscriptions } from "../../../../../../lib/db/schema.js";
 import { and, eq, inArray } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
-import { validate, updateTeamMemberRoleSchema } from "../../../../../../lib/validate.js";
+import { validate, updateTeamMemberSchema } from "../../../../../../lib/validate.js";
 
 async function loadMember(id) {
   const [member] = await db
@@ -25,10 +25,14 @@ export async function PATCH(req, { params }) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
-  const result = validate(updateTeamMemberRoleSchema, body);
+  const result = validate(updateTeamMemberSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  const [updated] = await db.update(users).set({ role: result.data.role }).where(eq(users.id, id)).returning();
+  const data = {};
+  if (result.data.role !== undefined) data.role = result.data.role;
+  if (result.data.isBanned !== undefined) data.isBanned = result.data.isBanned;
+
+  const [updated] = await db.update(users).set(data).where(eq(users.id, id)).returning();
   const { passwordHash: _, ...safeMember } = updated;
   return NextResponse.json({ member: safeMember });
 }
