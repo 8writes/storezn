@@ -4,10 +4,11 @@ import { stores, orders } from "../../../../../../lib/db/schema.js";
 import { desc, eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
 import { validate, updateStoreStatusSchema } from "../../../../../../lib/validate.js";
+import { logActivity } from "../../../../../../lib/activityLog.js";
 
 export async function GET(req, { params }) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"]))
+  if (!requireRole(user, ["super_admin", "admin"]))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
@@ -41,7 +42,7 @@ export async function GET(req, { params }) {
 // and per-store commission-rate override.
 export async function PATCH(req, { params }) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"]))
+  if (!requireRole(user, ["super_admin", "admin"]))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
@@ -68,5 +69,8 @@ export async function PATCH(req, { params }) {
   }
 
   const [updated] = await db.update(stores).set(data).where(eq(stores.id, id)).returning();
+
+  await logActivity({ user, action: "store.update", targetType: "store", targetId: id, metadata: data });
+
   return NextResponse.json({ store: updated });
 }

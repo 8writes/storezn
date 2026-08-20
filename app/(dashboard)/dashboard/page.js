@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/useAuth.js";
 
 const REDIRECT_BY_ROLE = {
   super_admin: "/super-admin/analytics",
+  admin: "/super-admin/analytics",
+  p_staff: "/super-admin/products",
   vendor: "/vendor/dashboard",
   staff: "/vendor/dashboard",
 };

@@ -8,7 +8,7 @@ import { getUser, requireRole } from "../../../../../../lib/auth.js";
 // app/(dashboard)/super-admin/products/page.js's "View" link.
 export async function GET(req, { params }) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!requireRole(user, ["super_admin", "admin", "p_staff"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const [row] = await db

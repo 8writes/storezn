@@ -29,6 +29,7 @@ import {
   UserCog,
   Sparkles,
   Building2,
+  History,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -58,6 +59,57 @@ const NAV_BY_ROLE = {
       items: [
         { href: "/super-admin/notifications", label: "Notify vendors", icon: Bell },
         { href: "/super-admin/settings", label: "Platform settings", icon: Settings },
+      ],
+    },
+    {
+      title: "Team",
+      items: [
+        { href: "/super-admin/team", label: "Team", icon: UserCog },
+        { href: "/super-admin/activity-log", label: "Activity log", icon: History },
+      ],
+    },
+    {
+      title: "Account",
+      items: [{ href: "/profile", label: "Profile", icon: User }],
+    },
+  ],
+  // Everything super_admin can do/see except platform settings and team
+  // management (see /super-admin/team - creating more admin/p_staff
+  // accounts stays super_admin-only, a privilege-escalation guard).
+  admin: [
+    {
+      title: "Overview",
+      items: [{ href: "/super-admin/analytics", label: "Overview", icon: BarChart3 }],
+    },
+    {
+      title: "Marketplace",
+      items: [
+        { href: "/super-admin/stores", label: "Stores", icon: Store },
+        { href: "/super-admin/vendors", label: "Vendors", icon: ShieldCheck },
+        { href: "/super-admin/products", label: "Products", icon: Package },
+        { href: "/super-admin/orders", label: "Orders", icon: ShoppingBag },
+        { href: "/super-admin/transactions", label: "Transactions", icon: Receipt },
+        { href: "/super-admin/customers", label: "Customers", icon: Users },
+      ],
+    },
+    {
+      title: "Platform",
+      items: [{ href: "/super-admin/notifications", label: "Notify vendors", icon: Bell }],
+    },
+    {
+      title: "Account",
+      items: [{ href: "/profile", label: "Profile", icon: User }],
+    },
+  ],
+  // Scoped to products (full access) plus read-only orders/transactions -
+  // see the requireRole arrays across app/api/v1/super-admin/**.
+  p_staff: [
+    {
+      title: "Work",
+      items: [
+        { href: "/super-admin/products", label: "Products", icon: Package },
+        { href: "/super-admin/orders", label: "Orders", icon: ShoppingBag },
+        { href: "/super-admin/transactions", label: "Transactions", icon: Receipt },
       ],
     },
     {

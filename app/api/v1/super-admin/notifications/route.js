@@ -6,13 +6,14 @@ import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, sendNotificationSchema } from "../../../../../lib/validate.js";
 import { sendPushToUser, sendPushToUsers } from "../../../../../lib/push.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
+import { logActivity } from "../../../../../lib/activityLog.js";
 
 // Lightweight vendor picker for the composer - not the same paginated
 // list as /api/v1/super-admin/vendors, this just needs enough to search
 // and pick one recipient.
 export async function GET(req) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!requireRole(user, ["super_admin", "admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const q = new URL(req.url).searchParams.get("q")?.trim();
   const conditions = [eq(users.role, "vendor")];
@@ -33,7 +34,7 @@ export async function GET(req) {
 // caller in the codebase), there's no batch-send path.
 export async function POST(req) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!requireRole(user, ["super_admin", "admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
@@ -73,6 +74,14 @@ export async function POST(req) {
       }
     }
   }
+
+  await logActivity({
+    user,
+    action: "notification.broadcast",
+    targetType: "vendor",
+    targetId: target === "single" ? userId : null,
+    metadata: { title, channel, target, recipients: recipients.length },
+  });
 
   return NextResponse.json({
     recipients: recipients.length,

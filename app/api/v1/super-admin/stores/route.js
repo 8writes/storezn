@@ -9,7 +9,7 @@ import { parsePagination } from "../../../../../lib/pagination.js";
 // by the super_admin - this is a read-only oversight list.
 export async function GET(req) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"]))
+  if (!requireRole(user, ["super_admin", "admin"]))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const searchParams = new URL(req.url).searchParams;

@@ -12,7 +12,7 @@ import { decryptNin } from "../../../../../../../lib/nin.js";
 // browser, never at rest.
 export async function GET(req, { params }) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!requireRole(user, ["super_admin", "admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const [vendor] = await db.select({ nin: users.nin }).from(users).where(and(eq(users.id, id), eq(users.role, "vendor"))).limit(1);

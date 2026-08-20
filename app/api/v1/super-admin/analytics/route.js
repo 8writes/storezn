@@ -9,7 +9,7 @@ const TIMESERIES_DAYS = 30;
 // Platform-wide numbers for the super-admin landing page.
 export async function GET(req) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"]))
+  if (!requireRole(user, ["super_admin", "admin"]))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const [storeRow] = await db

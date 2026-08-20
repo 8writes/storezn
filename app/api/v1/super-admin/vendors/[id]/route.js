@@ -5,13 +5,14 @@ import { and, eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
 import { validate, reviewVendorApprovalSchema } from "../../../../../../lib/validate.js";
 import { sendPushToUser } from "../../../../../../lib/push.js";
+import { logActivity } from "../../../../../../lib/activityLog.js";
 
 // Approves or rejects a vendor's submitted NIN - see users.approvalStatus
 // in lib/db/schema.js. Approving is what actually lets their store go
 // live (lib/resolveStore.js's isStoreLive checks this).
 export async function PATCH(req, { params }) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!requireRole(user, ["super_admin", "admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const [vendor] = await db.select().from(users).where(and(eq(users.id, id), eq(users.role, "vendor"))).limit(1);
@@ -47,6 +48,14 @@ export async function PATCH(req, { params }) {
         : reviewNote || "Your NIN submission was rejected. Check your verification page for details.",
     url: "/vendor/verification",
   }).catch((err) => console.error("sendPushToUser failed (vendor verification decision):", err));
+
+  await logActivity({
+    user,
+    action: decision === "approved" ? "vendor.approve" : "vendor.reject",
+    targetType: "vendor",
+    targetId: id,
+    metadata: { reviewNote: reviewNote || null },
+  });
 
   const { passwordHash: _, nin: __, ...safeVendor } = updated;
   return NextResponse.json({ vendor: safeVendor });

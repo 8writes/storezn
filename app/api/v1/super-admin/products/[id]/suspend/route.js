@@ -4,6 +4,7 @@ import { products } from "../../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../../lib/auth.js";
 import { validate, suspendProductSchema } from "../../../../../../../lib/validate.js";
+import { logActivity } from "../../../../../../../lib/activityLog.js";
 
 // A product only ever shows on the storefront when isActive AND
 // suspendedAt is null - the vendor's own PATCH .../products/[id] route
@@ -11,7 +12,7 @@ import { validate, suspendProductSchema } from "../../../../../../../lib/validat
 // clear a suspension, see products.suspendedAt in lib/db/schema.js.
 export async function POST(req, { params }) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!requireRole(user, ["super_admin", "admin", "p_staff"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const [product] = await db.select().from(products).where(eq(products.id, id)).limit(1);
@@ -33,6 +34,14 @@ export async function POST(req, { params }) {
     })
     .where(eq(products.id, id))
     .returning();
+
+  await logActivity({
+    user,
+    action: suspended ? "product.suspend" : "product.unsuspend",
+    targetType: "product",
+    targetId: id,
+    metadata: { reason: reason || null },
+  });
 
   return NextResponse.json({ product: updated });
 }

@@ -3,6 +3,7 @@ import { db } from "../../../../../../../lib/db/index.js";
 import { users } from "../../../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../../lib/auth.js";
+import { logActivity } from "../../../../../../../lib/activityLog.js";
 
 // Manual override for a vendor stuck unable to even sign in because
 // their verification email never arrived (deliverability issue, not
@@ -13,13 +14,15 @@ import { getUser, requireRole } from "../../../../../../../lib/auth.js";
 // revocable.
 export async function PATCH(req, { params }) {
   const user = await getUser(req);
-  if (!requireRole(user, ["super_admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!requireRole(user, ["super_admin", "admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const [vendor] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, id), eq(users.role, "vendor"))).limit(1);
   if (!vendor) return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
 
   const [updated] = await db.update(users).set({ emailVerified: true }).where(eq(users.id, id)).returning();
+
+  await logActivity({ user, action: "vendor.verify_email", targetType: "vendor", targetId: id });
 
   const { passwordHash: _, nin: __, ...safeVendor } = updated;
   return NextResponse.json({ vendor: safeVendor });
