@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { products, productVariants, cartItems, platformSettings } from "../../../../../lib/db/schema.js";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { validate, addCartItemSchema } from "../../../../../lib/validate.js";
@@ -92,7 +92,7 @@ export async function POST(req) {
   const [product] = await db
     .select()
     .from(products)
-    .where(and(eq(products.id, productId), eq(products.storeId, store.id), eq(products.isActive, true)))
+    .where(and(eq(products.id, productId), eq(products.storeId, store.id), eq(products.isActive, true), isNull(products.suspendedAt)))
     .limit(1);
   if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 

@@ -19,8 +19,15 @@ export async function GET(req) {
     })
     .from(stores);
 
-  // Revenue only counts orders that actually got paid - a pending/failed
-  // order was never real GMV.
+  // Revenue only counts orders that actually got paid and are still
+  // considered "kept" - a pending/failed order was never real GMV, and a
+  // refunded one (order.status = 'refunded', see vendor order PATCH's
+  // refundDecision handling) had its paymentStatus stay "paid" by design
+  // (refund approval is a manual/off-platform record-keeping action, see
+  // DOCUMENTATION.md - the platform never automatically reverses the
+  // commission it already kept), so it has to be excluded here
+  // explicitly or it keeps counting as revenue forever after being
+  // refunded.
   const [revenueRow] = await db
     .select({
       totalGMV: sql`coalesce(sum(${orders.totalAmount}), 0)`.mapWith(Number),
@@ -30,7 +37,7 @@ export async function GET(req) {
       totalCommission: sql`coalesce(sum(${orders.commissionAmount} + ${orders.flatFeeAmount}), 0)`.mapWith(Number),
     })
     .from(orders)
-    .where(sql`${orders.paymentStatus} = 'paid'`);
+    .where(sql`${orders.paymentStatus} = 'paid' and ${orders.status} != 'refunded'`);
 
   // One row per calendar day over the trailing window, zero-filled for
   // days with no paid orders (generate_series left-joined against actual
@@ -43,7 +50,7 @@ export async function GET(req) {
       coalesce(sum(o.commission_amount + o.flat_fee_amount), 0)::float as commission,
       count(o.id)::int as order_count
     from generate_series(current_date - interval '${sql.raw(String(TIMESERIES_DAYS - 1))} days', current_date, interval '1 day') as d
-    left join ${orders} o on o.payment_status = 'paid' and o.paid_at::date = d::date
+    left join ${orders} o on o.payment_status = 'paid' and o.status != 'refunded' and o.paid_at::date = d::date
     group by d
     order by d
   `);
@@ -71,7 +78,7 @@ export async function GET(req) {
       gmv: sql`coalesce(sum(${orders.totalAmount}), 0)`.mapWith(Number),
     })
     .from(stores)
-    .leftJoin(orders, sql`${orders.storeId} = ${stores.id} and ${orders.paymentStatus} = 'paid'`)
+    .leftJoin(orders, sql`${orders.storeId} = ${stores.id} and ${orders.paymentStatus} = 'paid' and ${orders.status} != 'refunded'`)
     .groupBy(stores.id, stores.name)
     .orderBy(desc(sql`coalesce(sum(${orders.totalAmount}), 0)`))
     .limit(5);

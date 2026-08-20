@@ -7,22 +7,26 @@ import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../lib/format.js";
 import { sendPushToStore } from "../../../../../lib/push.js";
-import { LOW_STOCK_THRESHOLD } from "../../../../../lib/inventory.js";
+import { LOW_STOCK_THRESHOLD, reserveStock, OutOfStockError } from "../../../../../lib/inventory.js";
 
 // Storezn+ subscription lifecycle - separate from the order-payment flow
 // below, see lib/storePlan.js's getEffectivePlan for how these fields
 // actually get enforced.
 
-// paystackReference is unique, so a webhook retry (Paystack retries on
-// any non-2xx response) can't double-record the same charge - the
-// onConflictDoNothing is what makes this safe to call more than once for
-// the same event.
+// paystackReference is unique, so this is the actual idempotency gate for
+// the whole subscription flow below, not just a ledger write - a Paystack
+// webhook retry (fired on any non-2xx response) or a replayed valid
+// payload carries the identical reference, so onConflictDoNothing's
+// `.returning()` comes back empty and the caller knows not to extend
+// planRenewsAt a second time for a charge already recorded once.
 async function recordSubscriptionTransaction({ storeId, amount, reference, paidAt }) {
-  if (!storeId || !reference) return;
-  await db
+  if (!storeId || !reference) return false;
+  const [inserted] = await db
     .insert(storeSubscriptionTransactions)
     .values({ storeId, amount, paystackReference: reference, paidAt: paidAt ? new Date(paidAt) : new Date() })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ id: storeSubscriptionTransactions.id });
+  return !!inserted;
 }
 
 // The initial subscribe payment - we generate this charge ourselves (see
@@ -31,6 +35,15 @@ async function recordSubscriptionTransaction({ storeId, amount, reference, paidA
 async function handleSubscriptionCharge(event) {
   const storeId = event.data?.metadata?.storeId;
   if (!storeId) return;
+  const isNewCharge = await recordSubscriptionTransaction({
+    storeId,
+    amount: (event.data?.amount || 0) / 100,
+    reference: event.data?.reference,
+    paidAt: event.data?.paid_at,
+  });
+  // Already recorded this exact charge - a redelivered/replayed webhook
+  // must not push planRenewsAt another 31 days out for free.
+  if (!isNewCharge) return;
   // charge.success fires before subscription.create - this just marks the
   // store Plus immediately so the vendor isn't waiting on two webhooks in
   // sequence; subscription.create (below) fills in the authoritative
@@ -39,12 +52,6 @@ async function handleSubscriptionCharge(event) {
     .update(stores)
     .set({ plan: "plus", planCancelled: false, planRenewsAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) })
     .where(eq(stores.id, storeId));
-  await recordSubscriptionTransaction({
-    storeId,
-    amount: (event.data?.amount || 0) / 100,
-    reference: event.data?.reference,
-    paidAt: event.data?.paid_at,
-  });
 }
 
 // Every renewal after the first - Paystack initiates these itself, so
@@ -68,16 +75,18 @@ async function handleSubscriptionRenewal(event) {
   }
   if (!storeId) return;
 
-  await db
-    .update(stores)
-    .set({ plan: "plus", planCancelled: false, planRenewsAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) })
-    .where(eq(stores.id, storeId));
-  await recordSubscriptionTransaction({
+  const isNewCharge = await recordSubscriptionTransaction({
     storeId,
     amount: (event.data?.amount || 0) / 100,
     reference: event.data?.reference,
     paidAt: event.data?.paid_at,
   });
+  if (!isNewCharge) return;
+
+  await db
+    .update(stores)
+    .set({ plan: "plus", planCancelled: false, planRenewsAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) })
+    .where(eq(stores.id, storeId));
 }
 
 async function handleSubscriptionCreate(event) {
@@ -164,32 +173,79 @@ export async function POST(req) {
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.paymentStatus === "paid") return NextResponse.json({ received: true });
 
+  // A "failed" order (not just "pending") means the 1-hour stale sweep
+  // (lib/failStaleTransactions.js) already ran and released its stock
+  // reservation back to the pool - a late-arriving webhook for that same
+  // order can't just flip it back to paid without re-reserving, or the
+  // unit it already gave up could be sold twice.
+  const wasAlreadyReleased = order.paymentStatus === "failed";
+
   const transaction = await verifyTransaction(paymentReference);
   if (transaction.paymentStatus !== "PAID") {
+    // Marking "failed" (not left "pending") also frees uq_orders_cart_
+    // pending (lib/db/schema.js), so the same cart can be checked out
+    // again right away instead of being stuck behind this dead order.
+    await db.update(orders).set({ paymentStatus: "failed", updatedAt: new Date() }).where(eq(orders.id, order.id));
+    return NextResponse.json({ received: true });
+  }
+
+  // Defense in depth: Paystack fixes the amount at transaction/initialize
+  // time, so this should never actually mismatch in normal operation, but
+  // this endpoint is reachable directly (see the comment above this
+  // route), not exclusively through the trusted forwarder - never trust
+  // "PAID" alone without also confirming the paid amount actually covers
+  // what the order is for. A small epsilon absorbs kobo-level float
+  // rounding, not a real underpayment.
+  if (transaction.amountPaid < order.totalAmount - 0.5) {
+    console.error(`Paystack webhook: amount mismatch on ${paymentReference} - paid ${transaction.amountPaid}, expected ${order.totalAmount}`);
     await db.update(orders).set({ paymentStatus: "failed", updatedAt: new Date() }).where(eq(orders.id, order.id));
     return NextResponse.json({ received: true });
   }
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
   const lowStockNow = [];
+  let oversold = false;
 
   await db.transaction(async (tx) => {
+    if (wasAlreadyReleased && order.branchId) {
+      try {
+        await reserveStock(
+          tx,
+          items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, productName: i.productName, branchId: order.branchId })),
+        );
+      } catch (err) {
+        if (err instanceof OutOfStockError) {
+          // The buyer genuinely paid - that can't be undone from inside a
+          // webhook handler - so the order still gets marked paid below,
+          // just flagged for the vendor to sort out manually (refund, or
+          // source more stock) instead of silently shipping against
+          // stock that no longer exists.
+          oversold = true;
+        } else {
+          throw err;
+        }
+      }
+    }
+
     await tx
       .update(orders)
       .set({ paymentStatus: "paid", status: "processing", paidAt: new Date(), updatedAt: new Date() })
       .where(eq(orders.id, order.id));
 
-    // Stock is no longer decremented here - checkout already reserved it
-    // atomically at order-creation time (see reserveStock in
-    // lib/inventory.js, called from checkout/route.js), so decrementing
-    // again on payment confirmation would double-count. This just reads
-    // the current (already-decremented) stock at the branch this order
-    // was fulfilled from to detect crossing under LOW_STOCK_THRESHOLD for
-    // the push notification below - "before" is reconstructed as
-    // current + this item's own quantity, same math as when this used to
-    // read it off the decrement's own return value. Per-branch (not the
-    // storewide aggregate) is what's actually actionable for a vendor
-    // running more than one location.
+    // Stock is no longer decremented here for the normal path - checkout
+    // already reserved it atomically at order-creation time (see
+    // reserveStock in lib/inventory.js, called from checkout/route.js),
+    // so decrementing again on payment confirmation would double-count.
+    // (The wasAlreadyReleased branch above is the one exception, where
+    // that original reservation was already released and has to be
+    // redone here instead.) This just reads the current (already-
+    // decremented) stock at the branch this order was fulfilled from to
+    // detect crossing under LOW_STOCK_THRESHOLD for the push notification
+    // below - "before" is reconstructed as current + this item's own
+    // quantity, same math as when this used to read it off the
+    // decrement's own return value. Per-branch (not the storewide
+    // aggregate) is what's actually actionable for a vendor running more
+    // than one location.
     let branchName = null;
     if (order.branchId) {
       const [branch] = await tx.select({ name: branches.name }).from(branches).where(eq(branches.id, order.branchId)).limit(1);
@@ -208,18 +264,26 @@ export async function POST(req) {
       }
     }
 
-    if (order.userId) {
-      const [cart] = await tx
-        .select()
-        .from(carts)
-        .where(and(eq(carts.storeId, order.storeId), eq(carts.userId, order.userId), eq(carts.status, "active")))
-        .limit(1);
-      if (cart) {
-        await tx.delete(cartItems).where(eq(cartItems.cartId, cart.id));
-        await tx.update(carts).set({ status: "converted", updatedAt: new Date() }).where(eq(carts.id, cart.id));
-      }
+    // Cleared/converted by cartId, set at checkout time (see
+    // checkout/route.js), not re-resolved by userId - that previously
+    // only worked for logged-in users, so a guest could pay, then revisit
+    // and re-checkout the exact same still-"active" cart for a real
+    // duplicate order. cartId is set for every online order regardless of
+    // guest/logged-in, so this now covers both.
+    if (order.cartId) {
+      await tx.delete(cartItems).where(eq(cartItems.cartId, order.cartId));
+      await tx.update(carts).set({ status: "converted", updatedAt: new Date() }).where(eq(carts.id, order.cartId));
     }
   });
+
+  if (oversold) {
+    console.error(`Paystack webhook: order ${order.orderNumber} confirmed paid but could not re-reserve stock - needs manual attention`);
+    sendPushToStore(order.storeId, {
+      title: "Stock issue on a paid order",
+      body: `Order ${order.orderNumber} was confirmed paid, but its stock is no longer available - check it before fulfilling.`,
+      url: "/vendor/orders",
+    }).catch((err) => console.error("sendPushToStore failed (oversold order):", err));
+  }
 
   let recipient = { email: order.guestEmail, notify: true };
   if (order.userId) {

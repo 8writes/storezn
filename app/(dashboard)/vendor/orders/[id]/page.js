@@ -95,7 +95,14 @@ export default function VendorOrderDetailPage({ params }) {
       });
       if (!reviewNote) return;
     } else {
-      const ok = await confirm({ title: "Approve refund?" });
+      // Approving is a record-keeping action only - it does not move any
+      // money (see DOCUMENTATION.md). The vendor has to actually send the
+      // refund themselves, and note that their platform commission on
+      // this order isn't returned to them either way.
+      const ok = await confirm({
+        title: "Approve refund?",
+        description: `This only records the decision - it doesn't send any money. You'll need to refund ${formatCurrency(data.order.totalAmount)} to the customer yourself (bank transfer, Paystack dashboard, etc.). The platform's commission on this order isn't returned.`,
+      });
       if (!ok) return;
     }
     setUpdating(true);

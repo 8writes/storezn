@@ -12,6 +12,11 @@ import { initializeTransaction } from "../../../../../lib/paystack.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { reserveStock, restockItems, resolveFulfillingBranch, OutOfStockError } from "../../../../../lib/inventory.js";
 
+// Postgres' unique_violation code - thrown when the insert below collides
+// with uq_orders_cart_pending (see lib/db/schema.js), i.e. this cart
+// already has a pending order from an earlier, still-unresolved request.
+const UNIQUE_VIOLATION = "23505";
+
 export async function POST(req) {
   const limit = checkRateLimit(req, "checkout", { max: 10, windowMs: 60_000 });
   if (!limit.allowed) {
@@ -45,7 +50,13 @@ export async function POST(req) {
   if (items.length === 0) return NextResponse.json({ error: "Your cart is empty" }, { status: 400 });
 
   for (const item of items) {
-    if (!item.product.isActive || (item.variant && !item.variant.isActive)) {
+    // suspendedAt (super-admin product suspension, see POST .../products/
+    // [id]/suspend) is deliberately checked here too, not just isActive -
+    // it's a separate flag that never touches isActive, so a product
+    // already sitting in someone's cart from before a suspension would
+    // otherwise stay checkoutable indefinitely even though every browse
+    // path already excludes it.
+    if (!item.product.isActive || item.product.suspendedAt || (item.variant && !item.variant.isActive)) {
       return NextResponse.json({ error: `${item.product.name} is no longer available` }, { status: 409 });
     }
     const stock = item.variant ? item.variant.stock : item.product.stock;
@@ -120,12 +131,18 @@ export async function POST(req) {
         items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, productName: i.product.name, branchId })),
       );
 
+      // uq_orders_cart_pending (lib/db/schema.js) is the actual
+      // idempotency guard - a double-click or client retry racing this
+      // same cart has its second insert collide with the first request's
+      // still-"pending" order and throw, instead of two orders getting
+      // created (and possibly two Paystack sessions paid) for one cart.
       const [createdOrder] = await tx
         .insert(orders)
         .values({
           storeId: store.id,
           branchId,
           userId: user?.id || null,
+          cartId: cart.id,
           orderNumber,
           guestEmail: user ? null : guestEmail,
           subtotal,
@@ -163,6 +180,9 @@ export async function POST(req) {
     if (err instanceof OutOfStockError) {
       return NextResponse.json({ error: err.message }, { status: 409 });
     }
+    if (err?.code === UNIQUE_VIOLATION) {
+      return NextResponse.json({ error: "This order is already being processed" }, { status: 409 });
+    }
     throw err;
   }
 
@@ -190,12 +210,17 @@ export async function POST(req) {
     // back now that Paystack init failed, so release the reservation
     // immediately instead of leaving it locked up until the 1-hour stale
     // sweep (lib/failStaleTransactions.js) eventually gets to it.
-    await db.transaction((tx) =>
-      restockItems(
+    // Marking the order "failed" (not just restocking) also frees
+    // uq_orders_cart_pending, so the same cart can be checked out again
+    // immediately instead of being stuck behind this dead order for up
+    // to an hour.
+    await db.transaction(async (tx) => {
+      await restockItems(
         tx,
         items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, branchId })),
-      ),
-    );
+      );
+      await tx.update(orders).set({ paymentStatus: "failed", updatedAt: new Date() }).where(eq(orders.id, order.id));
+    });
     return NextResponse.json({ error: err.message || "Could not start payment" }, { status: 502 });
   }
 }

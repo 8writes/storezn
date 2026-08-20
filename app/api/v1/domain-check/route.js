@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "../../../../lib/db/index.js";
 import { stores } from "../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
+import { isPlusStore } from "../../../../lib/storePlan.js";
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost";
 
@@ -26,11 +27,17 @@ export async function GET(req) {
   }
 
   const [store] = await db
-    .select({ id: stores.id })
+    .select({ id: stores.id, plan: stores.plan, planCancelled: stores.planCancelled, planRenewsAt: stores.planRenewsAt })
     .from(stores)
     .where(and(eq(stores.customDomain, domain), eq(stores.domainStatus, "verified")))
     .limit(1);
 
   if (!store) return NextResponse.json({ error: "Domain not recognized" }, { status: 403 });
+  // Custom domain is Storezn+-exclusive (see lib/resolveStore.js's
+  // matching check) - denying cert issuance/renewal here too means a
+  // lapsed store's domain stops being servable over HTTPS at all, not
+  // just unresolved at the app layer, closing the same gap from the TLS
+  // side as well.
+  if (!isPlusStore(store)) return NextResponse.json({ error: "Domain not on an active Storezn+ plan" }, { status: 403 });
   return NextResponse.json({ ok: true });
 }

@@ -131,6 +131,9 @@ export default function CustomerOrderDetailPage() {
           <p className="text-slate-500">Status: <Badge color={refundRequest.status === "approved" ? "green" : refundRequest.status === "rejected" ? "red" : "amber"}>{refundRequest.status}</Badge></p>
           <p className="text-slate-500">Reason: {refundRequest.reason}</p>
           {refundRequest.reviewNote && <p className="text-slate-500">Seller note: {refundRequest.reviewNote}</p>}
+          {refundRequest.status === "approved" && (
+            <p className="text-slate-400 text-xs pt-1">The seller has approved this refund and will send your money back directly - this isn't processed automatically through Storezn.</p>
+          )}
         </div>
       ) : order.status === "delivered" ? (
         <Button variant="outline" onClick={handleRequestRefund} loading={requesting}>Request a refund</Button>

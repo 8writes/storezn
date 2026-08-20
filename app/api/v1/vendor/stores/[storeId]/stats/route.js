@@ -20,8 +20,11 @@ export async function GET(req, { params }) {
   const [orderStats] = await db
     .select({
       pending: sql`count(*) filter (where ${orders.status} in ('processing', 'shipped'))`.mapWith(Number),
-      totalRevenue: sql`coalesce(sum(${orders.vendorPayoutAmount}) filter (where ${orders.paymentStatus} = 'paid'), 0)`.mapWith(Number),
-      totalOrders: sql`count(*) filter (where ${orders.paymentStatus} = 'paid')`.mapWith(Number),
+      // Excludes refunded orders the same way payouts/analytics do -
+      // paymentStatus stays "paid" after a refund (see DOCUMENTATION.md),
+      // so this needs its own status check to not keep counting them.
+      totalRevenue: sql`coalesce(sum(${orders.vendorPayoutAmount}) filter (where ${orders.paymentStatus} = 'paid' and ${orders.status} != 'refunded'), 0)`.mapWith(Number),
+      totalOrders: sql`count(*) filter (where ${orders.paymentStatus} = 'paid' and ${orders.status} != 'refunded')`.mapWith(Number),
     })
     .from(orders)
     .where(eq(orders.storeId, storeId));

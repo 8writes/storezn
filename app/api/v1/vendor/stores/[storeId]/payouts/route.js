@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { orders, stores } from "../../../../../../../lib/db/schema.js";
-import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, ne, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
 
@@ -34,7 +34,12 @@ export async function GET(req, { params }) {
   const q = searchParams.get("q")?.trim();
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
 
-  const conditions = [eq(orders.storeId, storeId), eq(orders.paymentStatus, "paid")];
+  // Excludes refunded orders (order.status = 'refunded') the same way
+  // super-admin analytics does - paymentStatus stays "paid" on a refunded
+  // order (refund approval is a manual/off-platform action, see
+  // DOCUMENTATION.md), so without this a fully refunded order would keep
+  // counting toward the vendor's own payout totals forever.
+  const conditions = [eq(orders.storeId, storeId), eq(orders.paymentStatus, "paid"), ne(orders.status, "refunded")];
   if (channel === "online") conditions.push(eq(orders.isOffline, false));
   if (channel === "offline") conditions.push(eq(orders.isOffline, true));
   if (q) conditions.push(ilike(orders.orderNumber, `%${q}%`));
@@ -51,7 +56,7 @@ export async function GET(req, { params }) {
         lastPayoutAt: sql`max(${orders.paidAt})`,
       })
       .from(orders)
-      .where(and(eq(orders.storeId, storeId), eq(orders.paymentStatus, "paid"))),
+      .where(and(eq(orders.storeId, storeId), eq(orders.paymentStatus, "paid"), ne(orders.status, "refunded"))),
     db.select({ total: count() }).from(orders).where(and(...conditions)),
     db
       .select({

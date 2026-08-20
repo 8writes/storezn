@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { db } from "../../../../../lib/db/index.js";
-import { stores, users, staff, customers } from "../../../../../lib/db/schema.js";
+import { stores, users, staff, customers, carts, cartItems } from "../../../../../lib/db/schema.js";
 import { and, desc, eq } from "drizzle-orm";
 import { validate, loginSchema } from "../../../../../lib/validate.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveStore.js";
+import { GUEST_CART_COOKIE, findCartItem } from "../../../../../lib/cart.js";
 
 const INVALID = NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
 
@@ -92,5 +93,52 @@ export async function POST(req) {
 
   const token = jwt.sign({ id: account.id, kind: "customer" }, process.env.JWT_SECRET, { expiresIn: "30d" });
   const { passwordHash, ...safeAccount } = account;
-  return NextResponse.json({ token, user: { ...safeAccount, role: "customer" } });
+
+  // Guest -> user cart handoff (see carts.userId's comment in
+  // lib/db/schema.js) - a guest who added items before logging in
+  // shouldn't lose them. Reassigns the guest cart directly if this
+  // customer has no active cart of their own yet; otherwise merges its
+  // items into their existing cart (same dedup-by-product+variant logic
+  // as a normal add-to-cart, since both carts could hold the same
+  // product) and retires the guest cart. Never lets a cart-merge hiccup
+  // fail the login itself - it's a value-add, not part of auth.
+  let clearGuestCookie = false;
+  try {
+    const guestToken = req.cookies.get(GUEST_CART_COOKIE)?.value;
+    if (guestToken) {
+      const [guestCart] = await db
+        .select()
+        .from(carts)
+        .where(and(eq(carts.storeId, store.id), eq(carts.guestToken, guestToken), eq(carts.status, "active")))
+        .limit(1);
+      if (guestCart) {
+        const [userCart] = await db
+          .select()
+          .from(carts)
+          .where(and(eq(carts.storeId, store.id), eq(carts.userId, account.id), eq(carts.status, "active")))
+          .limit(1);
+        if (!userCart) {
+          await db.update(carts).set({ userId: account.id, guestToken: null, updatedAt: new Date() }).where(eq(carts.id, guestCart.id));
+        } else {
+          const guestItems = await db.select().from(cartItems).where(eq(cartItems.cartId, guestCart.id));
+          for (const item of guestItems) {
+            const existing = await findCartItem(userCart.id, item.productId, item.variantId);
+            if (existing) {
+              await db.update(cartItems).set({ quantity: existing.quantity + item.quantity }).where(eq(cartItems.id, existing.id));
+            } else {
+              await db.insert(cartItems).values({ cartId: userCart.id, productId: item.productId, variantId: item.variantId, quantity: item.quantity });
+            }
+          }
+          await db.update(carts).set({ status: "abandoned", updatedAt: new Date() }).where(eq(carts.id, guestCart.id));
+        }
+        clearGuestCookie = true;
+      }
+    }
+  } catch (err) {
+    console.error("Guest cart handoff failed (login):", err);
+  }
+
+  const res = NextResponse.json({ token, user: { ...safeAccount, role: "customer" } });
+  if (clearGuestCookie) res.cookies.delete(GUEST_CART_COOKIE);
+  return res;
 }
