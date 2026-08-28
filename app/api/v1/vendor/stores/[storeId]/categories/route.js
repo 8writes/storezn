@@ -19,24 +19,26 @@ export async function GET(req, { params }) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const rows = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.storeId, storeId))
+    .orderBy(categories.name);
+
   // productCount lets the manage-categories page warn before deleting a
   // category that still has products under it (they're just un-categorised,
-  // not deleted - see the [categoryId] DELETE route).
-  const rows = await db
-    .select({
-      id: categories.id,
-      storeId: categories.storeId,
-      name: categories.name,
-      slug: categories.slug,
-      createdAt: categories.createdAt,
-      productCount: count(products.id),
-    })
-    .from(categories)
-    .leftJoin(products, eq(products.categoryId, categories.id))
-    .where(eq(categories.storeId, storeId))
-    .groupBy(categories.id)
-    .orderBy(categories.name);
-  return NextResponse.json({ categories: rows });
+  // not deleted - see the [categoryId] DELETE route). Kept as its own
+  // grouped query so the category list itself stays a plain, cheap select.
+  const counts = await db
+    .select({ categoryId: products.categoryId, n: count() })
+    .from(products)
+    .where(eq(products.storeId, storeId))
+    .groupBy(products.categoryId);
+  const countByCategory = Object.fromEntries(counts.map((c) => [c.categoryId, Number(c.n)]));
+
+  return NextResponse.json({
+    categories: rows.map((r) => ({ ...r, productCount: countByCategory[r.id] || 0 })),
+  });
 }
 
 export async function POST(req, { params }) {
