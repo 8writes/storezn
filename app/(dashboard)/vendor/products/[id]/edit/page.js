@@ -242,7 +242,7 @@ export default function VendorProductEditPage({ params }) {
         discountPercent: form.discountPercent !== "" ? Number(form.discountPercent) : null,
         productType: form.productType,
         condition: form.condition,
-        categoryId: form.categoryId || undefined,
+        categoryId: form.categoryId || null,
         description: form.description || undefined,
         images: form.images,
         isActive: form.isActive === true || form.isActive === "true",
@@ -272,7 +272,7 @@ export default function VendorProductEditPage({ params }) {
     );
   }
 
-  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+  const categoryOptions = [{ value: "", label: "No category" }, ...categories.map((c) => ({ value: c.id, label: c.name }))];
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">

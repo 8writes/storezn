@@ -73,7 +73,13 @@ export default function VendorNewProductPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!storeId) return;
+    // Gated on token too, not just storeId - storeId is seeded straight
+    // from the ?storeId= param on first render, so without the token
+    // check this fires before useAuth has loaded it and the request goes
+    // out with no Authorization header, 401s, and (because the catch is
+    // silent and the dep list is just [storeId]) never retries - leaving
+    // the Category dropdown permanently empty.
+    if (!token || !storeId) return;
     apiFetch(`/api/v1/vendor/stores/${storeId}/categories`)
       .then((data) => setCategories(data.categories))
       .catch(() => {});
@@ -87,9 +93,9 @@ export default function VendorNewProductPage() {
       .then((data) => setBranchCount(data.branchCount || 1))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [token, storeId]);
 
-  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+  const categoryOptions = [{ value: "", label: "No category" }, ...categories.map((c) => ({ value: c.id, label: c.name }))];
 
   // Images are uploaded to storage immediately (same as the edit page's
   // grid), but since there's no product row yet to PATCH, they just
