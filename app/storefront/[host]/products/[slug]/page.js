@@ -101,7 +101,7 @@ export default async function StorefrontProductPage({ params }) {
             {product.productType === "physical" && variants.length === 0 && product.stock != null && ` · ${product.stock} in stock`}
           </p>
 
-          {store.state && (
+          {store.showShipsFrom !== false && store.state && (
             <p className="flex items-center gap-1.5 text-xs text-slate-800">
               <MapPin size={13} className="shrink-0" />
               Ships from {formatStateLabel(store.state)}

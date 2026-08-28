@@ -23,7 +23,7 @@ import { isColorTooLight } from "@/lib/colorShades.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", description: "", storefrontAccentColor: "" };
+const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", storefrontAccentColor: "" };
 const DEFAULT_ACCENT = "#14915b";
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -84,6 +84,7 @@ export default function VendorSettingsPage() {
           returnWindowDays: String(data.store.returnWindowDays ?? 7),
           address: data.store.address || "",
           state: data.store.state || "",
+          showShipsFrom: data.store.showShipsFrom !== false,
           description: data.store.description || "",
           storefrontAccentColor: data.store.storefrontAccentColor || "",
         });
@@ -196,7 +197,13 @@ export default function VendorSettingsPage() {
     }
     setSaving(true);
     try {
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify(form) });
+      // A free store's form still carries storefrontAccentColor (as ""),
+      // but the API rejects that field outright for non-Plus stores -
+      // sending it would fail the whole save, so drop it unless it's
+      // actually theirs to set.
+      const payload = { ...form };
+      if (!isPlus) delete payload.storefrontAccentColor;
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify(payload) });
       updateStore(data.store);
       toast.success("Settings saved");
     } catch (err) {
@@ -443,6 +450,32 @@ export default function VendorSettingsPage() {
               <InfoTip>Where you ship from - shown as the location on your products&apos; cards and detail pages, both on your storefront and the marketplace.</InfoTip>
             </div>
             <Select options={NIGERIA_STATE_OPTIONS} value={form.state} onChange={(v) => setForm((f) => ({ ...f, state: v }))} placeholder="Select a state" />
+
+            <div className="flex items-center justify-between gap-4 pt-1">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Show &quot;Ships from&quot; on products</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {form.showShipsFrom
+                    ? "Your store location shows on product cards and detail pages."
+                    : "Your store location is hidden from shoppers."}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.showShipsFrom}
+                onClick={() => setForm((f) => ({ ...f, showShipsFrom: !f.showShipsFrom }))}
+                className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer ${
+                  form.showShipsFrom ? "bg-brand-600" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    form.showShipsFrom ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
 
             <div className="flex items-center gap-1.5 pt-2">
               <label className="text-sm font-medium text-slate-700">Socials</label>

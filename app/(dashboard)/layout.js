@@ -30,6 +30,7 @@ import {
   Sparkles,
   Building2,
   History,
+  Tags,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -123,6 +124,7 @@ const NAV_BY_ROLE = {
       items: [
         { href: "/vendor/dashboard", label: "Dashboard", icon: Store },
         { href: "/vendor/products", label: "Products", icon: Package },
+        { href: "/vendor/categories", label: "Categories", icon: Tags },
         { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
         { href: "/vendor/customers", label: "Customers", icon: Users },
       ],
@@ -171,6 +173,7 @@ const NAV_BY_ROLE = {
       title: "Store",
       items: [
         { href: "/vendor/products", label: "Products", icon: Package },
+        { href: "/vendor/categories", label: "Categories", icon: Tags },
         { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
         { href: "/vendor/customers", label: "Customers", icon: Users },
         { href: "/vendor/settings", label: "Store settings", icon: Settings },

@@ -42,7 +42,7 @@ export default async function StorefrontHomePage({ params, searchParams }) {
           initialProducts={list}
           total={total}
           filters={{ q: q || "", category: categoryId || "", sort, min: minPrice || "", max: maxPrice || "" }}
-          storeState={store.state}
+          storeState={store.showShipsFrom === false ? null : store.state}
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { categories, stores } from "../../../../../../../lib/db/schema.js";
-import { and, eq } from "drizzle-orm";
+import { categories, products, stores } from "../../../../../../../lib/db/schema.js";
+import { and, count, eq } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createCategorySchema } from "../../../../../../../lib/validate.js";
 
@@ -19,7 +19,23 @@ export async function GET(req, { params }) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rows = await db.select().from(categories).where(eq(categories.storeId, storeId)).orderBy(categories.name);
+  // productCount lets the manage-categories page warn before deleting a
+  // category that still has products under it (they're just un-categorised,
+  // not deleted - see the [categoryId] DELETE route).
+  const rows = await db
+    .select({
+      id: categories.id,
+      storeId: categories.storeId,
+      name: categories.name,
+      slug: categories.slug,
+      createdAt: categories.createdAt,
+      productCount: count(products.id),
+    })
+    .from(categories)
+    .leftJoin(products, eq(products.categoryId, categories.id))
+    .where(eq(categories.storeId, storeId))
+    .groupBy(categories.id)
+    .orderBy(categories.name);
   return NextResponse.json({ categories: rows });
 }
 

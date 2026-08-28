@@ -78,7 +78,11 @@ export async function PATCH(req, { params }) {
   const result = validate(updateVendorStoreSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  if ("storefrontAccentColor" in result.data && !isPlusStore(store)) {
+  // Only block when a free store is actually trying to SET a color - a
+  // plain "" (the settings form always sends this field, even to clear
+  // it) must still pass through, otherwise every unrelated settings save
+  // from a free store fails on this gate.
+  if (result.data.storefrontAccentColor && !isPlusStore(store)) {
     return NextResponse.json({ error: "Storefront theme color is a Storezn+ feature" }, { status: 402 });
   }
 

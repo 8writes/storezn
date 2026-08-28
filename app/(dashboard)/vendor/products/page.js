@@ -9,6 +9,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
+import { Select } from "@/components/ui/Select.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
@@ -35,10 +36,12 @@ export default function VendorProductsPage() {
 
   const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [lowStockThreshold, setLowStockThreshold] = useState(5);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [loading, setLoading] = useState(true);
 
   const [bulkRows, setBulkRows] = useState([]);
@@ -51,6 +54,7 @@ export default function VendorProductsPage() {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: "5" });
     if (q.trim()) params.set("q", q.trim());
+    if (categoryId) params.set("category", categoryId);
     apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params.toString()}`)
       .then((data) => {
         setProducts(data.products);
@@ -70,11 +74,20 @@ export default function VendorProductsPage() {
     if (!token || !storeId) return;
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, page, q]);
+  }, [token, storeId, page, q, categoryId]);
 
   useEffect(() => {
     setPage(1);
-  }, [q, storeId]);
+  }, [q, categoryId, storeId]);
+
+  useEffect(() => {
+    if (!token || !storeId) return;
+    apiFetch(`/api/v1/vendor/stores/${storeId}/categories`)
+      .then((data) => setCategories(data.categories))
+      .catch(() => {});
+    setCategoryId("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, storeId]);
 
   const downloadTemplate = () => downloadCsv("products-import-template.csv", BULK_HEADERS, [BULK_TEMPLATE_ROW]);
 
@@ -205,13 +218,31 @@ export default function VendorProductsPage() {
         )}
       </div>
 
-      <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="max-w-sm" />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="max-w-sm" />
+          {categories.length > 0 && (
+            <div className="w-48">
+              <Select
+                options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+                value={categoryId}
+                onChange={setCategoryId}
+                placeholder="All categories"
+              />
+            </div>
+          )}
+        </div>
+        <Link href="/vendor/categories" className="text-sm text-brand-600 hover:underline">
+          Manage categories
+        </Link>
+      </div>
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
+              <th className="px-4 py-3 font-medium">Category</th>
               <th className="px-4 py-3 font-medium">Price</th>
               <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Stock</th>
@@ -221,10 +252,10 @@ export default function VendorProductsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <TableRowSkeleton cols={6} />
+              <TableRowSkeleton cols={7} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-700">{q ? "No products match your search" : "No products yet"}</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-700">{q || categoryId ? "No products match your filters" : "No products yet"}</td>
               </tr>
             ) : (
               products.map((p) => (
@@ -234,6 +265,7 @@ export default function VendorProductsPage() {
                   className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
                 >
                   <td className="px-4 py-3">{p.name}</td>
+                  <td className="px-4 py-3 text-slate-500">{p.categoryName || "-"}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(p.price)}</td>
                   <td className="px-4 py-3 text-slate-500 capitalize">
                     {p.productType}

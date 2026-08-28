@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { products, stores, branches } from "../../../../../../../lib/db/schema.js";
+import { products, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
 import { and, count, eq, ilike } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
@@ -23,17 +23,26 @@ export async function GET(req, { params }) {
 
   const searchParams = new URL(req.url).searchParams;
   const q = searchParams.get("q")?.trim();
+  const categoryId = searchParams.get("category")?.trim();
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
   const conditions = [eq(products.storeId, storeId)];
   if (q) conditions.push(ilike(products.name, `%${q}%`));
+  if (categoryId) conditions.push(eq(products.categoryId, categoryId));
 
   const [rows, [{ total }]] = await Promise.all([
-    db.select().from(products).where(and(...conditions)).orderBy(products.createdAt).limit(limit).offset(offset),
+    db
+      .select({ product: products, categoryName: categories.name })
+      .from(products)
+      .leftJoin(categories, eq(categories.id, products.categoryId))
+      .where(and(...conditions))
+      .orderBy(products.createdAt)
+      .limit(limit)
+      .offset(offset),
     db.select({ total: count() }).from(products).where(and(...conditions)),
   ]);
 
   return NextResponse.json({
-    products: rows,
+    products: rows.map((r) => ({ ...r.product, categoryName: r.categoryName })),
     lowStockThreshold: LOW_STOCK_THRESHOLD,
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });
