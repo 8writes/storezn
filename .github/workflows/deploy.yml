@@ -9,58 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger deploy on server
-        env:
-          # A GitHub PAT (classic: `repo` scope, or fine-grained: Contents
-          # read) stored as a repo secret. Used to rewrite the server's git
-          # remote to token-auth HTTPS so it no longer depends on a server
-          # SSH key that GitHub will accept.
-          GH_PULL_TOKEN: ${{ secrets.GH_PULL_TOKEN }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new deploy@204.168.144.211 \
-            "GH_PULL_TOKEN='${GH_PULL_TOKEN}' bash -s" <<'EOF'
-          set -e
-
-          # Find the storezn checkout - override by exporting STOREZN_DIR
-          # in the deploy user's shell profile if it lives elsewhere.
-          DIR="${STOREZN_DIR:-}"
-          if [ -z "$DIR" ]; then
-            for c in ~/storezn /var/www/storezn /srv/storezn /opt/storezn /home/deploy/storezn; do
-              if [ -d "$c/.git" ]; then DIR="$c"; break; fi
-            done
-          fi
-          if [ -z "$DIR" ]; then
-            echo "!! Could not locate the storezn git checkout on the server." >&2
-            echo "!! Set STOREZN_DIR in ~/.profile for the deploy user." >&2
-            exit 1
-          fi
-          echo "==> Using checkout: $DIR"
-
-          cd "$DIR"
-
-          # Point the remote at token-auth HTTPS so `git pull` stops
-          # needing a server SSH key GitHub trusts. Safe to run every time.
-          if [ -n "$GH_PULL_TOKEN" ]; then
-            git remote set-url origin \
-              "https://x-access-token:${GH_PULL_TOKEN}@github.com/8writes/storezn.git"
-          fi
-
-          echo "==> Deploying storezn (branch master)"
-          git fetch --prune origin
-          git reset --hard origin/master
-
-          # Hand off to the existing deploy script for install/build/
-          # migrate/restart, if there is one; otherwise do it inline.
-          if command -v storezn >/dev/null 2>&1; then
-            storezn
-          else
-            npm ci
-            npm run build
-            npx drizzle-kit push
-            # Adjust to however the app is served (pm2 / systemd / docker):
-            pm2 restart storezn || sudo systemctl restart storezn || true
-          fi
-          EOF
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new deploy@204.168.144.211 "storezn"
