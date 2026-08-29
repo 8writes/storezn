@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { Select } from "@/components/ui/Select.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
-import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
+import { TableRowSkeleton, CardListSkeleton } from "@/components/ui/Skeleton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { parseCsv, downloadCsv } from "@/lib/csv.js";
@@ -218,11 +218,11 @@ export default function VendorProductsPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="max-w-sm" />
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
+          <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="w-full sm:max-w-sm" />
           {categories.length > 0 && (
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select
                 options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
                 value={categoryId}
@@ -237,7 +237,62 @@ export default function VendorProductsPage() {
         </Link>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      {/* Mobile: stacked cards - the desktop table has too many columns to
+          fit a phone without horizontal scrolling that hides half of it. */}
+      <div className="space-y-3 sm:hidden">
+        {loading ? (
+          <CardListSkeleton count={5} />
+        ) : products.length === 0 ? (
+          <p className="bg-white border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
+            {q || categoryId ? "No products match your filters" : "No products yet"}
+          </p>
+        ) : (
+          products.map((p) => {
+            const lowStock = p.productType === "physical" && p.stock != null && p.stock <= lowStockThreshold;
+            return (
+              <div
+                key={p.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") router.push(`/vendor/products/${p.id}?storeId=${storeId}`);
+                }}
+                className="bg-white border border-slate-200 rounded-sm p-4 space-y-2 cursor-pointer hover:bg-slate-50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-medium text-slate-900">{p.name}</p>
+                  <p className="text-sm font-medium text-slate-900 shrink-0">{formatCurrency(p.price)}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                  <span className="capitalize">{p.productType}</span>
+                  {p.productType === "physical" && p.condition !== "new" && <span>· {formatCondition(p.condition)}</span>}
+                  {p.categoryName && <span>· {p.categoryName}</span>}
+                  {p.productType === "physical" && <span>· {p.stock ?? "-"} in stock</span>}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <Badge color={p.isActive ? "green" : "slate"}>{p.isActive ? "Live" : "Archived"}</Badge>
+                  {p.suspendedAt && <Badge color="red">Suspended</Badge>}
+                  {lowStock && (
+                    <Badge color={p.stock === 0 ? "red" : "amber"}>{p.stock === 0 ? "Out of stock" : "Low stock"}</Badge>
+                  )}
+                  <Link
+                    href={`/vendor/products/${p.id}/edit?storeId=${storeId}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="ml-auto text-sm font-medium text-brand-600 hover:underline"
+                  >
+                    Edit
+                  </Link>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <Pagination pagination={pagination} onPageChange={setPage} />
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden sm:block bg-white border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
