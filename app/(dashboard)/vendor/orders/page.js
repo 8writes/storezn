@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
-import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
+import { TableRowSkeleton, CardListSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 import { Plus } from "lucide-react";
 
@@ -81,13 +81,52 @@ export default function VendorOrdersPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-        <div className="max-w-xs">
+        <div className="w-full sm:max-w-xs">
           <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
         </div>
-        <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="max-w-xs" />
+        <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="w-full sm:max-w-xs" />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      {/* Mobile: stacked cards - the table needs horizontal scrolling on a
+          phone, which hides the status and actions columns. */}
+      <div className="space-y-3 sm:hidden">
+        {loading ? (
+          <CardListSkeleton count={5} />
+        ) : orders.length === 0 ? (
+          <p className="bg-white border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
+            {q ? "No orders match your search" : "No orders yet"}
+          </p>
+        ) : (
+          orders.map((o) => (
+            <div
+              key={o.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => router.push(`/vendor/orders/${o.id}?storeId=${storeId}`)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") router.push(`/vendor/orders/${o.id}?storeId=${storeId}`);
+              }}
+              className="bg-white border border-slate-200 rounded-sm p-4 space-y-2 cursor-pointer hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="inline-flex items-center gap-2 font-medium text-slate-900">
+                  {o.orderNumber}
+                  {o.isOffline && <Badge color="slate">Offline</Badge>}
+                </span>
+                <span className="text-sm font-medium text-slate-900 shrink-0">{formatCurrency(o.totalAmount)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-500">{formatDate(o.createdAt)}</span>
+                <Badge color={STATUS_COLOR[o.status] || "slate"}>{o.status.replace("_", " ")}</Badge>
+              </div>
+            </div>
+          ))
+        )}
+        <Pagination pagination={pagination} onPageChange={setPage} />
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden sm:block bg-white border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
