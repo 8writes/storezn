@@ -10,7 +10,7 @@ const SORT_OPTIONS = [
   { value: "price_desc", label: "Price: high to low" },
 ];
 
-export function StorefrontFilters({ categories }) {
+export function StorefrontFilters({ categories, themed = false }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -63,6 +63,7 @@ export function StorefrontFilters({ categories }) {
             value={searchParams.get("category") || ""}
             onChange={(v) => setParam("category", v)}
             placeholder="All categories"
+            accent={themed}
             active={activeCategory}
           />
         </div>
@@ -73,6 +74,7 @@ export function StorefrontFilters({ categories }) {
           options={SORT_OPTIONS}
           value={searchParams.get("sort") || "newest"}
           onChange={(v) => setParam("sort", v === "newest" ? "" : v)}
+          accent={themed}
           active={activeSort}
         />
       </div>

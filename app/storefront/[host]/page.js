@@ -38,7 +38,7 @@ export default async function StorefrontHomePage({ params, searchParams }) {
         <p className="text-sm text-slate-500 uppercase tracking-widest">All products</p>
       </div>
 
-      <StorefrontFilters categories={categoryList} />
+      <StorefrontFilters categories={categoryList} themed={themed} />
 
       {list.length === 0 ? (
         <p className="text-center text-slate-700 py-24">{q || categoryId || minPrice || maxPrice ? "No products match your filters." : "No products yet, check back soon."}</p>

@@ -13,9 +13,13 @@ export function Select({
   disabled = false,
   required = false,
   searchable = true,
-  // When true the trigger reads as an applied filter - brand border and
-  // text instead of the neutral grey (picks up the storefront's accent
-  // colour there, the default brand green in the dashboard).
+  // `accent` tints the resting control chrome (border, chevron) with the
+  // brand colour - used on the storefront so the filters carry the
+  // store's theme even before anything's picked. `active` is the stronger
+  // "a filter is applied" state on top of that: brand-600 border + brand
+  // text. Both pick up the storefront's accent there, the default brand
+  // green elsewhere.
+  accent = false,
   active = false,
 }) {
   const [open, setOpen] = useState(false);
@@ -79,7 +83,11 @@ export function Select({
           disabled={disabled || loading}
           onClick={() => setOpen((o) => !o)}
           className={`w-full flex items-center justify-between px-3 py-2 border rounded-sm text-base outline-none bg-white cursor-pointer transition-colors disabled:bg-slate-50 disabled:cursor-not-allowed text-left ${
-            active ? "border-brand-600 focus:border-brand-600" : "border-slate-300 focus:border-brand-500"
+            active
+              ? "border-brand-600 focus:border-brand-600"
+              : accent
+                ? "border-brand-500 focus:border-brand-600"
+                : "border-slate-300 focus:border-brand-500"
           }`}
         >
           <span
@@ -92,7 +100,7 @@ export function Select({
           {loading ? (
             <Loader2 size={16} className="animate-spin text-slate-700 shrink-0" />
           ) : (
-            <ChevronDown size={16} className={`shrink-0 ${active ? "text-brand-600" : "text-slate-700"}`} />
+            <ChevronDown size={16} className={`shrink-0 ${active ? "text-brand-600" : accent ? "text-brand-500" : "text-slate-700"}`} />
           )}
         </button>
 
