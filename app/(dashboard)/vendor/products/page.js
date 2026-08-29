@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Upload, ImageOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -258,31 +258,40 @@ export default function VendorProductsPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") router.push(`/vendor/products/${p.id}?storeId=${storeId}`);
                 }}
-                className="bg-white border border-slate-200 rounded-sm p-4 space-y-2 cursor-pointer hover:bg-slate-50 transition-colors"
+                className="flex gap-3 bg-white border border-slate-200 rounded-sm p-4 cursor-pointer hover:bg-slate-50 transition-colors"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-medium text-slate-900">{p.name}</p>
-                  <p className="text-sm font-medium text-slate-900 shrink-0">{formatCurrency(p.price)}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                  <span className="capitalize">{p.productType}</span>
-                  {p.productType === "physical" && p.condition !== "new" && <span>· {formatCondition(p.condition)}</span>}
-                  {p.categoryName && <span>· {p.categoryName}</span>}
-                  {p.productType === "physical" && <span>· {p.stock ?? "-"} in stock</span>}
-                </div>
-                <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                  <Badge color={p.isActive ? "green" : "slate"}>{p.isActive ? "Live" : "Archived"}</Badge>
-                  {p.suspendedAt && <Badge color="red">Suspended</Badge>}
-                  {lowStock && (
-                    <Badge color={p.stock === 0 ? "red" : "amber"}>{p.stock === 0 ? "Out of stock" : "Low stock"}</Badge>
-                  )}
-                  <Link
-                    href={`/vendor/products/${p.id}/edit?storeId=${storeId}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="ml-auto text-sm font-medium text-brand-600 hover:underline"
-                  >
-                    Edit
-                  </Link>
+                {p.images?.[0] ? (
+                  <img src={p.images[0]} alt="" className="w-16 h-16 rounded-sm object-cover bg-slate-100 shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 rounded-sm bg-slate-100 shrink-0 flex items-center justify-center text-slate-300">
+                    <ImageOff size={18} />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-medium text-slate-900">{p.name}</p>
+                    <p className="text-sm font-medium text-slate-900 shrink-0">{formatCurrency(p.price)}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                    <span className="capitalize">{p.productType}</span>
+                    {p.productType === "physical" && p.condition !== "new" && <span>· {formatCondition(p.condition)}</span>}
+                    {p.categoryName && <span>· {p.categoryName}</span>}
+                    {p.productType === "physical" && <span>· {p.stock ?? "-"} in stock</span>}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                    <Badge color={p.isActive ? "green" : "slate"}>{p.isActive ? "Live" : "Archived"}</Badge>
+                    {p.suspendedAt && <Badge color="red">Suspended</Badge>}
+                    {lowStock && (
+                      <Badge color={p.stock === 0 ? "red" : "amber"}>{p.stock === 0 ? "Out of stock" : "Low stock"}</Badge>
+                    )}
+                    <Link
+                      href={`/vendor/products/${p.id}/edit?storeId=${storeId}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="ml-auto text-sm font-medium text-brand-600 hover:underline"
+                    >
+                      Edit
+                    </Link>
+                  </div>
                 </div>
               </div>
             );

@@ -554,21 +554,26 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
     }
 
     const combos = cartesian(parsed);
+    const dimNames = parsed.map((d) => d.name);
 
-    // If the product already has variants under a different set of option
-    // names, the old rows would no longer be selectable on the storefront
-    // (the picker needs one value per current dimension) - offer to
-    // rebuild from scratch instead of leaving orphans.
+    // Any existing variant that doesn't carry exactly the current set of
+    // option keys can never be selected on the storefront (the picker
+    // needs one value per current dimension) - that covers a changed
+    // option name and the old single-key rows from before combination
+    // variants existed. Rebuild from scratch rather than leave orphans.
     const existingNames = [...new Set(variants.flatMap((v) => Object.keys(v.options || {})))].sort();
-    const newNames = parsed.map((d) => d.name).sort();
-    const namesChanged =
-      variants.length > 0 && JSON.stringify(existingNames) !== JSON.stringify(newNames);
+    const needsRebuild =
+      variants.length > 0 &&
+      variants.some((v) => {
+        const keys = Object.keys(v.options || {});
+        return keys.length !== dimNames.length || !dimNames.every((n) => n in (v.options || {}));
+      });
 
     let toDelete = [];
-    if (namesChanged) {
+    if (needsRebuild) {
       const ok = await confirm({
         title: "Rebuild variants?",
-        description: `This changes the options from "${existingNames.join(", ")}" to "${newNames.join(", ")}". Your ${variants.length} current variant${variants.length === 1 ? "" : "s"} (and their prices/stock) will be removed and recreated.`,
+        description: `Your ${variants.length} current variant${variants.length === 1 ? "" : "s"} don't match the options "${dimNames.join(", ")}"${existingNames.length ? ` (they use "${existingNames.join(", ")}")` : ""}. They'll be removed and recreated as every combination - any prices/stock you set on them are lost.`,
         confirmLabel: "Rebuild",
         variant: "danger",
       });
@@ -581,7 +586,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
       for (const vid of toDelete) {
         await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants/${vid}`, { method: "DELETE" }).catch(() => {});
       }
-      const existingCanon = new Set(namesChanged ? [] : variants.map((v) => canonOptions(v.options || {})));
+      const existingCanon = new Set(needsRebuild ? [] : variants.map((v) => canonOptions(v.options || {})));
       let ok = 0;
       for (const options of combos) {
         if (existingCanon.has(canonOptions(options))) continue;
@@ -595,8 +600,8 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
           toast.error(`${Object.values(options).join(" / ")}: ${err.message || "failed to add"}`);
         }
       }
-      if (ok > 0) toast.success(`${ok} variant${ok === 1 ? "" : "s"} ${namesChanged ? "created" : "added"}`);
-      else if (!namesChanged) toast.error("Nothing new - those variants already exist");
+      if (ok > 0) toast.success(`${ok} variant${ok === 1 ? "" : "s"} ${needsRebuild ? "created" : "added"}`);
+      else if (!needsRebuild) toast.error("Nothing new - those variants already exist");
       load();
     } finally {
       setGenerating(false);
