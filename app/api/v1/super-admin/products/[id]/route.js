@@ -17,6 +17,7 @@ export async function GET(req, { params }) {
       storeName: stores.name,
       storeSlug: stores.slug,
       storeCustomDomain: stores.customDomain,
+      storeDomainStatus: stores.domainStatus,
       categoryName: categories.name,
     })
     .from(products)
@@ -34,6 +35,7 @@ export async function GET(req, { params }) {
       storeName: row.storeName,
       storeSlug: row.storeSlug,
       storeCustomDomain: row.storeCustomDomain,
+      storeDomainStatus: row.storeDomainStatus,
       categoryName: row.categoryName,
     },
     variants,

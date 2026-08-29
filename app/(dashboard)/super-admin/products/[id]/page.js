@@ -161,7 +161,7 @@ export default function SuperAdminProductDetailPage({ params }) {
       )}
 
       <Link
-        href={`${getStorefrontUrl({ slug: product.storeSlug, customDomain: product.storeCustomDomain })}/products/${product.slug}`}
+        href={`${getStorefrontUrl({ slug: product.storeSlug, customDomain: product.storeCustomDomain, domainStatus: product.storeDomainStatus })}/products/${product.slug}`}
         target="_blank"
         className="text-sm text-brand-600 hover:underline block"
       >
