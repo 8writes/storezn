@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
+import { useConfirm } from "@/hooks/useConfirm.js";
 import { Input } from "@/components/ui/Input.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Textarea } from "@/components/ui/Textarea.js";
@@ -455,32 +456,63 @@ export default function VendorProductEditPage({ params }) {
   );
 }
 
-const EMPTY_VARIANT_FORM = { optionName: "", optionValues: "" };
 const EMPTY_EDIT_FORM = { price: "", stock: "" };
 
+const parseValues = (s) => [...new Set(s.split(",").map((v) => v.trim()).filter(Boolean))];
+
+// Every combination of the given option dimensions, e.g.
+// [{Size:[S,M]},{Colour:[Red]}] -> [{Size:S,Colour:Red},{Size:M,Colour:Red}].
+const cartesian = (dims) =>
+  dims.reduce((acc, d) => acc.flatMap((combo) => d.values.map((val) => ({ ...combo, [d.name]: val }))), [{}]);
+
+const canonOptions = (options) =>
+  JSON.stringify(Object.entries(options).sort(([a], [b]) => a.localeCompare(b)));
+
 // A product either sells as-is (this list stays empty) or through
-// variants - once any variant exists, the storefront requires picking
-// one before add-to-cart, and each variant's own price/stock is what
-// actually gets sold (see lib/db/schema.js). Adding is deliberately
-// bare - option name + comma-separated values, one variant per value;
-// each variant's price override and stock are set by editing it after.
+// variants - once any variant exists, the storefront requires picking one
+// value from every option dimension before add-to-cart, and each
+// variant's own price/stock is what actually gets sold (see
+// lib/db/schema.js). The builder below takes 1-3 option dimensions
+// (name + comma-separated values each) and creates one variant per
+// combination; price and stock are set by editing each variant after.
 function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEnabled, onToggleStandard }) {
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState(EMPTY_VARIANT_FORM);
-  const [adding, setAdding] = useState(false);
+  const [dims, setDims] = useState([{ name: "", values: "" }]);
+  const dimsSeeded = useRef(false);
+  const [generating, setGenerating] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [togglingStandard, setTogglingStandard] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
   const [savingEdit, setSavingEdit] = useState(false);
+  const { confirm, confirmDialog } = useConfirm();
 
   const load = () => {
     apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`)
-      .then((data) => setVariants(data.variants))
+      .then((data) => {
+        setVariants(data.variants);
+        // Seed the builder from what already exists (once) so "Generate"
+        // fills in any missing combinations rather than starting blank.
+        if (!dimsSeeded.current && data.variants.length > 0) {
+          const byName = {};
+          for (const v of data.variants) {
+            for (const [k, val] of Object.entries(v.options || {})) {
+              (byName[k] = byName[k] || new Set()).add(val);
+            }
+          }
+          const names = Object.keys(byName);
+          if (names.length > 0) setDims(names.map((n) => ({ name: n, values: [...byName[n]].join(", ") })));
+        }
+        dimsSeeded.current = true;
+      })
       .catch((err) => toast.error(err.message || "Failed to load variants"))
       .finally(() => setLoading(false));
   };
+
+  const setDim = (i, patch) => setDims((ds) => ds.map((d, j) => (j === i ? { ...d, ...patch } : d)));
+  const addDim = () => setDims((ds) => [...ds, { name: "", values: "" }]);
+  const removeDim = (i) => setDims((ds) => ds.filter((_, j) => j !== i));
 
   const handleToggleStandard = async () => {
     const next = !standardEnabled;
@@ -505,49 +537,70 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, productId]);
 
-  // All of a product's variants share one option dimension - the
-  // storefront picker treats each variant as its own choice, so a second
-  // option name (e.g. adding "Colour" once "Size" exists) can't be
-  // combined and just produces unselectable rows. Once any variant
-  // exists, its option name is locked in.
-  const lockedOptionName = variants.length > 0 ? Object.keys(variants[0].options || {})[0] || "" : "";
-
-  const handleAdd = async (e) => {
+  const handleGenerate = async (e) => {
     e.preventDefault();
-    const name = (lockedOptionName || form.optionName).trim();
-    const values = [...new Set(form.optionValues.split(",").map((v) => v.trim()).filter(Boolean))];
-    if (!name || values.length === 0) return;
-
-    // Skip values that already exist for this option name so re-submitting
-    // "Small, Medium, Large" after adding "Large" only adds the new two.
-    const existing = new Set(
-      variants.filter((v) => name in v.options).map((v) => String(v.options[name]).toLowerCase()),
-    );
-    const fresh = values.filter((v) => !existing.has(v.toLowerCase()));
-    if (fresh.length === 0) {
-      toast.error("Those values already exist");
+    const parsed = dims
+      .map((d) => ({ name: d.name.trim(), values: parseValues(d.values) }))
+      .filter((d) => d.name || d.values.length > 0);
+    if (parsed.length === 0) return;
+    if (parsed.some((d) => !d.name || d.values.length === 0)) {
+      toast.error("Give every option a name and at least one value");
+      return;
+    }
+    const lowerNames = parsed.map((d) => d.name.toLowerCase());
+    if (new Set(lowerNames).size !== lowerNames.length) {
+      toast.error("Option names must be different");
       return;
     }
 
-    setAdding(true);
-    let ok = 0;
-    for (const value of fresh) {
-      try {
-        await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`, {
-          method: "POST",
-          body: JSON.stringify({ options: { [name]: value } }),
-        });
-        ok += 1;
-      } catch (err) {
-        toast.error(`"${value}": ${err.message || "failed to add"}`);
+    const combos = cartesian(parsed);
+
+    // If the product already has variants under a different set of option
+    // names, the old rows would no longer be selectable on the storefront
+    // (the picker needs one value per current dimension) - offer to
+    // rebuild from scratch instead of leaving orphans.
+    const existingNames = [...new Set(variants.flatMap((v) => Object.keys(v.options || {})))].sort();
+    const newNames = parsed.map((d) => d.name).sort();
+    const namesChanged =
+      variants.length > 0 && JSON.stringify(existingNames) !== JSON.stringify(newNames);
+
+    let toDelete = [];
+    if (namesChanged) {
+      const ok = await confirm({
+        title: "Rebuild variants?",
+        description: `This changes the options from "${existingNames.join(", ")}" to "${newNames.join(", ")}". Your ${variants.length} current variant${variants.length === 1 ? "" : "s"} (and their prices/stock) will be removed and recreated.`,
+        confirmLabel: "Rebuild",
+        variant: "danger",
+      });
+      if (!ok) return;
+      toDelete = variants.map((v) => v.id);
+    }
+
+    setGenerating(true);
+    try {
+      for (const vid of toDelete) {
+        await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants/${vid}`, { method: "DELETE" }).catch(() => {});
       }
-    }
-    if (ok > 0) {
-      setForm(EMPTY_VARIANT_FORM);
-      toast.success(`${ok} variant${ok === 1 ? "" : "s"} added`);
+      const existingCanon = new Set(namesChanged ? [] : variants.map((v) => canonOptions(v.options || {})));
+      let ok = 0;
+      for (const options of combos) {
+        if (existingCanon.has(canonOptions(options))) continue;
+        try {
+          await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`, {
+            method: "POST",
+            body: JSON.stringify({ options }),
+          });
+          ok += 1;
+        } catch (err) {
+          toast.error(`${Object.values(options).join(" / ")}: ${err.message || "failed to add"}`);
+        }
+      }
+      if (ok > 0) toast.success(`${ok} variant${ok === 1 ? "" : "s"} ${namesChanged ? "created" : "added"}`);
+      else if (!namesChanged) toast.error("Nothing new - those variants already exist");
       load();
+    } finally {
+      setGenerating(false);
     }
-    setAdding(false);
   };
 
   const handleDelete = async (variantId) => {
@@ -706,32 +759,51 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
         </div>
       )}
 
-      <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-3 items-end">
-        <Input
-          label="Option name"
-          placeholder="Size"
-          value={lockedOptionName || form.optionName}
-          onChange={(e) => setForm((f) => ({ ...f, optionName: e.target.value }))}
-          disabled={!!lockedOptionName}
-          required
-        />
-        <Input
-          label="Values"
-          placeholder="Small, Medium, Large"
-          value={form.optionValues}
-          onChange={(e) => setForm((f) => ({ ...f, optionValues: e.target.value }))}
-          required
-        />
-        <Button type="submit" size="sm" variant="primary" loading={adding} className="w-fit">
-          Add
-        </Button>
+      <form onSubmit={handleGenerate} className="space-y-3">
+        {dims.map((d, i) => (
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-3 items-end">
+            <Input
+              label={i === 0 ? "Option name" : undefined}
+              placeholder="Size"
+              value={d.name}
+              onChange={(e) => setDim(i, { name: e.target.value })}
+              required
+            />
+            <Input
+              label={i === 0 ? "Values (comma-separated)" : undefined}
+              placeholder="Small, Medium, Large"
+              value={d.values}
+              onChange={(e) => setDim(i, { values: e.target.value })}
+              required
+            />
+            {dims.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => removeDim(i)}
+                className="text-slate-500 hover:text-red-600 cursor-pointer pb-2 justify-self-start sm:justify-self-auto"
+                aria-label="Remove option"
+              >
+                <Trash2 size={16} />
+              </button>
+            ) : (
+              <span className="hidden sm:block" />
+            )}
+          </div>
+        ))}
+        <div className="flex flex-wrap items-center gap-4">
+          <button type="button" onClick={addDim} className="text-sm font-medium text-brand-600 hover:underline cursor-pointer">
+            + Add another option
+          </button>
+          <Button type="submit" size="sm" variant="primary" loading={generating} className="w-fit sm:ml-auto">
+            Generate variants
+          </Button>
+        </div>
       </form>
       <p className="text-xs text-slate-500">
-        {lockedOptionName
-          ? `Adding more "${lockedOptionName}" values. Remove all variants to switch to a different option.`
-          : "Separate values with commas to add several at once."}{" "}
-        Set each variant&apos;s price and stock by editing it below.
+        Two options (e.g. Size &times; Colour) creates a variant for every combination. Set each variant&apos;s
+        price and stock by editing it below.
       </p>
+      {confirmDialog}
     </div>
   );
 }
