@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -8,6 +9,7 @@ import { useConfirm } from "@/hooks/useConfirm.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
+import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { slugify } from "@/lib/slugify.js";
 
@@ -17,6 +19,7 @@ const EMPTY_FORM = { name: "", slug: "" };
 // storefront's category filter reads from, so it's managed here once
 // rather than re-created ad hoc on each product.
 export default function VendorCategoriesPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const { confirm, confirmDialog } = useConfirm();
@@ -118,6 +121,7 @@ export default function VendorCategoriesPage() {
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
+      <BackLink onClick={() => router.back()} label="Back" />
       <div>
         <h1 className="text-xl font-bold text-slate-900">Categories</h1>
         <p className="text-sm text-slate-500 mt-1">
