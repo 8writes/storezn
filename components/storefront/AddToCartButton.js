@@ -2,22 +2,34 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button.js";
+import { SizeGuideButton } from "@/components/storefront/SizeGuideButton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
+
+const LOW_STOCK = 10;
+const norm = (v) => String(v ?? "").trim().toLowerCase();
 
 // Guest identity for the cart is an httpOnly cookie the API sets itself -
 // this component doesn't need to know about auth at all, just fire the
 // request and let the server sort out whose cart it is.
 //
 // Doubles as the variant picker when `variants` is non-empty. The base
-// product (its own price/stock, from before any variant existed) is
-// offered as its own "Standard" choice alongside the real variants - a
-// vendor adding a Color variant later shouldn't silently make the plain
-// item unbuyable just because they never created an explicit "no color"
-// variant row for it. A vendor who does want exactly that turns off
-// allowStandardVariant (see products.allowStandardVariant), which hides
-// the Standard choice so a variant must be picked.
-export function AddToCartButton({ productId, basePrice, baseDiscountPercent, baseStock, productType, variants = [], allowStandardVariant = true }) {
+// product (its own price/stock) is offered as its own "Standard" choice
+// alongside the real variants unless the vendor turned that off
+// (allowStandardVariant). When a size guide is present, the option group
+// whose values match its rows is treated as the "size" group: buttons
+// pick up the alternate-system label (UK7.5 (EUR41)) and a low-stock
+// badge, and the picked size's measurements show inline.
+export function AddToCartButton({
+  productId,
+  basePrice,
+  baseDiscountPercent,
+  baseStock,
+  productType,
+  variants = [],
+  allowStandardVariant = true,
+  sizeGuide = null,
+}) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState({});
   const [useBase, setUseBase] = useState(false);
@@ -39,6 +51,44 @@ export function AddToCartButton({ productId, basePrice, baseDiscountPercent, bas
     return variants.find((v) => optionGroups.every((g) => v.options[g.name] === selected[g.name])) || null;
   }, [variants, optionGroups, selected, useBase]);
 
+  // Which option group is the "size" one - the one whose values line up
+  // with the size guide's rows, falling back to a name match.
+  const sizeGroupName = useMemo(() => {
+    const rows = sizeGuide?.rows || [];
+    if (!rows.length || !optionGroups.length) return null;
+    const sizeSet = new Set(rows.map((r) => norm(r.size)));
+    let best = null;
+    let bestHits = 0;
+    for (const g of optionGroups) {
+      const hits = g.values.filter((v) => sizeSet.has(norm(v))).length;
+      if (hits > bestHits) {
+        best = g.name;
+        bestHits = hits;
+      }
+    }
+    if (!best) {
+      const wanted = norm(sizeGuide?.sizeLabel);
+      best = optionGroups.find((g) => norm(g.name) === wanted || norm(g.name).includes("size"))?.name || null;
+    }
+    return best;
+  }, [optionGroups, sizeGuide]);
+
+  const sizeRow = (value) =>
+    (sizeGuide?.rows || []).find((r) => norm(r.size) === norm(value)) || null;
+
+  // Variants that match a given size value AND every other group's
+  // current selection - used for the per-size stock badge (only shown
+  // when it resolves to exactly one variant).
+  const loneVariantForSize = (value) => {
+    if (!sizeGroupName) return null;
+    const matches = variants.filter(
+      (v) =>
+        norm(v.options[sizeGroupName]) === norm(value) &&
+        optionGroups.every((g) => g.name === sizeGroupName || !selected[g.name] || v.options[g.name] === selected[g.name]),
+    );
+    return matches.length === 1 ? matches[0] : null;
+  };
+
   const chooseVariant = (name, value) => {
     setUseBase(false);
     setSelected((s) => ({ ...s, [name]: value }));
@@ -59,6 +109,8 @@ export function AddToCartButton({ productId, basePrice, baseDiscountPercent, bas
       ? productType === "digital" || stock == null || stock > 0
       : true // unknown until fully selected - button disabled by needsSelection instead
     : productType === "digital" || stock == null || stock > 0;
+
+  const pickedSizeRow = sizeGroupName && selected[sizeGroupName] ? sizeRow(selected[sizeGroupName]) : null;
 
   const handleClick = async () => {
     setLoading(true);
@@ -128,27 +180,66 @@ export function AddToCartButton({ productId, basePrice, baseDiscountPercent, bas
         </div>
       )}
 
-      {optionGroups.map((group) => (
-        <div key={group.name} className="space-y-2">
-          <p className="text-xs font-medium text-slate-700 uppercase tracking-wide">{group.name}</p>
-          <div className="flex flex-wrap gap-2">
-            {group.values.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => chooseVariant(group.name, value)}
-                className={`px-4 py-2 text-sm border cursor-pointer transition-colors ${
-                  !useBase && selected[group.name] === value
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 text-slate-700 hover:border-slate-900"
-                }`}
-              >
-                {value}
-              </button>
-            ))}
+      {optionGroups.map((group) => {
+        const isSize = group.name === sizeGroupName;
+        return (
+          <div key={group.name} className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-medium text-slate-700 uppercase tracking-wide">{group.name}</p>
+              {isSize && sizeGuide && <SizeGuideButton guide={sizeGuide} />}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {group.values.map((value) => {
+                const chosen = !useBase && selected[group.name] === value;
+                const row = isSize ? sizeRow(value) : null;
+                const lone = isSize ? loneVariantForSize(value) : null;
+                const soldOut = lone && productType === "physical" && lone.stock != null && lone.stock <= 0;
+                const low =
+                  lone && productType === "physical" && lone.stock != null && lone.stock > 0 && lone.stock <= LOW_STOCK;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => chooseVariant(group.name, value)}
+                    disabled={soldOut}
+                    className={`relative px-4 py-2 text-sm border transition-colors disabled:cursor-not-allowed ${
+                      soldOut ? "line-through opacity-40" : "cursor-pointer"
+                    } ${
+                      chosen
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-300 text-slate-700 hover:border-slate-900"
+                    }`}
+                  >
+                    {row?.alt ? `${value} (${row.alt})` : value}
+                    {low && (
+                      <span className="ml-1.5 text-[10px] font-semibold text-red-600">{lone.stock} left</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        );
+      })}
+
+      {pickedSizeRow && (
+        <p className="text-xs text-slate-600 leading-relaxed">
+          <span className="font-medium text-slate-900">Measurements</span>{" "}
+          {sizeGuide.columns
+            .map((c, i) => `${c}: ${pickedSizeRow.values[i]}${pickedSizeRow.values[i] ? ` ${sizeGuide.unit}` : ""}`)
+            .join(" · ")}
+        </p>
+      )}
+
+      {sizeGuide && !sizeGroupName && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <SizeGuideButton guide={sizeGuide} />
+          {sizeGuide.note && <span className="text-slate-500">{sizeGuide.note}</span>}
         </div>
-      ))}
+      )}
+      {sizeGuide && sizeGroupName && sizeGuide.note && (
+        <p className="text-xs text-slate-500">{sizeGuide.note}</p>
+      )}
 
       {needsSelection && hasChosen && stock != null && productType === "physical" && (
         <p className="text-sm text-slate-700">{stock} in stock</p>

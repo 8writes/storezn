@@ -9,7 +9,6 @@ import { getEffectivePrice } from "@/lib/pricing.js";
 import { MapPin } from "lucide-react";
 import { formatStateLabel } from "@/lib/nigeria.js";
 import { AddToCartButton } from "@/components/storefront/AddToCartButton.js";
-import { SizeGuideButton } from "@/components/storefront/SizeGuideButton.js";
 import { ProductAssurances } from "@/components/storefront/ProductAssurances.js";
 import { ReviewsSection } from "@/components/storefront/ReviewsSection.js";
 import { ProductGallery } from "@/components/storefront/ProductGallery.js";
@@ -98,12 +97,9 @@ export default async function StorefrontProductPage({ params }) {
 
           {product.description && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{product.description}</p>}
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            {product.productType === "physical" && variants.length === 0 && product.stock != null && (
-              <p className="text-xs text-slate-700 uppercase tracking-wide">{product.stock} in stock</p>
-            )}
-            {product.sizeGuide && <SizeGuideButton guide={product.sizeGuide} />}
-          </div>
+          {product.productType === "physical" && variants.length === 0 && product.stock != null && (
+            <p className="text-xs text-slate-700 uppercase tracking-wide">{product.stock} in stock</p>
+          )}
 
           {store.showShipsFrom !== false && store.state && (
             <p className="flex items-center gap-1.5 text-xs text-slate-800">
@@ -121,6 +117,7 @@ export default async function StorefrontProductPage({ params }) {
               productType={product.productType}
               variants={variants}
               allowStandardVariant={product.allowStandardVariant}
+              sizeGuide={product.sizeGuide}
             />
           </div>
 
