@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Trash2, X, Check } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
@@ -25,14 +25,15 @@ export default function VendorCategoriesPage() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // One form for both add and edit - editingId null means "add", set means
+  // "editing that row". Inline row inputs read badly on a narrow screen,
+  // so editing reuses this same full-width form and just swaps the button.
   const [form, setForm] = useState(EMPTY_FORM);
   const [slugTouched, setSlugTouched] = useState(false);
-  const [adding, setAdding] = useState(false);
-
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState(EMPTY_FORM);
-  const [savingEdit, setSavingEdit] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const formRef = useRef(null);
 
   const load = () => {
     setLoading(true);
@@ -51,45 +52,39 @@ export default function VendorCategoriesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId]);
 
-  const handleAdd = async (e) => {
-    e.preventDefault();
-    setAdding(true);
-    try {
-      const payload = { name: form.name.trim(), slug: (form.slug || slugify(form.name)).trim() };
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/categories`, { method: "POST", body: JSON.stringify(payload) });
-      setCategories((c) => [...c, { ...data.category, productCount: 0 }].sort((a, b) => a.name.localeCompare(b.name)));
-      setForm(EMPTY_FORM);
-      setSlugTouched(false);
-      toast.success("Category added");
-    } catch (err) {
-      toast.error(err.message || "Failed to add category");
-    } finally {
-      setAdding(false);
-    }
+  const resetForm = () => {
+    setForm(EMPTY_FORM);
+    setSlugTouched(false);
+    setEditingId(null);
   };
 
   const startEdit = (category) => {
     setEditingId(category.id);
-    setEditForm({ name: category.name, slug: category.slug });
+    setForm({ name: category.name, slug: category.slug });
+    setSlugTouched(true);
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditForm(EMPTY_FORM);
-  };
-
-  const handleSaveEdit = async (id) => {
-    setSavingEdit(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const payload = { name: form.name.trim(), slug: (form.slug || slugify(form.name)).trim() };
+    if (!payload.name || !payload.slug) return;
+    setSubmitting(true);
     try {
-      const payload = { name: editForm.name.trim(), slug: editForm.slug.trim() };
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/categories/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
-      setCategories((c) => c.map((x) => (x.id === id ? { ...x, ...data.category } : x)).sort((a, b) => a.name.localeCompare(b.name)));
-      toast.success("Category updated");
-      cancelEdit();
+      if (editingId) {
+        const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/categories/${editingId}`, { method: "PATCH", body: JSON.stringify(payload) });
+        setCategories((c) => c.map((x) => (x.id === editingId ? { ...x, ...data.category } : x)).sort((a, b) => a.name.localeCompare(b.name)));
+        toast.success("Category updated");
+      } else {
+        const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/categories`, { method: "POST", body: JSON.stringify(payload) });
+        setCategories((c) => [...c, { ...data.category, productCount: 0 }].sort((a, b) => a.name.localeCompare(b.name)));
+        toast.success("Category added");
+      }
+      resetForm();
     } catch (err) {
-      toast.error(err.message || "Failed to update category");
+      toast.error(err.message || (editingId ? "Failed to update category" : "Failed to add category"));
     } finally {
-      setSavingEdit(false);
+      setSubmitting(false);
     }
   };
 
@@ -104,6 +99,7 @@ export default function VendorCategoriesPage() {
       variant: "danger",
     });
     if (!ok) return;
+    if (editingId === category.id) resetForm();
     setDeletingId(category.id);
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/categories/${category.id}`, { method: "DELETE" });
@@ -133,99 +129,86 @@ export default function VendorCategoriesPage() {
         <FormSkeleton fields={3} />
       ) : (
         <>
-          <form onSubmit={handleAdd} className="bg-white border border-slate-200 rounded-sm p-5 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
-            <Input
-              label="Name"
-              placeholder="e.g. Bags"
-              value={form.name}
-              onChange={(e) => {
-                const name = e.target.value;
-                setForm((f) => ({ ...f, name, slug: slugTouched ? f.slug : slugify(name) }));
-              }}
-              required
-            />
-            <Input
-              label="Slug"
-              placeholder="bags"
-              value={form.slug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                setForm((f) => ({ ...f, slug: e.target.value }));
-              }}
-              required
-            />
-            <Button type="submit" loading={adding}>Add category</Button>
+          <form
+            ref={formRef}
+            onSubmit={handleSubmit}
+            className="bg-white border border-slate-200 rounded-sm p-5 space-y-4 scroll-mt-4"
+          >
+            <p className="text-sm font-semibold text-slate-700">
+              {editingId ? "Edit category" : "Add a category"}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Name"
+                placeholder="e.g. Bags"
+                value={form.name}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  setForm((f) => ({ ...f, name, slug: slugTouched ? f.slug : slugify(name) }));
+                }}
+                required
+              />
+              <Input
+                label="Slug"
+                placeholder="bags"
+                value={form.slug}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  setForm((f) => ({ ...f, slug: e.target.value }));
+                }}
+                required
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button type="submit" loading={submitting} fullWidth>
+                {editingId ? "Save changes" : "Add category"}
+              </Button>
+              {editingId && (
+                <Button type="button" variant="outline" onClick={resetForm} disabled={submitting}>
+                  Cancel
+                </Button>
+              )}
+            </div>
           </form>
 
           <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
             {categories.length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-slate-700">No categories yet.</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-slate-500 text-left">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Slug</th>
-                    <th className="px-4 py-3 font-medium">Products</th>
-                    <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categories.map((c) => (
-                    <tr key={c.id} className="border-t border-slate-100">
-                      {editingId === c.id ? (
-                        <>
-                          <td className="px-4 py-2">
-                            <Input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
-                          </td>
-                          <td className="px-4 py-2">
-                            <Input value={editForm.slug} onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value }))} />
-                          </td>
-                          <td className="px-4 py-2 text-slate-500">{c.productCount ?? 0}</td>
-                          <td className="px-4 py-2">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleSaveEdit(c.id)}
-                                disabled={savingEdit || !editForm.name.trim() || !editForm.slug.trim()}
-                                className="text-brand-600 hover:text-brand-700 disabled:opacity-40 cursor-pointer"
-                                aria-label="Save"
-                              >
-                                <Check size={16} />
-                              </button>
-                              <button type="button" onClick={cancelEdit} disabled={savingEdit} className="text-slate-500 hover:text-slate-700 disabled:opacity-40 cursor-pointer" aria-label="Cancel">
-                                <X size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="px-4 py-3 text-slate-900">{c.name}</td>
-                          <td className="px-4 py-3 text-slate-500">{c.slug}</td>
-                          <td className="px-4 py-3 text-slate-500">{c.productCount ?? 0}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-3">
-                              <button type="button" onClick={() => startEdit(c)} className="text-slate-500 hover:text-brand-600 cursor-pointer" aria-label="Edit">
-                                <Pencil size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(c)}
-                                disabled={deletingId === c.id}
-                                className="text-slate-500 hover:text-red-600 disabled:opacity-40 cursor-pointer"
-                                aria-label="Delete"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <ul className="divide-y divide-slate-100">
+                {categories.map((c) => (
+                  <li
+                    key={c.id}
+                    className={`flex items-center justify-between gap-3 px-4 py-3 ${editingId === c.id ? "bg-brand-50" : ""}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm text-slate-900 truncate">{c.name}</p>
+                      <p className="text-xs text-slate-500 truncate">
+                        /{c.slug} · {c.productCount ?? 0} product{(c.productCount ?? 0) === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(c)}
+                        className="text-slate-500 hover:text-brand-600 cursor-pointer"
+                        aria-label={`Edit ${c.name}`}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(c)}
+                        disabled={deletingId === c.id}
+                        className="text-slate-500 hover:text-red-600 disabled:opacity-40 cursor-pointer"
+                        aria-label={`Delete ${c.name}`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </>
