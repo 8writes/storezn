@@ -15,7 +15,7 @@ import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { uploadFile, getVideoDuration } from "@/lib/clientUpload.js";
-import { X, Trash2, ImagePlus, Loader2, GripVertical, Video } from "lucide-react";
+import { X, Trash2, ImagePlus, Loader2, GripVertical, Video, Pencil, Check } from "lucide-react";
 
 // Photos and video share one combined cap - a video eats one of the 5
 // slots, same as a photo would.
@@ -455,12 +455,15 @@ export default function VendorProductEditPage({ params }) {
   );
 }
 
-const EMPTY_VARIANT_FORM = { optionName: "", optionValue: "", sku: "", price: "", stock: "" };
+const EMPTY_VARIANT_FORM = { optionName: "", optionValues: "" };
+const EMPTY_EDIT_FORM = { price: "", stock: "" };
 
 // A product either sells as-is (this list stays empty) or through
 // variants - once any variant exists, the storefront requires picking
 // one before add-to-cart, and each variant's own price/stock is what
-// actually gets sold (see lib/db/schema.js).
+// actually gets sold (see lib/db/schema.js). Adding is deliberately
+// bare - option name + comma-separated values, one variant per value;
+// each variant's price override and stock are set by editing it after.
 function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEnabled, onToggleStandard }) {
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -468,6 +471,9 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [togglingStandard, setTogglingStandard] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const load = () => {
     apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`)
@@ -501,24 +507,44 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    setAdding(true);
-    try {
-      const payload = { options: { [form.optionName]: form.optionValue } };
-      if (form.sku) payload.sku = form.sku;
-      if (form.price !== "") payload.price = Number(form.price);
-      if (form.stock !== "" && branchCount <= 1) payload.stock = Number(form.stock);
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`, { method: "POST", body: JSON.stringify(payload) });
-      setForm(EMPTY_VARIANT_FORM);
-      toast.success("Variant added");
-      load();
-    } catch (err) {
-      toast.error(err.message || "Failed to add variant");
-    } finally {
-      setAdding(false);
+    const name = form.optionName.trim();
+    const values = [...new Set(form.optionValues.split(",").map((v) => v.trim()).filter(Boolean))];
+    if (!name || values.length === 0) return;
+
+    // Skip values that already exist for this option name so re-submitting
+    // "Small, Medium, Large" after adding "Large" only adds the new two.
+    const existing = new Set(
+      variants.filter((v) => name in v.options).map((v) => String(v.options[name]).toLowerCase()),
+    );
+    const fresh = values.filter((v) => !existing.has(v.toLowerCase()));
+    if (fresh.length === 0) {
+      toast.error("Those values already exist");
+      return;
     }
+
+    setAdding(true);
+    let ok = 0;
+    for (const value of fresh) {
+      try {
+        await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`, {
+          method: "POST",
+          body: JSON.stringify({ options: { [name]: value } }),
+        });
+        ok += 1;
+      } catch (err) {
+        toast.error(`"${value}": ${err.message || "failed to add"}`);
+      }
+    }
+    if (ok > 0) {
+      setForm(EMPTY_VARIANT_FORM);
+      toast.success(`${ok} variant${ok === 1 ? "" : "s"} added`);
+      load();
+    }
+    setAdding(false);
   };
 
   const handleDelete = async (variantId) => {
+    if (editingId === variantId) cancelEdit();
     setDeletingId(variantId);
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants/${variantId}`, { method: "DELETE" });
@@ -527,6 +553,38 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
       toast.error(err.message || "Failed to remove variant");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const startEdit = (v) => {
+    setEditingId(v.id);
+    setEditForm({
+      price: v.price != null ? String(v.price) : "",
+      stock: v.stock != null ? String(v.stock) : "",
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm(EMPTY_EDIT_FORM);
+  };
+
+  const handleSaveEdit = async (variantId) => {
+    setSavingEdit(true);
+    try {
+      const payload = { price: editForm.price !== "" ? Number(editForm.price) : null };
+      if (branchCount <= 1 && editForm.stock !== "") payload.stock = Number(editForm.stock);
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants/${variantId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      setVariants((vs) => vs.map((x) => (x.id === variantId ? { ...x, ...data.variant } : x)));
+      toast.success("Variant updated");
+      cancelEdit();
+    } catch (err) {
+      toast.error(err.message || "Failed to update variant");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -575,88 +633,94 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
       {!loading && variants.length > 0 && (
         <div className="divide-y divide-slate-100 border border-slate-100 rounded-sm">
           {variants.map((v) => (
-            <div
-              key={v.id}
-              className="flex items-center justify-between p-3 text-sm"
-            >
-              <div>
-                <p className="text-slate-900">
-                  {Object.entries(v.options)
-                    .map(([k, val]) => `${k}: ${val}`)
-                    .join(", ")}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {v.sku && `SKU ${v.sku} · `}
-                  {v.price != null
-                    ? `₦${v.price}`
-                    : "uses product price"} ·{" "}
-                  {v.stock != null ? `${v.stock} in stock` : "no stock limit"}
-                </p>
+            <div key={v.id} className="p-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-slate-900">
+                    {Object.entries(v.options)
+                      .map(([k, val]) => `${k}: ${val}`)
+                      .join(", ")}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {v.sku && `SKU ${v.sku} · `}
+                    {v.price != null ? `₦${v.price}` : "uses product price"} ·{" "}
+                    {v.stock != null ? `${v.stock} in stock` : "no stock limit"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => (editingId === v.id ? cancelEdit() : startEdit(v))}
+                    className="text-slate-500 hover:text-brand-600 cursor-pointer"
+                    aria-label="Edit variant"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(v.id)}
+                    disabled={deletingId === v.id}
+                    className="text-slate-500 hover:text-red-600 disabled:opacity-50 cursor-pointer"
+                    aria-label="Delete variant"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => handleDelete(v.id)}
-                disabled={deletingId === v.id}
-                className="text-slate-700 hover:text-red-600 disabled:opacity-50 cursor-pointer"
-              >
-                <Trash2 size={16} />
-              </button>
+
+              {editingId === v.id && (
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                  <PriceInput
+                    label="Price override"
+                    value={editForm.price}
+                    onChange={(val) => setEditForm((f) => ({ ...f, price: val }))}
+                  />
+                  <Input
+                    label="Stock"
+                    type="number"
+                    min="0"
+                    value={editForm.stock}
+                    onChange={(e) => setEditForm((f) => ({ ...f, stock: e.target.value }))}
+                    disabled={branchCount > 1}
+                    placeholder={branchCount > 1 ? "Set per branch" : undefined}
+                  />
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" onClick={() => handleSaveEdit(v.id)} loading={savingEdit}>
+                      Save
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={cancelEdit} disabled={savingEdit}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      <form
-        onSubmit={handleAdd}
-        className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end"
-      >
+      <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-3 items-end">
         <Input
           label="Option name"
           placeholder="Size"
           value={form.optionName}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, optionName: e.target.value }))
-          }
+          onChange={(e) => setForm((f) => ({ ...f, optionName: e.target.value }))}
           required
         />
         <Input
-          label="Value"
-          placeholder="Large"
-          value={form.optionValue}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, optionValue: e.target.value }))
-          }
+          label="Values"
+          placeholder="Small, Medium, Large"
+          value={form.optionValues}
+          onChange={(e) => setForm((f) => ({ ...f, optionValues: e.target.value }))}
           required
         />
-        <Input
-          label="SKU"
-          value={form.sku}
-          onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-        />
-        <PriceInput
-          label="Price override"
-          value={form.price}
-          onChange={(v) => setForm((f) => ({ ...f, price: v }))}
-        />
-        <Input
-          label="Stock"
-          type="number"
-          min="0"
-          value={form.stock}
-          onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-          disabled={branchCount > 1}
-          placeholder={branchCount > 1 ? "Set per branch after adding" : undefined}
-        />
-        <Button
-          type="submit"
-          size="sm"
-          variant="primary"
-          loading={adding}
-          className="col-span-2 sm:col-span-1 w-fit"
-        >
-          Save variant
+        <Button type="submit" size="sm" variant="primary" loading={adding} className="w-fit">
+          Add
         </Button>
       </form>
+      <p className="text-xs text-slate-500">
+        Separate values with commas to add several at once. Set each variant&apos;s price and stock by editing it below.
+      </p>
     </div>
   );
 }
