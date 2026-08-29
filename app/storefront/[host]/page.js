@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { categories } from "@/lib/db/schema.js";
 import { resolveStoreByHost } from "@/lib/resolveStore.js";
+import { isPlusStore } from "@/lib/storePlan.js";
 import { getStorefrontProducts } from "@/lib/storefrontProducts.js";
 import { StorefrontFilters } from "@/components/storefront/StorefrontFilters.js";
 import { StorefrontProductGrid } from "@/components/storefront/StorefrontProductGrid.js";
@@ -13,6 +14,11 @@ export default async function StorefrontHomePage({ params, searchParams }) {
   const sp = await searchParams;
   const store = await resolveStoreByHost(decodeURIComponent(host));
   if (!store) return null;
+
+  // Same gate as the layout's header/footer theming - a Storezn+ store
+  // with an accent colour set. The layout puts the brand-* CSS vars on
+  // the storefront root, so text-brand-* here resolves to that colour.
+  const themed = isPlusStore(store) && !!store.storefrontAccentColor;
 
   const q = sp.q?.trim() || undefined;
   const categoryId = sp.category || undefined;
@@ -28,7 +34,7 @@ export default async function StorefrontHomePage({ params, searchParams }) {
   return (
     <div className="space-y-10">
       <div className="text-center max-w-xl mx-auto space-y-2">
-        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">{store.name}</h1>
+        <h1 className={`text-3xl sm:text-4xl font-semibold tracking-tight ${themed ? "text-brand-700" : "text-slate-900"}`}>{store.name}</h1>
         <p className="text-sm text-slate-500 uppercase tracking-widest">All products</p>
       </div>
 
