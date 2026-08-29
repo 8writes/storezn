@@ -14,8 +14,10 @@ import { getEffectivePrice } from "@/lib/pricing.js";
 // offered as its own "Standard" choice alongside the real variants - a
 // vendor adding a Color variant later shouldn't silently make the plain
 // item unbuyable just because they never created an explicit "no color"
-// variant row for it.
-export function AddToCartButton({ productId, basePrice, baseDiscountPercent, baseStock, productType, variants = [] }) {
+// variant row for it. A vendor who does want exactly that turns off
+// allowStandardVariant (see products.allowStandardVariant), which hides
+// the Standard choice so a variant must be picked.
+export function AddToCartButton({ productId, basePrice, baseDiscountPercent, baseStock, productType, variants = [], allowStandardVariant = true }) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState({});
   const [useBase, setUseBase] = useState(false);
@@ -48,6 +50,7 @@ export function AddToCartButton({ productId, basePrice, baseDiscountPercent, bas
   };
 
   const needsSelection = variants.length > 0;
+  const showStandard = allowStandardVariant !== false;
   const hasChosen = useBase || !!matchedVariant;
   const price = matchedVariant ? (matchedVariant.price ?? basePrice) : getEffectivePrice(basePrice, baseDiscountPercent);
   const stock = useBase ? baseStock : matchedVariant ? matchedVariant.stock : null;
@@ -97,7 +100,7 @@ export function AddToCartButton({ productId, basePrice, baseDiscountPercent, bas
         )}
       </div>
 
-      {needsSelection && (
+      {needsSelection && showStandard && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-slate-700 uppercase tracking-wide">Options</p>
           <div className="flex flex-wrap gap-2">

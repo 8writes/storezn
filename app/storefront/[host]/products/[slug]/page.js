@@ -116,6 +116,7 @@ export default async function StorefrontProductPage({ params }) {
               baseStock={product.stock}
               productType={product.productType}
               variants={variants}
+              allowStandardVariant={product.allowStandardVariant}
             />
           </div>
         </div>

@@ -100,12 +100,20 @@ export async function POST(req) {
   // storefront offers the product's own base price/stock as its own
   // "Standard" choice alongside the real variants (see
   // AddToCartButton.js), so "no variant" isn't just the no-variants-exist
-  // case anymore.
+  // case anymore - unless the vendor turned that off (allowStandardVariant
+  // false), in which case a variant must be chosen.
   let variant = null;
   if (variantId) {
     const variantRows = await db.select().from(productVariants).where(and(eq(productVariants.productId, productId), eq(productVariants.isActive, true)));
     variant = variantRows.find((v) => v.id === variantId);
     if (!variant) return NextResponse.json({ error: "That option is no longer available" }, { status: 404 });
+  } else if (product.allowStandardVariant === false) {
+    const [anyVariant] = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(and(eq(productVariants.productId, productId), eq(productVariants.isActive, true)))
+      .limit(1);
+    if (anyVariant) return NextResponse.json({ error: "Please choose an option" }, { status: 400 });
   }
 
   const user = await getUser(req);

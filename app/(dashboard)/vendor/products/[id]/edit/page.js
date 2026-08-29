@@ -92,6 +92,7 @@ export default function VendorProductEditPage({ params }) {
           images: product.images || [],
           videoUrl: product.videoUrl || "",
           isActive: product.isActive,
+          allowStandardVariant: product.allowStandardVariant ?? true,
         });
         setSuspension(product.suspendedAt ? { reason: product.suspendedReason } : null);
         setCategories(categoriesData.categories);
@@ -246,6 +247,7 @@ export default function VendorProductEditPage({ params }) {
         description: form.description || undefined,
         images: form.images,
         isActive: form.isActive === true || form.isActive === "true",
+        allowStandardVariant: form.allowStandardVariant !== false,
       };
       // Disabled (and left out of the payload) once there's more than one
       // branch - form.stock is the store-wide aggregate in that case, not
@@ -439,7 +441,14 @@ export default function VendorProductEditPage({ params }) {
 
       <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} onTotalBranches={setBranchCount} />
 
-      <VariantsManager storeId={storeId} productId={id} apiFetch={apiFetch} branchCount={branchCount} />
+      <VariantsManager
+        storeId={storeId}
+        productId={id}
+        apiFetch={apiFetch}
+        branchCount={branchCount}
+        standardEnabled={form.allowStandardVariant !== false}
+        onToggleStandard={(v) => setForm((f) => ({ ...f, allowStandardVariant: v }))}
+      />
 
       <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
     </div>
@@ -452,29 +461,36 @@ const EMPTY_VARIANT_FORM = { optionName: "", optionValue: "", sku: "", price: ""
 // variants - once any variant exists, the storefront requires picking
 // one before add-to-cart, and each variant's own price/stock is what
 // actually gets sold (see lib/db/schema.js).
-function VariantsManager({ storeId, productId, apiFetch, branchCount }) {
+function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEnabled, onToggleStandard }) {
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_VARIANT_FORM);
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  // "standard" hides the option fields (product sells as-is); "options"
-  // reveals them for Size/Color-style variants. Defaults to whichever
-  // matches the product's current state after the first load.
-  const [mode, setMode] = useState("standard");
-  const modeInitialized = useRef(false);
+  const [togglingStandard, setTogglingStandard] = useState(false);
 
   const load = () => {
     apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`)
-      .then((data) => {
-        setVariants(data.variants);
-        if (!modeInitialized.current) {
-          if (data.variants.length > 0) setMode("options");
-          modeInitialized.current = true;
-        }
-      })
+      .then((data) => setVariants(data.variants))
       .catch((err) => toast.error(err.message || "Failed to load variants"))
       .finally(() => setLoading(false));
+  };
+
+  const handleToggleStandard = async () => {
+    const next = !standardEnabled;
+    setTogglingStandard(true);
+    try {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ allowStandardVariant: next }),
+      });
+      onToggleStandard(next);
+      toast.success(next ? "\"Standard\" option shown in your storefront" : "\"Standard\" option hidden - customers must pick an option");
+    } catch (err) {
+      toast.error(err.message || "Failed to update");
+    } finally {
+      setTogglingStandard(false);
+    }
   };
 
   useEffect(() => {
@@ -527,28 +543,34 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 max-w-xs">
-        <button
-          type="button"
-          onClick={() => setMode("standard")}
-          className={`text-left rounded-sm border p-3 cursor-pointer transition-colors ${
-            mode === "standard" ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-          }`}
-        >
-          <p className="text-sm font-semibold text-slate-900">Standard</p>
-          <p className="text-xs text-slate-500 mt-0.5">Sell as-is</p>
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("options")}
-          className={`text-left rounded-sm border p-3 cursor-pointer transition-colors ${
-            mode === "options" ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-          }`}
-        >
-          <p className="text-sm font-semibold text-slate-900">Options</p>
-          <p className="text-xs text-slate-500 mt-0.5">Size, colour, …</p>
-        </button>
-      </div>
+      {!loading && variants.length > 0 && (
+        <div className="flex items-center justify-between gap-4 rounded-sm border border-slate-200 p-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-700">Show a &quot;Standard&quot; option</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {standardEnabled
+                ? "Customers can buy the plain product (its own price/stock) alongside the options below."
+                : "Customers must pick one of the options below - the plain product isn't offered."}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!standardEnabled}
+            disabled={togglingStandard}
+            onClick={handleToggleStandard}
+            className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              standardEnabled ? "bg-brand-600" : "bg-slate-300"
+            }`}
+          >
+            <span
+              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                standardEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      )}
 
       {!loading && variants.length > 0 && (
         <div className="divide-y divide-slate-100 border border-slate-100 rounded-sm">
@@ -584,59 +606,57 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount }) {
         </div>
       )}
 
-      {mode === "options" && (
-        <form
-          onSubmit={handleAdd}
-          className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end"
+      <form
+        onSubmit={handleAdd}
+        className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end"
+      >
+        <Input
+          label="Option name"
+          placeholder="Size"
+          value={form.optionName}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, optionName: e.target.value }))
+          }
+          required
+        />
+        <Input
+          label="Value"
+          placeholder="Large"
+          value={form.optionValue}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, optionValue: e.target.value }))
+          }
+          required
+        />
+        <Input
+          label="SKU"
+          value={form.sku}
+          onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
+        />
+        <PriceInput
+          label="Price override"
+          value={form.price}
+          onChange={(v) => setForm((f) => ({ ...f, price: v }))}
+        />
+        <Input
+          label="Stock"
+          type="number"
+          min="0"
+          value={form.stock}
+          onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+          disabled={branchCount > 1}
+          placeholder={branchCount > 1 ? "Set per branch after adding" : undefined}
+        />
+        <Button
+          type="submit"
+          size="sm"
+          variant="primary"
+          loading={adding}
+          className="col-span-2 sm:col-span-1 w-fit"
         >
-          <Input
-            label="Option name"
-            placeholder="Size"
-            value={form.optionName}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, optionName: e.target.value }))
-            }
-            required
-          />
-          <Input
-            label="Value"
-            placeholder="Large"
-            value={form.optionValue}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, optionValue: e.target.value }))
-            }
-            required
-          />
-          <Input
-            label="SKU"
-            value={form.sku}
-            onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-          />
-          <PriceInput
-            label="Price override"
-            value={form.price}
-            onChange={(v) => setForm((f) => ({ ...f, price: v }))}
-          />
-          <Input
-            label="Stock"
-            type="number"
-            min="0"
-            value={form.stock}
-            onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-            disabled={branchCount > 1}
-            placeholder={branchCount > 1 ? "Set per branch after adding" : undefined}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            variant="primary"
-            loading={adding}
-            className="col-span-2 sm:col-span-1 w-fit"
-          >
-            Save variant
-          </Button>
-        </form>
-      )}
+          Save variant
+        </Button>
+      </form>
     </div>
   );
 }
