@@ -84,6 +84,7 @@ export default function VendorProductEditPage({ params }) {
           slug: product.slug,
           sku: product.sku || "",
           description: product.description || "",
+          sizeGuide: product.sizeGuide || "",
           price: String(product.price),
           discountPercent: product.discountPercent != null ? String(product.discountPercent) : "",
           productType: product.productType,
@@ -246,6 +247,7 @@ export default function VendorProductEditPage({ params }) {
         condition: form.condition,
         categoryId: form.categoryId || null,
         description: form.description || undefined,
+        sizeGuide: form.sizeGuide.trim() || null,
         images: form.images,
         isActive: form.isActive === true || form.isActive === "true",
         allowStandardVariant: form.allowStandardVariant !== false,
@@ -336,6 +338,13 @@ export default function VendorProductEditPage({ params }) {
         </div>
 
         <Textarea label="Description" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+        <Textarea
+          label="Size guide"
+          rows={4}
+          placeholder={"Shown behind a \"Size guide\" link on the product page.\nS — chest 36-38\"\nM — chest 39-41\""}
+          value={form.sizeGuide}
+          onChange={(e) => setForm((f) => ({ ...f, sizeGuide: e.target.value }))}
+        />
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Photos</label>

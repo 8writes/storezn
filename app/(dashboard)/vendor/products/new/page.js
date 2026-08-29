@@ -34,7 +34,7 @@ const CONDITION_OPTIONS = [
   { value: "used", label: "Used" },
 ];
 
-const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", price: "", discountPercent: "", productType: "physical", condition: "new", stock: "", categoryId: "", images: [], videoUrl: "" };
+const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: "", price: "", discountPercent: "", productType: "physical", condition: "new", stock: "", categoryId: "", images: [], videoUrl: "" };
 const EMPTY_CATEGORY = { name: "", slug: "" };
 
 export default function VendorNewProductPage() {
@@ -247,6 +247,7 @@ export default function VendorNewProductPage() {
       if (form.categoryId) payload.categoryId = form.categoryId;
       if (form.sku) payload.sku = form.sku;
       if (form.description) payload.description = form.description;
+      if (form.sizeGuide.trim()) payload.sizeGuide = form.sizeGuide.trim();
       if (form.discountPercent !== "") payload.discountPercent = Number(form.discountPercent);
       if (form.videoUrl) payload.videoUrl = form.videoUrl;
 
@@ -354,6 +355,13 @@ export default function VendorNewProductPage() {
                 </div>
               </div>
               <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+              <Textarea
+                label="Size guide"
+                rows={3}
+                placeholder={"Shown behind a \"Size guide\" link on the product page. e.g.\nS — chest 36-38\"\nM — chest 39-41\"\nL — chest 42-44\""}
+                value={form.sizeGuide}
+                onChange={(e) => setForm((f) => ({ ...f, sizeGuide: e.target.value }))}
+              />
             </div>
           )}
 

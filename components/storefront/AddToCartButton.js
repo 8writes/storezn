@@ -86,6 +86,15 @@ export function AddToCartButton({ productId, basePrice, baseDiscountPercent, bas
   // discount doesn't carry over to it.
   const showDiscount = !matchedVariant && baseDiscountPercent > 0;
 
+  const cta =
+    needsSelection && !hasChosen ? (
+      <Button disabled fullWidth size="lg" variant="secondary">Select an option</Button>
+    ) : !inStock ? (
+      <Button disabled fullWidth size="lg" variant="secondary">Out of stock</Button>
+    ) : (
+      <Button onClick={handleClick} loading={loading} fullWidth size="lg">Add to cart</Button>
+    );
+
   return (
     <div className="space-y-5">
       <div className="flex items-baseline gap-2.5">
@@ -145,13 +154,23 @@ export function AddToCartButton({ productId, basePrice, baseDiscountPercent, bas
         <p className="text-sm text-slate-700">{stock} in stock</p>
       )}
 
-      {needsSelection && !hasChosen ? (
-        <Button disabled fullWidth size="lg" variant="secondary">Select options</Button>
-      ) : !inStock ? (
-        <Button disabled fullWidth size="lg" variant="secondary">Out of stock</Button>
-      ) : (
-        <Button onClick={handleClick} loading={loading} fullWidth size="lg">Add to cart</Button>
-      )}
+      {/* Inline on desktop; on mobile the CTA moves into a sticky bar
+          pinned to the bottom of the viewport so it's always reachable
+          while scrolling the description/reviews. */}
+      <div className="hidden sm:block">{cta}</div>
+
+      <div
+        className="sm:hidden fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-slate-200 bg-white px-4 pt-3 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
+        <div className="shrink-0">
+          <p className="text-lg font-semibold text-slate-900 leading-none">{formatCurrency(price)}</p>
+          {showDiscount && (
+            <p className="text-xs text-slate-400 line-through leading-none mt-0.5">{formatCurrency(basePrice)}</p>
+          )}
+        </div>
+        <div className="flex-1">{cta}</div>
+      </div>
     </div>
   );
 }

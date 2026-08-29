@@ -92,7 +92,13 @@ export function Select({
         >
           <span
             className={`truncate min-w-0 ${
-              active ? "text-brand-700 font-medium" : selected ? "text-slate-900" : "text-slate-700"
+              active
+                ? "text-brand-700 font-medium"
+                : accent
+                  ? "text-brand-700"
+                  : selected
+                    ? "text-slate-900"
+                    : "text-slate-700"
             }`}
           >
             {loading ? "Loading…" : selected ? selected.label : placeholder}

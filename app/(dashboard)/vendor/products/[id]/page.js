@@ -197,6 +197,13 @@ export default function VendorProductViewPage({ params }) {
             </div>
           )}
 
+          {product.sizeGuide && (
+            <div className="bg-white border border-slate-200 rounded-sm p-5">
+              <p className="text-sm font-medium text-slate-700 mb-1.5">Size guide</p>
+              <p className="text-sm text-slate-700 whitespace-pre-line">{product.sizeGuide}</p>
+            </div>
+          )}
+
           {variants.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-2">
               <p className="text-sm font-medium text-slate-700">Variants</p>

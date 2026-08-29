@@ -9,6 +9,8 @@ import { getEffectivePrice } from "@/lib/pricing.js";
 import { MapPin } from "lucide-react";
 import { formatStateLabel } from "@/lib/nigeria.js";
 import { AddToCartButton } from "@/components/storefront/AddToCartButton.js";
+import { SizeGuideButton } from "@/components/storefront/SizeGuideButton.js";
+import { ProductAssurances } from "@/components/storefront/ProductAssurances.js";
 import { ReviewsSection } from "@/components/storefront/ReviewsSection.js";
 import { ProductGallery } from "@/components/storefront/ProductGallery.js";
 import { ShareButton } from "@/components/storefront/ShareButton.js";
@@ -72,7 +74,7 @@ export default async function StorefrontProductPage({ params }) {
     .where(and(eq(productVariants.productId, product.id), eq(productVariants.isActive, true)));
 
   return (
-    <div>
+    <div className="pb-24 sm:pb-0">
       <BackButton className="mb-6" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
@@ -96,10 +98,13 @@ export default async function StorefrontProductPage({ params }) {
 
           {product.description && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{product.description}</p>}
 
-          <p className="text-xs text-slate-700 uppercase tracking-wide">
-            {product.productType === "physical" ? "Ships to your address" : "Digital delivery"}
-            {product.productType === "physical" && variants.length === 0 && product.stock != null && ` · ${product.stock} in stock`}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <p className="text-xs text-slate-700 uppercase tracking-wide">
+              {product.productType === "physical" ? "Ships to your address" : "Digital delivery"}
+              {product.productType === "physical" && variants.length === 0 && product.stock != null && ` · ${product.stock} in stock`}
+            </p>
+            {product.sizeGuide && <SizeGuideButton text={product.sizeGuide} />}
+          </div>
 
           {store.showShipsFrom !== false && store.state && (
             <p className="flex items-center gap-1.5 text-xs text-slate-800">
@@ -119,6 +124,8 @@ export default async function StorefrontProductPage({ params }) {
               allowStandardVariant={product.allowStandardVariant}
             />
           </div>
+
+          <ProductAssurances returnWindowDays={store.returnWindowDays} productType={product.productType} />
         </div>
       </div>
 
