@@ -9,44 +9,40 @@ import { getEffectivePrice } from "@/lib/pricing.js";
 // this component doesn't need to know about auth at all, just fire the
 // request and let the server sort out whose cart it is.
 //
-// Doubles as the variant picker when `variants` is non-empty. The base
-// product (its own price/stock, from before any variant existed) is
-// offered as its own "Standard" choice alongside the real variants - a
-// vendor adding a Color variant later shouldn't silently make the plain
-// item unbuyable just because they never created an explicit "no color"
-// variant row for it. A vendor who does want exactly that turns off
-// allowStandardVariant (see products.allowStandardVariant), which hides
-// the Standard choice so a variant must be picked.
+// Doubles as the variant picker when `variants` is non-empty. Every
+// variant row carries a single { optionName: value } pair (the vendor UI
+// adds one dimension's values, one variant per value), so each variant is
+// its own selectable choice here - we don't try to intersect selections
+// across option groups, which broke the moment a product had variants
+// under two different option names. The base product (its own
+// price/stock) is offered as a "Standard" choice alongside them, unless
+// the vendor turned that off (see products.allowStandardVariant).
 export function AddToCartButton({ productId, basePrice, baseDiscountPercent, baseStock, productType, variants = [], allowStandardVariant = true }) {
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState({});
+  const [selectedVariantId, setSelectedVariantId] = useState(null);
   const [useBase, setUseBase] = useState(false);
 
-  const optionGroups = useMemo(() => {
+  // Grouped by option name purely for display - picking a button still
+  // selects that one exact variant, not a combination.
+  const variantGroups = useMemo(() => {
     const groups = {};
     for (const v of variants) {
-      for (const [name, value] of Object.entries(v.options)) {
-        groups[name] = groups[name] || new Set();
-        groups[name].add(value);
-      }
+      const name = Object.keys(v.options || {})[0] || "Options";
+      (groups[name] = groups[name] || []).push(v);
     }
-    return Object.entries(groups).map(([name, values]) => ({ name, values: [...values] }));
+    return Object.entries(groups).map(([name, items]) => ({ name, items }));
   }, [variants]);
 
-  const matchedVariant = useMemo(() => {
-    if (useBase || variants.length === 0) return null;
-    if (optionGroups.some((g) => !selected[g.name])) return null;
-    return variants.find((v) => optionGroups.every((g) => v.options[g.name] === selected[g.name])) || null;
-  }, [variants, optionGroups, selected, useBase]);
+  const matchedVariant = useBase ? null : variants.find((v) => v.id === selectedVariantId) || null;
 
-  const chooseVariant = (name, value) => {
+  const chooseVariant = (v) => {
     setUseBase(false);
-    setSelected((s) => ({ ...s, [name]: value }));
+    setSelectedVariantId(v.id);
   };
 
   const chooseBase = () => {
     setUseBase(true);
-    setSelected({});
+    setSelectedVariantId(null);
   };
 
   const needsSelection = variants.length > 0;
@@ -54,10 +50,11 @@ export function AddToCartButton({ productId, basePrice, baseDiscountPercent, bas
   const hasChosen = useBase || !!matchedVariant;
   const price = matchedVariant ? (matchedVariant.price ?? basePrice) : getEffectivePrice(basePrice, baseDiscountPercent);
   const stock = useBase ? baseStock : matchedVariant ? matchedVariant.stock : null;
+  const isOut = (v) => productType === "physical" && v.stock != null && v.stock <= 0;
   const inStock = needsSelection
     ? hasChosen
       ? productType === "digital" || stock == null || stock > 0
-      : true // unknown until fully selected - button disabled by needsSelection instead
+      : true // unknown until a choice is made - button disabled by needsSelection instead
     : productType === "digital" || stock == null || stock > 0;
 
   const handleClick = async () => {
@@ -100,53 +97,64 @@ export function AddToCartButton({ productId, basePrice, baseDiscountPercent, bas
         )}
       </div>
 
-      {needsSelection && showStandard && (
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-slate-700 uppercase tracking-wide">Options</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={chooseBase}
-              className={`px-4 py-2 text-sm border cursor-pointer transition-colors ${
-                useBase
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 text-slate-700 hover:border-slate-900"
-              }`}
-            >
-              Standard
-            </button>
-          </div>
+      {needsSelection && (
+        <div className="space-y-4">
+          {showStandard && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-slate-700 uppercase tracking-wide">Standard</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={chooseBase}
+                  className={`px-4 py-2 text-sm border cursor-pointer transition-colors ${
+                    useBase
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-300 text-slate-700 hover:border-slate-900"
+                  }`}
+                >
+                  Standard
+                </button>
+              </div>
+            </div>
+          )}
+
+          {variantGroups.map((group) => (
+            <div key={group.name} className="space-y-2">
+              <p className="text-xs font-medium text-slate-700 uppercase tracking-wide">{group.name}</p>
+              <div className="flex flex-wrap gap-2">
+                {group.items.map((v) => {
+                  const label = Object.values(v.options || {}).join(" / ") || "Option";
+                  const out = isOut(v);
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => chooseVariant(v)}
+                      disabled={out}
+                      className={`px-4 py-2 text-sm border transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                        out ? "line-through" : "cursor-pointer"
+                      } ${
+                        !useBase && selectedVariantId === v.id
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-300 text-slate-700 hover:border-slate-900"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
-
-      {optionGroups.map((group) => (
-        <div key={group.name} className="space-y-2">
-          <p className="text-xs font-medium text-slate-700 uppercase tracking-wide">{group.name}</p>
-          <div className="flex flex-wrap gap-2">
-            {group.values.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => chooseVariant(group.name, value)}
-                className={`px-4 py-2 text-sm border cursor-pointer transition-colors ${
-                  !useBase && selected[group.name] === value
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 text-slate-700 hover:border-slate-900"
-                }`}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
 
       {needsSelection && hasChosen && stock != null && productType === "physical" && (
         <p className="text-sm text-slate-700">{stock} in stock</p>
       )}
 
       {needsSelection && !hasChosen ? (
-        <Button disabled fullWidth size="lg" variant="secondary">Select options</Button>
+        <Button disabled fullWidth size="lg" variant="secondary">Select an option</Button>
       ) : !inStock ? (
         <Button disabled fullWidth size="lg" variant="secondary">Out of stock</Button>
       ) : (

@@ -505,9 +505,16 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, productId]);
 
+  // All of a product's variants share one option dimension - the
+  // storefront picker treats each variant as its own choice, so a second
+  // option name (e.g. adding "Colour" once "Size" exists) can't be
+  // combined and just produces unselectable rows. Once any variant
+  // exists, its option name is locked in.
+  const lockedOptionName = variants.length > 0 ? Object.keys(variants[0].options || {})[0] || "" : "";
+
   const handleAdd = async (e) => {
     e.preventDefault();
-    const name = form.optionName.trim();
+    const name = (lockedOptionName || form.optionName).trim();
     const values = [...new Set(form.optionValues.split(",").map((v) => v.trim()).filter(Boolean))];
     if (!name || values.length === 0) return;
 
@@ -703,8 +710,9 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
         <Input
           label="Option name"
           placeholder="Size"
-          value={form.optionName}
+          value={lockedOptionName || form.optionName}
           onChange={(e) => setForm((f) => ({ ...f, optionName: e.target.value }))}
+          disabled={!!lockedOptionName}
           required
         />
         <Input
@@ -719,7 +727,10 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
         </Button>
       </form>
       <p className="text-xs text-slate-500">
-        Separate values with commas to add several at once. Set each variant&apos;s price and stock by editing it below.
+        {lockedOptionName
+          ? `Adding more "${lockedOptionName}" values. Remove all variants to switch to a different option.`
+          : "Separate values with commas to add several at once."}{" "}
+        Set each variant&apos;s price and stock by editing it below.
       </p>
     </div>
   );
