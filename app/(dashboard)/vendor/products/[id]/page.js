@@ -9,6 +9,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
+import { SizeGuideTable } from "@/components/ui/SizeGuideTable.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
@@ -197,10 +198,10 @@ export default function VendorProductViewPage({ params }) {
             </div>
           )}
 
-          {product.sizeGuide && (
+          {product.sizeGuide?.columns?.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-sm p-5">
-              <p className="text-sm font-medium text-slate-700 mb-1.5">Size guide</p>
-              <p className="text-sm text-slate-700 whitespace-pre-line">{product.sizeGuide}</p>
+              <p className="text-sm font-medium text-slate-700 mb-3">Size guide</p>
+              <SizeGuideTable guide={product.sizeGuide} />
             </div>
           )}
 

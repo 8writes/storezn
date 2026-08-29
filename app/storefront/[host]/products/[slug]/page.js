@@ -99,11 +99,10 @@ export default async function StorefrontProductPage({ params }) {
           {product.description && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{product.description}</p>}
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <p className="text-xs text-slate-700 uppercase tracking-wide">
-              {product.productType === "physical" ? "Ships to your address" : "Digital delivery"}
-              {product.productType === "physical" && variants.length === 0 && product.stock != null && ` · ${product.stock} in stock`}
-            </p>
-            {product.sizeGuide && <SizeGuideButton text={product.sizeGuide} />}
+            {product.productType === "physical" && variants.length === 0 && product.stock != null && (
+              <p className="text-xs text-slate-700 uppercase tracking-wide">{product.stock} in stock</p>
+            )}
+            {product.sizeGuide && <SizeGuideButton guide={product.sizeGuide} />}
           </div>
 
           {store.showShipsFrom !== false && store.state && (

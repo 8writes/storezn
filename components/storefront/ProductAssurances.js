@@ -49,14 +49,14 @@ export function ProductAssurances({ returnWindowDays, productType }) {
               </Link>
             </span>
           ) : (
-            <span>Shipping to your delivery address — you&apos;ll add it at checkout.</span>
+            <span>Shipping to your delivery address.</span>
           )}
         </p>
       )}
 
       <p className="flex items-start gap-2">
         <ShieldCheck size={14} className="shrink-0 mt-0.5 text-slate-400" />
-        <span>Safe payment &amp; privacy protection — your card and personal details are encrypted and never shared.</span>
+        <span>Safe payment &amp; privacy protection.</span>
       </p>
 
       <p className="flex items-start gap-2">

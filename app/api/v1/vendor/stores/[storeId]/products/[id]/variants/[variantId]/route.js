@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../../../lib/db/index.js";
-import { products, productVariants, stores, branches, productBranchStock } from "../../../../../../../../../../lib/db/schema.js";
+import { products, productVariants, stores, branches } from "../../../../../../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../../../lib/auth.js";
 import { validate, updateVariantSchema } from "../../../../../../../../../../lib/validate.js";
 import { setBranchStock } from "../../../../../../../../../../lib/inventory.js";
+import { deleteVariants, VariantOrderedError } from "../../../../../../../../../../lib/variants.js";
 
 async function loadOwnedVariant(user, storeId, productId, variantId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -53,9 +54,11 @@ export async function DELETE(req, { params }) {
   const variant = await loadOwnedVariant(user, storeId, id, variantId);
   if (!variant) return NextResponse.json({ error: "Variant not found" }, { status: 404 });
 
-  await db.transaction(async (tx) => {
-    await tx.delete(productBranchStock).where(eq(productBranchStock.variantId, variantId));
-    await tx.delete(productVariants).where(eq(productVariants.id, variantId));
-  });
+  try {
+    await deleteVariants([variantId]);
+  } catch (err) {
+    if (err instanceof VariantOrderedError) return NextResponse.json({ error: err.message }, { status: 409 });
+    throw err;
+  }
   return NextResponse.json({ success: true });
 }

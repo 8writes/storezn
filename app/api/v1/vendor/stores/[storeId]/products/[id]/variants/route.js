@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../../lib/db/index.js";
 import { products, productVariants, stores, branches } from "../../../../../../../../../lib/db/schema.js";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../../lib/auth.js";
 import { validate, createVariantSchema } from "../../../../../../../../../lib/validate.js";
 import { seedBranchStockForNewItem } from "../../../../../../../../../lib/inventory.js";
+import { deleteVariants, VariantOrderedError } from "../../../../../../../../../lib/variants.js";
 
 async function loadOwnedProduct(user, storeId, productId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -47,4 +48,35 @@ export async function POST(req, { params }) {
     return variant;
   });
   return NextResponse.json({ variant: created }, { status: 201 });
+}
+
+// Bulk delete - body { ids: string[] }. Only ids that actually belong to
+// this product are touched; cleanup (cart lines, branch-stock) and the
+// "part of an order" guard are shared with the single-variant route.
+export async function DELETE(req, { params }) {
+  const user = await getUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { storeId, id } = await params;
+  const product = await loadOwnedProduct(user, storeId, id);
+  if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+
+  const body = await req.json().catch(() => null);
+  const ids = Array.isArray(body?.ids) ? body.ids.filter((x) => typeof x === "string") : null;
+  if (!ids || ids.length === 0) return NextResponse.json({ error: "No variants selected" }, { status: 400 });
+
+  const owned = await db
+    .select({ id: productVariants.id })
+    .from(productVariants)
+    .where(and(eq(productVariants.productId, id), inArray(productVariants.id, ids)));
+  const ownedIds = owned.map((v) => v.id);
+  if (ownedIds.length === 0) return NextResponse.json({ error: "Variants not found" }, { status: 404 });
+
+  try {
+    const deleted = await deleteVariants(ownedIds);
+    return NextResponse.json({ deleted });
+  } catch (err) {
+    if (err instanceof VariantOrderedError) return NextResponse.json({ error: err.message }, { status: 409 });
+    throw err;
+  }
 }

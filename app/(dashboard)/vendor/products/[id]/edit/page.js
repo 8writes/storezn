@@ -8,6 +8,7 @@ import { useConfirm } from "@/hooks/useConfirm.js";
 import { Input } from "@/components/ui/Input.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Textarea } from "@/components/ui/Textarea.js";
+import { SizeGuideEditor, normalizeSizeGuide } from "@/components/ui/SizeGuideEditor.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
@@ -84,7 +85,7 @@ export default function VendorProductEditPage({ params }) {
           slug: product.slug,
           sku: product.sku || "",
           description: product.description || "",
-          sizeGuide: product.sizeGuide || "",
+          sizeGuide: product.sizeGuide || null,
           price: String(product.price),
           discountPercent: product.discountPercent != null ? String(product.discountPercent) : "",
           productType: product.productType,
@@ -247,7 +248,7 @@ export default function VendorProductEditPage({ params }) {
         condition: form.condition,
         categoryId: form.categoryId || null,
         description: form.description || undefined,
-        sizeGuide: form.sizeGuide.trim() || null,
+        sizeGuide: normalizeSizeGuide(form.sizeGuide),
         images: form.images,
         isActive: form.isActive === true || form.isActive === "true",
         allowStandardVariant: form.allowStandardVariant !== false,
@@ -338,13 +339,7 @@ export default function VendorProductEditPage({ params }) {
         </div>
 
         <Textarea label="Description" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-        <Textarea
-          label="Size guide"
-          rows={4}
-          placeholder={"Shown behind a \"Size guide\" link on the product page.\nS — chest 36-38\"\nM — chest 39-41\""}
-          value={form.sizeGuide}
-          onChange={(e) => setForm((f) => ({ ...f, sizeGuide: e.target.value }))}
-        />
+        <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Photos</label>
@@ -477,6 +472,10 @@ const cartesian = (dims) =>
 const canonOptions = (options) =>
   JSON.stringify(Object.entries(options).sort(([a], [b]) => a.localeCompare(b)));
 
+// How many variant rows to show before the "Show more" button - products
+// with a big Size x Colour grid can run to dozens.
+const VARIANT_PAGE = 8;
+
 // A product either sells as-is (this list stays empty) or through
 // variants - once any variant exists, the storefront requires picking one
 // value from every option dimension before add-to-cart, and each
@@ -491,16 +490,21 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
   const dimsSeeded = useRef(false);
   const [generating, setGenerating] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [togglingStandard, setTogglingStandard] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
+  const [visible, setVisible] = useState(VARIANT_PAGE);
   const { confirm, confirmDialog } = useConfirm();
 
   const load = () => {
     apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`)
       .then((data) => {
         setVariants(data.variants);
+        setSelected(new Set());
+        setVisible(VARIANT_PAGE);
         // Seed the builder from what already exists (once) so "Generate"
         // fills in any missing combinations rather than starting blank.
         if (!dimsSeeded.current && data.variants.length > 0) {
@@ -623,10 +627,54 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants/${variantId}`, { method: "DELETE" });
       setVariants((v) => v.filter((x) => x.id !== variantId));
+      setSelected((s) => {
+        const n = new Set(s);
+        n.delete(variantId);
+        return n;
+      });
     } catch (err) {
       toast.error(err.message || "Failed to remove variant");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const toggleSelect = (id) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
+  const allSelected = variants.length > 0 && selected.size === variants.length;
+  const toggleSelectAll = () => setSelected(allSelected ? new Set() : new Set(variants.map((v) => v.id)));
+
+  const handleBulkDelete = async (idsArg) => {
+    const ids = idsArg || [...selected];
+    if (ids.length === 0) return;
+    const ok = await confirm({
+      title: `Delete ${ids.length} variant${ids.length === 1 ? "" : "s"}?`,
+      description: "This can't be undone. Any prices or stock set on them are lost.",
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
+    setBulkDeleting(true);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`, {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+      });
+      const gone = new Set(ids);
+      setVariants((v) => v.filter((x) => !gone.has(x.id)));
+      setSelected(new Set());
+      if (editingId && gone.has(editingId)) cancelEdit();
+      toast.success(`${data.deleted ?? ids.length} variant${(data.deleted ?? ids.length) === 1 ? "" : "s"} deleted`);
+    } catch (err) {
+      toast.error(err.message || "Failed to delete variants");
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -705,21 +753,54 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
       )}
 
       {!loading && variants.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="accent-brand-600" />
+            {selected.size > 0 ? `${selected.size} selected` : `${variants.length} variant${variants.length === 1 ? "" : "s"}`}
+          </label>
+          <div className="flex items-center gap-3">
+            {selected.size > 0 && (
+              <Button type="button" size="sm" variant="danger" onClick={() => handleBulkDelete()} loading={bulkDeleting}>
+                Delete selected
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={() => handleBulkDelete(variants.map((v) => v.id))}
+              disabled={bulkDeleting}
+              className="text-xs font-medium text-slate-500 hover:text-red-600 disabled:opacity-50 cursor-pointer"
+            >
+              Delete all
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!loading && variants.length > 0 && (
         <div className="divide-y divide-slate-100 border border-slate-100 rounded-sm">
-          {variants.map((v) => (
-            <div key={v.id} className="p-3 text-sm">
+          {variants.slice(0, visible).map((v) => (
+            <div key={v.id} className={`p-3 text-sm ${selected.has(v.id) ? "bg-brand-50" : ""}`}>
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-slate-900">
-                    {Object.entries(v.options)
-                      .map(([k, val]) => `${k}: ${val}`)
-                      .join(", ")}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {v.sku && `SKU ${v.sku} · `}
-                    {v.price != null ? `₦${v.price}` : "uses product price"} ·{" "}
-                    {v.stock != null ? `${v.stock} in stock` : "no stock limit"}
-                  </p>
+                <div className="flex items-start gap-3 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(v.id)}
+                    onChange={() => toggleSelect(v.id)}
+                    className="mt-0.5 accent-brand-600 shrink-0"
+                    aria-label="Select variant"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-slate-900">
+                      {Object.entries(v.options)
+                        .map(([k, val]) => `${k}: ${val}`)
+                        .join(", ")}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {v.sku && `SKU ${v.sku} · `}
+                      {v.price != null ? `₦${v.price}` : "uses product price"} ·{" "}
+                      {v.stock != null ? `${v.stock} in stock` : "no stock limit"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <button
@@ -771,6 +852,16 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && variants.length > visible && (
+        <button
+          type="button"
+          onClick={() => setVisible((n) => n + VARIANT_PAGE)}
+          className="text-xs font-medium text-brand-600 hover:underline cursor-pointer"
+        >
+          Show {Math.min(VARIANT_PAGE, variants.length - visible)} more ({variants.length - visible} hidden)
+        </button>
       )}
 
       <form onSubmit={handleGenerate} className="space-y-3">

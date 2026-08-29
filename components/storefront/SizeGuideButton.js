@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Ruler, X } from "lucide-react";
+import { SizeGuideTable } from "@/components/ui/SizeGuideTable.js";
 
-// Opens the vendor's free-text size chart (products.sizeGuide) in a
-// simple modal - kept out of the main description so it doesn't bloat the
-// buy box, but one tap away for anyone unsure of their size.
-export function SizeGuideButton({ text }) {
+// Opens the product's structured size chart (products.sizeGuide) in a
+// modal - a real measurements table with a cm/inch toggle, kept out of
+// the buy box but one tap away for anyone unsure of their size.
+export function SizeGuideButton({ guide }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -18,6 +19,8 @@ export function SizeGuideButton({ text }) {
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  if (!guide?.columns?.length || !guide?.rows?.length) return null;
 
   return (
     <>
@@ -33,7 +36,7 @@ export function SizeGuideButton({ text }) {
       {open && (
         <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
           <div className="fixed inset-0 bg-black/50" onClick={() => setOpen(false)} />
-          <div className="relative bg-white rounded-sm shadow-xl w-full max-w-md my-auto">
+          <div className="relative bg-white rounded-sm shadow-xl w-full max-w-lg my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
               <p className="text-sm font-semibold text-slate-900">Size guide</p>
               <button
@@ -45,8 +48,8 @@ export function SizeGuideButton({ text }) {
                 <X size={18} />
               </button>
             </div>
-            <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">
-              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{text}</p>
+            <div className="px-5 py-4 max-h-[75vh] overflow-y-auto">
+              <SizeGuideTable guide={guide} />
             </div>
           </div>
         </div>
