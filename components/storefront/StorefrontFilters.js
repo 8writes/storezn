@@ -27,6 +27,8 @@ export function StorefrontFilters({ categories }) {
   };
 
   const categoryOptions = [{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))];
+  const activeCategory = !!searchParams.get("category");
+  const activeSort = (searchParams.get("sort") || "newest") !== "newest";
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 sm:items-end pb-4 border-b border-slate-200">
@@ -56,12 +58,23 @@ export function StorefrontFilters({ categories }) {
 
       {categories.length > 0 && (
         <div className="w-full sm:w-48">
-          <Select options={categoryOptions} value={searchParams.get("category") || ""} onChange={(v) => setParam("category", v)} placeholder="All categories" />
+          <Select
+            options={categoryOptions}
+            value={searchParams.get("category") || ""}
+            onChange={(v) => setParam("category", v)}
+            placeholder="All categories"
+            active={activeCategory}
+          />
         </div>
       )}
 
       <div className="w-full sm:w-48">
-        <Select options={SORT_OPTIONS} value={searchParams.get("sort") || "newest"} onChange={(v) => setParam("sort", v === "newest" ? "" : v)} />
+        <Select
+          options={SORT_OPTIONS}
+          value={searchParams.get("sort") || "newest"}
+          onChange={(v) => setParam("sort", v === "newest" ? "" : v)}
+          active={activeSort}
+        />
       </div>
     </div>
   );
