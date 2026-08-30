@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Upload, ImageOff } from "lucide-react";
+import { Plus, Upload, ImageOff, ChevronDown, FileSpreadsheet, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -13,7 +13,6 @@ import { Select } from "@/components/ui/Select.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton, CardListSkeleton } from "@/components/ui/Skeleton.js";
-import { InfoTip } from "@/components/ui/InfoTip.js";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { parseCsv, downloadCsv } from "@/lib/csv.js";
 
@@ -45,10 +44,17 @@ export default function VendorProductsPage() {
   const [sort, setSort] = useState("newest");
   const [loading, setLoading] = useState(true);
 
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkRows, setBulkRows] = useState([]);
   const [bulkFileName, setBulkFileName] = useState("");
   const [bulkResults, setBulkResults] = useState(null);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
+  const resetBulk = () => {
+    setBulkRows([]);
+    setBulkFileName("");
+    setBulkResults(null);
+  };
 
   const loadProducts = () => {
     if (!token || !storeId) return;
@@ -120,6 +126,7 @@ export default function VendorProductsPage() {
       setBulkResults(data.results);
       toast.success(`${data.summary.created} of ${data.summary.total} rows imported`);
       if (data.summary.created > 0) {
+        setSort("newest");
         if (page === 1) loadProducts();
         else setPage(1);
       }
@@ -156,65 +163,130 @@ export default function VendorProductsPage() {
         </Link>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-            Bulk import (CSV)
-            <InfoTip>
-              Migrating a catalog from a spreadsheet? Columns: {BULK_HEADERS.join(", ")}. Only <code>name</code> and <code>price</code> are
-              required - <code>categoryName</code> must match an existing category exactly. No images or variants here - add those
-              afterward by editing each product.
-            </InfoTip>
-          </p>
-          <button type="button" onClick={downloadTemplate} className="text-sm text-brand-600 hover:underline cursor-pointer">
-            Download template
-          </button>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <input type="file" accept=".csv,text/csv" onChange={handleBulkFile} className="text-sm" />
-          {bulkRows.length > 0 && (
-            <>
-              <span className="text-sm text-slate-500">{bulkRows.length} row{bulkRows.length === 1 ? "" : "s"} ready from {bulkFileName}</span>
-              <Button size="sm" onClick={handleBulkImport} loading={bulkSubmitting}>
-                <Upload size={14} /> Import {bulkRows.length} row{bulkRows.length === 1 ? "" : "s"}
-              </Button>
-            </>
-          )}
-        </div>
+      <div className="bg-white border border-slate-200 rounded-sm">
+        <button
+          type="button"
+          onClick={() => setBulkOpen((o) => !o)}
+          className="w-full flex items-center justify-between gap-3 px-5 py-3.5 cursor-pointer"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <FileSpreadsheet size={16} className="text-slate-400" />
+            Import products from a CSV
+          </span>
+          <ChevronDown size={16} className={`text-slate-400 transition-transform ${bulkOpen ? "rotate-180" : ""}`} />
+        </button>
 
-        {bulkResults && (
-          <div className="pt-3 border-t border-slate-100 space-y-3">
-            <p className="text-sm">
-              <span className="text-green-700 font-medium">{bulkResults.filter((r) => r.status === "created").length} created</span>
-              {" · "}
-              <span className="text-red-700 font-medium">{bulkResults.filter((r) => r.status === "error").length} failed</span>
-            </p>
-            {bulkResults.some((r) => r.status === "error") && (
-              <>
-                <div className="max-h-56 overflow-auto border border-slate-200 rounded-sm">
+        {bulkOpen && (
+          <div className="px-5 pb-5 pt-1 space-y-4 border-t border-slate-100">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
+                One product per row. Only <code className="text-slate-700">name</code> and{" "}
+                <code className="text-slate-700">price</code> are required.{" "}
+                <code className="text-slate-700">categoryName</code> must match one of your existing categories.
+                Blank cells are fine. Images and variants are added afterward by editing each product.
+              </p>
+              <Button type="button" size="sm" variant="outline" onClick={downloadTemplate}>
+                Download template
+              </Button>
+            </div>
+
+            <label className="flex flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-slate-300 px-4 py-8 text-center cursor-pointer hover:border-brand-400 hover:bg-slate-50 transition-colors">
+              <Upload size={20} className="text-slate-400" />
+              <span className="text-sm text-slate-600">
+                {bulkFileName ? <span className="font-medium text-slate-900">{bulkFileName}</span> : "Choose a .csv file"}
+              </span>
+              <span className="text-xs text-slate-400">or drag it here</span>
+              <input type="file" accept=".csv,text/csv" onChange={handleBulkFile} className="hidden" />
+            </label>
+
+            {bulkRows.length > 0 && !bulkResults && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-slate-600">
+                    <span className="font-medium text-slate-900">{bulkRows.length}</span> row{bulkRows.length === 1 ? "" : "s"} ready to import
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={resetBulk} className="text-sm text-slate-500 hover:text-slate-700 cursor-pointer">
+                      Clear
+                    </button>
+                    <Button size="sm" onClick={handleBulkImport} loading={bulkSubmitting}>
+                      <Upload size={14} /> Import {bulkRows.length} row{bulkRows.length === 1 ? "" : "s"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-sm">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-slate-500 text-left sticky top-0">
+                    <thead className="bg-slate-50 text-slate-500 text-left">
                       <tr>
-                        <th className="px-3 py-2 font-medium">Row</th>
-                        <th className="px-3 py-2 font-medium">Name</th>
-                        <th className="px-3 py-2 font-medium">Error</th>
+                        <th className="px-3 py-2 font-medium w-10">#</th>
+                        {BULK_HEADERS.map((h) => (
+                          <th key={h} className="px-3 py-2 font-medium whitespace-nowrap">{h}</th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {bulkResults.filter((r) => r.status === "error").map((r) => (
-                        <tr key={r.row} className="border-t border-slate-100">
-                          <td className="px-3 py-2 text-slate-500">{r.row}</td>
-                          <td className="px-3 py-2">{r.name || "-"}</td>
-                          <td className="px-3 py-2 text-red-600">{r.error}</td>
+                      {bulkRows.slice(0, 8).map((r, i) => (
+                        <tr key={i} className="border-t border-slate-100">
+                          <td className="px-3 py-2 text-slate-400">{i + 1}</td>
+                          {BULK_HEADERS.map((h) => (
+                            <td key={h} className="px-3 py-2 text-slate-700 whitespace-nowrap max-w-[16rem] truncate">
+                              {r[h] || <span className="text-slate-300">—</span>}
+                            </td>
+                          ))}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <button type="button" onClick={downloadFailedRows} className="text-sm text-brand-600 hover:underline cursor-pointer">
-                  Download failed rows (CSV)
-                </button>
-              </>
+                {bulkRows.length > 8 && (
+                  <p className="text-xs text-slate-400">Showing first 8 of {bulkRows.length} rows.</p>
+                )}
+              </div>
+            )}
+
+            {bulkResults && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-4">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700">
+                    <CheckCircle2 size={15} /> {bulkResults.filter((r) => r.status === "created").length} created
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-red-700">
+                    <XCircle size={15} /> {bulkResults.filter((r) => r.status === "error").length} failed
+                  </span>
+                  <button type="button" onClick={resetBulk} className="text-sm text-brand-600 hover:underline cursor-pointer ml-auto">
+                    Import another file
+                  </button>
+                </div>
+
+                {bulkResults.some((r) => r.status === "error") && (
+                  <>
+                    <div className="max-h-56 overflow-auto border border-slate-200 rounded-sm">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 text-slate-500 text-left sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 font-medium">Row</th>
+                            <th className="px-3 py-2 font-medium">Name</th>
+                            <th className="px-3 py-2 font-medium">Error</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bulkResults.filter((r) => r.status === "error").map((r) => (
+                            <tr key={r.row} className="border-t border-slate-100">
+                              <td className="px-3 py-2 text-slate-500">{r.row}</td>
+                              <td className="px-3 py-2">{r.name || "-"}</td>
+                              <td className="px-3 py-2 text-red-600">{r.error}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button type="button" onClick={downloadFailedRows} className="text-sm text-brand-600 hover:underline cursor-pointer">
+                      Download failed rows (CSV)
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}

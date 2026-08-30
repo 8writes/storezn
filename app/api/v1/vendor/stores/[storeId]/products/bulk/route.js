@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { products, categories, stores } from "../../../../../../../../lib/db/schema.js";
+import { products, categories, stores, branches } from "../../../../../../../../lib/db/schema.js";
 import { and, eq, ilike } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, bulkProductRowSchema } from "../../../../../../../../lib/validate.js";
 import { slugify } from "../../../../../../../../lib/slugify.js";
+import { seedBranchStockForNewItem } from "../../../../../../../../lib/inventory.js";
 
 const MAX_ROWS = 500;
 
@@ -37,6 +38,16 @@ export async function POST(req, { params }) {
   if (body.rows.length > MAX_ROWS) {
     return NextResponse.json({ error: `Import is limited to ${MAX_ROWS} rows at a time` }, { status: 400 });
   }
+
+  // Every imported product starts stocked at the store's default branch,
+  // same as the single-product create route - without a productBranchStock
+  // row the checkout stock guard treats it as untracked/unlimited, so a
+  // CSV "stock" value would silently never be enforced.
+  const [defaultBranch] = await db
+    .select({ id: branches.id })
+    .from(branches)
+    .where(and(eq(branches.storeId, storeId), eq(branches.isDefault, true)))
+    .limit(1);
 
   const categoryCache = new Map();
   const results = [];
@@ -89,22 +100,34 @@ export async function POST(req, { params }) {
         suffix++;
       }
 
-      const [created] = await db
-        .insert(products)
-        .values({
-          storeId,
-          categoryId,
-          name: data.name,
-          slug,
-          sku: data.sku,
-          description: data.description,
-          price: data.price,
-          productType: data.productType,
-          condition: data.condition,
-          stock: data.stock,
-          isActive: true,
-        })
-        .returning();
+      const created = await db.transaction(async (tx) => {
+        const [product] = await tx
+          .insert(products)
+          .values({
+            storeId,
+            categoryId,
+            name: data.name,
+            slug,
+            sku: data.sku,
+            description: data.description,
+            price: data.price,
+            productType: data.productType,
+            condition: data.condition,
+            stock: data.stock ?? null,
+            isActive: true,
+          })
+          .returning();
+        if (defaultBranch) {
+          await seedBranchStockForNewItem(tx, {
+            storeId,
+            productId: product.id,
+            variantId: null,
+            initialBranchId: defaultBranch.id,
+            initialStock: data.stock ?? null,
+          });
+        }
+        return product;
+      });
 
       results.push({ row: rowNumber, name: data.name, status: "created", productId: created.id });
     } catch (err) {
