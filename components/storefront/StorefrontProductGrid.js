@@ -91,9 +91,9 @@ export function StorefrontProductGrid({ initialProducts, total, filters, storeSt
             type="button"
             onClick={loadMore}
             disabled={loadingMore}
-            className="inline-flex items-center gap-2 px-6 py-2.5 border border-slate-300 rounded-sm text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 cursor-pointer"
+            className="inline-flex items-center gap-2 px-6 py-2.5 border border-brand-600 rounded-sm text-sm font-medium text-brand-700 hover:bg-brand-50 transition-colors disabled:opacity-60 cursor-pointer"
           >
-            {loadingMore && <Loader2 size={16} className="animate-spin" />}
+            {loadingMore && <Loader2 size={16} className="animate-spin text-brand-600" />}
             Load more
           </button>
         </div>

@@ -44,13 +44,13 @@ export function StorefrontFilters({ categories, themed = false }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search products..."
-          className="w-full pl-1 pr-8 py-2 border-0 border-b border-slate-200 text-base outline-none focus:border-slate-900 transition-colors bg-transparent"
+          className="w-full pl-1 pr-8 py-2 border-0 border-b border-slate-200 text-base outline-none focus:border-brand-500 transition-colors bg-transparent"
         />
         <button
           type="submit"
           disabled={isPending}
           aria-label="Search"
-          className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-700 hover:text-slate-900 transition-colors disabled:cursor-not-allowed cursor-pointer"
+          className="absolute right-0 top-1/2 -translate-y-1/2 text-brand-600 hover:text-brand-700 transition-colors disabled:cursor-not-allowed cursor-pointer"
         >
           {isPending ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
         </button>
