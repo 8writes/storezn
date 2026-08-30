@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, X } from "lucide-react";
 import { Select } from "@/components/ui/Select.js";
 
 const SORT_OPTIONS = [
@@ -44,8 +44,21 @@ export function StorefrontFilters({ categories, themed = false }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search products..."
-          className="w-full pl-1 pr-8 py-2 border-0 border-b border-slate-200 text-base outline-none focus:border-brand-500 transition-colors bg-transparent"
+          className="w-full pl-1 pr-14 py-2 border-0 border-b border-slate-200 text-base outline-none focus:border-brand-500 transition-colors bg-transparent"
         />
+        {q && (
+          <button
+            type="button"
+            onClick={() => {
+              setQ("");
+              setParam("q", "");
+            }}
+            aria-label="Clear search"
+            className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+          >
+            <X size={15} />
+          </button>
+        )}
         <button
           type="submit"
           disabled={isPending}
