@@ -40,6 +40,13 @@ export default async function StorefrontHomePage({ params, searchParams }) {
 
       <StorefrontFilters categories={categoryList} themed={themed} />
 
+      {q && (
+        <p className="text-sm text-slate-500">
+          Showing {total} {total === 1 ? "result" : "results"} for{" "}
+          <span className={`font-medium ${themed ? "text-brand-700" : "text-slate-900"}`}>&ldquo;{q}&rdquo;</span>
+        </p>
+      )}
+
       {list.length === 0 ? (
         <p className="text-center text-slate-700 py-24">{q || categoryId || minPrice || maxPrice ? "No products match your filters." : "No products yet, check back soon."}</p>
       ) : (
