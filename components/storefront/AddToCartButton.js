@@ -168,10 +168,10 @@ export function AddToCartButton({
             <button
               type="button"
               onClick={chooseBase}
-              className={`px-4 py-2 text-sm border cursor-pointer transition-colors ${
+              className={`px-4 py-2 text-sm border rounded-xs capitalize cursor-pointer transition-colors ${
                 useBase
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 text-slate-700 hover:border-slate-900"
+                  ? "border-brand-600 bg-brand-600 text-white"
+                  : "border-slate-300 text-slate-700 hover:border-brand-600"
               }`}
             >
               Standard
@@ -202,12 +202,12 @@ export function AddToCartButton({
                     type="button"
                     onClick={() => chooseVariant(group.name, value)}
                     disabled={soldOut}
-                    className={`relative px-4 py-2 text-sm border transition-colors disabled:cursor-not-allowed ${
+                    className={`relative px-4 py-2 text-sm border rounded-xs capitalize transition-colors disabled:cursor-not-allowed ${
                       soldOut ? "line-through opacity-40" : "cursor-pointer"
                     } ${
                       chosen
-                        ? "border-slate-900 bg-slate-900 text-white"
-                        : "border-slate-300 text-slate-700 hover:border-slate-900"
+                        ? "border-brand-600 bg-brand-600 text-white"
+                        : "border-slate-300 text-slate-700 hover:border-brand-600"
                     }`}
                   >
                     {row?.alt ? `${value} (${row.alt})` : value}
