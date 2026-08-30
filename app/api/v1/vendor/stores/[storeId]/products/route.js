@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { products, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
-import { and, count, eq, ilike } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
@@ -11,6 +11,15 @@ async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
   return store;
 }
+
+// Vendor list ordering - defaults to newest-added first.
+const SORTS = {
+  newest: desc(products.createdAt),
+  oldest: asc(products.createdAt),
+  name: asc(products.name),
+  price_high: desc(products.price),
+  price_low: asc(products.price),
+};
 
 export async function GET(req, { params }) {
   const user = await getUser(req);
@@ -24,6 +33,7 @@ export async function GET(req, { params }) {
   const searchParams = new URL(req.url).searchParams;
   const q = searchParams.get("q")?.trim();
   const categoryId = searchParams.get("category")?.trim();
+  const orderBy = SORTS[searchParams.get("sort")] || SORTS.newest;
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
   const conditions = [eq(products.storeId, storeId)];
   if (q) conditions.push(ilike(products.name, `%${q}%`));
@@ -35,7 +45,7 @@ export async function GET(req, { params }) {
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))
       .where(and(...conditions))
-      .orderBy(products.createdAt)
+      .orderBy(orderBy)
       .limit(limit)
       .offset(offset),
     db.select({ total: count() }).from(products).where(and(...conditions)),

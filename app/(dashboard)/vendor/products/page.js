@@ -42,6 +42,7 @@ export default function VendorProductsPage() {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [sort, setSort] = useState("newest");
   const [loading, setLoading] = useState(true);
 
   const [bulkRows, setBulkRows] = useState([]);
@@ -55,6 +56,7 @@ export default function VendorProductsPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: "5" });
     if (q.trim()) params.set("q", q.trim());
     if (categoryId) params.set("category", categoryId);
+    if (sort && sort !== "newest") params.set("sort", sort);
     apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params.toString()}`)
       .then((data) => {
         setProducts(data.products);
@@ -74,11 +76,11 @@ export default function VendorProductsPage() {
     if (!token || !storeId) return;
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, page, q, categoryId]);
+  }, [token, storeId, page, q, categoryId, sort]);
 
   useEffect(() => {
     setPage(1);
-  }, [q, categoryId, storeId]);
+  }, [q, categoryId, sort, storeId]);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -222,7 +224,7 @@ export default function VendorProductsPage() {
         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
           <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="w-full sm:max-w-sm" />
           {categories.length > 0 && (
-            <div className="w-full sm:w-48">
+            <div className="w-full sm:w-44">
               <Select
                 options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
                 value={categoryId}
@@ -231,6 +233,19 @@ export default function VendorProductsPage() {
               />
             </div>
           )}
+          <div className="w-full sm:w-48">
+            <Select
+              options={[
+                { value: "newest", label: "Newest first" },
+                { value: "oldest", label: "Oldest first" },
+                { value: "name", label: "Name A–Z" },
+                { value: "price_high", label: "Price: high to low" },
+                { value: "price_low", label: "Price: low to high" },
+              ]}
+              value={sort}
+              onChange={setSort}
+            />
+          </div>
         </div>
         <Link href="/vendor/categories" className="text-sm text-brand-600 hover:underline">
           Manage categories
