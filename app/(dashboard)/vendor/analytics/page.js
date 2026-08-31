@@ -88,15 +88,19 @@ export default function VendorAnalyticsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!storeId) return;
+    // Gated on token, not just storeId - storeId comes from the shared
+    // VendorStore context and can be set before this page's own token
+    // resolves on a client-side nav, firing the request with no
+    // Authorization header (401) and never retrying. See VendorStoreContext.js.
+    if (!token || !storeId) return;
     apiFetch(`/api/v1/vendor/stores/${storeId}/branches`)
       .then((d) => setBranches(d.branches))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [token, storeId]);
 
   useEffect(() => {
-    if (!storeId || !from || !to) return;
+    if (!token || !storeId || !from || !to) return;
     setLoading(true);
     const params = new URLSearchParams({ from, to, channel });
     if (branchId) params.set("branchId", branchId);
@@ -105,7 +109,7 @@ export default function VendorAnalyticsPage() {
       .catch((err) => toast.error(err.message || "Failed to load analytics"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, from, to, branchId, channel]);
+  }, [token, storeId, from, to, branchId, channel]);
 
   const applyPreset = (preset) => {
     setActivePreset(preset.key);

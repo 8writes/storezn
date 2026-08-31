@@ -29,6 +29,7 @@ export async function GET(req) {
         lastName: users.lastName,
         email: users.email,
         emailVerified: users.emailVerified,
+        isBanned: users.isBanned,
         approvalStatus: users.approvalStatus,
         nin: users.nin,
         ninSubmittedAt: users.ninSubmittedAt,

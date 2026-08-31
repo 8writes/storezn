@@ -34,6 +34,7 @@ export default function SuperAdminVendorsPage() {
   const [loading, setLoading] = useState(true);
   const [decidingId, setDecidingId] = useState(null);
   const [verifyingEmailId, setVerifyingEmailId] = useState(null);
+  const [busyId, setBusyId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -111,6 +112,56 @@ export default function SuperAdminVendorsPage() {
     }
   };
 
+  const handleToggleSuspend = async (vendor) => {
+    const next = !vendor.isBanned;
+    const ok = await confirm({
+      title: next ? `Suspend ${vendor.firstName}?` : `Restore ${vendor.firstName}?`,
+      description: next
+        ? "They can't sign in and their store(s) go offline until you restore them. Nothing is deleted."
+        : "Un-suspends the vendor and brings back any store they took offline themselves.",
+      confirmLabel: next ? "Suspend" : "Restore",
+      variant: next ? "danger" : "default",
+    });
+    if (!ok) return;
+    setBusyId(vendor.id);
+    try {
+      await apiFetch(`/api/v1/super-admin/vendors/${vendor.id}`, { method: "PATCH", body: JSON.stringify({ isBanned: next }) });
+      toast.success(next ? "Vendor suspended" : "Vendor restored");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to update vendor");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDeleteAccount = async (vendor) => {
+    const result = await confirm({
+      title: `Delete ${vendor.firstName} ${vendor.lastName}'s account?`,
+      description:
+        "Permanent. Removes the vendor and every store they own - all products, photos, categories, branches, staff, orders, reviews and subscription history. This cannot be undone.",
+      requireReason: true,
+      reasonLabel: "Type DELETE to confirm",
+      confirmLabel: "Delete permanently",
+      variant: "danger",
+    });
+    if (!result) return;
+    if (result !== "DELETE") {
+      toast.error("Type DELETE to confirm");
+      return;
+    }
+    setBusyId(vendor.id);
+    try {
+      await apiFetch(`/api/v1/super-admin/vendors/${vendor.id}`, { method: "DELETE" });
+      toast.success("Vendor account deleted");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to delete account");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {confirmDialog}
@@ -156,7 +207,10 @@ export default function SuperAdminVendorsPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-500">{v.ninSubmittedAt ? formatDateTime(v.ninSubmittedAt) : "-"}</td>
                   <td className="px-4 py-3">
-                    <Badge color={STATUS_COLOR[v.approvalStatus] || "slate"}>{v.approvalStatus}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge color={STATUS_COLOR[v.approvalStatus] || "slate"}>{v.approvalStatus}</Badge>
+                      {v.isBanned && <Badge color="red">Suspended</Badge>}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge color={v.emailVerified ? "green" : "amber"}>{v.emailVerified ? "Verified" : "Unverified"}</Badge>
@@ -203,6 +257,22 @@ export default function SuperAdminVendorsPage() {
                           </button>
                         </>
                       )}
+                      <button
+                        type="button"
+                        disabled={busyId === v.id}
+                        onClick={() => handleToggleSuspend(v)}
+                        className="text-slate-600 hover:underline disabled:opacity-50 cursor-pointer"
+                      >
+                        {v.isBanned ? "Restore" : "Suspend"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyId === v.id}
+                        onClick={() => handleDeleteAccount(v)}
+                        className="text-red-600 hover:underline disabled:opacity-50 cursor-pointer"
+                      >
+                        Delete account
+                      </button>
                     </div>
                   </td>
                 </tr>

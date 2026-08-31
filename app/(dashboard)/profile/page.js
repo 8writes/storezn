@@ -89,14 +89,14 @@ export default function ProfilePage() {
     }
   };
 
-  const handleDeleteAccount = async () => {
+  const handleDisableAccount = async () => {
     setDeleting(true);
     try {
       await apiFetch("/api/v1/vendor/account", { method: "DELETE", body: JSON.stringify({ password: deletePassword }) });
-      toast.success("Your account has been deleted");
+      toast.success("Your account and store are now disabled");
       logout();
     } catch (err) {
-      toast.error(err.message || "Failed to delete account");
+      toast.error(err.message || "Failed to disable account");
       setDeleting(false);
     }
   };
@@ -185,10 +185,10 @@ export default function ProfilePage() {
       {user.role === "vendor" && (
         <div className="bg-white border border-red-200 rounded-sm p-5 space-y-3">
           <div>
-            <p className="text-sm font-semibold text-slate-700">Delete account</p>
+            <p className="text-sm font-semibold text-slate-700">Disable account</p>
             <p className="text-xs text-slate-500 mt-1">
-              Permanently removes your account and every store you own - all products, photos, categories, branches,
-              staff, orders, and subscription history. This can&apos;t be undone.
+              Suspends your account and takes your storefront offline. Your products, orders and settings are kept -
+              contact Storezn support to reopen the store or to permanently delete everything.
             </p>
           </div>
           <Button
@@ -200,7 +200,7 @@ export default function ProfilePage() {
               setDeleteOpen(true);
             }}
           >
-            Delete my account
+            Disable my account
           </Button>
         </div>
       )}
@@ -209,11 +209,10 @@ export default function ProfilePage() {
         <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
           <div className="fixed inset-0 bg-black/50" onClick={() => !deleting && setDeleteOpen(false)} />
           <div className="relative bg-white rounded-sm shadow-xl w-full max-w-md p-6 space-y-4 my-auto">
-            <p className="text-sm font-semibold text-slate-900">Delete your account?</p>
+            <p className="text-sm font-semibold text-slate-900">Disable your account?</p>
             <p className="text-sm text-slate-600">
-              This permanently deletes your account and <strong>every store you own</strong>, including all products and
-              their photos, categories, branches, staff, orders, reviews and subscription history. There is no way to
-              recover it.
+              Your account is suspended and every store you own goes offline immediately. Nothing is deleted - Storezn
+              support can reopen it. You&apos;ll be signed out.
             </p>
             <PasswordInput
               label="Confirm your password"
@@ -223,7 +222,7 @@ export default function ProfilePage() {
             />
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">
-                Type <span className="font-mono text-red-600">DELETE</span> to confirm
+                Type <span className="font-mono text-red-600">DISABLE</span> to confirm
               </label>
               <Input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} />
             </div>
@@ -232,10 +231,10 @@ export default function ProfilePage() {
                 type="button"
                 variant="danger"
                 loading={deleting}
-                disabled={!deletePassword || deleteConfirm !== "DELETE"}
-                onClick={handleDeleteAccount}
+                disabled={!deletePassword || deleteConfirm !== "DISABLE"}
+                onClick={handleDisableAccount}
               >
-                Permanently delete
+                Disable account
               </Button>
               <Button type="button" variant="secondary" disabled={deleting} onClick={() => setDeleteOpen(false)}>
                 Cancel
