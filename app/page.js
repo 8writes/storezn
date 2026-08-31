@@ -9,6 +9,7 @@ import {
   ShoppingBag,
   TrendingUp,
   Package,
+  ClipboardList,
   Check,
 } from "lucide-react";
 import { Footer } from "@/components/Footer";
@@ -35,6 +36,7 @@ const PERKS = [
   { icon: Package, title: "Stock kept in check", text: "Inventory updates automatically as orders come in, so you always know what's left." },
   { icon: TrendingUp, title: "See what's selling", text: "Sales and order analytics, right there in your dashboard." },
   { icon: ShoppingBag, title: "Bulk product upload", text: "Import your whole catalog at once with a CSV template, no adding items one by one." },
+  { icon: ClipboardList, title: "Record in-person sales", text: "Sold to a walk-in customer? Ring it up on the built-in POS so stock and takings stay in sync." },
 ];
 
 const STEPS = [
