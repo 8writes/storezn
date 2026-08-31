@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Lock } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
@@ -200,6 +201,10 @@ export default function CheckoutPage() {
         </div>
 
         <Button type="submit" fullWidth size="lg" loading={submitting}>Pay now</Button>
+        <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <Lock size={12} className="shrink-0" />
+          Secured by Paystack
+        </p>
       </form>
     </div>
   );
