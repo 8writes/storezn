@@ -26,6 +26,7 @@ export default function VendorCategoriesPage() {
 
   const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [categories, setCategories] = useState([]);
+  const [visible, setVisible] = useState(10);
   const [loading, setLoading] = useState(true);
 
   // One form for both add and edit - editingId null means "add", set means
@@ -41,7 +42,10 @@ export default function VendorCategoriesPage() {
   const load = () => {
     setLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}/categories`)
-      .then((data) => setCategories(data.categories))
+      .then((data) => {
+        setCategories(data.categories);
+        setVisible(10);
+      })
       .catch((err) => toast.error(err.message || "Failed to load categories"))
       .finally(() => setLoading(false));
   };
@@ -180,7 +184,7 @@ export default function VendorCategoriesPage() {
               <p className="px-4 py-6 text-center text-sm text-slate-700">No categories yet.</p>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {categories.map((c) => (
+                {categories.slice(0, visible).map((c) => (
                   <li
                     key={c.id}
                     className={`flex items-center justify-between gap-3 px-4 py-3 ${editingId === c.id ? "bg-brand-50" : ""}`}
@@ -215,6 +219,16 @@ export default function VendorCategoriesPage() {
               </ul>
             )}
           </div>
+
+          {categories.length > visible && (
+            <button
+              type="button"
+              onClick={() => setVisible((n) => n + 10)}
+              className="text-sm font-medium text-brand-600 hover:underline cursor-pointer"
+            >
+              Show 10 more ({categories.length - visible} left)
+            </button>
+          )}
         </>
       )}
 

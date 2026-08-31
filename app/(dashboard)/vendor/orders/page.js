@@ -49,7 +49,7 @@ export default function VendorOrdersPage() {
     // Authorization header.
     if (!token || !storeId) return;
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page) });
+    const params = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (status) params.set("status", status);
     if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/vendor/stores/${storeId}/orders?${params}`)

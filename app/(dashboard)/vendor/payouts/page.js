@@ -15,7 +15,7 @@ import { InfoTip } from "@/components/ui/InfoTip.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { StatCard } from "@/components/ui/StatCard.js";
-import { StatGridSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton.js";
+import { Skeleton, StatGridSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 import { estimatedSettlementDate } from "@/lib/settlement.js";
 
@@ -159,6 +159,26 @@ export default function VendorPayoutsPage() {
   // lib/auth.js) - staff never see them, even read-only.
   if (user && user.role !== "vendor") {
     return <p className="text-sm text-slate-500">This page is only available to the store owner.</p>;
+  }
+
+  if (loading || !data) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-xl font-bold text-slate-900">Payouts</h1>
+        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-18 w-full max-w-md rounded-sm" />
+        </div>
+        <div className="bg-white border border-slate-200 rounded-sm p-4 space-y-3">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-9 w-44 rounded-sm" />
+        </div>
+        <StatGridSkeleton count={4} />
+        <div className="bg-white border border-slate-200 rounded-sm p-2">
+          <TableRowSkeleton cols={7} rows={5} />
+        </div>
+      </div>
+    );
   }
 
   return (

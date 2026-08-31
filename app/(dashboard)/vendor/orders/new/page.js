@@ -27,9 +27,11 @@ export default function RecordOfflineOrderPage() {
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState("");
   const [products, setProducts] = useState([]);
+  const [productCache, setProductCache] = useState({});
   const [productPage, setProductPage] = useState(1);
   const [pagination, setPagination] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [lowStockThreshold, setLowStockThreshold] = useState(5);
   const [variantsByProduct, setVariantsByProduct] = useState({});
   const [loadingVariantsFor, setLoadingVariantsFor] = useState(null);
@@ -61,16 +63,21 @@ export default function RecordOfflineOrderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // Products load a page at a time and APPEND (never reset) so a product
-  // sitting in the cart is always still resolvable in `products` even
-  // after paging further - see cartLines below.
-  const PAGE_SIZE = 40;
-  const loadProductPage = (pageNum) => {
+  // Search runs against the DB (so it finds products not on the current
+  // page), 10 rows a page with "Load more". Every product ever fetched is
+  // also kept in productCache, keyed by id - a new search replaces the
+  // visible `products` list, but a product already in the cart must stay
+  // resolvable regardless (see cartLines below).
+  const PAGE_SIZE = 10;
+  const loadProductPage = (pageNum, q) => {
     const setBusy = pageNum === 1 ? setLoading : setLoadingMore;
     setBusy(true);
-    apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${pageNum}&pageSize=${PAGE_SIZE}`)
+    const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE) });
+    if (q?.trim()) params.set("q", q.trim());
+    apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`)
       .then((data) => {
         setProducts((prev) => (pageNum === 1 ? data.products : [...prev, ...data.products]));
+        setProductCache((prev) => ({ ...prev, ...Object.fromEntries(data.products.map((p) => [p.id, p])) }));
         setPagination(data.pagination || null);
         setProductPage(pageNum);
         if (data.lowStockThreshold != null) setLowStockThreshold(data.lowStockThreshold);
@@ -80,13 +87,22 @@ export default function RecordOfflineOrderPage() {
   };
 
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setProductCache({});
+  }, [storeId]);
+
+  useEffect(() => {
     if (!token || !storeId) return;
     setProducts([]);
     setProductPage(1);
     setPagination(null);
-    loadProductPage(1);
+    loadProductPage(1, debouncedSearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId]);
+  }, [token, storeId, debouncedSearch]);
 
   useEffect(() => {
     if (!storeId || branchScoped || user?.role !== "vendor") return;
@@ -160,12 +176,12 @@ export default function RecordOfflineOrderPage() {
   const cartLines = useMemo(
     () =>
       cart.map((row) => {
-        const product = products.find((p) => p.id === row.productId);
+        const product = productCache[row.productId] || products.find((p) => p.id === row.productId);
         const variant = row.variantId ? (variantsByProduct[row.productId] || []).find((v) => v.id === row.variantId) : null;
         const unitPrice = variant?.price ?? (product ? getEffectivePrice(product.price, product.discountPercent) : 0);
         return { ...row, product, variant, unitPrice, lineTotal: unitPrice * row.quantity };
       }),
-    [cart, products, variantsByProduct],
+    [cart, products, productCache, variantsByProduct],
   );
   const total = cartLines.reduce((sum, l) => sum + l.lineTotal, 0);
   const cartCountByProduct = useMemo(() => {
@@ -327,19 +343,14 @@ export default function RecordOfflineOrderPage() {
           )}
 
           {!loading && pagination && products.length < pagination.total && (
-            <div className="pt-1 space-y-1">
-              <button
-                type="button"
-                onClick={() => loadProductPage(productPage + 1)}
-                disabled={loadingMore}
-                className="w-full py-2.5 border border-slate-300 rounded-sm text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition-colors cursor-pointer"
-              >
-                {loadingMore ? "Loading…" : `Load more (${products.length} of ${pagination.total})`}
-              </button>
-              {search.trim() && (
-                <p className="text-xs text-slate-400 text-center">Searching the {products.length} loaded products - load more to search the rest.</p>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => loadProductPage(productPage + 1, debouncedSearch)}
+              disabled={loadingMore}
+              className="w-full py-2.5 border border-slate-300 rounded-sm text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition-colors cursor-pointer"
+            >
+              {loadingMore ? "Loading…" : `Load more (${products.length} of ${pagination.total})`}
+            </button>
           )}
         </div>
 

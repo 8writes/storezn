@@ -77,6 +77,7 @@ function buildSetupSteps({ store, verification, stats, pushSubscribed, onEnableP
 function SHORTCUTS(storeId, onOpenGuide, isOwner) {
   const shortcuts = [
     { label: "Add product", icon: Plus, href: `/vendor/products/new?storeId=${storeId}` },
+    { label: "Products", icon: Package, href: "/vendor/products" },
     { label: "Orders", icon: ShoppingBag, href: "/vendor/orders" },
     { label: "Record order", icon: ClipboardList, href: "/vendor/orders/new" },
     { label: "Customers", icon: Users, href: "/vendor/customers" },
@@ -182,7 +183,7 @@ export default function VendorDashboardPage() {
     <div className="space-y-6">
       {isOwner && <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />}
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col items-start gap-3">
         <h1 className="text-xl font-bold text-slate-900">Welcome, {user?.firstName}</h1>
         {stores.length > 0 && (
           <Link href={`/vendor/products/new${storeId ? `?storeId=${storeId}` : ""}`}>
@@ -199,7 +200,7 @@ export default function VendorDashboardPage() {
       ) : (
         <>
           {isOwner && store && verification?.approvalStatus === "approved" && (
-            <div className="space-y-1.5 max-w-md bg-brand-50 border border-brand-100 rounded-sm p-4">
+            <div className="space-y-1.5 bg-brand-50 border border-brand-100 rounded-sm p-4">
               <label className="text-sm font-semibold text-slate-900">This is your store&apos;s link</label>
               <p className="text-xs text-slate-500">Anyone who opens it can browse and buy from you - copy it and share it on WhatsApp, Instagram, anywhere.</p>
               <div className="pt-1">

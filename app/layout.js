@@ -41,7 +41,7 @@ export default function RootLayout({ children }) {
           descendant (the dashboard sidebar uses it). `clip` prevents
           runaway-width content from creating page-level horizontal
           scroll on mobile without that side effect. */}
-      <body className="min-h-full overflow-x-clip bg-slate-50 text-slate-900 antialiased">
+      <body className="min-h-full overflow-x-clip bg-slate-100 text-slate-900 antialiased">
         <RegisterServiceWorker />
         <InstallPrompt />
         <ScrollToTop />

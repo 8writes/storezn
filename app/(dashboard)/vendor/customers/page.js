@@ -31,7 +31,7 @@ export default function VendorCustomersPage() {
     // Authorization header.
     if (!token || !storeId) return;
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page) });
+    const params = new URLSearchParams({ page: String(page), pageSize: "5" });
     if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/vendor/stores/${storeId}/customers?${params}`)
       .then((data) => {

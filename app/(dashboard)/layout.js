@@ -273,7 +273,7 @@ export default function DashboardLayout({ children }) {
     return (
       <div className="min-h-screen flex">
         <div className="hidden sm:block sm:w-60 shrink-0 bg-brand-900" />
-        <div className="flex-1 p-4 sm:p-8 space-y-6 bg-slate-50">
+        <div className="flex-1 p-4 sm:p-8 space-y-6 bg-slate-100">
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-40 w-full" />
         </div>
@@ -364,7 +364,7 @@ export default function DashboardLayout({ children }) {
           <NavLinks groups={groups} pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
         </MobileNavDrawer>
 
-        <main className="flex-1 bg-slate-50">
+        <main className="flex-1 bg-slate-100">
           <PullToRefresh>
             <div className="p-4 sm:p-8">{children}</div>
           </PullToRefresh>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { products, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
-import { and, asc, count, desc, eq, ilike } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, or } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
@@ -36,7 +36,7 @@ export async function GET(req, { params }) {
   const orderBy = SORTS[searchParams.get("sort")] || SORTS.newest;
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
   const conditions = [eq(products.storeId, storeId)];
-  if (q) conditions.push(ilike(products.name, `%${q}%`));
+  if (q) conditions.push(or(ilike(products.name, `%${q}%`), ilike(products.sku, `%${q}%`)));
   if (categoryId) conditions.push(eq(products.categoryId, categoryId));
 
   const [rows, [{ total }]] = await Promise.all([
