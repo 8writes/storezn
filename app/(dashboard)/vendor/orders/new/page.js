@@ -27,6 +27,9 @@ export default function RecordOfflineOrderPage() {
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState("");
   const [products, setProducts] = useState([]);
+  const [productPage, setProductPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [lowStockThreshold, setLowStockThreshold] = useState(5);
   const [variantsByProduct, setVariantsByProduct] = useState({});
   const [loadingVariantsFor, setLoadingVariantsFor] = useState(null);
@@ -58,18 +61,32 @@ export default function RecordOfflineOrderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  useEffect(() => {
-    if (!storeId) return;
-    setLoading(true);
-    apiFetch(`/api/v1/vendor/stores/${storeId}/products?pageSize=100`)
+  // Products load a page at a time and APPEND (never reset) so a product
+  // sitting in the cart is always still resolvable in `products` even
+  // after paging further - see cartLines below.
+  const PAGE_SIZE = 40;
+  const loadProductPage = (pageNum) => {
+    const setBusy = pageNum === 1 ? setLoading : setLoadingMore;
+    setBusy(true);
+    apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${pageNum}&pageSize=${PAGE_SIZE}`)
       .then((data) => {
-        setProducts(data.products);
+        setProducts((prev) => (pageNum === 1 ? data.products : [...prev, ...data.products]));
+        setPagination(data.pagination || null);
+        setProductPage(pageNum);
         if (data.lowStockThreshold != null) setLowStockThreshold(data.lowStockThreshold);
       })
       .catch((err) => toast.error(err.message || "Failed to load products"))
-      .finally(() => setLoading(false));
+      .finally(() => setBusy(false));
+  };
+
+  useEffect(() => {
+    if (!token || !storeId) return;
+    setProducts([]);
+    setProductPage(1);
+    setPagination(null);
+    loadProductPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [token, storeId]);
 
   useEffect(() => {
     if (!storeId || branchScoped || user?.role !== "vendor") return;
@@ -306,6 +323,22 @@ export default function RecordOfflineOrderPage() {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {!loading && pagination && products.length < pagination.total && (
+            <div className="pt-1 space-y-1">
+              <button
+                type="button"
+                onClick={() => loadProductPage(productPage + 1)}
+                disabled={loadingMore}
+                className="w-full py-2.5 border border-slate-300 rounded-sm text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition-colors cursor-pointer"
+              >
+                {loadingMore ? "Loading…" : `Load more (${products.length} of ${pagination.total})`}
+              </button>
+              {search.trim() && (
+                <p className="text-xs text-slate-400 text-center">Searching the {products.length} loaded products - load more to search the rest.</p>
+              )}
             </div>
           )}
         </div>

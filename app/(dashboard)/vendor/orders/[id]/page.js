@@ -16,7 +16,7 @@ import { PriceInput } from "@/components/ui/PriceInput.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { downloadOrderPdf } from "@/lib/orderPdf.js";
 
-const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
+const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", abandoned: "slate", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 const NEXT_ACTIONS = {
   processing: [{ status: "shipped", label: "Mark as shipped" }, { status: "cancelled", label: "Cancel order", variant: "danger" }],
   shipped: [{ status: "delivered", label: "Mark as delivered" }],
@@ -137,8 +137,10 @@ export default function VendorOrderDetailPage({ params }) {
         ...(order.isOffline
           ? []
           : [
-              { label: `Commission (${order.commissionRatePercent}%)`, value: -order.commissionAmount },
-              ...(order.flatFeeAmount > 0 ? [{ label: "Platform fee", value: -order.flatFeeAmount }] : []),
+              {
+                label: `Platform fee (${order.commissionRatePercent}%${order.flatFeeAmount > 0 ? ` + ${formatCurrency(order.flatFeeAmount)}` : ""})`,
+                value: -(order.commissionAmount + (order.flatFeeAmount || 0)),
+              },
             ]),
         { label: "Your payout", value: order.vendorPayoutAmount, bold: true },
       ],
@@ -210,17 +212,14 @@ export default function VendorOrderDetailPage({ params }) {
           </button>
         ))}
         {!order.isOffline && (
-          <div className="pt-2 border-t border-slate-100 space-y-1">
+          <div className="pt-2 border-t border-slate-100">
             <div className="flex justify-between text-sm text-slate-500">
-              <span>Commission ({order.commissionRatePercent}%)</span>
-              <span>-{formatCurrency(order.commissionAmount)}</span>
+              <span>
+                Platform fee ({order.commissionRatePercent}%
+                {order.flatFeeAmount > 0 ? ` + ${formatCurrency(order.flatFeeAmount)}` : ""})
+              </span>
+              <span>-{formatCurrency(order.commissionAmount + (order.flatFeeAmount || 0))}</span>
             </div>
-            {order.flatFeeAmount > 0 && (
-              <div className="flex justify-between text-sm text-slate-500">
-                <span>Platform fee</span>
-                <span>-{formatCurrency(order.flatFeeAmount)}</span>
-              </div>
-            )}
           </div>
         )}
         <div className={`flex justify-between font-semibold text-slate-900 ${order.isOffline ? "pt-2 border-t border-slate-100" : ""}`}>

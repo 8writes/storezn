@@ -415,7 +415,18 @@ export default function VendorProductsPage() {
                   onClick={() => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
                   className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
                 >
-                  <td className="px-4 py-3">{p.name}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      {p.images?.[0] ? (
+                        <img src={p.images[0]} alt="" className="w-9 h-9 rounded-sm object-cover border border-slate-200 shrink-0" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-sm bg-slate-100 shrink-0 flex items-center justify-center text-slate-300">
+                          <ImageOff size={14} />
+                        </div>
+                      )}
+                      <span>{p.name}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{p.categoryName || "-"}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(p.price)}</td>
                   <td className="px-4 py-3 text-slate-500 capitalize">

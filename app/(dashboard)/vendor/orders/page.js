@@ -15,7 +15,7 @@ import { TableRowSkeleton, CardListSkeleton } from "@/components/ui/Skeleton.js"
 import { formatCurrency, formatDate } from "@/lib/format.js";
 import { Plus } from "lucide-react";
 
-const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
+const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", abandoned: "slate", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
   { value: "processing", label: "Processing" },
@@ -25,6 +25,7 @@ const STATUS_OPTIONS = [
   { value: "refund_requested", label: "Refund requested" },
   { value: "refunded", label: "Refunded" },
   { value: "refund_declined", label: "Refund declined" },
+  { value: "abandoned", label: "Abandoned" },
 ];
 
 export default function VendorOrdersPage() {
