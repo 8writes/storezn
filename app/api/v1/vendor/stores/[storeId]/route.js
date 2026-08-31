@@ -37,7 +37,10 @@ export async function GET(req, { params }) {
   // commission rate) - see platformSettings.defaultFlatFee.
   const effectiveFlatFee = settings?.defaultFlatFee ?? 0;
   const isPlus = isPlusStore(store);
-  const plusMonthlyPrice = settings?.plusMonthlyPrice ?? 5000;
+  // Same override pattern as commission above - surfaces the price
+  // this store will actually be charged, not the platform default, so a
+  // discounted vendor never sees one number here and gets billed another.
+  const plusMonthlyPrice = store.subscriptionPriceOverride ?? settings?.plusMonthlyPrice ?? 5000;
   const storageUsedBytes = await getStoreStorageUsage(storeId);
   const storageLimitBytes = getStorageLimitBytes(store, settings || { freeStorageMb: 500, plusStorageMb: 5000 });
   // Available to any canManageStore user (staff included), unlike the

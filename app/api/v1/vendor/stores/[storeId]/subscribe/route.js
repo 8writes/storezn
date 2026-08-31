@@ -41,10 +41,17 @@ export async function POST(req, { params }) {
 
   const body = await req.json().catch(() => ({}));
   const reference = `STOREZNSUB-${nanoid()}`;
+  // Same override pattern as commission - a super_admin-set discount for
+  // this store (see /api/v1/super-admin/stores/[id]) wins over the
+  // platform-wide price. Still on the same Paystack Plan (settings.
+  // paystackPlanCode) either way; passing a different `amount` alongside
+  // `plan` is what makes this specific subscription renew at that amount
+  // going forward instead of the plan's own default.
+  const amount = store.subscriptionPriceOverride ?? settings.plusMonthlyPrice;
 
   try {
     const { authorizationUrl } = await initializeTransaction({
-      amount: settings.plusMonthlyPrice,
+      amount,
       email: owner.email,
       reference,
       redirectUrl: body.redirectUrl,

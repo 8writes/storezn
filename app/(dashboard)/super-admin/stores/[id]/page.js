@@ -21,8 +21,10 @@ export default function SuperAdminStoreDetailPage({ params }) {
   const [owner, setOwner] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [rateOverride, setRateOverride] = useState("");
+  const [priceOverride, setPriceOverride] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingPrice, setSavingPrice] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
 
@@ -34,6 +36,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         setOwner(data.owner);
         setTransactions(data.transactions);
         setRateOverride(data.store.commissionRatePercent != null ? String(data.store.commissionRatePercent) : "");
+        setPriceOverride(data.store.subscriptionPriceOverride != null ? String(data.store.subscriptionPriceOverride) : "");
       })
       .catch((err) => toast.error(err.message || "Failed to load store"))
       .finally(() => setLoading(false));
@@ -57,6 +60,22 @@ export default function SuperAdminStoreDetailPage({ params }) {
       toast.error(err.message || "Failed to update rate");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const savePrice = async () => {
+    setSavingPrice(true);
+    try {
+      const data = await apiFetch(`/api/v1/super-admin/stores/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ subscriptionPriceOverride: priceOverride === "" ? null : Number(priceOverride) }),
+      });
+      setStore(data.store);
+      toast.success("Subscription price updated");
+    } catch (err) {
+      toast.error(err.message || "Failed to update price");
+    } finally {
+      setSavingPrice(false);
     }
   };
 
@@ -196,6 +215,15 @@ export default function SuperAdminStoreDetailPage({ params }) {
         <div className="flex items-end gap-3">
           <Input label="Commission rate (%)" type="number" min="0" max="100" step="0.1" value={rateOverride} onChange={(e) => setRateOverride(e.target.value)} className="flex-1" />
           <Button onClick={saveRate} loading={saving}>Save</Button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+        <p className="text-sm font-semibold text-slate-700">Custom Storezn+ price</p>
+        <p className="text-xs text-slate-500">Leave blank to use the platform default price. Only applies the next time this store subscribes - doesn&apos;t change an already-active subscription&apos;s charge.</p>
+        <div className="flex items-end gap-3">
+          <Input label="Monthly price" type="number" min="0" step="1" value={priceOverride} onChange={(e) => setPriceOverride(e.target.value)} className="flex-1" />
+          <Button onClick={savePrice} loading={savingPrice}>Save</Button>
         </div>
       </div>
 
