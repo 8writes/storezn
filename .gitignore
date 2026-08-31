@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# local Supabase CLI session state/secrets - regenerated per machine by
+# `supabase start`, never meant to be committed
+supabase/.temp/start-secrets/

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -14,10 +14,9 @@ import { Switch } from "@/components/ui/Switch.js";
 import { formatCurrency } from "@/lib/format.js";
 import { isPlusStore } from "@/lib/storePlan.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
-import { Plus, Trash2 } from "lucide-react";
+import { Search, Plus, Minus, Trash2, X, ImageOff, ShoppingCart, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-const EMPTY_ITEM = { productId: "", variantId: "", quantity: "1" };
 const EMPTY_BUYER = { buyerName: "Walk In Customer", buyerEmail: "", buyerPhone: "", note: "", delivered: true };
 
 export default function RecordOfflineOrderPage() {
@@ -28,14 +27,19 @@ export default function RecordOfflineOrderPage() {
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState("");
   const [products, setProducts] = useState([]);
+  const [lowStockThreshold, setLowStockThreshold] = useState(5);
   const [variantsByProduct, setVariantsByProduct] = useState({});
+  const [loadingVariantsFor, setLoadingVariantsFor] = useState(null);
   const [branches, setBranches] = useState([]);
   const [branchId, setBranchId] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const [search, setSearch] = useState("");
+  const [cart, setCart] = useState([]); // [{ key, productId, variantId, quantity }]
+  const [pickerProduct, setPickerProduct] = useState(null);
+
   const [buyer, setBuyer] = useState(EMPTY_BUYER);
-  const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
 
   // A branch-scoped staff member's own branch is used automatically by
   // the server regardless of what's sent (see the offline order route) -
@@ -58,7 +62,10 @@ export default function RecordOfflineOrderPage() {
     if (!storeId) return;
     setLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}/products?pageSize=100`)
-      .then((data) => setProducts(data.products))
+      .then((data) => {
+        setProducts(data.products);
+        if (data.lowStockThreshold != null) setLowStockThreshold(data.lowStockThreshold);
+      })
       .catch((err) => toast.error(err.message || "Failed to load products"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,39 +82,84 @@ export default function RecordOfflineOrderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, branchScoped, user?.role]);
 
-  const loadVariants = (productId) => {
-    if (!productId || variantsByProduct[productId]) return;
-    apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`)
-      .then((data) => setVariantsByProduct((v) => ({ ...v, [productId]: data.variants })))
-      .catch(() => setVariantsByProduct((v) => ({ ...v, [productId]: [] })));
+  // Resets the whole sale (cart + picked product/branch selectors stay,
+  // only the ticket itself clears) whenever the vendor switches store -
+  // items from one store's catalog make no sense against another.
+  useEffect(() => {
+    setCart([]);
+  }, [storeId]);
+
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
+  }, [products, search]);
+
+  const ensureVariants = async (productId) => {
+    if (variantsByProduct[productId]) return variantsByProduct[productId];
+    setLoadingVariantsFor(productId);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`);
+      setVariantsByProduct((v) => ({ ...v, [productId]: data.variants }));
+      return data.variants;
+    } catch {
+      setVariantsByProduct((v) => ({ ...v, [productId]: [] }));
+      return [];
+    } finally {
+      setLoadingVariantsFor(null);
+    }
   };
 
-  const updateItem = (index, patch) => {
-    setItems((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  const addToCart = (product, variant) => {
+    const key = `${product.id}:${variant?.id || ""}`;
+    setCart((rows) => {
+      const existing = rows.find((r) => r.key === key);
+      if (existing) return rows.map((r) => (r.key === key ? { ...r, quantity: r.quantity + 1 } : r));
+      return [...rows, { key, productId: product.id, variantId: variant?.id || null, quantity: 1 }];
+    });
   };
 
-  const handleProductChange = (index, productId) => {
-    updateItem(index, { productId, variantId: "" });
-    loadVariants(productId);
+  // Tapping a card is the whole interaction: a simple product (no
+  // variants) goes straight into the cart, one tap = one unit, tap again
+  // to bump the quantity. A product WITH variants opens the quick picker
+  // below instead - we only find out which case this is once the variant
+  // list loads (lazily, then cached), so there's a brief per-product
+  // loading state on the card itself rather than a separate spinner.
+  const handleProductTap = async (product) => {
+    if (loadingVariantsFor) return;
+    const variants = await ensureVariants(product.id);
+    if (variants.length === 0) addToCart(product, null);
+    else setPickerProduct(product);
   };
 
-  const addItem = () => setItems((rows) => [...rows, { ...EMPTY_ITEM }]);
-  const removeItem = (index) => setItems((rows) => rows.filter((_, i) => i !== index));
+  const updateCartQty = (key, quantity) => {
+    if (quantity <= 0) {
+      setCart((rows) => rows.filter((r) => r.key !== key));
+      return;
+    }
+    setCart((rows) => rows.map((r) => (r.key === key ? { ...r, quantity } : r)));
+  };
 
-  const productOptions = products.map((p) => ({ value: p.id, label: `${p.name} (${formatCurrency(getEffectivePrice(p.price, p.discountPercent))})` }));
-
-  const total = items.reduce((sum, row) => {
-    const product = products.find((p) => p.id === row.productId);
-    if (!product) return sum;
-    const variant = (variantsByProduct[row.productId] || []).find((v) => v.id === row.variantId);
-    const unitPrice = variant?.price ?? getEffectivePrice(product.price, product.discountPercent);
-    return sum + unitPrice * (Number(row.quantity) || 0);
-  }, 0);
+  const cartLines = useMemo(
+    () =>
+      cart.map((row) => {
+        const product = products.find((p) => p.id === row.productId);
+        const variant = row.variantId ? (variantsByProduct[row.productId] || []).find((v) => v.id === row.variantId) : null;
+        const unitPrice = variant?.price ?? (product ? getEffectivePrice(product.price, product.discountPercent) : 0);
+        return { ...row, product, variant, unitPrice, lineTotal: unitPrice * row.quantity };
+      }),
+    [cart, products, variantsByProduct],
+  );
+  const total = cartLines.reduce((sum, l) => sum + l.lineTotal, 0);
+  const cartCountByProduct = useMemo(() => {
+    const map = new Map();
+    for (const line of cartLines) map.set(line.productId, (map.get(line.productId) || 0) + line.quantity);
+    return map;
+  }, [cartLines]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const validItems = items.filter((row) => row.productId && Number(row.quantity) > 0);
-    if (validItems.length === 0) {
+    if (cartLines.length === 0) {
       toast.error("Add at least one item");
       return;
     }
@@ -117,10 +169,10 @@ export default function RecordOfflineOrderPage() {
       const payload = {
         buyerName: buyer.buyerName,
         delivered: buyer.delivered,
-        items: validItems.map((row) => ({
-          productId: row.productId,
-          ...(row.variantId ? { variantId: row.variantId } : {}),
-          quantity: Number(row.quantity),
+        items: cartLines.map((l) => ({
+          productId: l.productId,
+          ...(l.variantId ? { variantId: l.variantId } : {}),
+          quantity: l.quantity,
         })),
       };
       if (buyer.buyerEmail) payload.buyerEmail = buyer.buyerEmail;
@@ -161,95 +213,231 @@ export default function RecordOfflineOrderPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <BackLink href="/vendor/orders" label="Back to orders" />
 
-      <div>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-xl font-bold text-slate-900 flex items-center gap-1.5">
           Record an offline order
           <InfoTip>
             For a sale that happened in person, by phone, or in cash - not through your storefront checkout. It&apos;s recorded as paid immediately and stock is deducted right away.
           </InfoTip>
         </h1>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
         {(stores.length > 1 || branches.length > 1) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+          <div className="flex gap-3">
             {stores.length > 1 && (
-              <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+              <div className="w-44">
+                <Select options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+              </div>
             )}
             {branches.length > 1 && (
-              <Select label="Branch" options={branches.map((b) => ({ value: b.id, label: b.name }))} value={branchId} onChange={setBranchId} required />
+              <div className="w-44">
+                <Select options={branches.map((b) => ({ value: b.id, label: b.name }))} value={branchId} onChange={setBranchId} required />
+              </div>
             )}
           </div>
         )}
+      </div>
 
-        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
-          <p className="text-sm font-semibold text-slate-700">Customer</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Name" value={buyer.buyerName} onChange={(e) => setBuyer((b) => ({ ...b, buyerName: e.target.value }))} required />
-            <Input label="Phone (optional)" value={buyer.buyerPhone} onChange={(e) => setBuyer((b) => ({ ...b, buyerPhone: e.target.value }))} />
-            <Input
-              label="Email (optional)"
-              type="email"
-              className="sm:col-span-2"
-              value={buyer.buyerEmail}
-              onChange={(e) => setBuyer((b) => ({ ...b, buyerEmail: e.target.value }))}
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
+        {/* ---- Product picker ---- */}
+        <div className="space-y-4 min-w-0">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products by name or SKU..."
+              className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-sm text-base outline-none focus:border-brand-500 bg-white"
             />
           </div>
-        </div>
 
-        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
-          <p className="text-sm font-semibold text-slate-700">Items</p>
-          <div className="space-y-3">
-            {items.map((row, index) => {
-              const variantOptions = (variantsByProduct[row.productId] || []).map((v) => ({
-                value: v.id,
-                label: Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", "),
-              }));
-              return (
-                <div key={index} className="grid grid-cols-2 sm:grid-cols-[2fr_1.5fr_1fr_auto] gap-3 items-end">
-                  <Select label="Product" options={productOptions} loading={loading} value={row.productId} onChange={(v) => handleProductChange(index, v)} />
-                  {variantOptions.length > 0 && (
-                    <Select label="Option" options={variantOptions} value={row.variantId} onChange={(v) => updateItem(index, { variantId: v })} />
-                  )}
-                  <Input label="Qty" type="number" min="1" value={row.quantity} onChange={(e) => updateItem(index, { quantity: e.target.value })} />
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="aspect-square bg-slate-100 rounded-sm animate-pulse" />
+              ))}
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <p className="text-sm text-slate-700 py-8 text-center">{search ? "No products match your search" : "No products yet"}</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {filteredProducts.map((p) => {
+                const cartQty = cartCountByProduct.get(p.id) || 0;
+                const isOutOfStock = p.productType === "physical" && p.stock === 0;
+                const isLowStock = p.productType === "physical" && p.stock != null && p.stock > 0 && p.stock <= lowStockThreshold;
+                const isLoadingThis = loadingVariantsFor === p.id;
+                return (
                   <button
                     type="button"
-                    onClick={() => removeItem(index)}
-                    disabled={items.length === 1}
-                    className="h-10 w-10 flex items-center justify-center text-slate-700 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    key={p.id}
+                    onClick={() => handleProductTap(p)}
+                    disabled={isOutOfStock || isLoadingThis}
+                    className="relative text-left bg-white border border-slate-200 rounded-sm overflow-hidden hover:border-brand-400 hover:shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer group"
                   >
-                    <Trash2 size={16} />
+                    {cartQty > 0 && (
+                      <span className="absolute top-1.5 right-1.5 z-10 min-w-5 h-5 px-1 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center">
+                        {cartQty}
+                      </span>
+                    )}
+                    <div className="aspect-square bg-slate-100 flex items-center justify-center relative">
+                      {p.images?.[0] ? (
+                        <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageOff size={22} className="text-slate-300" />
+                      )}
+                      {isLoadingThis && (
+                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                          <Loader2 size={20} className="text-brand-600 animate-spin" />
+                        </div>
+                      )}
+                      {isOutOfStock && (
+                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                          <span className="text-xs font-semibold text-red-600">Out of stock</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-2 space-y-0.5">
+                      <p className="text-xs font-medium text-slate-900 line-clamp-2 leading-tight">{p.name}</p>
+                      <p className="text-sm font-semibold text-brand-700">{formatCurrency(getEffectivePrice(p.price, p.discountPercent))}</p>
+                      {isLowStock && <p className="text-[11px] text-amber-600 font-medium">{p.stock} left</p>}
+                    </div>
                   </button>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ---- Current sale ---- */}
+        <div className="space-y-4 lg:sticky lg:top-4">
+          <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+            <p className="text-sm font-semibold text-slate-700 px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+              <ShoppingCart size={16} className="text-slate-400" />
+              Current sale
+            </p>
+
+            {cartLines.length === 0 ? (
+              <p className="text-sm text-slate-700 px-4 py-6 text-center">Tap a product to add it</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                {cartLines.map((l) => (
+                  <li key={l.key} className="flex items-center gap-2.5 px-4 py-2.5">
+                    {l.product?.images?.[0] ? (
+                      <img src={l.product.images[0]} alt="" className="w-10 h-10 rounded-sm object-cover shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-sm bg-slate-100 shrink-0 flex items-center justify-center text-slate-300">
+                        <ImageOff size={14} />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-slate-900 truncate">{l.product?.name || "Unknown product"}</p>
+                      {l.variant && (
+                        <p className="text-[11px] text-slate-500 truncate">
+                          {Object.entries(l.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ")}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-slate-500">{formatCurrency(l.unitPrice)} each</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 border border-slate-300 rounded-sm shrink-0">
+                      <button type="button" onClick={() => updateCartQty(l.key, l.quantity - 1)} className="h-6 w-6 flex items-center justify-center hover:bg-slate-50 cursor-pointer">
+                        <Minus size={11} />
+                      </button>
+                      <span className="w-4 text-center text-xs">{l.quantity}</span>
+                      <button type="button" onClick={() => updateCartQty(l.key, l.quantity + 1)} className="h-6 w-6 flex items-center justify-center hover:bg-slate-50 cursor-pointer">
+                        <Plus size={11} />
+                      </button>
+                    </div>
+                    <button type="button" onClick={() => updateCartQty(l.key, 0)} className="text-slate-400 hover:text-red-600 cursor-pointer shrink-0">
+                      <Trash2 size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex justify-between items-center px-4 py-3 border-t border-slate-100 font-semibold text-slate-900">
+              <span className="text-sm">Total</span>
+              <span>{formatCurrency(total)}</span>
+            </div>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={addItem} className="w-fit">
-            <Plus size={14} /> Add item
+
+          <div className="bg-white border border-slate-200 rounded-sm p-4 space-y-3">
+            <p className="text-sm font-semibold text-slate-700">Customer</p>
+            <Input label="Name" value={buyer.buyerName} onChange={(e) => setBuyer((b) => ({ ...b, buyerName: e.target.value }))} required />
+            <Input label="Phone (optional)" value={buyer.buyerPhone} onChange={(e) => setBuyer((b) => ({ ...b, buyerPhone: e.target.value }))} />
+            <Input label="Email (optional)" type="email" value={buyer.buyerEmail} onChange={(e) => setBuyer((b) => ({ ...b, buyerEmail: e.target.value }))} />
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-sm p-4">
+            <Textarea label="Note (optional)" rows={2} placeholder="e.g. paid by cash, delivered by hand" value={buyer.note} onChange={(e) => setBuyer((b) => ({ ...b, note: e.target.value }))} />
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-sm p-4">
+            <Switch
+              checked={buyer.delivered}
+              onChange={(delivered) => setBuyer((b) => ({ ...b, delivered }))}
+              label="Already delivered"
+              description={buyer.delivered ? "Recorded straight to delivered." : "Recorded as processing, same as a fresh online order."}
+            />
+          </div>
+
+          <Button type="submit" loading={submitting} disabled={cartLines.length === 0} fullWidth size="lg">
+            Record sale{cartLines.length > 0 ? ` · ${formatCurrency(total)}` : ""}
           </Button>
+        </div>
+      </form>
 
-          <div className="flex justify-between pt-3 border-t border-slate-100 font-semibold text-slate-900">
-            <span>Total</span>
-            <span>{formatCurrency(total)}</span>
+      {/* ---- Variant picker ---- */}
+      {pickerProduct && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setPickerProduct(null)} />
+          <div className="relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[80vh] flex flex-col">
+            <div className="flex items-center gap-3 p-4 border-b border-slate-100">
+              {pickerProduct.images?.[0] ? (
+                <img src={pickerProduct.images[0]} alt="" className="w-12 h-12 rounded-sm object-cover shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-sm bg-slate-100 shrink-0 flex items-center justify-center text-slate-300">
+                  <ImageOff size={16} />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900 truncate">{pickerProduct.name}</p>
+                <p className="text-xs text-slate-500">Choose an option</p>
+              </div>
+              <button type="button" onClick={() => setPickerProduct(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer shrink-0">
+                <X size={18} />
+              </button>
+            </div>
+            <ul className="overflow-y-auto divide-y divide-slate-100">
+              {(variantsByProduct[pickerProduct.id] || []).map((v) => {
+                const out = v.stock === 0;
+                return (
+                  <li key={v.id}>
+                    <button
+                      type="button"
+                      disabled={out}
+                      onClick={() => {
+                        addToCart(pickerProduct, v);
+                        setPickerProduct(null);
+                      }}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <span className="text-sm text-slate-900">
+                        {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
+                        {out && <span className="text-red-600 font-medium"> - Out of stock</span>}
+                        {!out && v.stock != null && v.stock <= lowStockThreshold && <span className="text-amber-600 font-medium"> - {v.stock} left</span>}
+                      </span>
+                      <span className="text-sm font-semibold text-brand-700 shrink-0">{formatCurrency(v.price)}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
-
-        <div className="bg-white border border-slate-200 rounded-sm p-5">
-          <Textarea label="Note (optional)" rows={2} placeholder="e.g. paid by cash, delivered by hand" value={buyer.note} onChange={(e) => setBuyer((b) => ({ ...b, note: e.target.value }))} />
-        </div>
-
-        <Switch
-          checked={buyer.delivered}
-          onChange={(delivered) => setBuyer((b) => ({ ...b, delivered }))}
-          label="This order has already been delivered"
-          description={buyer.delivered ? "Recorded straight to delivered - no shipping steps in between." : "Recorded as processing, same as a fresh online order."}
-        />
-
-        <Button type="submit" loading={submitting} fullWidth>Record order</Button>
-      </form>
+      )}
     </div>
   );
 }
