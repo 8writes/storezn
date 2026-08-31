@@ -26,6 +26,10 @@ export default function ProfilePage() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [notifSaving, setNotifSaving] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -82,6 +86,18 @@ export default function ProfilePage() {
       toast.error(err.message || "Failed to change password");
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await apiFetch("/api/v1/vendor/account", { method: "DELETE", body: JSON.stringify({ password: deletePassword }) });
+      toast.success("Your account has been deleted");
+      logout();
+    } catch (err) {
+      toast.error(err.message || "Failed to delete account");
+      setDeleting(false);
     }
   };
 
@@ -163,6 +179,69 @@ export default function ProfilePage() {
             <p className="text-xs text-slate-500 mt-1">You&apos;ll lose access to this store&apos;s dashboard immediately.</p>
           </div>
           <Button type="button" variant="danger" loading={leaving} onClick={handleLeaveStore}>Leave store</Button>
+        </div>
+      )}
+
+      {user.role === "vendor" && (
+        <div className="bg-white border border-red-200 rounded-sm p-5 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-700">Delete account</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Permanently removes your account and every store you own - all products, photos, categories, branches,
+              staff, orders, and subscription history. This can&apos;t be undone.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              setDeletePassword("");
+              setDeleteConfirm("");
+              setDeleteOpen(true);
+            }}
+          >
+            Delete my account
+          </Button>
+        </div>
+      )}
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+          <div className="fixed inset-0 bg-black/50" onClick={() => !deleting && setDeleteOpen(false)} />
+          <div className="relative bg-white rounded-sm shadow-xl w-full max-w-md p-6 space-y-4 my-auto">
+            <p className="text-sm font-semibold text-slate-900">Delete your account?</p>
+            <p className="text-sm text-slate-600">
+              This permanently deletes your account and <strong>every store you own</strong>, including all products and
+              their photos, categories, branches, staff, orders, reviews and subscription history. There is no way to
+              recover it.
+            </p>
+            <PasswordInput
+              label="Confirm your password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">
+                Type <span className="font-mono text-red-600">DELETE</span> to confirm
+              </label>
+              <Input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <Button
+                type="button"
+                variant="danger"
+                loading={deleting}
+                disabled={!deletePassword || deleteConfirm !== "DELETE"}
+                onClick={handleDeleteAccount}
+              >
+                Permanently delete
+              </Button>
+              <Button type="button" variant="secondary" disabled={deleting} onClick={() => setDeleteOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
