@@ -41,13 +41,14 @@ export async function POST(req, { params }) {
 
   const body = await req.json().catch(() => ({}));
   const reference = `STOREZNSUB-${nanoid()}`;
-  // Same override pattern as commission - a super_admin-set discount for
-  // this store (see /api/v1/super-admin/stores/[id]) wins over the
-  // platform-wide price. Still on the same Paystack Plan (settings.
-  // paystackPlanCode) either way; passing a different `amount` alongside
-  // `plan` is what makes this specific subscription renew at that amount
-  // going forward instead of the plan's own default.
+  // A super_admin-set discount for this store (see /api/v1/super-admin/
+  // stores/[id]) wins over the platform-wide price. It also gets its own
+  // Paystack Plan (paystackPlanCodeOverride) - Paystack renews at the
+  // plan's amount, so a discounted store on the shared plan would renew
+  // at the full plusMonthlyPrice. `amount` and `plan` are resolved
+  // together so they always match.
   const amount = store.subscriptionPriceOverride ?? settings.plusMonthlyPrice;
+  const planCode = store.paystackPlanCodeOverride ?? settings.paystackPlanCode;
 
   try {
     const { authorizationUrl } = await initializeTransaction({
@@ -55,7 +56,7 @@ export async function POST(req, { params }) {
       email: owner.email,
       reference,
       redirectUrl: body.redirectUrl,
-      plan: settings.paystackPlanCode,
+      plan: planCode,
       metadata: { storeId },
     });
     return NextResponse.json({ authorizationUrl });

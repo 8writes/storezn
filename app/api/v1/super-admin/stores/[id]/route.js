@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
 import { validate, updateStoreStatusSchema } from "../../../../../../lib/validate.js";
 import { logActivity } from "../../../../../../lib/activityLog.js";
+import { createPlan, updatePlan } from "../../../../../../lib/paystack.js";
 
 export async function GET(req, { params }) {
   const user = await getUser(req);
@@ -58,6 +59,34 @@ export async function PATCH(req, { params }) {
 
   if (data.isActive === true) data.disabledReason = null;
   if (data.isActive === false) data.disabledReason = "manual";
+
+  // A custom Storezn+ price needs its own Paystack Plan - Paystack renews
+  // a subscription at its PLAN's amount, not the `amount` the initialize
+  // call sent, so on the shared plan an overridden store would just renew
+  // at platformSettings.plusMonthlyPrice. Provision/adjust that plan here
+  // so subscribe/route.js can point new subscriptions at it. (An
+  // already-active subscription keeps whatever plan it was created on -
+  // the vendor re-subscribes to pick up a changed price.)
+  if ("subscriptionPriceOverride" in data) {
+    try {
+      if (data.subscriptionPriceOverride == null) {
+        data.paystackPlanCodeOverride = null;
+      } else if (store.paystackPlanCodeOverride) {
+        await updatePlan(store.paystackPlanCodeOverride, { amount: data.subscriptionPriceOverride });
+      } else {
+        const { planCode } = await createPlan({
+          name: `Storezn+ - ${store.name}`.slice(0, 100),
+          amount: data.subscriptionPriceOverride,
+        });
+        data.paystackPlanCodeOverride = planCode;
+      }
+    } catch (err) {
+      return NextResponse.json(
+        { error: `Couldn't set the custom price with Paystack: ${err.message || "try again"}` },
+        { status: 502 },
+      );
+    }
+  }
 
   if (data.unlockPayoutAccount) {
     delete data.unlockPayoutAccount;
