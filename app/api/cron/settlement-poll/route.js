@@ -10,7 +10,10 @@ import { syncStoreSettlements } from "../../../../lib/settlementSync.js";
 // trigger a burst of Paystack API calls.
 export async function GET(req) {
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Fail closed if the secret isn't configured - otherwise the check
+  // becomes `auth !== "Bearer undefined"`, which a request literally
+  // sending `Authorization: Bearer undefined` would pass.
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

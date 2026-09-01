@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { orders, orderItems, carts, cartItems, users, customers, stores, storeSubscriptionTransactions, branches, productBranchStock } from "../../../../../lib/db/schema.js";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import { verifyWebhookSignature, verifyTransaction } from "../../../../../lib/paystack.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../lib/email/escapeHtml.js";
@@ -137,7 +137,15 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const event = JSON.parse(rawBody);
+  let event;
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    // Signature already passed, so this is effectively unreachable - but a
+    // thrown SyntaxError here would be a 500, which Paystack retries
+    // forever. A 400 is terminal.
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
   if (event.event === "subscription.create") {
     await handleSubscriptionCreate(event);
@@ -205,8 +213,24 @@ export async function POST(req) {
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
   const lowStockNow = [];
   let oversold = false;
+  let wonClaim = false;
 
   await db.transaction(async (tx) => {
+    // The status flip is the idempotency claim, done atomically: this
+    // endpoint is reachable both directly and via the shared forwarder,
+    // and Paystack retries on any non-2xx, so two deliveries for the same
+    // charge can race here. Only the one whose UPDATE actually matches a
+    // not-yet-paid row proceeds; the loser matches zero rows and bails
+    // before re-reserving stock, re-sending the confirmation email, or
+    // firing a second "new order" push.
+    const claimed = await tx
+      .update(orders)
+      .set({ paymentStatus: "paid", status: "processing", paidAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(orders.id, order.id), ne(orders.paymentStatus, "paid")))
+      .returning({ id: orders.id });
+    if (claimed.length === 0) return;
+    wonClaim = true;
+
     if (wasAlreadyReleased && order.branchId) {
       try {
         await reserveStock(
@@ -226,11 +250,6 @@ export async function POST(req) {
         }
       }
     }
-
-    await tx
-      .update(orders)
-      .set({ paymentStatus: "paid", status: "processing", paidAt: new Date(), updatedAt: new Date() })
-      .where(eq(orders.id, order.id));
 
     // Stock is no longer decremented here for the normal path - checkout
     // already reserved it atomically at order-creation time (see
@@ -275,6 +294,10 @@ export async function POST(req) {
       await tx.update(carts).set({ status: "converted", updatedAt: new Date() }).where(eq(carts.id, order.cartId));
     }
   });
+
+  // A concurrent delivery already fully processed this order - don't send
+  // a duplicate confirmation email or a second "new order" push.
+  if (!wonClaim) return NextResponse.json({ received: true });
 
   if (oversold) {
     console.error(`Paystack webhook: order ${order.orderNumber} confirmed paid but could not re-reserve stock - needs manual attention`);

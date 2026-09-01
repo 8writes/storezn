@@ -83,7 +83,7 @@ export async function POST(req) {
     }
   }
 
-  const [settings] = await db.select().from(platformSettings).limit(1);
+  const [settings] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
   const commissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
   // The vendor's own choice for their store (see updateVendorStoreSchema),
   // not a platform-wide setting.

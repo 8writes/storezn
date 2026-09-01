@@ -31,7 +31,7 @@ export async function GET(req, { params }) {
   // custom rate for this specific store (see /api/v1/super-admin/stores/
   // [id]) - this surfaces the rate that's actually applied at checkout
   // either way, so the vendor isn't left guessing which one is in effect.
-  const [settings] = await db.select().from(platformSettings).limit(1);
+  const [settings] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
   const effectiveCommissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
   // Flat fee is platform-wide only (no per-store override, unlike the
   // commission rate) - see platformSettings.defaultFlatFee.

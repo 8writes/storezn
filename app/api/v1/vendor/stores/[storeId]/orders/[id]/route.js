@@ -78,11 +78,16 @@ export async function PATCH(req, { params }) {
     if (!refundRequest || refundRequest.status !== "pending") {
       return NextResponse.json({ error: "No pending refund request for this order" }, { status: 400 });
     }
-    await db.transaction(async (tx) => {
-      await tx
+    const decided = await db.transaction(async (tx) => {
+      // Guarded on status = 'pending' so two racing decisions (e.g. a
+      // double-clicked "Approve") can't both pass the check above and
+      // both restock the same items.
+      const [claimed] = await tx
         .update(refundRequests)
         .set({ status: refundDecision, reviewedBy: user.id, reviewNote: reviewNote || null, reviewedAt: new Date() })
-        .where(eq(refundRequests.id, refundRequest.id));
+        .where(and(eq(refundRequests.id, refundRequest.id), eq(refundRequests.status, "pending")))
+        .returning({ id: refundRequests.id });
+      if (!claimed) return false;
       await tx
         .update(orders)
         .set({ status: refundDecision === "approved" ? "refunded" : "refund_declined", updatedAt: new Date() })
@@ -91,7 +96,9 @@ export async function PATCH(req, { params }) {
         const refundedItems = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
         await restockItems(tx, refundedItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, branchId: order.branchId })));
       }
+      return true;
     });
+    if (!decided) return NextResponse.json({ error: "This refund request was already reviewed" }, { status: 409 });
     const [updated] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
     return NextResponse.json({ order: updated });
   }
@@ -113,13 +120,23 @@ export async function PATCH(req, { params }) {
     // when the customer actually received the item, not from payment.
     if (status === "delivered") data.deliveredAt = new Date();
     const updated = await db.transaction(async (tx) => {
-      const [row] = await tx.update(orders).set(data).where(eq(orders.id, id)).returning();
+      // Guarded on the status we validated the transition against - two
+      // racing PATCHes (e.g. "cancel" and "mark shipped" fired together)
+      // must not both apply, or a cancelled order could ship AND have its
+      // stock returned for resale.
+      const [row] = await tx
+        .update(orders)
+        .set(data)
+        .where(and(eq(orders.id, id), eq(orders.status, order.status)))
+        .returning();
+      if (!row) return null;
       if (status === "cancelled") {
         const cancelledItems = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
         await restockItems(tx, cancelledItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, branchId: order.branchId })));
       }
       return row;
     });
+    if (!updated) return NextResponse.json({ error: "This order's status changed - reload and try again" }, { status: 409 });
     return NextResponse.json({ order: updated });
   }
 

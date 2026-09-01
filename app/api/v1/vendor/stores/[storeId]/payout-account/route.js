@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { stores } from "../../../../../../../lib/db/schema.js";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, linkPayoutAccountSchema } from "../../../../../../../lib/validate.js";
 import { getBanks, ensureSubAccount } from "../../../../../../../lib/paystack.js";
@@ -63,6 +63,10 @@ export async function POST(req, { params }) {
     // failure) is safe.
     const subAccount = await ensureSubAccount({ bankCode, accountNumber, email: user.email });
 
+    // Guarded on subAccountCode still being null - closes the window
+    // between the check above and here, so two concurrent submits (e.g. a
+    // stolen session trying two different accounts) can't have the second
+    // one overwrite the first's linked account.
     const [updated] = await db
       .update(stores)
       .set({
@@ -73,8 +77,11 @@ export async function POST(req, { params }) {
         subAccountCode: subAccount.subAccountCode,
         subAccountId: subAccount.subAccountId,
       })
-      .where(eq(stores.id, storeId))
+      .where(and(eq(stores.id, storeId), isNull(stores.subAccountCode)))
       .returning();
+    if (!updated) {
+      return NextResponse.json({ error: "A payout account is already linked. Contact support to change it." }, { status: 409 });
+    }
 
     // Informational only - the sub-account is already live on Paystack by
     // this point (ensureSubAccount above), this just flags it for a human

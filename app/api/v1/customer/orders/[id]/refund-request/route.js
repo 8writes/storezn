@@ -34,14 +34,25 @@ export async function POST(req, { params }) {
   const result = validate(requestRefundSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  const [created] = await db.transaction(async (tx) => {
-    const [request] = await tx
-      .insert(refundRequests)
-      .values({ orderId: id, requestedBy: user.id, reason: result.data.reason })
-      .returning();
-    await tx.update(orders).set({ status: "refund_requested", updatedAt: new Date() }).where(eq(orders.id, id));
-    return [request];
-  });
+  let created;
+  try {
+    [created] = await db.transaction(async (tx) => {
+      const [request] = await tx
+        .insert(refundRequests)
+        .values({ orderId: id, requestedBy: user.id, reason: result.data.reason })
+        .returning();
+      await tx.update(orders).set({ status: "refund_requested", updatedAt: new Date() }).where(eq(orders.id, id));
+      return [request];
+    });
+  } catch (err) {
+    // uq_refund_requests_order_id - a second submit that raced past the
+    // existence check above. The first one is already recorded; treat
+    // this as the same "already exists" answer.
+    if (err?.code === "23505") {
+      return NextResponse.json({ error: "A refund request already exists for this order" }, { status: 409 });
+    }
+    throw err;
+  }
 
   return NextResponse.json({ refundRequest: created }, { status: 201 });
 }
