@@ -4,10 +4,13 @@ import { X, Banknote, CreditCard, ArrowLeftRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { formatCurrency } from "@/lib/format.js";
 
+// "POS" is what a card-machine payment is called in Nigeria (the value
+// stays "card" - it's the tender_method enum). Its reference field takes
+// the terminal's transaction/RRN.
 const METHODS = [
   { value: "cash", label: "Cash", icon: Banknote },
   { value: "transfer", label: "Transfer", icon: ArrowLeftRight },
-  { value: "card", label: "Card", icon: CreditCard },
+  { value: "card", label: "POS", icon: CreditCard },
 ];
 
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -96,8 +99,8 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
             <ul className="divide-y divide-slate-100 border border-slate-200 rounded-sm text-sm">
               {lines.map((l, i) => (
                 <li key={i} className="flex items-center justify-between gap-2 px-3 py-2">
-                  <span className="capitalize text-slate-700">
-                    {l.method}
+                  <span className="text-slate-700">
+                    {METHODS.find((m) => m.value === l.method)?.label || l.method}
                     {l.reference ? <span className="text-slate-400"> · {l.reference}</span> : null}
                   </span>
                   <span className="flex items-center gap-2">
@@ -162,7 +165,7 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
                   type="text"
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
-                  placeholder={method === "transfer" ? "Bank reference (optional)" : "Auth / terminal ref (optional)"}
+                  placeholder={method === "transfer" ? "Bank reference (optional)" : "POS terminal ref / RRN (optional)"}
                   className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
                 />
               )}

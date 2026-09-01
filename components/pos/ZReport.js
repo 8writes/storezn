@@ -3,7 +3,7 @@ import { formatKobo } from "@/lib/money.js";
 
 const METHOD_LABEL = {
   cash: "Cash",
-  card: "Card",
+  card: "POS",
   transfer: "Transfer",
   wallet: "Wallet",
   store_credit: "Store credit",

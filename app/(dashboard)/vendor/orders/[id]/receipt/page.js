@@ -18,7 +18,7 @@ const RECEIPT_CSS = `
 @page { size: 80mm auto; margin: 4mm; }
 `;
 
-const METHOD = { cash: "Cash", card: "Card", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
+const METHOD = { cash: "Cash", card: "POS", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
 
 export default function ReceiptPage({ params }) {
   const { id } = use(params);
