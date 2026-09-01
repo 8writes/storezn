@@ -29,7 +29,12 @@ export async function POST(req) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const limit = checkRateLimit(req, "upload-file", { max: 30, windowMs: 60 * 60_000, userId: user.id });
+  // Each product photo/video, plus the store logo and favicon, is one
+  // request against this bucket - a vendor loading a real catalogue can
+  // legitimately push through a lot of files in one sitting. The hard
+  // caps that actually matter are per-file size (below) and the per-store
+  // storage quota; this is just a hammering backstop, so it's generous.
+  const limit = checkRateLimit(req, "upload-file", { max: 150, windowMs: 60 * 60_000, userId: user.id });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many uploads, try again later" }, { status: 429 });
   }
