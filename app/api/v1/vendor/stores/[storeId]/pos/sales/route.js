@@ -20,7 +20,7 @@ export async function POST(req, { params }) {
   const { storeId } = await params;
   const ctx = await posContext(req, storeId);
   if (ctx.error) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
-  const { user, store } = ctx;
+  const { user } = ctx;
 
   const body = await req.json().catch(() => null);
   const result = validate(posSaleSchema, body || {});

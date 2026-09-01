@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { posRegisters, posSessions, branches } from "@/lib/db/schema.js";
 import { validate, createRegisterSchema } from "@/lib/validate.js";

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { orders, orderItems, refundRequests, stores } from "../../../../../../../../lib/db/schema.js";
+import { orders, orderItems, refundRequests, orderTenders, stores } from "../../../../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, updateOrderStatusSchema } from "../../../../../../../../lib/validate.js";
@@ -36,8 +36,17 @@ export async function GET(req, { params }) {
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
   const [refundRequest] = await db.select().from(refundRequests).where(eq(refundRequests.orderId, id)).limit(1);
+  // Split-tender breakdown for a register sale (see the pos/sales route);
+  // empty for every online/manual order. try/caught so this route keeps
+  // working if it ships ahead of the POS migration (missing table).
+  let tenders = [];
+  try {
+    tenders = await db.select().from(orderTenders).where(eq(orderTenders.orderId, id)).orderBy(orderTenders.createdAt);
+  } catch {
+    tenders = [];
+  }
 
-  return NextResponse.json({ order, items, refundRequest: refundRequest || null });
+  return NextResponse.json({ order, items, tenders, refundRequest: refundRequest || null });
 }
 
 export async function PATCH(req, { params }) {

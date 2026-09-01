@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { posSessions, cashMovements, orders, orderTenders, posHeldSales } from "@/lib/db/schema.js";
 import { validate, closeSessionSchema } from "@/lib/validate.js";

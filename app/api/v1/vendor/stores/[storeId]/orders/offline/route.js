@@ -145,6 +145,11 @@ export async function POST(req, { params }) {
           feeChargedToCustomer: false,
           note: note || null,
           isOffline: true,
+          // channel defaults to "online" in the schema; the POS migration
+          // backfills existing is_offline rows to "manual". This route's
+          // new rows are set to "manual" in a follow-up once that
+          // migration is confirmed live (avoids a 500 here if the code
+          // ships ahead of the column).
           paidAt: new Date(),
           ...(delivered ? { deliveredAt: new Date() } : {}),
         })
