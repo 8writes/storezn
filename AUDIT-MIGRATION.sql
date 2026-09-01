@@ -52,3 +52,26 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_refund_requests_order_id
 
 -- The plain index is now redundant with the unique one above.
 DROP INDEX IF EXISTS idx_refund_requests_order_id;
+
+-- ============================================================================
+-- 3. OPTIONAL - performance indexes for the hottest queries. Not required
+--    for correctness; add them when list pages / the stale-order cron start
+--    to feel slow at scale. Each briefly locks the table while building -
+--    swap in CREATE INDEX CONCURRENTLY (run one per statement, outside a
+--    transaction) if that matters.
+-- ============================================================================
+
+-- Storefront + vendor product listings: filter by store, newest first.
+CREATE INDEX IF NOT EXISTS idx_products_store_created
+  ON products (store_id, created_at DESC)
+  WHERE is_active AND suspended_at IS NULL;
+
+-- Vendor orders list, and any store-scoped order query, newest first.
+CREATE INDEX IF NOT EXISTS idx_orders_store_created
+  ON orders (store_id, created_at DESC);
+
+-- failStaleTransactions() runs `where payment_status = 'pending' and
+-- created_at < cutoff` every hour - without this it seq-scans all orders.
+CREATE INDEX IF NOT EXISTS idx_orders_pending_created
+  ON orders (created_at)
+  WHERE payment_status = 'pending';
