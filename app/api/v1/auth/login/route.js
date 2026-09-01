@@ -66,7 +66,7 @@ export async function POST(req) {
     } else {
       const owned = await db.select({ isActive: stores.isActive }).from(stores).where(eq(stores.ownerId, account.id));
       if (owned.length > 0 && owned.every((s) => !s.isActive)) {
-        return NextResponse.json({ error: "Your store's account is currently disabled." }, { status: 403 });
+        return NextResponse.json({ error: "Your store is currently disabled." }, { status: 403 });
       }
     }
 

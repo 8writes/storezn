@@ -196,15 +196,8 @@ export default function VendorDashboardPage() {
       {isOwner && <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />}
 
       <div className="flex flex-col items-start gap-3">
-        <h1 className="text-xl font-bold text-slate-900">Welcome, {user?.firstName}</h1>
-        {stores.length > 0 && (
-          <Link href={`/vendor/products/new${storeId ? `?storeId=${storeId}` : ""}`}>
-            <Button type="button" size="sm">
-              <Plus size={16} />
-              Add product
-            </Button>
-          </Link>
-        )}
+        <h1 className="text-xl font-bold text-slate-900">Welcome, {user?.firstName}
+        </h1>
       </div>
 
       {stores.length === 0 ? (

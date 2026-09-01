@@ -18,7 +18,9 @@ export function ProductAssurances({ returnWindowDays, productType }) {
       return;
     }
     let cancelled = false;
-    fetch("/api/v1/customer/addresses", { headers: { Authorization: `Bearer ${token}` } })
+    fetch("/api/v1/customer/addresses", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled) setAddress(data?.addresses?.[0] || null);
@@ -41,10 +43,15 @@ export function ProductAssurances({ returnWindowDays, productType }) {
             <span>
               Shipping to{" "}
               <span className="font-medium text-slate-900">
-                {[address.line1, address.city, address.state].filter(Boolean).join(", ")}
+                {[address.line1, address.city, address.state]
+                  .filter(Boolean)
+                  .join(", ")}
               </span>{" "}
               ·{" "}
-              <Link href="/account/addresses" className="text-brand-600 hover:underline">
+              <Link
+                href="/account/addresses"
+                className="text-brand-600 hover:underline"
+              >
                 Change
               </Link>
             </span>
@@ -63,7 +70,8 @@ export function ProductAssurances({ returnWindowDays, productType }) {
         <RotateCcw size={14} className="shrink-0 mt-0.5 text-slate-400" />
         {days >= 1 ? (
           <span>
-            Returns accepted within {days} day{days === 1 ? "" : "s"} of delivery.
+            Returns accepted within {days} day{days === 1 ? "" : "s"} of
+            delivery. T&C apply.
           </span>
         ) : (
           <span>No returns accepted.</span>
