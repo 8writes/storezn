@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Package,
@@ -104,7 +105,14 @@ function SHORTCUTS(storeId, onOpenGuide, isOwner) {
 export default function VendorDashboardPage() {
   const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
+  const router = useRouter();
   const { stores, storeId, loading } = useVendorStore();
+
+  // The dashboard is the store owner's home - staff get sent to their
+  // own landing (Products) if they navigate here directly.
+  useEffect(() => {
+    if (user && user.role === "staff") router.replace("/vendor/products");
+  }, [user, router]);
   const [stats, setStats] = useState(null);
   const [verification, setVerification] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -157,6 +165,10 @@ export default function VendorDashboardPage() {
   if (loading) {
     return <VendorDashboardSkeleton />;
   }
+
+  // Staff never see the owner dashboard - the effect above bounces them
+  // to Products; render nothing here so there's no flash of owner content.
+  if (user && user.role === "staff") return null;
 
   // Setup steps, the store link, and the verification/payment nudges are
   // all the owner's own concerns - a staff member can't act on any of

@@ -16,72 +16,77 @@ const STEPS = [
     body: (
       <>
         <p>
-          Go to the sign-up page and tap <b>Start selling</b>. Type your store&apos;s name, your Store URL fills
-          itself in automatically, so you don&apos;t need to figure that part out. Then enter your name, email, and
-          a password, and tap <b>Create my store</b>.
+          On the sign-up page tap <b>Start selling</b>. Type your store&apos;s name - the <b>Store URL</b> (your
+          <code> yourname.storezn.com</code> address) fills itself in. Add your name, email and a password, then tap
+          <b> Create my store</b>.
         </p>
-        <p>Check your email and tap the verification link. This confirms it&apos;s really you.</p>
+        <p>Open the email we send and tap the link to confirm your address. You can&apos;t sign in until this is done.</p>
       </>
     ),
   },
   {
-    title: "Verify your identity",
-    keywords: "verify identity NIN national identification number submit for review approval",
+    title: "Verify your identity (NIN)",
+    keywords: "verify identity nin national identification number submit review approval store live hidden",
     body: (
       <>
         <p>
-          In your dashboard, open <b>Verification</b> in the menu. Enter your NIN (your 11-digit National
-          Identification Number) and tap <b>Submit for review</b>.
+          In the dashboard open <b>Verification</b>, enter your 11-digit <b>NIN</b> and tap <b>Submit for review</b>.
         </p>
         <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-sm px-3 py-2 text-sm">
-          You can still set up your store and add products before this is approved, but customers can&apos;t see
-          your store or place orders until it is.
+          You can build your whole store while this is pending, but <b>customers can&apos;t see it or order</b> until
+          it&apos;s approved. You&apos;ll get a notification when it is.
         </p>
       </>
     ),
   },
   {
-    title: "Set up your store's look",
-    keywords: "logo store settings whatsapp number social media links look branding",
+    title: "Brand your store",
+    keywords: "logo favicon store settings description whatsapp social links branding look ships from location",
     body: (
       <p>
-        Open <b>Store settings</b>. Upload your logo, and add your WhatsApp number and any social media links you
-        have, these show up on your storefront so customers can find and trust you.
+        Open <b>Store settings</b>. Upload a <b>logo</b> (wide) and a <b>favicon</b> (small round tab icon), write a
+        short <b>description</b>, and add your <b>WhatsApp number</b> and social links - these show in your storefront
+        footer, and WhatsApp also powers the floating chat button. Set your <b>store location</b> (the state you ship
+        from); you can hide the &quot;Ships from&quot; line on product pages with the toggle right there.
       </p>
     ),
   },
   {
     title: "Link your bank account",
-    keywords: "bank account link payout payment setup money paid",
+    keywords: "bank account payout paystack subaccount link money paid checkout blocked",
     body: (
       <p>
-        Still in <b>Store settings</b>, add your bank details. This is the account your money gets paid into
-        whenever someone buys from you online.
+        Open <b>Payouts</b> and add your bank details. We verify them through Paystack and set up automatic payouts.
+        <b> Customers can&apos;t check out until this is linked</b>. It&apos;s locked afterwards for security - contact
+        support to change it.
       </p>
     ),
   },
   {
     title: "Add your first product",
-    keywords: "add product create product name price photos stock",
+    keywords: "add product name price photos video stock condition create product",
     body: (
       <p>
-        Open <b>Products</b>  <b>Add product</b>. Type a name, the product&apos;s web address fills in by itself,
-        same as your store name did. Add a price, up to 10 photos (each under 1MB), and how many you have in
-        stock, then tap <b>Create product</b>.
+        Open <b>Products</b> &rarr; <b>Add product</b>. Name it (the URL slug fills in), set a <b>price</b>, add up to
+        <b> 5 photos and video combined</b> (photos under 1MB, one clip up to 20MB / 30s), and enter your <b>stock</b>.
+        Optional extras live under &quot;Show optional fields&quot;: SKU, discount %, category, and a size guide.
       </p>
     ),
   },
   {
-    title: "You're live",
-    keywords: "share store link qr code live storefront social media",
+    title: "Share your link and sell",
+    keywords: "share store link qr code live storefront whatsapp instagram marketplace",
     body: (
       <p>
-        Once your identity is verified, share your store&apos;s link (or its QR code, from <b>Store settings</b>)
-        anywhere, WhatsApp status, Instagram bio, wherever your customers already are.
+        Once you&apos;re verified, your store link (and its <b>QR code</b>) is on your dashboard - share it on WhatsApp
+        status, your Instagram bio, anywhere. Your products also appear in the Storezn <b>marketplace</b> unless you
+        turn that off in Store settings.
       </p>
     ),
   },
 ];
+
+const card = (q, a) => ({ q, a });
 
 const SECTIONS = [
   {
@@ -104,54 +109,176 @@ const SECTIONS = [
     ),
   },
   {
+    id: "storefront",
+    label: "Your storefront",
+    cards: [
+      card("Your store link & QR", "Both are on your dashboard once you're verified. The QR is handy for a shop sign, flyer, or receipt."),
+      card("Going offline temporarily", "Store settings → Store status. Turned off, customers see a \"closed\" page instead of your products; your link keeps working, it just isn't taking orders."),
+      card("Marketplace listing", "On by default - your products are discoverable in the Storezn marketplace on top of your own link. Turn it off in Store settings; your own storefront is unaffected."),
+      card("Accent colour (Storezn+)", "Store settings → Storefront theme. Pick one colour and your header, buttons, prices and filters all follow it. Free stores use the default green."),
+      card("Custom domain (Storezn+)", "Store settings → Custom domain. Add your own e.g. shop.yourbrand.com, point its DNS as shown, then tap Verify. Links only switch to it once it's verified."),
+    ],
+  },
+  {
     id: "products",
     label: "Products",
     cards: [
-      { q: "Grouping products into categories", a: "While adding a product, type a new category name right there in the \"Add a category\" box, no need to set categories up separately first." },
-      { q: "Running out of stock", a: "Your product list shows a warning badge once stock is low, and another once it hits zero, so you know to restock before a customer asks." },
-      { q: "Hiding a product", a: "Open the product and turn it off, it disappears from your storefront immediately, but stays saved so you can turn it back on any time." },
-      { q: "Used items", a: "When adding a product, set its condition to Fairly Used or Used, customers see this clearly on the product page, so there's no confusion after they buy." },
+      card("Editing a product", "Open it → Edit. Photo changes (add / remove / reorder) and the video save immediately; everything else saves when you tap Save changes."),
+      card("Discount", "Set \"Discount %\" (1-99). It actually reduces the price charged and shows a \"was / now\" on the storefront. It only applies to the base price, not a variant's own price override."),
+      card("Low / out of stock", "Your product list flags low stock with an amber badge and zero stock with a red one, so you can restock before a customer asks."),
+      card("Hiding vs deleting", "Set a product to Hidden to pull it from the storefront while keeping it saved. You can only permanently delete a product that has never been ordered - deactivate ordered ones instead."),
+      card("Used items", "Set the condition to Fairly Used or Used when adding the product. Shoppers see it clearly on the product page and card."),
+      card("Bulk import (CSV)", "Products page → \"Import products from a CSV\". Download the template. Only name and price are required; blank cells are fine; categoryName must exactly match one of your existing categories. A preview shows before you commit."),
+    ],
+  },
+  {
+    id: "categories",
+    label: "Categories",
+    cards: [
+      card("Managing categories", "Products → Manage categories (or the Categories page). Add, rename and delete there - the list is shared across every product and is what powers the storefront's category filter."),
+      card("Assigning a category", "Pick one from the Category dropdown on the add/edit product form. \"No category\" is always an option."),
+      card("Deleting a category", "Its products aren't deleted - they just lose that category. The page warns you how many products are affected first."),
+    ],
+  },
+  {
+    id: "variants",
+    label: "Variants & options",
+    cards: [
+      card("What a variant is", "A buyable version of a product with its own price and stock - e.g. Size: M, or Colour: Red. Add them on the product's Edit page."),
+      card("Creating them fast", "Type an option name (Size) and comma-separated values (S, M, L). Tap \"+ Add another option\" for a second dimension (Colour) and \"Generate variants\" builds one variant for every combination - existing ones are skipped."),
+      card("Price & stock per variant", "Generate first, then tap the pencil on any variant row to set its price override and stock. Leaving price blank means it uses the product's own price."),
+      card("The \"Standard\" option", "By default a variant product still lets shoppers buy the plain product alongside the options. Turn off \"Show a Standard option\" so they must pick a variant."),
+      card("Bulk delete / rebuild", "Tick rows and use \"Delete selected\", or \"Delete all\". Changing the option names on a product that already has variants prompts a rebuild."),
+      card("Can't add to cart on the storefront", "Usually means a product has variants under two option names but no combination variant that has both. Open it and hit \"Generate variants\" to rebuild the grid."),
+    ],
+  },
+  {
+    id: "sizeguide",
+    label: "Size guide",
+    cards: [
+      card("Adding one", "Edit product → Size guide → \"Add size guide\". Set a unit (cm/inch), name your size systems (e.g. UK and optionally EUR), add measurement columns, then a row per size."),
+      card("How shoppers use it", "A \"Size guide\" link opens the full table with a cm/inch toggle. If your size names match your Size variant values, the picked size's measurements also show inline, with a \"N left\" badge."),
+      card("Fit tip", "The note field (\"Runs large - go one size down\") shows under the size options on the storefront."),
     ],
   },
   {
     id: "orders",
-    label: "Orders",
+    label: "Orders (online)",
     cards: [
-      { q: "A customer paid online", a: "It shows up automatically in Orders, no action needed from you to receive it." },
-      { q: "Someone paid you in person / by transfer", a: "Tap \"Record offline order\" at the top of Orders to log a sale that didn't happen through your storefront checkout." },
-      { q: "Updating an order's status", a: "Open any order to move it forward, processing, shipped, delivered, so the customer always knows where their order stands." },
-      { q: "A customer wants a refund", a: "Refund requests appear on the order itself, where you can review and respond to them directly." },
+      card("New orders", "Paid online orders appear in Orders automatically - nothing to accept."),
+      card("Moving an order along", "Open it and advance the status: processing → shipped → delivered, so the customer always knows where things stand. There's a PDF button for a receipt/waybill."),
+      card("\"Abandoned\"", "The checkout was started but never paid. These are swept automatically after a while and their reserved stock is released."),
+      card("Delivery fee \"to be determined\"", "If your default shipping is TBD, you confirm the real fee on the order before you can move it forward - it's record-keeping, the customer already paid the goods total."),
+    ],
+  },
+  {
+    id: "pos",
+    label: "Record a sale in person",
+    cards: [
+      card("Opening the POS", "Orders → \"Record offline order\". Search your catalogue, tap a product to add it (again to bump quantity), pick a variant if it has them."),
+      card("Buyer details", "Name / phone / email are optional - fill in what you have for your own records."),
+      card("Fees", "The platform takes no commission on an offline sale - you already collected that money directly, so it's fully yours."),
     ],
   },
   {
     id: "payouts",
-    label: "Getting paid",
+    label: "Payments & payouts",
     cards: [
-      { q: "Online orders", a: "Paid into your linked bank account the next business day after the sale, weekends push it to the following Monday." },
-      { q: "Offline / in-person orders", a: "Already yours, you collected that money directly, so there's nothing to wait on." },
+      card("When you get paid", "Online orders settle to your linked bank account the next business day (weekends roll to Monday). \"Check settlements\" on the Payouts page pulls the latest status from Paystack."),
+      card("Offline orders", "Nothing to wait for - you took that payment in person."),
+      card("The platform fee", "One fee per online order: a percentage plus a small flat amount, shown on each order as \"Platform fee (x% + ₦…)\"."),
+      card("Who pays it", "Your choice in Store settings → Fees. Either you absorb it from your payout, or it's added on top of what the customer pays at checkout."),
+    ],
+  },
+  {
+    id: "refunds",
+    label: "Refunds",
+    cards: [
+      card("How a request reaches you", "The customer raises it from their order; it then shows on that order in your dashboard for you to approve or reject (a reject needs a reason, which they see)."),
+      card("Approving is record-keeping only", "It doesn't move any money - Storezn never held it. You send the refund yourself (bank transfer or your Paystack dashboard) and then mark it approved. Your commission on that order isn't returned either."),
+    ],
+  },
+  {
+    id: "shipping",
+    label: "Shipping",
+    cards: [
+      card("Default fee", "Shipping page → a flat fee for anywhere you don't have a specific rate, or \"To be determined\" so you confirm each order's delivery cost yourself."),
+      card("Rates by area", "Add fixed rates per state, or per city within a state. A city rate beats a state rate, which beats your default."),
+    ],
+  },
+  {
+    id: "branches",
+    label: "Branches (multi-location)",
+    cards: [
+      card("What they're for", "If you sell from more than one location, each branch tracks its own stock. Every product starts stocked at your default branch; allocate to others from the product's Edit page."),
+      card("Orders & branches", "An online order is fulfilled from the first branch that can cover the whole cart. Staff can be scoped to a single branch."),
+    ],
+  },
+  {
+    id: "staff",
+    label: "Staff",
+    cards: [
+      card("Adding someone", "Staff page → invite by email. They set their own password from the email and get a trimmed dashboard."),
+      card("What staff can do", "Manage products, categories, orders, customers and store settings. They can't see payouts, verification, Storezn+, the staff list, or delete/disable the account."),
+      card("Removing / leaving", "Owners remove staff from the Staff page; a staff member can leave a store themselves from their Profile."),
+    ],
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    cards: [
+      card("What's there", "Vendor → Analytics: revenue and order trends, status and channel (online/offline) breakdowns, top products / categories / customers, branch split, and refund / stock health."),
+      card("Filtering", "Pick a date range (presets or custom), and optionally a branch and channel - every section updates together."),
+    ],
+  },
+  {
+    id: "plus",
+    label: "Storezn+",
+    cards: [
+      card("What it unlocks", "A custom storefront accent colour, a custom domain, and higher storage / staff / branch limits."),
+      card("Billing", "A monthly charge via Paystack, billed automatically. Cancel any time from the Storezn Plus page - you keep the perks until the paid period ends."),
+    ],
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    cards: [
+      card("Turning them on", "Store settings has a push-notification toggle. Enable it once per browser/device you want alerts on."),
+      card("What you get pinged for", "A new order, and low-stock warnings, so you don't have to keep refreshing the dashboard."),
     ],
   },
   {
     id: "phone",
     label: "Install on your phone",
     cards: [
-      { q: "Android / Chrome", a: "A banner appears at the bottom of the screen, tap Install. That's it." },
-      { q: "iPhone / Safari", a: "Tap the Share icon, then \"Add to Home Screen\". This is the only way to install on iPhone, there's no separate button for it." },
+      card("Android / Chrome", "An \"Install\" banner appears at the bottom of the screen - tap it."),
+      card("iPhone / Safari", "Tap the Share icon, then \"Add to Home Screen\". That's the only way to install on iOS."),
+    ],
+  },
+  {
+    id: "account",
+    label: "Your account",
+    cards: [
+      card("Password & details", "Profile page - change your password, name and phone, and toggle order-update emails."),
+      card("Disabling your account", "Profile → Disable account. It suspends you and takes your storefront offline, but deletes nothing. Contact support to reopen it or to permanently delete everything."),
     ],
   },
   {
     id: "faq",
-    label: "Common questions",
+    label: "Troubleshooting",
     cards: [
-      { q: "Forgot your password?", a: "On the sign-in page, tap \"Forgot password\", enter your email, and follow the link that arrives." },
-      { q: "Didn't get a verification email?", a: "Check spam first. Still nothing? Use the resend option on the sign-in page, or contact support below." },
-      { q: "Who pays Storezn's fee?", a: "Your choice, in Store settings, either you absorb it from each sale, or it's added on top of what the customer pays." },
+      card("Forgot your password", "Sign-in page → \"Forgot password\", enter your email, follow the link."),
+      card("No verification email", "Check spam. Still nothing - use the resend option on the sign-in page, or contact support."),
+      card("\"Customers can't check out\"", "You need three things: identity verified, bank account linked, and your store status set to open."),
+      card("Store link opens to nothing", "Your identity verification is still pending or was rejected - check the Verification page."),
+      card("Can't delete a product", "It's been ordered before. Deleting it would break past order records - set it to Hidden instead."),
+      card("A page won't load / says Unauthorized", "Usually a momentary hiccup while signing in - refresh once. If it sticks, sign out and back in, or contact support."),
     ],
   },
 ];
 
 function matchesQuery(text, query) {
-  return text.toLowerCase().includes(query);
+  return String(text).toLowerCase().includes(query);
 }
 
 function stepMatches(step, query) {
@@ -180,7 +307,7 @@ function SectionBody({ section, query }) {
 
 function sectionMatchCount(section, query) {
   if (!query) return 1;
-  if (section.id === "start") return STEPS.filter((s) => stepMatches(s, query)).length;
+  if (section.render) return STEPS.filter((s) => stepMatches(s, query)).length;
   return section.cards.filter(({ q, a }) => matchesQuery(q, query) || matchesQuery(a, query)).length;
 }
 
@@ -207,8 +334,8 @@ export function HelpGuideContent() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">Vendor guide</h1>
         <p className="text-sm text-slate-500 mt-1">
-          No technical know-how required. Search for anything below, tap a topic to jump straight to it, or leave
-          nothing selected to read everything in order.
+          Everything you need to run your store. Search for anything, tap a topic to jump to it, or scroll to read it
+          all. No technical know-how required.
         </p>
       </div>
 
@@ -267,7 +394,7 @@ export function HelpGuideContent() {
       <section className="bg-white border border-slate-200 rounded-sm p-6 space-y-4">
         <div>
           <h2 className="font-bold text-slate-900">Still stuck?</h2>
-          <p className="text-sm text-slate-500 mt-1">A real person will read your message, no bots, no ticket numbers to remember.</p>
+          <p className="text-sm text-slate-500 mt-1">A real person will read your message - no bots, no ticket numbers to remember.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link

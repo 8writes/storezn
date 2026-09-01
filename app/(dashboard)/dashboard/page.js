@@ -8,7 +8,10 @@ const REDIRECT_BY_ROLE = {
   admin: "/super-admin/analytics",
   p_staff: "/super-admin/products",
   vendor: "/vendor/dashboard",
-  staff: "/vendor/dashboard",
+  // Staff don't get the owner dashboard (setup guide, store link,
+  // verification/payout nudges are all owner-only) - Products is the
+  // first thing on their trimmed nav.
+  staff: "/vendor/products",
 };
 
 // Every role has a more specific landing page - this route only exists

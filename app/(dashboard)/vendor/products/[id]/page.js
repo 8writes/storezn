@@ -14,6 +14,10 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 
+// A big Size x Colour product can carry dozens of variants - show a page
+// at a time so the detail view doesn't turn into an endless scroll.
+const VARIANT_PAGE = 8;
+
 // Read-only detail view - the landing page for clicking a product from
 // the list (see (dashboard)/vendor/products/page.js), separate from
 // [id]/edit which has the actual editable form. Splitting these means a
@@ -35,6 +39,7 @@ export default function VendorProductViewPage({ params }) {
   const [branchStock, setBranchStock] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
+  const [visibleVariants, setVisibleVariants] = useState(VARIANT_PAGE);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -52,6 +57,7 @@ export default function VendorProductViewPage({ params }) {
         setVariants(variantsData.variants);
         setBranchStock(branchStockData);
         setActiveImage(0);
+        setVisibleVariants(VARIANT_PAGE);
       })
       .catch((err) => toast.error(err.message || "Failed to load product"))
       .finally(() => setLoading(false));
@@ -207,9 +213,9 @@ export default function VendorProductViewPage({ params }) {
 
           {variants.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-2">
-              <p className="text-sm font-medium text-slate-700">Variants</p>
+              <p className="text-sm font-medium text-slate-700">Variants ({variants.length})</p>
               <div className="divide-y divide-slate-100">
-                {variants.map((v) => (
+                {variants.slice(0, visibleVariants).map((v) => (
                   <div key={v.id} className="flex items-center justify-between py-2 text-sm">
                     <span className="text-slate-700">
                       {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
@@ -220,6 +226,15 @@ export default function VendorProductViewPage({ params }) {
                   </div>
                 ))}
               </div>
+              {variants.length > visibleVariants && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleVariants((n) => n + VARIANT_PAGE)}
+                  className="text-xs font-medium text-brand-600 hover:underline cursor-pointer"
+                >
+                  Show {Math.min(VARIANT_PAGE, variants.length - visibleVariants)} more ({variants.length - visibleVariants} hidden)
+                </button>
+              )}
             </div>
           )}
 
@@ -227,7 +242,7 @@ export default function VendorProductViewPage({ params }) {
             <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
               <p className="text-sm font-medium text-slate-700">Stock by branch</p>
               <BranchStockList label={null} rows={branchStock.productStock} />
-              {variants.map((v) => (
+              {variants.slice(0, visibleVariants).map((v) => (
                 <div key={v.id} className="pt-3 border-t border-slate-100">
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
                     {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
@@ -235,6 +250,15 @@ export default function VendorProductViewPage({ params }) {
                   <BranchStockList rows={branchStock.variantStock[v.id] || []} />
                 </div>
               ))}
+              {variants.length > visibleVariants && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleVariants((n) => n + VARIANT_PAGE)}
+                  className="text-xs font-medium text-brand-600 hover:underline cursor-pointer"
+                >
+                  Show {Math.min(VARIANT_PAGE, variants.length - visibleVariants)} more ({variants.length - visibleVariants} hidden)
+                </button>
+              )}
             </div>
           )}
         </div>
