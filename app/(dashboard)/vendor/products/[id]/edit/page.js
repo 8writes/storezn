@@ -19,10 +19,10 @@ import { InfoTip } from "@/components/ui/InfoTip.js";
 import { uploadFile, getVideoDuration } from "@/lib/clientUpload.js";
 import { X, Trash2, ImagePlus, Loader2, GripVertical, Video, Pencil, Check } from "lucide-react";
 
-// Photos and video share one combined cap - a video eats one of the 5
+// Photos and video share one combined cap - a video eats one of the 10
 // slots, same as a photo would.
-const MAX_MEDIA = 5;
-const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
+const MAX_MEDIA = 10;
+const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
 const MAX_VIDEO_SECONDS = 30;
 
@@ -133,7 +133,7 @@ export default function VendorProductEditPage({ params }) {
     }
 
     const oversized = files.filter((f) => f.size > MAX_IMAGE_SIZE);
-    if (oversized.length > 0) toast.error(`${oversized.length} photo${oversized.length === 1 ? "" : "s"} skipped - each must be under 1MB`);
+    if (oversized.length > 0) toast.error(`${oversized.length} photo${oversized.length === 1 ? "" : "s"} skipped - each must be under 3MB`);
     const sized = files.filter((f) => f.size <= MAX_IMAGE_SIZE);
 
     const toUpload = sized.slice(0, room);

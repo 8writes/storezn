@@ -19,7 +19,7 @@ const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime
 // even this generous ceiling - product-image is the one uploaded as-is
 // straight from the vendor's camera roll, so it gets its own tighter cap.
 const MAX_SIZE_BY_PURPOSE = {
-  "product-image": 1 * 1024 * 1024,
+  "product-image": 3 * 1024 * 1024,
   "product-video": 20 * 1024 * 1024,
   "store-logo": 8 * 1024 * 1024,
   "store-favicon": 8 * 1024 * 1024,
