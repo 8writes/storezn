@@ -11,6 +11,13 @@ import { GUEST_CART_COOKIE, findCartItem } from "../../../../../lib/cart.js";
 
 const INVALID = NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
 
+// Compared against when no account matches, so a bad-email attempt costs
+// the same bcrypt time as a bad-password one - without this, response
+// timing alone tells an attacker which emails are registered. Generated
+// once at module load rather than hardcoded so it's always a valid hash
+// for whatever bcrypt version is installed.
+const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 10);
+
 // Shared by the dashboard login form (vendor/staff/super_admin) and the
 // storefront's per-store login form - which table(s) get searched
 // depends on which host the request came in on (see isPlatformHost),
@@ -49,11 +56,17 @@ export async function POST(req) {
       kind = "staff";
     }
 
-    if (!account) return INVALID;
-    if (account.isBanned) return NextResponse.json({ error: "This account has been suspended" }, { status: 403 });
+    if (!account) {
+      await bcrypt.compare(password, DUMMY_HASH);
+      return INVALID;
+    }
 
     const valid = await bcrypt.compare(password, account.passwordHash);
     if (!valid) return INVALID;
+    // Checked only after the password is confirmed, so a wrong password on
+    // a banned account is indistinguishable from a wrong password on any
+    // other - "suspended" is never an email-enumeration oracle.
+    if (account.isBanned) return NextResponse.json({ error: "This account has been suspended" }, { status: 403 });
     if (!account.emailVerified) {
       return NextResponse.json({ error: "Please verify your email before signing in", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });
     }
@@ -79,11 +92,14 @@ export async function POST(req) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
   const [account] = await db.select().from(customers).where(and(eq(customers.storeId, store.id), eq(customers.email, email))).limit(1);
-  if (!account) return INVALID;
-  if (account.isBanned) return NextResponse.json({ error: "This account has been suspended" }, { status: 403 });
+  if (!account) {
+    await bcrypt.compare(password, DUMMY_HASH);
+    return INVALID;
+  }
 
   const valid = await bcrypt.compare(password, account.passwordHash);
   if (!valid) return INVALID;
+  if (account.isBanned) return NextResponse.json({ error: "This account has been suspended" }, { status: 403 });
   if (!account.emailVerified) {
     return NextResponse.json({ error: "Please verify your email before signing in", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });
   }
