@@ -106,34 +106,48 @@ export function ProductGallery({ images = [], videoUrl, name }) {
   );
 }
 
-// Full-screen viewer: swipe (or arrow) between slides, tap a photo to
-// toggle 2.5x zoom, then drag to pan around it.
+// Full-screen viewer. Every slide is a permanently-mounted cell in a
+// native scroll-snap strip, so moving between them is just the browser
+// scrolling - no src swap, no transition replay, no flicker. Zoom/pan
+// only ever touches the slide that's currently centred.
 function Lightbox({ slides, index, name, onIndexChange, onClose }) {
   const count = slides.length;
-  const current = slides[index];
+  const stripRef = useRef(null);
   const [zoom, setZoom] = useState(false);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef(null);
-  const touchRef = useRef(null);
 
-  // Moving to another slide always drops zoom/pan - done here rather than
-  // in an effect on `index` so there's no extra render pass.
-  const changeIndex = (i) => {
-    if (i < 0 || i >= count || i === index) return;
+  const resetView = () => {
     setZoom(false);
     setPan({ x: 0, y: 0 });
-    onIndexChange(i);
   };
-  const step = (dir) => {
-    if (!zoom) changeIndex(index + dir);
+
+  const goTo = (i) => {
+    const next = Math.max(0, Math.min(count - 1, i));
+    if (next === index) return;
+    resetView();
+    // Jump, don't animate: a smooth scroll across several slides fires
+    // intermediate scroll events that the handler below would read as
+    // stops on the slides in between.
+    const el = stripRef.current;
+    if (el) el.scrollLeft = next * el.clientWidth;
+    onIndexChange(next);
   };
+
+  // Jump straight to the opening slide once, with no animation, so the
+  // scroll handler never sees an intermediate position.
+  useEffect(() => {
+    const el = stripRef.current;
+    if (el) el.scrollLeft = index * el.clientWidth;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowRight") step(1);
-      else if (e.key === "ArrowLeft") step(-1);
+      else if (e.key === "ArrowRight") goTo(index + 1);
+      else if (e.key === "ArrowLeft") goTo(index - 1);
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -144,12 +158,20 @@ function Lightbox({ slides, index, name, onIndexChange, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, zoom]);
 
+  // Swiping the strip settles on a new slide - sync `index` to it.
+  const onStripScroll = (el) => {
+    if (zoom || !el.clientWidth) return;
+    const i = Math.max(0, Math.min(count - 1, Math.round(el.scrollLeft / el.clientWidth)));
+    if (i !== index) {
+      resetView();
+      onIndexChange(i);
+    }
+  };
+
   const toggleZoom = () => {
-    if (current.type !== "image") return;
     setZoom((z) => !z);
     setPan({ x: 0, y: 0 });
   };
-
   const onPointerDown = (e) => {
     if (!zoom) return;
     dragRef.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
@@ -166,21 +188,6 @@ function Lightbox({ slides, index, name, onIndexChange, onClose }) {
     e.currentTarget.releasePointerCapture?.(e.pointerId);
   };
 
-  const onTouchStart = (e) => {
-    if (zoom || e.touches.length !== 1) {
-      touchRef.current = null;
-      return;
-    }
-    touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  };
-  const onTouchEnd = (e) => {
-    if (!touchRef.current) return;
-    const dx = e.changedTouches[0].clientX - touchRef.current.x;
-    const dy = e.changedTouches[0].clientY - touchRef.current.y;
-    touchRef.current = null;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black select-none">
       <div className="flex items-center justify-between p-3 text-white">
@@ -195,41 +202,58 @@ function Lightbox({ slides, index, name, onIndexChange, onClose }) {
         </button>
       </div>
 
-      <div
-        className="relative flex flex-1 items-center justify-center overflow-hidden"
-        onClick={(e) => {
-          if (e.target === e.currentTarget && !zoom) onClose();
-        }}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
-        {current.type === "video" ? (
-          <video src={current.src} controls autoPlay playsInline className="max-h-full max-w-full" />
-        ) : (
-          <img
-            src={current.src}
-            alt={name}
-            draggable={false}
-            onClick={toggleZoom}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom ? 2.5 : 1})`,
-              transition: dragging ? "none" : "transform 0.2s ease",
-              touchAction: "none",
-              cursor: zoom ? "grab" : "zoom-in",
-            }}
-            className="max-h-full max-w-full object-contain"
-          />
-        )}
+      <div className="relative flex-1 min-h-0">
+        <div
+          ref={stripRef}
+          onScroll={(e) => onStripScroll(e.currentTarget)}
+          className="flex h-full w-full snap-x snap-mandatory scrollbar-none"
+          style={{ overflowX: zoom ? "hidden" : "auto", scrollSnapType: zoom ? "none" : undefined }}
+        >
+          {slides.map((slide, i) => {
+            const activeSlide = i === index;
+            return (
+              <div
+                key={slide.src}
+                className="flex h-full w-full shrink-0 snap-center items-center justify-center overflow-hidden"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget && !zoom) onClose();
+                }}
+              >
+                {slide.type === "video" ? (
+                  <video src={slide.src} controls playsInline className="max-h-full max-w-full" />
+                ) : (
+                  <img
+                    src={slide.src}
+                    alt={name}
+                    draggable={false}
+                    onClick={activeSlide ? toggleZoom : undefined}
+                    onPointerDown={activeSlide ? onPointerDown : undefined}
+                    onPointerMove={activeSlide ? onPointerMove : undefined}
+                    onPointerUp={activeSlide ? onPointerUp : undefined}
+                    onPointerCancel={activeSlide ? onPointerUp : undefined}
+                    style={
+                      activeSlide
+                        ? {
+                            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom ? 2.5 : 1})`,
+                            transition: dragging ? "none" : "transform 0.2s ease",
+                            touchAction: "none",
+                            cursor: zoom ? "grab" : "zoom-in",
+                          }
+                        : undefined
+                    }
+                    className="max-h-full max-w-full object-contain"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         {count > 1 && !zoom && (
           <>
             <button
               type="button"
-              onClick={() => step(-1)}
+              onClick={() => goTo(index - 1)}
               disabled={index === 0}
               aria-label="Previous photo"
               className="absolute left-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30 cursor-pointer sm:flex"
@@ -238,7 +262,7 @@ function Lightbox({ slides, index, name, onIndexChange, onClose }) {
             </button>
             <button
               type="button"
-              onClick={() => step(1)}
+              onClick={() => goTo(index + 1)}
               disabled={index === count - 1}
               aria-label="Next photo"
               className="absolute right-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30 cursor-pointer sm:flex"
@@ -255,7 +279,7 @@ function Lightbox({ slides, index, name, onIndexChange, onClose }) {
             <button
               key={slide.src}
               type="button"
-              onClick={() => changeIndex(i)}
+              onClick={() => goTo(i)}
               className={`relative h-12 w-12 shrink-0 overflow-hidden border-2 cursor-pointer ${
                 i === index ? "border-white" : "border-transparent opacity-60 hover:opacity-100"
               }`}
