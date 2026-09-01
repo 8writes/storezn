@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { products, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
-import { and, asc, count, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, ilike, isNull, lte, or } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
@@ -38,6 +38,18 @@ export async function GET(req, { params }) {
   const conditions = [eq(products.storeId, storeId)];
   if (q) conditions.push(or(ilike(products.name, `%${q}%`), ilike(products.sku, `%${q}%`)));
   if (categoryId) conditions.push(eq(products.categoryId, categoryId));
+
+  // Stock-level filter. products.stock is the cached storewide sum (see
+  // lib/inventory.js) - null means untracked/unlimited, which counts as
+  // "in stock", never low or out.
+  const stockFilter = searchParams.get("stock")?.trim();
+  if (stockFilter === "in") {
+    conditions.push(or(isNull(products.stock), gt(products.stock, LOW_STOCK_THRESHOLD)));
+  } else if (stockFilter === "low") {
+    conditions.push(and(gt(products.stock, 0), lte(products.stock, LOW_STOCK_THRESHOLD)));
+  } else if (stockFilter === "out") {
+    conditions.push(lte(products.stock, 0));
+  }
 
   const [rows, [{ total }]] = await Promise.all([
     db

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Upload, ImageOff, ChevronDown, FileSpreadsheet, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Upload, ImageOff, ChevronDown, FileSpreadsheet, CheckCircle2, XCircle, SlidersHorizontal, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -15,6 +15,22 @@ import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton, CardListSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { parseCsv, downloadCsv } from "@/lib/csv.js";
+
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "name", label: "Name A–Z" },
+  { value: "price_high", label: "Price: high to low" },
+  { value: "price_low", label: "Price: low to high" },
+];
+const SORT_LABEL = Object.fromEntries(SORT_OPTIONS.map((o) => [o.value, o.label]));
+const STOCK_OPTIONS = [
+  { value: "", label: "Any stock" },
+  { value: "in", label: "In stock" },
+  { value: "low", label: "Low stock" },
+  { value: "out", label: "Out of stock" },
+];
+const STOCK_LABEL = Object.fromEntries(STOCK_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label]));
 
 const BULK_HEADERS = ["name", "price", "sku", "description", "productType", "condition", "stock", "categoryName"];
 const BULK_TEMPLATE_ROW = {
@@ -42,7 +58,11 @@ export default function VendorProductsPage() {
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [sort, setSort] = useState("newest");
+  const [stockLevel, setStockLevel] = useState(""); // "" | in | low | out
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const activeFilterCount = (categoryId ? 1 : 0) + (sort !== "newest" ? 1 : 0) + (stockLevel ? 1 : 0);
 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkRows, setBulkRows] = useState([]);
@@ -59,10 +79,11 @@ export default function VendorProductsPage() {
   const loadProducts = () => {
     if (!token || !storeId) return;
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: "5" });
+    const params = new URLSearchParams({ page: String(page), pageSize: "10" });
     if (q.trim()) params.set("q", q.trim());
     if (categoryId) params.set("category", categoryId);
     if (sort && sort !== "newest") params.set("sort", sort);
+    if (stockLevel) params.set("stock", stockLevel);
     apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params.toString()}`)
       .then((data) => {
         setProducts(data.products);
@@ -82,11 +103,11 @@ export default function VendorProductsPage() {
     if (!token || !storeId) return;
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, page, q, categoryId, sort]);
+  }, [token, storeId, page, q, categoryId, sort, stockLevel]);
 
   useEffect(() => {
     setPage(1);
-  }, [q, categoryId, sort, storeId]);
+  }, [q, categoryId, sort, stockLevel, storeId]);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -94,6 +115,7 @@ export default function VendorProductsPage() {
       .then((data) => setCategories(data.categories))
       .catch(() => {});
     setCategoryId("");
+    setStockLevel("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId]);
 
@@ -292,37 +314,68 @@ export default function VendorProductsPage() {
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end sm:justify-between gap-3">
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
-          <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="w-full sm:max-w-sm" />
-          {categories.length > 0 && (
-            <div className="w-full sm:w-44">
-              <Select
-                options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
-                value={categoryId}
-                onChange={setCategoryId}
-                placeholder="All categories"
-              />
-            </div>
-          )}
-          <div className="w-full sm:w-48">
-            <Select
-              options={[
-                { value: "newest", label: "Newest first" },
-                { value: "oldest", label: "Oldest first" },
-                { value: "name", label: "Name A–Z" },
-                { value: "price_high", label: "Price: high to low" },
-                { value: "price_low", label: "Price: low to high" },
-              ]}
-              value={sort}
-              onChange={setSort}
-            />
-          </div>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="flex-1 sm:w-72" />
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            className="relative inline-flex items-center gap-1.5 shrink-0 px-3 py-2 border border-slate-300 rounded-sm text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+          >
+            <SlidersHorizontal size={15} />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-0.5 min-w-5 h-5 px-1 rounded-full bg-brand-600 text-white text-xs font-bold inline-flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
         <Link href="/vendor/categories" className="text-sm text-brand-600 hover:underline">
           Manage categories
         </Link>
       </div>
+
+      {(activeFilterCount > 0 || stockLevel) && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {stockLevel && (
+            <FilterChip label={STOCK_LABEL[stockLevel]} onClear={() => setStockLevel("")} />
+          )}
+          {categoryId && (
+            <FilterChip
+              label={categories.find((c) => c.id === categoryId)?.name || "Category"}
+              onClear={() => setCategoryId("")}
+            />
+          )}
+          {sort !== "newest" && (
+            <FilterChip label={SORT_LABEL[sort]} onClear={() => setSort("newest")} />
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setCategoryId("");
+              setSort("newest");
+              setStockLevel("");
+            }}
+            className="text-slate-500 hover:text-slate-800 underline cursor-pointer"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
+      {filtersOpen && (
+        <ProductFiltersModal
+          categories={categories}
+          categoryId={categoryId}
+          setCategoryId={setCategoryId}
+          sort={sort}
+          setSort={setSort}
+          stockLevel={stockLevel}
+          setStockLevel={setStockLevel}
+          onClose={() => setFiltersOpen(false)}
+        />
+      )}
 
       {/* Mobile: stacked cards - the desktop table has too many columns to
           fit a phone without horizontal scrolling that hides half of it. */}
@@ -331,7 +384,7 @@ export default function VendorProductsPage() {
           <CardListSkeleton count={5} />
         ) : products.length === 0 ? (
           <p className="bg-white border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
-            {q || categoryId ? "No products match your filters" : "No products yet"}
+            {q || categoryId || stockLevel ? "No products match your filters" : "No products yet"}
           </p>
         ) : (
           products.map((p) => {
@@ -406,7 +459,7 @@ export default function VendorProductsPage() {
               <TableRowSkeleton cols={7} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-700">{q || categoryId ? "No products match your filters" : "No products yet"}</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-700">{q || categoryId || stockLevel ? "No products match your filters" : "No products yet"}</td>
               </tr>
             ) : (
               products.map((p) => (
@@ -462,6 +515,92 @@ export default function VendorProductsPage() {
           </tbody>
         </table>
         <Pagination pagination={pagination} onPageChange={setPage} />
+      </div>
+    </div>
+  );
+}
+
+function FilterChip({ label, onClear }) {
+  return (
+    <span className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+      {label}
+      <button type="button" onClick={onClear} className="text-slate-400 hover:text-slate-700 cursor-pointer" aria-label={`Clear ${label}`}>
+        <X size={12} />
+      </button>
+    </span>
+  );
+}
+
+// Filter picker as a screen-safe sheet: a bottom sheet on phones, a
+// centred card on desktop, capped at 85vh with its own scrolling body so
+// it never runs off the viewport. Filters apply live as they're changed.
+function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setSort, stockLevel, setStockLevel, onClose }) {
+  const anyActive = categoryId || sort !== "newest" || stockLevel;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white w-full sm:max-w-md rounded-t-sm sm:rounded-sm shadow-xl flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
+          <p className="text-sm font-bold text-slate-900">Filters</p>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-4 space-y-5">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Stock level</p>
+            <div className="grid grid-cols-2 gap-2">
+              {STOCK_OPTIONS.map((o) => (
+                <button
+                  key={o.value || "any"}
+                  type="button"
+                  onClick={() => setStockLevel(o.value)}
+                  className={`px-3 py-2 rounded-sm border text-sm font-medium cursor-pointer transition-colors ${
+                    stockLevel === o.value ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {categories.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Category</p>
+              <Select
+                options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+                value={categoryId}
+                onChange={setCategoryId}
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Sort by</p>
+            <Select options={SORT_OPTIONS} value={sort} onChange={setSort} />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-100 shrink-0">
+          <button
+            type="button"
+            disabled={!anyActive}
+            onClick={() => {
+              setCategoryId("");
+              setSort("newest");
+              setStockLevel("");
+            }}
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            Clear all
+          </button>
+          <Button type="button" onClick={onClose} className="ml-auto" size="sm">
+            Done
+          </Button>
+        </div>
       </div>
     </div>
   );

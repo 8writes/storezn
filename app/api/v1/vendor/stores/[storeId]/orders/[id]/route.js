@@ -37,14 +37,8 @@ export async function GET(req, { params }) {
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
   const [refundRequest] = await db.select().from(refundRequests).where(eq(refundRequests.orderId, id)).limit(1);
   // Split-tender breakdown for a register sale (see the pos/sales route);
-  // empty for every online/manual order. try/caught so this route keeps
-  // working if it ships ahead of the POS migration (missing table).
-  let tenders = [];
-  try {
-    tenders = await db.select().from(orderTenders).where(eq(orderTenders.orderId, id)).orderBy(orderTenders.createdAt);
-  } catch {
-    tenders = [];
-  }
+  // empty for every online/manual order.
+  const tenders = await db.select().from(orderTenders).where(eq(orderTenders.orderId, id)).orderBy(orderTenders.createdAt);
 
   return NextResponse.json({ order, items, tenders, refundRequest: refundRequest || null });
 }
