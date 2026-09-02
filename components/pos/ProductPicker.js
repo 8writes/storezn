@@ -53,7 +53,10 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
     } catch (err) {
       if (isNetErr(err)) {
         // No connection - search the catalogue snapshot instead.
-        const rows = await searchCatalog(storeId, q, 60).catch(() => []);
+        // Whole catalogue is cached; cap the grid so a 4k-SKU store
+        // doesn't try to render every card, but a real search term
+        // narrows it well within this anyway.
+        const rows = await searchCatalog(storeId, q, q ? 200 : 100).catch(() => []);
         setProducts(rows);
         setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
         setPagination(null);

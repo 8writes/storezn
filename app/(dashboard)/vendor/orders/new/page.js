@@ -158,6 +158,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [heldOpen, setHeldOpen] = useState(false);
   const [pendingSync, setPendingSync] = useState(0);
   const [offlineReceipt, setOfflineReceipt] = useState(null);
+  const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false });
 
   const openSession = sessionData?.session?.status === "open" ? sessionData : null;
 
@@ -212,31 +213,48 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     }
   }, [storeId, apiFetch, refresh]);
 
-  const syncCatalog = useCallback(async () => {
-    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-    const meta = await catalogMeta(storeId).catch(() => null);
-    if (meta && Date.now() - new Date(meta.savedAt).getTime() < 6 * 60 * 60 * 1000) return;
-    try {
-      const all = [];
-      for (let page = 1; page <= 60; page++) {
-        const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${page}&pageSize=200`);
-        all.push(...data.products);
-        if (!data.pagination || all.length >= data.pagination.total || data.products.length === 0) break;
+  // Pulls the WHOLE catalogue into IndexedDB so the register's search and
+  // barcode lookup keep working with no network. Skips if a snapshot
+  // under 30 min old already exists (unless forced from the "Update now"
+  // button).
+  const syncCatalog = useCallback(
+    async (force = false) => {
+      const meta = await catalogMeta(storeId).catch(() => null);
+      if (meta) setCatalog((c) => ({ ...c, count: meta.count, savedAt: meta.savedAt }));
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+      if (!force && meta && Date.now() - new Date(meta.savedAt).getTime() < 30 * 60 * 1000) return;
+      setCatalog((c) => ({ ...c, syncing: true }));
+      try {
+        const all = [];
+        for (let page = 1; page <= 200; page++) {
+          const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${page}&pageSize=300`);
+          all.push(...data.products);
+          if (!data.pagination || all.length >= data.pagination.total || data.products.length === 0) break;
+        }
+        await saveCatalog(storeId, all);
+        setCatalog({ count: all.length, savedAt: new Date().toISOString(), syncing: false });
+      } catch {
+        setCatalog((c) => ({ ...c, syncing: false }));
       }
-      await saveCatalog(storeId, all);
-    } catch {
-      /* leave whatever snapshot we already have */
-    }
-  }, [storeId, apiFetch]);
+    },
+    [storeId, apiFetch],
+  );
 
   useEffect(() => {
     if (!openSession) return;
     listQueuedSales(storeId).then((q) => setPendingSync(q.length)).catch(() => {});
     syncNow();
     syncCatalog();
-    const onOnline = () => syncNow();
+    const onOnline = () => {
+      syncNow();
+      syncCatalog();
+    };
     window.addEventListener("online", onOnline);
-    const iv = setInterval(syncNow, 25_000);
+    // syncNow every 25s; syncCatalog self-throttles to once per 30 min.
+    const iv = setInterval(() => {
+      syncNow();
+      syncCatalog();
+    }, 25_000);
     return () => {
       window.removeEventListener("online", onOnline);
       clearInterval(iv);
@@ -470,6 +488,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         heldCount={heldCount}
         pendingSync={pendingSync}
         onSync={syncNow}
+        catalog={catalog}
+        onSyncCatalog={() => syncCatalog(true)}
         onCashDrawer={() => setCashOpen(true)}
         onXReport={() => setXOpen(true)}
         onCloseRegister={() => setCloseOpen(true)}
