@@ -1,17 +1,24 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Search, ImageOff, Loader2, Barcode } from "lucide-react";
+import { Search, ImageOff, Loader2, Barcode, WifiOff } from "lucide-react";
 import { useApi } from "@/hooks/useApi.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
+import { searchCatalog, findBySku } from "@/lib/posOffline.js";
 
 const PAGE_SIZE = 12;
 
+function isNetErr(err) {
+  return !err || err.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(err.message || "");
+}
+
 // Shared product search + grid for both the manual offline form and the
 // live till. Handles: DB-backed paged search, a scanner fast-path (an
-// exact SKU match on Enter adds qty 1 with no results list), and the
-// per-product variant picker. Calls onAdd(product, variantOrNull).
+// exact SKU match adds qty 1 with no results list - works whether or not
+// the search box is focused), the per-product variant picker, and a
+// fall-back to the locally cached catalogue when the network is down.
+// Calls onAdd(product, variantOrNull).
 export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
   const { apiFetch } = useApi(token);
   const [products, setProducts] = useState([]);
@@ -27,23 +34,37 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
   const [loadingVariantsFor, setLoadingVariantsFor] = useState(null);
   const [picker, setPicker] = useState(null);
   const [scanning, setScanning] = useState(false);
+  const [offline, setOffline] = useState(false);
   const searchRef = useRef(null);
 
-  const load = (pageNum, q) => {
+  const load = async (pageNum, q) => {
     const setBusy = pageNum === 1 ? setLoading : setLoadingMore;
     setBusy(true);
     const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE) });
     if (q?.trim()) params.set("q", q.trim());
-    apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`)
-      .then((data) => {
-        setProducts((prev) => (pageNum === 1 ? data.products : [...prev, ...data.products]));
-        setCache((prev) => ({ ...prev, ...Object.fromEntries(data.products.map((p) => [p.id, p])) }));
-        setPagination(data.pagination || null);
-        setPage(pageNum);
-        if (data.lowStockThreshold != null) setLowStock(data.lowStockThreshold);
-      })
-      .catch((err) => toast.error(err.message || "Failed to load products"))
-      .finally(() => setBusy(false));
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
+      setProducts((prev) => (pageNum === 1 ? data.products : [...prev, ...data.products]));
+      setCache((prev) => ({ ...prev, ...Object.fromEntries(data.products.map((p) => [p.id, p])) }));
+      setPagination(data.pagination || null);
+      setPage(pageNum);
+      setOffline(false);
+      if (data.lowStockThreshold != null) setLowStock(data.lowStockThreshold);
+    } catch (err) {
+      if (isNetErr(err)) {
+        // No connection - search the catalogue snapshot instead.
+        const rows = await searchCatalog(storeId, q, 60).catch(() => []);
+        setProducts(rows);
+        setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
+        setPagination(null);
+        setPage(1);
+        setOffline(true);
+      } else {
+        toast.error(err.message || "Failed to load products");
+      }
+    } finally {
+      setBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -80,18 +101,26 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
     else setPicker(product);
   };
 
-  // Scanner fast-path: a wedge scanner types the barcode then sends
-  // Enter. Look it up as an exact SKU; add it straight away if it's a
-  // clean single hit, otherwise fall back to showing search results.
-  const handleScan = async () => {
-    const term = search.trim();
+  // Scanner fast-path: look the code up as an exact SKU and add it
+  // straight away if it's a clean single hit, otherwise show search
+  // results. Falls back to the offline catalogue when there's no network.
+  const handleScan = async (rawTerm) => {
+    const term = (rawTerm ?? search).trim();
     if (!term) return;
     setScanning(true);
     try {
-      const params = new URLSearchParams({ page: "1", pageSize: "5", q: term });
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
-      const exact = data.products.find((p) => (p.sku || "").toLowerCase() === term.toLowerCase());
-      const hit = exact || (data.products.length === 1 ? data.products[0] : null);
+      let hit = null;
+      try {
+        const params = new URLSearchParams({ page: "1", pageSize: "5", q: term });
+        const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
+        const exact = data.products.find((p) => (p.sku || "").toLowerCase() === term.toLowerCase());
+        hit = exact || (data.products.length === 1 ? data.products[0] : null);
+        setOffline(false);
+      } catch (err) {
+        if (!isNetErr(err)) throw err;
+        setOffline(true);
+        hit = await findBySku(storeId, term).catch(() => null);
+      }
       if (hit) {
         setCache((prev) => ({ ...prev, [hit.id]: hit }));
         const variants = await ensureVariants(hit.id);
@@ -105,10 +134,42 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
         return;
       }
       toast.error(`Nothing matches "${term}"`);
+    } catch (err) {
+      toast.error(err.message || "Scan failed");
     } finally {
       setScanning(false);
     }
   };
+
+  // A wedge scanner types the barcode as fast keystrokes then Enter. When
+  // the search box has focus its own onKeyDown handles it; otherwise this
+  // catches the burst anywhere on the screen so the cashier never has to
+  // click the field first.
+  useEffect(() => {
+    const buf = { chars: "", last: 0 };
+    const onKey = (e) => {
+      const el = document.activeElement;
+      if (el === searchRef.current) return;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      const now = Date.now();
+      if (e.key === "Enter") {
+        const code = buf.chars;
+        buf.chars = "";
+        if (code.length >= 4) {
+          e.preventDefault();
+          handleScan(code);
+        }
+        return;
+      }
+      if (e.key.length !== 1) return;
+      if (now - buf.last > 120) buf.chars = "";
+      buf.chars += e.key;
+      buf.last = now;
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId]);
 
   const list = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -138,6 +199,13 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
           {scanning ? <Loader2 size={15} className="animate-spin" /> : <Barcode size={15} />}
         </span>
       </div>
+
+      {offline && (
+        <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-sm px-2.5 py-1.5">
+          <WifiOff size={13} />
+          Offline - searching your saved catalogue. Sales still work and will sync when you&apos;re back.
+        </p>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

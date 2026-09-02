@@ -118,8 +118,20 @@ export async function POST(req, { params }) {
     feeChargedToCustomer: false,
   });
 
-  const now = new Date();
-  let orderNumber = generateOrderNumber();
+  // For a sale that was rung up offline and is only now reaching the
+  // server, keep its real till time (bounded: not in the future, not
+  // older than 7 days) rather than stamping it "now". The client also
+  // generates the order number up front so the receipt it printed at the
+  // counter matches this row; fall back to a server-generated one.
+  const soldAt = (() => {
+    if (!data.soldAt) return new Date();
+    const t = new Date(data.soldAt);
+    const ms = t.getTime();
+    if (Number.isNaN(ms) || ms > Date.now() + 60_000 || ms < Date.now() - 7 * 24 * 60 * 60 * 1000) return new Date();
+    return t;
+  })();
+  const now = soldAt;
+  let orderNumber = data.orderNumber || generateOrderNumber();
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -133,6 +145,8 @@ export async function POST(req, { params }) {
             productName: r.product.name,
             branchId,
           })),
+          // A register sale never blocks on stock - see reserveStock.
+          { allowNegative: true },
         );
 
         const [order] = await tx
@@ -164,6 +178,8 @@ export async function POST(req, { params }) {
             paymentReference,
             paidAt: now,
             deliveredAt: now,
+            createdAt: now,
+            updatedAt: now,
           })
           .returning();
 

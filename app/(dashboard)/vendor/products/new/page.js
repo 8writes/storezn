@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Input } from "@/components/ui/Input.js";
+import { BarcodeScanButton } from "@/components/pos/BarcodeScanButton.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { SizeGuideEditor, normalizeSizeGuide } from "@/components/ui/SizeGuideEditor.js";
@@ -326,7 +327,12 @@ export default function VendorNewProductPage() {
                     setForm((f) => ({ ...f, slug: e.target.value }));
                   }}
                 />
-                <Input label="SKU" placeholder="e.g. RTB-001" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Input label="SKU / barcode" placeholder="e.g. RTB-001" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
+                  </div>
+                  <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
+                </div>
                 {form.productType === "physical" && (
                   <div>
                     <Input

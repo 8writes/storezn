@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { Input } from "@/components/ui/Input.js";
+import { BarcodeScanButton } from "@/components/pos/BarcodeScanButton.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { SizeGuideEditor, normalizeSizeGuide } from "@/components/ui/SizeGuideEditor.js";
@@ -296,7 +297,12 @@ export default function VendorProductEditPage({ params }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
           <Input label="URL slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />
-          <Input label="SKU (optional)" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input label="SKU / barcode (optional)" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
+            </div>
+            <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
+          </div>
           <PriceInput label="Price" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />
           <div>
             <div className="flex items-center gap-1.5 mb-1">

@@ -1,10 +1,10 @@
 "use client";
-import { Calculator, Wallet, FileText, LockKeyhole } from "lucide-react";
+import { Calculator, Wallet, FileText, LockKeyhole, RefreshCw } from "lucide-react";
 import { formatKobo } from "@/lib/money.js";
 
 // Sticky status strip on the till: which register/shift is open, the
 // live expected-cash figure, and the shift actions.
-export function RegisterBar({ registerName, session, summary, heldCount = 0, onCashDrawer, onXReport, onCloseRegister }) {
+export function RegisterBar({ registerName, session, summary, heldCount = 0, pendingSync = 0, onSync, onCashDrawer, onXReport, onCloseRegister }) {
   const expected = summary?.drawer?.expectedCash ?? session?.openingFloat ?? 0;
   return (
     <div className="bg-white border border-slate-200 rounded-sm px-4 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
@@ -12,6 +12,17 @@ export function RegisterBar({ registerName, session, summary, heldCount = 0, onC
         <Calculator size={15} className="text-brand-600" />
         {registerName}
       </span>
+      {pendingSync > 0 && (
+        <button
+          type="button"
+          onClick={onSync}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:text-amber-800 cursor-pointer"
+          title="Sales saved offline, waiting to sync"
+        >
+          <RefreshCw size={12} />
+          {pendingSync} to sync
+        </button>
+      )}
       <span className="text-slate-500">
         Open since{" "}
         {new Date(session.openedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}

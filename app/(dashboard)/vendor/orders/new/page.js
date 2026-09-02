@@ -23,7 +23,13 @@ import { TenderPanel } from "@/components/pos/TenderPanel.js";
 import { CashDrawerModal } from "@/components/pos/CashDrawerModal.js";
 import { CloseRegisterModal } from "@/components/pos/CloseRegisterModal.js";
 import { ZReport } from "@/components/pos/ZReport.js";
+import { PrintableReceipt } from "@/components/pos/PrintableReceipt.js";
+import { generateOrderNumber } from "@/lib/orders.js";
+import { enqueueSale, flushQueue, listQueuedSales, saveCatalog, catalogMeta } from "@/lib/posOffline.js";
 import { Minus, Plus, Trash2, ShoppingCart, Pause, RotateCcw, X } from "lucide-react";
+
+const isNetErr = (err) =>
+  !err || err.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(err.message || "");
 
 const unitNaira = (line) =>
   line.priceOverride != null
@@ -108,6 +114,7 @@ export default function RecordSalePage() {
         <TillMode
           key={storeId}
           storeId={storeId}
+          storeName={activeStore?.name || ""}
           token={token}
           user={user}
           apiFetch={apiFetch}
@@ -125,7 +132,7 @@ export default function RecordSalePage() {
 /* Live till - a register session is required                         */
 /* ------------------------------------------------------------------ */
 
-function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }) {
+function TillMode({ storeId, storeName, token, user, apiFetch, registers, reloadRegisters }) {
   const router = useRouter();
   const isOwner = user?.role === "vendor" || user?.role === "super_admin";
   const lsKey = `pos_register_${storeId}`;
@@ -140,6 +147,7 @@ function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }
   const [discountReason, setDiscountReason] = useState("");
   const [buyer, setBuyer] = useState({ name: "", phone: "", note: "" });
   const [saleKey, setSaleKey] = useState(null);
+  const [orderNo, setOrderNo] = useState(null);
   const [editKey, setEditKey] = useState(null);
 
   const [tenderOpen, setTenderOpen] = useState(false);
@@ -148,6 +156,8 @@ function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }
   const [closeOpen, setCloseOpen] = useState(false);
   const [xOpen, setXOpen] = useState(false);
   const [heldOpen, setHeldOpen] = useState(false);
+  const [pendingSync, setPendingSync] = useState(0);
+  const [offlineReceipt, setOfflineReceipt] = useState(null);
 
   const openSession = sessionData?.session?.status === "open" ? sessionData : null;
 
@@ -186,6 +196,53 @@ function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }
     reloadRegisters();
   }, [openSession, fetchSession, reloadRegisters]);
 
+  // Push any sales that were completed while offline, and (best-effort)
+  // keep a local catalogue snapshot fresh so search/scan survive a drop.
+  const syncNow = useCallback(async () => {
+    try {
+      const res = await flushQueue(storeId, apiFetch);
+      setPendingSync(res.remaining);
+      if (res.synced > 0) {
+        toast.success(`${res.synced} offline sale${res.synced === 1 ? "" : "s"} synced`);
+        refresh();
+      }
+      if (res.stuck > 0) toast.error(`${res.stuck} offline sale${res.stuck === 1 ? "" : "s"} couldn't sync - check Orders`);
+    } catch {
+      /* still offline - try again next tick */
+    }
+  }, [storeId, apiFetch, refresh]);
+
+  const syncCatalog = useCallback(async () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    const meta = await catalogMeta(storeId).catch(() => null);
+    if (meta && Date.now() - new Date(meta.savedAt).getTime() < 6 * 60 * 60 * 1000) return;
+    try {
+      const all = [];
+      for (let page = 1; page <= 60; page++) {
+        const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${page}&pageSize=200`);
+        all.push(...data.products);
+        if (!data.pagination || all.length >= data.pagination.total || data.products.length === 0) break;
+      }
+      await saveCatalog(storeId, all);
+    } catch {
+      /* leave whatever snapshot we already have */
+    }
+  }, [storeId, apiFetch]);
+
+  useEffect(() => {
+    if (!openSession) return;
+    listQueuedSales(storeId).then((q) => setPendingSync(q.length)).catch(() => {});
+    syncNow();
+    syncCatalog();
+    const onOnline = () => syncNow();
+    window.addEventListener("online", onOnline);
+    const iv = setInterval(syncNow, 25_000);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      clearInterval(iv);
+    };
+  }, [openSession, storeId, syncNow, syncCatalog]);
+
   const handleOpen = async ({ registerId, openingFloat }) => {
     setOpening(true);
     try {
@@ -209,6 +266,7 @@ function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }
     const key = `${product.id}:${variant?.id || ""}`;
     setDetails((d) => ({ ...d, [key]: { product, variant } }));
     setSaleKey((k) => k || crypto.randomUUID());
+    setOrderNo((n) => n || generateOrderNumber());
     setCart((rows) => {
       const found = rows.find((r) => r.key === key);
       if (found) return rows.map((r) => (r.key === key ? { ...r, quantity: r.quantity + 1 } : r));
@@ -224,6 +282,7 @@ function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }
     setDiscountReason("");
     setBuyer({ name: "", phone: "", note: "" });
     setSaleKey(null);
+    setOrderNo(null);
     setEditKey(null);
   };
 
@@ -249,26 +308,50 @@ function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }
   /* ---- actions ---- */
   const completeSale = async (tenders) => {
     setSubmitting(true);
+    const soldAt = new Date().toISOString();
+    const payload = {
+      sessionId: openSession.session.id,
+      idempotencyKey: saleKey,
+      orderNumber: orderNo,
+      soldAt,
+      items: cart.map((r) => ({
+        productId: r.productId,
+        ...(r.variantId ? { variantId: r.variantId } : {}),
+        quantity: r.quantity,
+        ...(r.priceOverride != null ? { unitPrice: r.priceOverride } : {}),
+        ...(r.lineDiscount ? { lineDiscount: r.lineDiscount } : {}),
+      })),
+      tenders,
+    };
+    if (buyer.name) payload.buyerName = buyer.name;
+    if (buyer.phone) payload.buyerPhone = buyer.phone;
+    if (buyer.note) payload.note = buyer.note;
+    if (discountNum > 0) {
+      payload.discountAmount = discountNum;
+      if (discountReason) payload.discountReason = discountReason;
+    }
+
+    // Snapshot for the printable receipt - built the same way whether the
+    // sale reaches the server now or is queued for later.
+    const receipt = {
+      orderNumber: orderNo,
+      soldAt,
+      lines: lines.map((l) => ({
+        name: l.product?.name || "Item",
+        variantLabel: l.variant ? Object.entries(l.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ") : null,
+        quantity: l.quantity,
+        unitPrice: l.unit,
+        lineTotal: l.lineTotal,
+        priceOverridden: l.priceOverride != null,
+      })),
+      tenders,
+      subtotal,
+      discount: discountNum,
+      total,
+      note: buyer.note || null,
+    };
+
     try {
-      const payload = {
-        sessionId: openSession.session.id,
-        idempotencyKey: saleKey,
-        items: cart.map((r) => ({
-          productId: r.productId,
-          ...(r.variantId ? { variantId: r.variantId } : {}),
-          quantity: r.quantity,
-          ...(r.priceOverride != null ? { unitPrice: r.priceOverride } : {}),
-          ...(r.lineDiscount ? { lineDiscount: r.lineDiscount } : {}),
-        })),
-        tenders,
-      };
-      if (buyer.name) payload.buyerName = buyer.name;
-      if (buyer.phone) payload.buyerPhone = buyer.phone;
-      if (buyer.note) payload.note = buyer.note;
-      if (discountNum > 0) {
-        payload.discountAmount = discountNum;
-        if (discountReason) payload.discountReason = discountReason;
-      }
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sales`, { method: "POST", body: JSON.stringify(payload) });
       setTenderOpen(false);
       resetSale();
@@ -276,7 +359,16 @@ function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }
       toast.success("Sale complete");
       router.push(`/vendor/orders/${data.order.id}/receipt?storeId=${storeId}`);
     } catch (err) {
-      toast.error(err.message || "Couldn't complete the sale");
+      if (isNetErr(err) || (typeof navigator !== "undefined" && navigator.onLine === false)) {
+        await enqueueSale(storeId, payload).catch(() => {});
+        setTenderOpen(false);
+        resetSale();
+        setOfflineReceipt({ ...receipt, pending: true });
+        listQueuedSales(storeId).then((q) => setPendingSync(q.length)).catch(() => {});
+        toast.warning("Saved offline - it'll sync when you're back online");
+      } else {
+        toast.error(err.message || "Couldn't complete the sale");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -376,6 +468,8 @@ function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }
         session={openSession.session}
         summary={sessionData.summary}
         heldCount={heldCount}
+        pendingSync={pendingSync}
+        onSync={syncNow}
         onCashDrawer={() => setCashOpen(true)}
         onXReport={() => setXOpen(true)}
         onCloseRegister={() => setCloseOpen(true)}
@@ -555,6 +649,9 @@ function TillMode({ storeId, token, user, apiFetch, registers, reloadRegisters }
           heldCount={heldCount}
           onSubmit={closeRegister}
         />
+      )}
+      {offlineReceipt && (
+        <PrintableReceipt storeName={storeName} {...offlineReceipt} onClose={() => setOfflineReceipt(null)} />
       )}
 
       {xOpen && (
