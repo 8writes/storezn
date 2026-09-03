@@ -194,7 +194,32 @@ export default function VendorProductViewPage({ params }) {
               <dd className="text-slate-700">{category?.name || "None"}</dd>
               <dt className="text-slate-700">Sold</dt>
               <dd className="text-slate-700">{product.unitsSold} unit{product.unitsSold === 1 ? "" : "s"}</dd>
+              {product.costPrice != null && (
+                <>
+                  <dt className="text-slate-700">Cost price</dt>
+                  <dd className="text-slate-700">{formatCurrency(product.costPrice)}</dd>
+                  <dt className="text-slate-700">Margin</dt>
+                  <dd className="text-slate-700">
+                    {formatCurrency(product.price - product.costPrice)}
+                    {product.price > 0 && ` (${Math.round(((product.price - product.costPrice) / product.price) * 100)}%)`}
+                  </dd>
+                </>
+              )}
             </dl>
+            {Array.isArray(product.priceTiers) && product.priceTiers.length > 0 && (
+              <div className="border-t border-slate-100 pt-3">
+                <p className="text-xs font-medium text-slate-700 mb-1.5">Wholesale pricing</p>
+                <ul className="space-y-1 text-sm text-slate-700">
+                  {[...product.priceTiers]
+                    .sort((a, b) => a.minQty - b.minQty)
+                    .map((t, i) => (
+                      <li key={i}>
+                        Buy {t.minQty}+ → {formatCurrency(t.unitPrice)} each
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {product.description && (

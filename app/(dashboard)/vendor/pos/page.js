@@ -12,7 +12,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { formatCurrency } from "@/lib/format.js";
 import { formatKobo } from "@/lib/money.js";
 import { isPlusStore } from "@/lib/storePlan.js";
-import { getEffectivePrice } from "@/lib/pricing.js";
+import { tieredUnitPrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { RegisterBar } from "@/components/pos/RegisterBar.js";
 import { OpenRegisterPanel } from "@/components/pos/OpenRegisterPanel.js";
@@ -30,10 +30,10 @@ import { Minus, Plus, Trash2, ShoppingCart, Pause, RotateCcw, X } from "lucide-r
 const isNetErr = (err) =>
   !err || err.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(err.message || "");
 
-const unitNaira = (line) =>
+const unitNaira = (line, qty = line.quantity || 1) =>
   line.priceOverride != null
     ? line.priceOverride
-    : line.variant?.price ?? (line.product ? getEffectivePrice(line.product.price, line.product.discountPercent) : 0);
+    : line.variant?.price ?? (line.product ? tieredUnitPrice(line.product, qty) : 0);
 
 // A held sale is a client-cart snapshot ([{...cartRow, _d:{product,variant}}]).
 // Reconstruct a name, an item preview and the total so the cashier can
@@ -47,7 +47,7 @@ function heldSummary(h) {
     const unit =
       r.priceOverride != null
         ? Number(r.priceOverride)
-        : d.variant?.price ?? (d.product ? getEffectivePrice(d.product.price, d.product.discountPercent) : 0);
+        : d.variant?.price ?? (d.product ? tieredUnitPrice(d.product, r.quantity || 1) : 0);
     total += Math.max(0, unit * (r.quantity || 1) - (r.lineDiscount || 0));
     const nm = d.product?.name;
     if (nm) names.push((r.quantity || 1) > 1 ? `${r.quantity}× ${nm}` : nm);

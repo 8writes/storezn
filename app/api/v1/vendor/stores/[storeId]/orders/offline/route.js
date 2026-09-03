@@ -9,7 +9,7 @@ import { isPlusStore } from "../../../../../../../../lib/storePlan.js";
 import { sendMail } from "../../../../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
-import { getEffectivePrice } from "../../../../../../../../lib/pricing.js";
+import { tieredUnitPrice } from "../../../../../../../../lib/pricing.js";
 import { reserveStock, OutOfStockError } from "../../../../../../../../lib/inventory.js";
 
 async function loadStore(storeId) {
@@ -82,7 +82,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: `Not enough stock for ${product.name}` }, { status: 409 });
     }
 
-    const unitPrice = variant?.price ?? getEffectivePrice(product.price, product.discountPercent);
+    const unitPrice = variant?.price ?? tieredUnitPrice(product, item.quantity);
     resolvedItems.push({
       product,
       variant,

@@ -111,6 +111,7 @@ export async function POST(req, { params }) {
             sku: data.sku,
             description: data.description,
             price: data.price,
+            costPrice: data.costPrice ?? null,
             productType: data.productType,
             condition: data.condition,
             stock: data.stock ?? null,

@@ -5,7 +5,7 @@ import { products, productVariants } from "@/lib/db/schema.js";
 import { resolveStoreByHost } from "@/lib/resolveStore.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { formatCondition, formatCurrency } from "@/lib/format.js";
-import { getEffectivePrice } from "@/lib/pricing.js";
+import { getEffectivePrice, stripInternalProductFields } from "@/lib/pricing.js";
 import { MapPin } from "lucide-react";
 import { formatStateLabel } from "@/lib/nigeria.js";
 import { AddToCartButton } from "@/components/storefront/AddToCartButton.js";
@@ -23,7 +23,8 @@ async function loadProduct(host, slug) {
     .from(products)
     .where(and(eq(products.storeId, store.id), eq(products.slug, slug), eq(products.isActive, true), isNull(products.suspendedAt)))
     .limit(1);
-  return { store, product };
+  // costPrice must never reach the storefront.
+  return { store, product: product ? stripInternalProductFields(product) : null };
 }
 
 // So sharing a product (the new Share button below) previews with that
@@ -96,6 +97,22 @@ export default async function StorefrontProductPage({ params }) {
           </div>
 
           {product.description && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{product.description}</p>}
+
+          {Array.isArray(product.priceTiers) && product.priceTiers.length > 0 && variants.length === 0 && (
+            <div className="rounded-sm border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-700">Buy more, pay less</p>
+              <ul className="mt-1.5 space-y-1 text-sm text-slate-700">
+                {[...product.priceTiers]
+                  .sort((a, b) => a.minQty - b.minQty)
+                  .map((t, i) => (
+                    <li key={i} className="flex justify-between gap-4">
+                      <span>{t.minQty} or more</span>
+                      <span className="font-medium text-slate-900">{formatCurrency(t.unitPrice)} each</span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
 
           {product.productType === "physical" && variants.length === 0 && product.stock != null && (
             <p className="text-xs text-slate-700 uppercase tracking-wide">{product.stock} in stock</p>

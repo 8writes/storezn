@@ -4,7 +4,7 @@ import { db } from "@/lib/db/index.js";
 import { orders, orderItems, orderTenders, cashMovements, products, productVariants } from "@/lib/db/schema.js";
 import { validate, posSaleSchema } from "@/lib/validate.js";
 import { generateOrderNumber, computeOrderTotals } from "@/lib/orders.js";
-import { getEffectivePrice } from "@/lib/pricing.js";
+import { tieredUnitPrice } from "@/lib/pricing.js";
 import { reserveStock, OutOfStockError } from "@/lib/inventory.js";
 import { toKobo, toNaira } from "@/lib/money.js";
 import { validateTenders, drawerDeltaFromTenders } from "@/lib/pos.js";
@@ -74,7 +74,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: `${product.name}: that option doesn't exist` }, { status: 404 });
     }
 
-    const catalogueNaira = variant?.price ?? getEffectivePrice(product.price, product.discountPercent);
+    const catalogueNaira = variant?.price ?? tieredUnitPrice(product, item.quantity);
     const overridden = item.unitPrice != null && toKobo(item.unitPrice) !== toKobo(catalogueNaira);
     const unitKobo = item.unitPrice != null ? toKobo(item.unitPrice) : toKobo(catalogueNaira);
 

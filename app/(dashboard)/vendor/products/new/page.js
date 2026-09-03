@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Input } from "@/components/ui/Input.js";
 import { BarcodeScanButton } from "@/components/pos/BarcodeScanButton.js";
+import { WholesaleTierEditor } from "@/components/ui/WholesaleTierEditor.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { SizeGuideEditor, normalizeSizeGuide } from "@/components/ui/SizeGuideEditor.js";
@@ -17,6 +18,7 @@ import { InfoTip } from "@/components/ui/InfoTip.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { uploadFile, deleteUploadedFile, getVideoDuration } from "@/lib/clientUpload.js";
 import { slugify } from "@/lib/slugify.js";
+import { formatCurrency } from "@/lib/format.js";
 import { X, ImagePlus, Loader2, GripVertical, ChevronDown, Video } from "lucide-react";
 
 // Photos and video share one combined cap - a video eats one of the 10
@@ -36,7 +38,7 @@ const CONDITION_OPTIONS = [
   { value: "used", label: "Used" },
 ];
 
-const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", discountPercent: "", productType: "physical", condition: "new", stock: "", categoryId: "", images: [], videoUrl: "" };
+const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", condition: "new", stock: "", categoryId: "", images: [], videoUrl: "" };
 const EMPTY_CATEGORY = { name: "", slug: "" };
 
 export default function VendorNewProductPage() {
@@ -252,6 +254,11 @@ export default function VendorNewProductPage() {
       const sg = normalizeSizeGuide(form.sizeGuide);
       if (sg) payload.sizeGuide = sg;
       if (form.discountPercent !== "") payload.discountPercent = Number(form.discountPercent);
+      if (form.costPrice !== "") payload.costPrice = Number(form.costPrice);
+      const tiers = (form.priceTiers || [])
+        .filter((t) => t.minQty !== "" && t.unitPrice !== "")
+        .map((t) => ({ minQty: Number(t.minQty), unitPrice: Number(t.unitPrice) }));
+      if (tiers.length) payload.priceTiers = tiers;
       if (form.videoUrl) payload.videoUrl = form.videoUrl;
 
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products`, { method: "POST", body: JSON.stringify(payload) });
@@ -350,7 +357,7 @@ export default function VendorNewProductPage() {
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <label className="text-sm font-medium text-slate-700">Discount %</label>
-                    <InfoTip>Reduces what's actually charged, e.g. a ₦5,000 product with a 20% discount charges ₦4,000 and shows "was ₦5,000, now ₦4,000". Leave blank for no discount.</InfoTip>
+                    <InfoTip>Reduces what&apos;s actually charged, e.g. a ₦5,000 product with a 20% discount charges ₦4,000 and shows &ldquo;was ₦5,000, now ₦4,000&rdquo;. Leave blank for no discount.</InfoTip>
                   </div>
                   <Input
                     type="number"
@@ -361,7 +368,28 @@ export default function VendorNewProductPage() {
                     onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))}
                   />
                 </div>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <label className="text-sm font-medium text-slate-700">Cost price</label>
+                    <InfoTip>What you paid for it. Only you see this &mdash; it&apos;s used for profit/margin figures, never shown to customers.</InfoTip>
+                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.costPrice}
+                    onChange={(e) => setForm((f) => ({ ...f, costPrice: e.target.value }))}
+                  />
+                  {form.costPrice !== "" && form.price !== "" && Number(form.price) > 0 && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      Margin {formatCurrency(Number(form.price) - Number(form.costPrice))} (
+                      {Math.round(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100)}%)
+                    </p>
+                  )}
+                </div>
               </div>
+              <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />
               <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
               <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />
             </div>
