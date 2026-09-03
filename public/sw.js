@@ -100,6 +100,39 @@ async function networkFirst(request) {
   }
 }
 
+// "Set up offline" button: the page sends the list of asset URLs it has
+// already loaded plus the register route, and we fetch + cache them all
+// now instead of waiting for them to be requested naturally. Replies on
+// the message port with how many landed.
+self.addEventListener("message", (event) => {
+  const data = event.data || {};
+  if (data.type !== "PRECACHE" || !Array.isArray(data.urls)) return;
+  const reply = event.ports && event.ports[0];
+  event.waitUntil(
+    (async () => {
+      const staticC = await caches.open(STATIC_CACHE);
+      const pagesC = await caches.open(PAGES_CACHE);
+      let ok = 0;
+      await Promise.all(
+        data.urls.map(async (u) => {
+          try {
+            const req = new Request(u, { credentials: "same-origin" });
+            const res = await fetch(req);
+            if (!res || !res.ok) return;
+            const target = isStaticAsset(new URL(u, self.location.origin)) ? staticC : pagesC;
+            await target.put(req, res.clone());
+            ok += 1;
+          } catch {
+            /* skip whatever won't fetch */
+          }
+        }),
+      );
+      trimCache(STATIC_CACHE, STATIC_MAX);
+      if (reply) reply.postMessage({ cached: ok, total: data.urls.length });
+    })(),
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 

@@ -21,7 +21,7 @@ export function RegisterBar({
   pendingSync = 0,
   onSync,
   catalog,
-  onSyncCatalog,
+  onOpenOfflineSetup,
   onCashDrawer,
   onXReport,
   onCloseRegister,
@@ -58,20 +58,19 @@ export function RegisterBar({
         </span>
       )}
       {heldCount > 0 && <span className="text-amber-600 font-medium">{heldCount} held</span>}
-      {catalog && (
-        <button
-          type="button"
-          onClick={onSyncCatalog}
-          disabled={catalog.syncing}
-          className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 cursor-pointer disabled:cursor-default"
-          title="Products saved on this device for offline use - tap to refresh"
-        >
-          <Database size={12} className={catalog.syncing ? "animate-pulse text-brand-600" : ""} />
-          {catalog.syncing
-            ? "saving catalogue…"
-            : `offline: ${catalog.count ? catalog.count.toLocaleString() : "0"} · ${ago(catalog.savedAt)}`}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onOpenOfflineSetup}
+        className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 cursor-pointer"
+        title="Set this device up to sell with no internet"
+      >
+        <Database size={12} className={catalog?.syncing ? "animate-pulse text-brand-600" : ""} />
+        {catalog?.syncing
+          ? "saving catalogue…"
+          : catalog?.count
+            ? `offline ready · ${ago(catalog.savedAt)}`
+            : "set up offline"}
+      </button>
 
       <span className="ml-auto flex items-center gap-1.5">
         <button type="button" onClick={onCashDrawer} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">

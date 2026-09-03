@@ -24,6 +24,7 @@ import { CashDrawerModal } from "@/components/pos/CashDrawerModal.js";
 import { CloseRegisterModal } from "@/components/pos/CloseRegisterModal.js";
 import { ZReport } from "@/components/pos/ZReport.js";
 import { PrintableReceipt } from "@/components/pos/PrintableReceipt.js";
+import { OfflineSetupModal } from "@/components/pos/OfflineSetupModal.js";
 import { generateOrderNumber } from "@/lib/orders.js";
 import { enqueueSale, flushQueue, listQueuedSales, saveCatalog, catalogMeta } from "@/lib/posOffline.js";
 import { Minus, Plus, Trash2, ShoppingCart, Pause, RotateCcw, X } from "lucide-react";
@@ -159,6 +160,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [pendingSync, setPendingSync] = useState(0);
   const [offlineReceipt, setOfflineReceipt] = useState(null);
   const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false });
+  const [offlineSetupOpen, setOfflineSetupOpen] = useState(false);
 
   const openSession = sessionData?.session?.status === "open" ? sessionData : null;
 
@@ -489,7 +491,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         pendingSync={pendingSync}
         onSync={syncNow}
         catalog={catalog}
-        onSyncCatalog={() => syncCatalog(true)}
+        onOpenOfflineSetup={() => setOfflineSetupOpen(true)}
         onCashDrawer={() => setCashOpen(true)}
         onXReport={() => setXOpen(true)}
         onCloseRegister={() => setCloseOpen(true)}
@@ -672,6 +674,15 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       )}
       {offlineReceipt && (
         <PrintableReceipt storeName={storeName} {...offlineReceipt} onClose={() => setOfflineReceipt(null)} />
+      )}
+      {offlineSetupOpen && (
+        <OfflineSetupModal
+          storeId={storeId}
+          catalog={catalog}
+          pendingSync={pendingSync}
+          onSyncCatalog={() => syncCatalog(true)}
+          onClose={() => setOfflineSetupOpen(false)}
+        />
       )}
 
       {xOpen && (
