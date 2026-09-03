@@ -57,7 +57,7 @@ export default function ReceiptPage({ params }) {
           Order detail
         </Link>
         <div className="flex gap-2">
-          <Link href="/vendor/orders/new">
+          <Link href="/vendor/pos">
             <Button type="button" variant="outline" size="sm">
               New sale
             </Button>
