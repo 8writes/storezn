@@ -76,7 +76,7 @@ export default function VendorOrdersPage() {
         <h1 className="text-xl font-bold text-slate-900">Orders</h1>
         <Link href="/vendor/orders/new">
           <Button type="button" size="sm" variant="outline">
-            <Plus size={14} /> Record offline order
+            <Plus size={14} /> Record a past sale
           </Button>
         </Link>
       </div>

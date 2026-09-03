@@ -39,6 +39,12 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, opening }) {
             <Button type="button">Set up a register</Button>
           </Link>
         )}
+        <p className="text-xs text-slate-400">
+          Just logging a sale that already happened?{" "}
+          <Link href="/vendor/orders/new" className="underline hover:text-slate-600">
+            Record a past sale
+          </Link>
+        </p>
       </div>
     );
   }
