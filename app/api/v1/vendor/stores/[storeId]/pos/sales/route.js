@@ -4,7 +4,7 @@ import { db } from "@/lib/db/index.js";
 import { orders, orderItems, orderTenders, cashMovements, products, productVariants } from "@/lib/db/schema.js";
 import { validate, posSaleSchema } from "@/lib/validate.js";
 import { generateOrderNumber, computeOrderTotals } from "@/lib/orders.js";
-import { tieredUnitPrice } from "@/lib/pricing.js";
+import { computeWholesalePrice } from "@/lib/pricing.js";
 import { reserveStock, OutOfStockError } from "@/lib/inventory.js";
 import { toKobo, toNaira } from "@/lib/money.js";
 import { validateTenders, drawerDeltaFromTenders } from "@/lib/pos.js";
@@ -74,13 +74,22 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: `${product.name}: that option doesn't exist` }, { status: 404 });
     }
 
-    const catalogueNaira = variant?.price ?? tieredUnitPrice(product, item.quantity);
-    const overridden = item.unitPrice != null && toKobo(item.unitPrice) !== toKobo(catalogueNaira);
-    const unitKobo = item.unitPrice != null ? toKobo(item.unitPrice) : toKobo(catalogueNaira);
+    // Catalogue price for this line. A variant carries its own flat unit
+    // price; otherwise bundle/wholesale pricing gives a line total that
+    // isn't a single unit price times quantity (10 at the bundle rate +
+    // 1 loose at full price), so the LINE total is authoritative and the
+    // stored unitPrice is just its average for display.
+    const catalogueLineKobo = variant?.price != null
+      ? toKobo(variant.price) * item.quantity
+      : toKobo(computeWholesalePrice(product, item.quantity).total);
+    const catalogueUnitKobo = item.quantity > 0 ? Math.round(catalogueLineKobo / item.quantity) : catalogueLineKobo;
 
-    const maxLineDiscount = unitKobo * item.quantity;
-    const lineDiscountKobo = Math.min(toKobo(item.lineDiscount || 0), maxLineDiscount);
-    const lineTotalKobo = unitKobo * item.quantity - lineDiscountKobo;
+    const overridden = item.unitPrice != null && toKobo(item.unitPrice) !== catalogueUnitKobo;
+    const unitKobo = item.unitPrice != null ? toKobo(item.unitPrice) : catalogueUnitKobo;
+    const baseLineKobo = item.unitPrice != null ? unitKobo * item.quantity : catalogueLineKobo;
+
+    const lineDiscountKobo = Math.min(toKobo(item.lineDiscount || 0), baseLineKobo);
+    const lineTotalKobo = baseLineKobo - lineDiscountKobo;
 
     resolved.push({
       product,
@@ -90,7 +99,7 @@ export async function POST(req, { params }) {
       lineDiscountKobo,
       lineTotalKobo,
       overridden,
-      originalUnitPrice: overridden ? catalogueNaira : null,
+      originalUnitPrice: overridden ? toNaira(catalogueUnitKobo) : null,
     });
   }
 

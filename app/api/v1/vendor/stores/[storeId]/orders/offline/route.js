@@ -9,7 +9,7 @@ import { isPlusStore } from "../../../../../../../../lib/storePlan.js";
 import { sendMail } from "../../../../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
-import { tieredUnitPrice } from "../../../../../../../../lib/pricing.js";
+import { computeWholesalePrice } from "../../../../../../../../lib/pricing.js";
 import { reserveStock, OutOfStockError } from "../../../../../../../../lib/inventory.js";
 
 async function loadStore(storeId) {
@@ -82,13 +82,20 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: `Not enough stock for ${product.name}` }, { status: 409 });
     }
 
-    const unitPrice = variant?.price ?? tieredUnitPrice(product, item.quantity);
+    // Bundle/wholesale pricing makes the line total the source of truth
+    // (whole bundles at the bundle rate, leftover units at full price) -
+    // the stored unitPrice is that total's average. A variant keeps its
+    // own flat price.
+    const lineTotal = variant?.price != null
+      ? variant.price * item.quantity
+      : computeWholesalePrice(product, item.quantity).total;
+    const unitPrice = item.quantity > 0 ? lineTotal / item.quantity : lineTotal;
     resolvedItems.push({
       product,
       variant,
       quantity: item.quantity,
       unitPrice,
-      lineTotal: unitPrice * item.quantity,
+      lineTotal,
     });
   }
 

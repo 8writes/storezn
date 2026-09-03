@@ -256,8 +256,10 @@ export default function VendorNewProductPage() {
       if (form.discountPercent !== "") payload.discountPercent = Number(form.discountPercent);
       if (form.costPrice !== "") payload.costPrice = Number(form.costPrice);
       const tiers = (form.priceTiers || [])
-        .filter((t) => t.minQty !== "" && t.unitPrice !== "")
-        .map((t) => ({ minQty: Number(t.minQty), unitPrice: Number(t.unitPrice) }));
+        .filter((t) => t.bundleQty !== "" && t.unitPrice !== "")
+        .map((t) => ({ bundleQty: Number(t.bundleQty), unitPrice: Number(t.unitPrice) }))
+        .filter((t) => t.bundleQty >= 2 && t.unitPrice > 0)
+        .sort((a, b) => a.bundleQty - b.bundleQty);
       if (tiers.length) payload.priceTiers = tiers;
       if (form.videoUrl) payload.videoUrl = form.videoUrl;
 

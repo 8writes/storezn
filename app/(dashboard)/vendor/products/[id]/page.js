@@ -208,16 +208,19 @@ export default function VendorProductViewPage({ params }) {
             </dl>
             {Array.isArray(product.priceTiers) && product.priceTiers.length > 0 && (
               <div className="border-t border-slate-100 pt-3">
-                <p className="text-xs font-medium text-slate-700 mb-1.5">Wholesale pricing</p>
+                <p className="text-xs font-medium text-slate-700 mb-1.5">Wholesale / bundle pricing</p>
                 <ul className="space-y-1 text-sm text-slate-700">
                   {[...product.priceTiers]
-                    .sort((a, b) => a.minQty - b.minQty)
+                    .sort((a, b) => (a.bundleQty ?? 0) - (b.bundleQty ?? 0))
                     .map((t, i) => (
                       <li key={i}>
-                        Buy {t.minQty}+ → {formatCurrency(t.unitPrice)} each
+                        Bundle of {t.bundleQty} → {formatCurrency(t.unitPrice)} each
                       </li>
                     ))}
                 </ul>
+                <p className="text-[11px] text-slate-500 mt-1.5">
+                  Whole bundles use the bundle price; any extra units are charged the normal price.
+                </p>
               </div>
             )}
           </div>

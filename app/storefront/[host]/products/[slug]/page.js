@@ -100,17 +100,18 @@ export default async function StorefrontProductPage({ params }) {
 
           {Array.isArray(product.priceTiers) && product.priceTiers.length > 0 && variants.length === 0 && (
             <div className="rounded-sm border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-700">Buy more, pay less</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-700">Buy in bundles, pay less</p>
               <ul className="mt-1.5 space-y-1 text-sm text-slate-700">
                 {[...product.priceTiers]
-                  .sort((a, b) => a.minQty - b.minQty)
+                  .sort((a, b) => (a.bundleQty ?? 0) - (b.bundleQty ?? 0))
                   .map((t, i) => (
                     <li key={i} className="flex justify-between gap-4">
-                      <span>{t.minQty} or more</span>
+                      <span>Bundle of {t.bundleQty}</span>
                       <span className="font-medium text-slate-900">{formatCurrency(t.unitPrice)} each</span>
                     </li>
                   ))}
               </ul>
+              <p className="mt-1.5 text-[11px] text-slate-500">Extra units above a whole bundle are charged the normal price.</p>
             </div>
           )}
 

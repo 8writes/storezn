@@ -242,10 +242,10 @@ export default function VendorProductEditPage({ params }) {
       return;
     }
     const cleanTiers = (form.priceTiers || [])
-      .filter((t) => t.minQty !== "" && t.unitPrice !== "")
-      .map((t) => ({ minQty: Number(t.minQty), unitPrice: Number(t.unitPrice) }))
-      .filter((t) => t.minQty >= 2 && t.unitPrice > 0)
-      .sort((a, b) => a.minQty - b.minQty);
+      .filter((t) => t.bundleQty !== "" && t.unitPrice !== "")
+      .map((t) => ({ bundleQty: Number(t.bundleQty), unitPrice: Number(t.unitPrice) }))
+      .filter((t) => t.bundleQty >= 2 && t.unitPrice > 0)
+      .sort((a, b) => a.bundleQty - b.bundleQty);
     setSaving(true);
     try {
       const payload = {

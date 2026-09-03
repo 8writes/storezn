@@ -14,7 +14,7 @@ import { InfoTip } from "@/components/ui/InfoTip.js";
 import { Switch } from "@/components/ui/Switch.js";
 import { formatCurrency } from "@/lib/format.js";
 import { isPlusStore } from "@/lib/storePlan.js";
-import { tieredUnitPrice } from "@/lib/pricing.js";
+import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
 
@@ -82,8 +82,13 @@ export default function RecordPastSalePage() {
     () =>
       cart.map((r) => {
         const det = details[r.key] || {};
-        const unit = det.variant?.price ?? (det.product ? tieredUnitPrice(det.product, r.quantity) : 0);
-        return { ...r, product: det.product, variant: det.variant, unit, lineTotal: unit * r.quantity };
+        const lineTotal = det.variant?.price != null
+          ? det.variant.price * r.quantity
+          : det.product
+            ? computeWholesalePrice(det.product, r.quantity).total
+            : 0;
+        const unit = r.quantity > 0 ? lineTotal / r.quantity : lineTotal;
+        return { ...r, product: det.product, variant: det.variant, unit, lineTotal };
       }),
     [cart, details],
   );

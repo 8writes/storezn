@@ -12,7 +12,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { formatCurrency } from "@/lib/format.js";
 import { formatKobo } from "@/lib/money.js";
 import { isPlusStore } from "@/lib/storePlan.js";
-import { tieredUnitPrice } from "@/lib/pricing.js";
+import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { RegisterBar } from "@/components/pos/RegisterBar.js";
 import { OpenRegisterPanel } from "@/components/pos/OpenRegisterPanel.js";
@@ -30,10 +30,25 @@ import { Minus, Plus, Trash2, ShoppingCart, Pause, RotateCcw, X } from "lucide-r
 const isNetErr = (err) =>
   !err || err.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(err.message || "");
 
-const unitNaira = (line, qty = line.quantity || 1) =>
-  line.priceOverride != null
-    ? line.priceOverride
-    : line.variant?.price ?? (line.product ? tieredUnitPrice(line.product, qty) : 0);
+// Catalogue pricing for one cart line, before any line discount. An
+// owner price override and a variant's own price are flat (unit x qty);
+// otherwise bundle/wholesale pricing gives a line total that isn't a
+// single unit x qty (whole bundles at the bundle rate, leftovers at full
+// price) plus the segments to show the cashier how it breaks down.
+const linePricing = (line, qty = line.quantity || 1) => {
+  if (line.priceOverride != null) {
+    const u = Number(line.priceOverride);
+    return { lineTotal: u * qty, unit: u, segments: [] };
+  }
+  if (line.variant?.price != null) {
+    return { lineTotal: line.variant.price * qty, unit: line.variant.price, segments: [] };
+  }
+  if (!line.product) return { lineTotal: 0, unit: 0, segments: [] };
+  const w = computeWholesalePrice(line.product, qty);
+  return { lineTotal: w.total, unit: w.unitAverage, segments: w.segments };
+};
+
+const unitNaira = (line, qty = line.quantity || 1) => linePricing(line, qty).unit;
 
 // A held sale is a client-cart snapshot ([{...cartRow, _d:{product,variant}}]).
 // Reconstruct a name, an item preview and the total so the cashier can
@@ -44,11 +59,8 @@ function heldSummary(h) {
   const names = [];
   for (const r of rows) {
     const d = r._d || {};
-    const unit =
-      r.priceOverride != null
-        ? Number(r.priceOverride)
-        : d.variant?.price ?? (d.product ? tieredUnitPrice(d.product, r.quantity || 1) : 0);
-    total += Math.max(0, unit * (r.quantity || 1) - (r.lineDiscount || 0));
+    const p = linePricing({ priceOverride: r.priceOverride, variant: d.variant, product: d.product }, r.quantity || 1);
+    total += Math.max(0, p.lineTotal - (r.lineDiscount || 0));
     const nm = d.product?.name;
     if (nm) names.push((r.quantity || 1) > 1 ? `${r.quantity}× ${nm}` : nm);
   }
@@ -410,8 +422,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       cart.map((r) => {
         const det = details[r.key] || {};
         const line = { ...r, product: det.product, variant: det.variant };
-        const unit = unitNaira(line);
-        return { ...line, unit, lineTotal: Math.max(0, unit * r.quantity - (r.lineDiscount || 0)) };
+        const p = linePricing(line);
+        return { ...line, unit: p.unit, segments: p.segments, lineTotal: Math.max(0, p.lineTotal - (r.lineDiscount || 0)) };
       }),
     [cart, details],
   );
@@ -671,6 +683,13 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
                           {l.priceOverride != null && <span className="text-amber-600"> · overridden</span>}
                           {l.lineDiscount > 0 && <span className="text-amber-600"> · −{formatCurrency(l.lineDiscount)}</span>}
                         </p>
+                        {Array.isArray(l.segments) && l.segments.length > 1 && (
+                          <p className="text-[11px] text-emerald-700">
+                            {l.segments
+                              .map((s) => `${s.quantity} × ${formatCurrency(s.unitPrice)}${s.bundleSize ? " (bundle)" : ""}`)
+                              .join(" + ")}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 border border-slate-300 rounded-sm shrink-0">
                         <button type="button" onClick={() => setQty(l.key, l.quantity - 1)} className="h-6 w-6 flex items-center justify-center hover:bg-slate-50 cursor-pointer">
