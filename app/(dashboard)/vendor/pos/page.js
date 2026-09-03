@@ -16,6 +16,7 @@ import { getEffectivePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { RegisterBar } from "@/components/pos/RegisterBar.js";
 import { OpenRegisterPanel } from "@/components/pos/OpenRegisterPanel.js";
+import { PosSkeleton } from "@/components/pos/PosSkeleton.js";
 import { TenderPanel } from "@/components/pos/TenderPanel.js";
 import { CashDrawerModal } from "@/components/pos/CashDrawerModal.js";
 import { CloseRegisterModal } from "@/components/pos/CloseRegisterModal.js";
@@ -179,7 +180,7 @@ export default function SellPage() {
       {header}
 
       {loading || registers === null ? (
-        <div className="h-64 bg-slate-100 rounded-sm animate-pulse" />
+        <PosSkeleton />
       ) : regError ? (
         <div className="max-w-md mx-auto bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h2 className="text-base font-bold text-slate-900">Couldn&apos;t load the register</h2>
@@ -585,7 +586,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     return data.zReport;
   };
 
-  if (checking) return <div className="h-64 bg-slate-100 rounded-sm animate-pulse" />;
+  if (checking) return <PosSkeleton />;
 
   if (!openSession) {
     return (
