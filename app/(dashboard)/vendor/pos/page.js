@@ -34,6 +34,34 @@ const unitNaira = (line) =>
     ? line.priceOverride
     : line.variant?.price ?? (line.product ? getEffectivePrice(line.product.price, line.product.discountPercent) : 0);
 
+// A held sale is a client-cart snapshot ([{...cartRow, _d:{product,variant}}]).
+// Reconstruct a name, an item preview and the total so the cashier can
+// pick the right one back out for a returning customer.
+function heldSummary(h) {
+  const rows = Array.isArray(h.cart) ? h.cart : [];
+  let total = 0;
+  const names = [];
+  for (const r of rows) {
+    const d = r._d || {};
+    const unit =
+      r.priceOverride != null
+        ? Number(r.priceOverride)
+        : d.variant?.price ?? (d.product ? getEffectivePrice(d.product.price, d.product.discountPercent) : 0);
+    total += Math.max(0, unit * (r.quantity || 1) - (r.lineDiscount || 0));
+    const nm = d.product?.name;
+    if (nm) names.push((r.quantity || 1) > 1 ? `${r.quantity}× ${nm}` : nm);
+  }
+  const preview = names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3} more` : "");
+  const label = (h.label || "").trim() || (h.customer?.name || "").trim();
+  return {
+    title: label || preview || "Held sale",
+    hasLabel: !!label,
+    preview,
+    total,
+    itemCount: rows.reduce((s, r) => s + (r.quantity || 1), 0),
+  };
+}
+
 // The in-person register. Its own route (was tangled into
 // /vendor/orders/new with the manual "record a past sale" form, which
 // meant a failed register fetch dumped you into the wrong screen).
@@ -206,6 +234,15 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [closeOpen, setCloseOpen] = useState(false);
   const [xOpen, setXOpen] = useState(false);
   const [heldOpen, setHeldOpen] = useState(false);
+  const [holdPromptOpen, setHoldPromptOpen] = useState(false);
+  const [holdLabel, setHoldLabel] = useState("");
+  // "Work offline": every sale goes straight to the local queue and
+  // nothing auto-syncs until the cashier taps Sync (or turns this off).
+  // Persisted per device so it survives a reload / cold open.
+  const offlineKey = `pos_force_offline_${storeId}`;
+  const [offlineMode, setOfflineMode] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem(offlineKey) === "1",
+  );
   const [pendingSync, setPendingSync] = useState(0);
   const [offlineReceipt, setOfflineReceipt] = useState(null);
   const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false });
@@ -291,17 +328,29 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     [storeId, apiFetch],
   );
 
+  const toggleOfflineMode = (on) => {
+    setOfflineMode(on);
+    try {
+      localStorage.setItem(offlineKey, on ? "1" : "0");
+    } catch {
+      /* private mode */
+    }
+    if (!on) syncNow(); // turning it off means "I'm back - push everything"
+  };
+
   useEffect(() => {
     if (!openSession) return;
     listQueuedSales(storeId).then((q) => setPendingSync(q.length)).catch(() => {});
-    syncNow();
     syncCatalog();
+    // In "work offline" mode nothing auto-syncs - the cashier drives it
+    // with the Sync button. The catalogue still refreshes (read-only).
+    if (offlineMode) return;
+    syncNow();
     const onOnline = () => {
       syncNow();
       syncCatalog();
     };
     window.addEventListener("online", onOnline);
-    // syncNow every 25s; syncCatalog self-throttles to once per 30 min.
     const iv = setInterval(() => {
       syncNow();
       syncCatalog();
@@ -310,7 +359,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       window.removeEventListener("online", onOnline);
       clearInterval(iv);
     };
-  }, [openSession, storeId, syncNow, syncCatalog]);
+  }, [openSession, storeId, offlineMode, syncNow, syncCatalog]);
 
   const handleOpen = async ({ registerId, openingFloat }) => {
     setOpening(true);
@@ -420,6 +469,22 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       note: buyer.note || null,
     };
 
+    const queueIt = async (msg) => {
+      await enqueueSale(storeId, payload).catch(() => {});
+      setTenderOpen(false);
+      resetSale();
+      setOfflineReceipt({ ...receipt, pending: true });
+      listQueuedSales(storeId).then((q) => setPendingSync(q.length)).catch(() => {});
+      toast.warning(msg);
+      setSubmitting(false);
+    };
+
+    // "Work offline" is on - don't even try the network.
+    if (offlineMode) {
+      await queueIt("Saved - tap Sync when you want to send it up");
+      return;
+    }
+
     try {
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sales`, { method: "POST", body: JSON.stringify(payload) });
       setTenderOpen(false);
@@ -429,27 +494,32 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       router.push(`/vendor/orders/${data.order.id}/receipt?storeId=${storeId}`);
     } catch (err) {
       if (isNetErr(err) || (typeof navigator !== "undefined" && navigator.onLine === false)) {
-        await enqueueSale(storeId, payload).catch(() => {});
-        setTenderOpen(false);
-        resetSale();
-        setOfflineReceipt({ ...receipt, pending: true });
-        listQueuedSales(storeId).then((q) => setPendingSync(q.length)).catch(() => {});
-        toast.warning("Saved offline - it'll sync when you're back online");
-      } else {
-        toast.error(err.message || "Couldn't complete the sale");
+        await queueIt("Saved offline - it'll sync when you're back online");
+        return;
       }
+      toast.error(err.message || "Couldn't complete the sale");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const holdSale = async () => {
+  // Ask for a quick tag so it's identifiable later ("Chidi", "guy in
+  // blue"). Pre-filled with the customer name or the first item.
+  const openHoldPrompt = () => {
+    const firstItem = lines[0]?.product?.name || "";
+    setHoldLabel(buyer.name || firstItem);
+    setHoldPromptOpen(true);
+  };
+
+  const holdSale = async (labelArg) => {
+    const label = (labelArg ?? holdLabel ?? "").trim();
+    setHoldPromptOpen(false);
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/held`, {
         method: "POST",
         body: JSON.stringify({
           sessionId: openSession.session.id,
-          label: buyer.name || "",
+          label,
           cart: cart.map((r) => ({ ...r, _d: details[r.key] })),
           customer: buyer.name || buyer.phone ? { name: buyer.name, phone: buyer.phone } : null,
         }),
@@ -539,6 +609,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         heldCount={heldCount}
         pendingSync={pendingSync}
         onSync={syncNow}
+        offlineMode={offlineMode}
+        onToggleOfflineMode={toggleOfflineMode}
         catalog={catalog}
         onOpenOfflineSetup={() => setOfflineSetupOpen(true)}
         onCashDrawer={() => setCashOpen(true)}
@@ -555,18 +627,22 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
               <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <ShoppingCart size={15} className="text-slate-400" /> Current sale
               </p>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setHeldOpen(true)}
-                  className="text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer inline-flex items-center gap-1"
+                  className={`text-xs font-semibold cursor-pointer inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 ${
+                    heldCount
+                      ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                      : "text-slate-500 hover:text-slate-900"
+                  }`}
                 >
-                  <RotateCcw size={12} /> Held{heldCount ? ` (${heldCount})` : ""}
+                  <RotateCcw size={12} /> Held{heldCount ? ` · ${heldCount}` : ""}
                 </button>
                 {cart.length > 0 && (
                   <button
                     type="button"
-                    onClick={holdSale}
+                    onClick={openHoldPrompt}
                     className="text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer inline-flex items-center gap-1"
                   >
                     <Pause size={12} /> Hold
@@ -718,6 +794,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           onClose={() => setCloseOpen(false)}
           expectedCashKobo={sessionData.summary?.drawer?.expectedCash ?? 0}
           heldCount={heldCount}
+          pendingSync={pendingSync}
+          onSync={syncNow}
           onSubmit={closeRegister}
         />
       )}
@@ -756,6 +834,33 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         </div>
       )}
 
+      {holdPromptOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setHoldPromptOpen(false)} />
+          <div className="relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-xs p-4 space-y-3">
+            <p className="text-sm font-bold text-slate-900">Hold this sale</p>
+            <p className="text-xs text-slate-500">Give it a name so you can find it again for the customer.</p>
+            <input
+              autoFocus
+              type="text"
+              value={holdLabel}
+              onChange={(e) => setHoldLabel(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && holdSale()}
+              placeholder="e.g. Chidi, or 'guy in blue'"
+              className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base outline-none focus:border-brand-500"
+            />
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" fullWidth onClick={() => setHoldPromptOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" fullWidth onClick={() => holdSale()}>
+                Hold
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {heldOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="fixed inset-0 bg-black/50" onClick={() => setHeldOpen(false)} />
@@ -770,25 +875,40 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
               <p className="text-sm text-slate-500 p-6 text-center">Nothing on hold</p>
             ) : (
               <ul className="overflow-y-auto divide-y divide-slate-100">
-                {sessionData.heldSales.map((h) => (
-                  <li key={h.id} className="flex items-center justify-between gap-2 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-sm text-slate-900 truncate">{h.label || "Held sale"}</p>
-                      <p className="text-[11px] text-slate-500">
-                        {(h.cart?.length || 0)} item{(h.cart?.length || 0) === 1 ? "" : "s"} ·{" "}
-                        {new Date(h.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button type="button" onClick={() => recall(h)} className="text-xs font-semibold text-brand-700 hover:text-brand-800 cursor-pointer">
-                        Recall
+                {sessionData.heldSales.map((h) => {
+                  const s = heldSummary(h);
+                  return (
+                    <li key={h.id} className="px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{s.title}</p>
+                          {s.hasLabel && s.preview && (
+                            <p className="text-[11px] text-slate-500 truncate">{s.preview}</p>
+                          )}
+                          <p className="text-[11px] text-slate-500">
+                            {s.itemCount} item{s.itemCount === 1 ? "" : "s"} · {formatCurrency(s.total)} ·{" "}
+                            {new Date(h.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => discardHeld(h.id)}
+                          className="text-slate-300 hover:text-red-600 cursor-pointer shrink-0 mt-0.5"
+                          title="Discard"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => recall(h)}
+                        className="mt-2 w-full rounded-sm bg-brand-600 text-white text-sm font-semibold py-1.5 hover:bg-brand-700 cursor-pointer"
+                      >
+                        Recall this sale
                       </button>
-                      <button type="button" onClick={() => discardHeld(h.id)} className="text-slate-400 hover:text-red-600 cursor-pointer">
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

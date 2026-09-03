@@ -54,7 +54,7 @@ export default function ReceiptPage({ params }) {
 
       <div className="no-print flex items-center justify-between gap-2">
         <Link href={`/vendor/orders/${id}?storeId=${storeId}`} className="text-sm text-slate-500 hover:text-slate-800">
-          ← Order detail
+          Order detail
         </Link>
         <div className="flex gap-2">
           <Link href="/vendor/orders/new">

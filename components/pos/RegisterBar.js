@@ -1,5 +1,5 @@
 "use client";
-import { Calculator, Wallet, FileText, LockKeyhole, RefreshCw, Database } from "lucide-react";
+import { Calculator, Wallet, FileText, LockKeyhole, RefreshCw, Database, CloudOff, Cloud } from "lucide-react";
 import { formatKobo } from "@/lib/money.js";
 
 function ago(iso) {
@@ -12,7 +12,7 @@ function ago(iso) {
 }
 
 // Sticky status strip on the till: which register/shift is open, the
-// live expected-cash figure, offline readiness, and the shift actions.
+// live expected-cash figure, offline state, and the shift actions.
 export function RegisterBar({
   registerName,
   session,
@@ -20,6 +20,8 @@ export function RegisterBar({
   heldCount = 0,
   pendingSync = 0,
   onSync,
+  offlineMode = false,
+  onToggleOfflineMode,
   catalog,
   onOpenOfflineSetup,
   onCashDrawer,
@@ -33,20 +35,35 @@ export function RegisterBar({
         <Calculator size={15} className="text-brand-600" />
         {registerName}
       </span>
-      {pendingSync > 0 && (
+
+      {/* Work offline toggle + queue/sync state */}
+      <span className="flex items-center gap-2">
         <button
           type="button"
-          onClick={onSync}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:text-amber-800 cursor-pointer"
-          title="Sales saved offline, waiting to sync"
+          onClick={() => onToggleOfflineMode?.(!offlineMode)}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold cursor-pointer transition-colors ${
+            offlineMode ? "bg-amber-100 text-amber-800 hover:bg-amber-200" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+          title={offlineMode ? "Sales are queued on this device - tap to go back online" : "Sell online (auto-syncs)"}
         >
-          <RefreshCw size={12} />
-          {pendingSync} to sync
+          {offlineMode ? <CloudOff size={12} /> : <Cloud size={12} />}
+          {offlineMode ? "Working offline" : "Online"}
         </button>
-      )}
+        {(pendingSync > 0 || offlineMode) && (
+          <button
+            type="button"
+            onClick={onSync}
+            className="inline-flex items-center gap-1 rounded-sm border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 cursor-pointer"
+            title="Send queued sales to the server now"
+          >
+            <RefreshCw size={12} />
+            Sync{pendingSync > 0 ? ` · ${pendingSync}` : ""}
+          </button>
+        )}
+      </span>
+
       <span className="text-slate-500">
-        Open since{" "}
-        {new Date(session.openedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        Open since {new Date(session.openedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
       </span>
       <span className="text-slate-500">
         Drawer <span className="font-medium text-slate-900 tabular-nums">{formatKobo(expected)}</span>

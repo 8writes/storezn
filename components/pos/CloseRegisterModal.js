@@ -9,7 +9,7 @@ import { ZReport } from "./ZReport.js";
 // Two steps: count the drawer -> confirm -> the Z report is shown for
 // printing. onSubmit(countedCashNaira) resolves to the closed session's
 // zReport (or throws).
-export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount, onSubmit }) {
+export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount, pendingSync = 0, onSync, onSubmit }) {
   const [counted, setCounted] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [zReport, setZReport] = useState(null);
@@ -43,6 +43,16 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
         <div className="p-4 overflow-y-auto">
           {zReport ? (
             <ZReport summary={zReport} />
+          ) : pendingSync > 0 ? (
+            <div className="space-y-3">
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-sm p-3">
+                {pendingSync} sale{pendingSync === 1 ? "" : "s"} still to sync. The Z report is built from what the server
+                has, so send these up first.
+              </p>
+              <Button type="button" fullWidth onClick={onSync}>
+                Sync {pendingSync} now
+              </Button>
+            </div>
           ) : heldCount > 0 ? (
             <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-sm p-3">
               {heldCount} held sale{heldCount === 1 ? "" : "s"} still parked. Recall and finish (or discard) them before closing.
@@ -86,7 +96,15 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
               </Button>
             </div>
           ) : (
-            <Button type="button" fullWidth size="lg" variant="danger" loading={submitting} disabled={heldCount > 0 || counted === ""} onClick={submit}>
+            <Button
+              type="button"
+              fullWidth
+              size="lg"
+              variant="danger"
+              loading={submitting}
+              disabled={heldCount > 0 || pendingSync > 0 || counted === ""}
+              onClick={submit}
+            >
               Close register &amp; run Z
             </Button>
           )}

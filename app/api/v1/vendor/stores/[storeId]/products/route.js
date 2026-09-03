@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { products, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
-import { and, asc, count, desc, eq, gt, ilike, isNull, lte, or } from "drizzle-orm";
+import { products, productVariants, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
+import { and, asc, count, desc, eq, gt, ilike, isNull, lte, or, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
@@ -51,9 +51,16 @@ export async function GET(req, { params }) {
     conditions.push(lte(products.stock, 0));
   }
 
+  // Active-variant count per product, so the POS can skip a per-item
+  // "does this have options?" round trip when adding to the sale.
+  const variantCountSql = sql`(
+    select count(*)::int from ${productVariants}
+    where ${productVariants.productId} = ${products.id} and ${productVariants.isActive}
+  )`;
+
   const [rows, [{ total }]] = await Promise.all([
     db
-      .select({ product: products, categoryName: categories.name })
+      .select({ product: products, categoryName: categories.name, variantCount: variantCountSql })
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))
       .where(and(...conditions))
@@ -64,7 +71,7 @@ export async function GET(req, { params }) {
   ]);
 
   return NextResponse.json({
-    products: rows.map((r) => ({ ...r.product, categoryName: r.categoryName })),
+    products: rows.map((r) => ({ ...r.product, categoryName: r.categoryName, variantCount: Number(r.variantCount) || 0 })),
     lowStockThreshold: LOW_STOCK_THRESHOLD,
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });

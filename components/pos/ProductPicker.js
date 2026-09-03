@@ -97,43 +97,70 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
     }
   };
 
+  // Adds instantly for the common case (no options) using the
+  // variantCount the list already carries - no round trip. Only a
+  // product that actually has options pauses to load them.
   const tapProduct = async (product) => {
     if (loadingVariantsFor) return;
+    if (!product.variantCount) {
+      onAdd(product, null);
+      return;
+    }
     const variants = await ensureVariants(product.id);
     if (variants.length === 0) onAdd(product, null);
     else setPicker(product);
   };
 
-  // Scanner fast-path: look the code up as an exact SKU and add it
-  // straight away if it's a clean single hit, otherwise show search
-  // results. Falls back to the offline catalogue when there's no network.
+  const acceptHit = async (hit) => {
+    setCache((prev) => ({ ...prev, [hit.id]: hit }));
+    if (!hit.variantCount) {
+      onAdd(hit, null);
+      setSearch("");
+      searchRef.current?.focus();
+      return;
+    }
+    const variants = await ensureVariants(hit.id);
+    if (variants.length === 0) {
+      onAdd(hit, null);
+      setSearch("");
+      searchRef.current?.focus();
+      return;
+    }
+    setPicker(hit);
+  };
+
+  // Scanner fast-path. Tries what's already on this device first (loaded
+  // rows, then the offline catalogue snapshot) so a scan adds with no
+  // network at all; only an unknown code hits the API.
   const handleScan = async (rawTerm) => {
     const term = (rawTerm ?? search).trim();
     if (!term) return;
+    const low = term.toLowerCase();
+
+    const local =
+      products.find((p) => (p.sku || "").toLowerCase() === low) ||
+      Object.values(cache).find((p) => (p.sku || "").toLowerCase() === low) ||
+      (await findBySku(storeId, term).catch(() => null));
+    if (local) {
+      await acceptHit(local);
+      return;
+    }
+
     setScanning(true);
     try {
       let hit = null;
       try {
         const params = new URLSearchParams({ page: "1", pageSize: "5", q: term });
         const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
-        const exact = data.products.find((p) => (p.sku || "").toLowerCase() === term.toLowerCase());
+        const exact = data.products.find((p) => (p.sku || "").toLowerCase() === low);
         hit = exact || (data.products.length === 1 ? data.products[0] : null);
         setOffline(false);
       } catch (err) {
         if (!isNetErr(err)) throw err;
         setOffline(true);
-        hit = await findBySku(storeId, term).catch(() => null);
       }
       if (hit) {
-        setCache((prev) => ({ ...prev, [hit.id]: hit }));
-        const variants = await ensureVariants(hit.id);
-        if (variants.length === 0) {
-          onAdd(hit, null);
-          setSearch("");
-          searchRef.current?.focus();
-          return;
-        }
-        setPicker(hit);
+        await acceptHit(hit);
         return;
       }
       toast.error(`Nothing matches "${term}"`);
