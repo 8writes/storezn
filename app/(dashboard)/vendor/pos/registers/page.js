@@ -128,7 +128,7 @@ export default function RegistersPage() {
           <Calculator size={18} className="text-brand-600" /> Registers
         </h1>
         <Link href="/vendor/pos/sessions" className="text-sm font-medium text-brand-700 hover:text-brand-800">
-          Session history &amp; Z reports →
+          Session history &amp; Z reports
         </Link>
       </div>
       <p className="text-sm text-slate-500">

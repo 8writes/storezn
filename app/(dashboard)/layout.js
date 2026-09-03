@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
+import UpdatePrompt from "@/app/UpdatePrompt.js";
 
 // Grouped so the sidebar reads as sections instead of one flat list of 9+
 // items - each group is a distinct concern (running the store day-to-day
@@ -302,6 +303,7 @@ export default function DashboardLayout({ children }) {
           sidebar has no top bar), but the fixed offset doesn't hurt
           there either. */}
       <Toaster position="top-right" offset="80px" mobileOffset="80px" closeButton={true} />
+      <UpdatePrompt />
 
       <aside
         className={`hidden sm:flex sm:w-60 shrink-0 flex-col h-dvh sticky top-0 ${
