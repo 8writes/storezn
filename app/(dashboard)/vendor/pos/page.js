@@ -474,6 +474,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         unitPrice: l.unit,
         lineTotal: l.lineTotal,
         priceOverridden: l.priceOverride != null,
+        segments: Array.isArray(l.segments) && l.segments.length > 1 ? l.segments : null,
       })),
       tenders,
       subtotal,

@@ -64,8 +64,17 @@ export async function POST(req, { params }) {
     if (line.quantity + alreadyReturned > item.quantity) {
       return NextResponse.json({ error: `${item.productName}: more returned than were sold` }, { status: 409 });
     }
-    const perUnitKobo = Math.round(toKobo(item.lineTotal) / item.quantity);
-    const lineRefundKobo = perUnitKobo * line.quantity;
+    // Returning everything still outstanding on this line refunds exactly
+    // what the line was charged - `lineTotal / qty` doesn't divide evenly
+    // for a bundle price (10 at the bundle rate + 1 loose) or a line
+    // discount, so per-unit rounding would otherwise leave a kobo or two
+    // stranded on a full return.
+    const lineTotalKobo = toKobo(item.lineTotal);
+    const perUnitKobo = Math.round(lineTotalKobo / item.quantity);
+    const returnsWholeLine = line.quantity + alreadyReturned === item.quantity;
+    const lineRefundKobo = returnsWholeLine
+      ? lineTotalKobo - perUnitKobo * alreadyReturned
+      : perUnitKobo * line.quantity;
     refundKoboRaw += lineRefundKobo;
     returnLines.push({ item, quantity: line.quantity, lineRefundKobo });
   }

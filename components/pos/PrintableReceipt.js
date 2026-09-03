@@ -62,7 +62,16 @@ export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tender
                     <td className="py-0.5 pr-2">
                       {it.quantity}× {it.name}
                       {it.variantLabel ? <div className="text-slate-500 text-[11px]">{it.variantLabel}</div> : null}
-                      {it.priceOverridden ? <div className="text-slate-500 text-[11px]">@ {formatCurrency(it.unitPrice)}</div> : null}
+                      {it.segments
+                        ? it.segments.map((s, si) => (
+                            <div key={si} className="text-slate-500 text-[11px]">
+                              {s.quantity} @ {formatCurrency(s.unitPrice)}
+                              {s.bundleSize ? " (bundle)" : ""}
+                            </div>
+                          ))
+                        : it.priceOverridden
+                          ? <div className="text-slate-500 text-[11px]">@ {formatCurrency(it.unitPrice)}</div>
+                          : null}
                     </td>
                     <td className="py-0.5 text-right tabular-nums whitespace-nowrap">{formatCurrency(it.lineTotal)}</td>
                   </tr>

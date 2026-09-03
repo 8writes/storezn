@@ -81,7 +81,7 @@ function offlinePage() {
       `a{display:inline-block;margin-top:1rem;color:#fff;background:#1f7a4d;padding:.6rem 1rem;border-radius:3px;text-decoration:none;font-weight:600;font-size:.9rem}` +
       `</style></head><body><div class="c"><h1>You're offline</h1>` +
       `<p>Reconnect and this page will load. Once the register has been opened it keeps working offline - sales are saved and sync when you're back.</p>` +
-      `<a href="/vendor/orders/new">Open the register</a></div></body></html>`,
+      `<a href="/vendor/pos">Open the register</a></div></body></html>`,
     { status: 200, headers: { "content-type": "text/html; charset=utf-8" } },
   );
 }
