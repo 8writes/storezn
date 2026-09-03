@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { users, stores } from "../../../../../lib/db/schema.js";
+import { users, stores, pushSubscriptions } from "../../../../../lib/db/schema.js";
 import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { parsePagination } from "../../../../../lib/pagination.js";
@@ -28,7 +28,9 @@ export async function GET(req) {
         firstName: users.firstName,
         lastName: users.lastName,
         email: users.email,
+        phone: users.phone,
         emailVerified: users.emailVerified,
+        emailNotificationsEnabled: users.emailNotificationsEnabled,
         isBanned: users.isBanned,
         approvalStatus: users.approvalStatus,
         nin: users.nin,
@@ -45,22 +47,44 @@ export async function GET(req) {
   ]);
 
   const namesByOwner = new Map();
+  const whatsappByOwner = new Map();
+  const pushCountByUser = new Map();
   if (rows.length > 0) {
-    const storeNames = await db
-      .select({ ownerId: stores.ownerId, name: stores.name })
-      .from(stores)
-      .where(inArray(stores.ownerId, rows.map((r) => r.id)));
-    for (const s of storeNames) {
+    const ownerIds = rows.map((r) => r.id);
+    const [storeRows, pushRows] = await Promise.all([
+      db
+        .select({ ownerId: stores.ownerId, name: stores.name, socialLinks: stores.socialLinks })
+        .from(stores)
+        .where(inArray(stores.ownerId, ownerIds)),
+      // One row per browser/device the vendor has opted into push on -
+      // count them so an admin can see reachability at a glance (0 = not
+      // subscribed). staffId/customerId rows are irrelevant here.
+      db
+        .select({ userId: pushSubscriptions.userId, devices: count() })
+        .from(pushSubscriptions)
+        .where(inArray(pushSubscriptions.userId, ownerIds))
+        .groupBy(pushSubscriptions.userId),
+    ]);
+    for (const s of storeRows) {
       const list = namesByOwner.get(s.ownerId) || [];
       list.push(s.name);
       namesByOwner.set(s.ownerId, list);
+      const wa = s.socialLinks?.whatsapp;
+      if (wa && !whatsappByOwner.has(s.ownerId)) whatsappByOwner.set(s.ownerId, wa);
     }
+    for (const p of pushRows) pushCountByUser.set(p.userId, Number(p.devices) || 0);
   }
 
   // nin holds RSA-OAEP ciphertext (see lib/ninClient.js) - never returned
   // in bulk, only whether one exists. GET /api/v1/super-admin/vendors/
   // [id]/nin decrypts one at a time, on demand, when an admin reveals it.
-  const vendors = rows.map(({ nin, ...r }) => ({ ...r, hasNin: !!nin, storeNames: namesByOwner.get(r.id) || [] }));
+  const vendors = rows.map(({ nin, ...r }) => ({
+    ...r,
+    hasNin: !!nin,
+    storeNames: namesByOwner.get(r.id) || [],
+    whatsapp: whatsappByOwner.get(r.id) || null,
+    pushDeviceCount: pushCountByUser.get(r.id) || 0,
+  }));
 
   return NextResponse.json({
     vendors,

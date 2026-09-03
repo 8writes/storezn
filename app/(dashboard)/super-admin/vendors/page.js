@@ -179,20 +179,22 @@ export default function SuperAdminVendorsPage() {
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Vendor</th>
+              <th className="px-4 py-3 font-medium">Contact</th>
               <th className="px-4 py-3 font-medium">Store(s)</th>
               <th className="px-4 py-3 font-medium">NIN</th>
               <th className="px-4 py-3 font-medium">Submitted</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Notifications</th>
               <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <TableRowSkeleton cols={7} />
+              <TableRowSkeleton cols={9} />
             ) : vendors.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-700">No vendors match{q ? " your search" : ""}</td>
+                <td colSpan={9} className="px-4 py-6 text-center text-slate-700">No vendors match{q ? " your search" : ""}</td>
               </tr>
             ) : (
               vendors.map((v) => (
@@ -200,6 +202,25 @@ export default function SuperAdminVendorsPage() {
                   <td className="px-4 py-3">
                     <p className="font-medium text-slate-900">{v.firstName} {v.lastName}</p>
                     <p className="text-xs text-slate-700">{v.email}</p>
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    {v.phone ? (
+                      <a href={`tel:${v.phone}`} className="text-brand-600 hover:underline block">{v.phone}</a>
+                    ) : (
+                      <span className="text-slate-400 block">No phone</span>
+                    )}
+                    {v.whatsapp ? (
+                      <a
+                        href={`https://wa.me/${v.whatsapp.replace(/[^\d]/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-green-600 hover:underline block mt-0.5"
+                      >
+                        WhatsApp {v.whatsapp}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 block mt-0.5">No WhatsApp</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-500">{v.storeNames.join(", ") || "-"}</td>
                   <td className="px-4 py-3 text-slate-500">
@@ -214,6 +235,18 @@ export default function SuperAdminVendorsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Badge color={v.emailVerified ? "green" : "amber"}>{v.emailVerified ? "Verified" : "Unverified"}</Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1 items-start">
+                      <Badge color={v.pushDeviceCount > 0 ? "green" : "slate"}>
+                        {v.pushDeviceCount > 0
+                          ? `Push · ${v.pushDeviceCount} device${v.pushDeviceCount === 1 ? "" : "s"}`
+                          : "No push"}
+                      </Badge>
+                      <span className="text-xs text-slate-500">
+                        Email {v.emailNotificationsEnabled ? "on" : "off"}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end items-center gap-3 flex-wrap">
