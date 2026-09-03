@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
-import { formatCurrency, formatDateTime } from "@/lib/format.js";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/format.js";
+import { getEffectivePlan } from "@/lib/storePlan.js";
 
 export default function SuperAdminStoreDetailPage({ params }) {
   const { id } = use(params);
@@ -20,8 +21,11 @@ export default function SuperAdminStoreDetailPage({ params }) {
   const [store, setStore] = useState(null);
   const [owner, setOwner] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [subTx, setSubTx] = useState([]);
   const [rateOverride, setRateOverride] = useState("");
   const [priceOverride, setPriceOverride] = useState("");
+  const [plusForm, setPlusForm] = useState({ amount: "", months: "1", paidAt: "", note: "" });
+  const [activatingPlus, setActivatingPlus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingPrice, setSavingPrice] = useState(false);
@@ -35,6 +39,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         setStore(data.store);
         setOwner(data.owner);
         setTransactions(data.transactions);
+        setSubTx(data.subscriptionTransactions || []);
         setRateOverride(data.store.commissionRatePercent != null ? String(data.store.commissionRatePercent) : "");
         setPriceOverride(data.store.subscriptionPriceOverride != null ? String(data.store.subscriptionPriceOverride) : "");
       })
@@ -76,6 +81,40 @@ export default function SuperAdminStoreDetailPage({ params }) {
       toast.error(err.message || "Failed to update price");
     } finally {
       setSavingPrice(false);
+    }
+  };
+
+  const activatePlus = async () => {
+    if (!plusForm.amount || Number(plusForm.amount) <= 0) {
+      toast.error("Enter the amount they paid");
+      return;
+    }
+    const months = Number(plusForm.months) || 1;
+    const ok = await confirm({
+      title: `Activate Storezn+ for ${store.name}?`,
+      description: `Records ${formatCurrency(Number(plusForm.amount))} as an off-platform payment and grants Storezn+ for ${months} month${months === 1 ? "" : "s"}${
+        getEffectivePlan(store) === "plus" ? " on top of the time already left" : ""
+      }. It won't auto-renew.`,
+      confirmLabel: "Activate",
+    });
+    if (!ok) return;
+    setActivatingPlus(true);
+    try {
+      const body = { amount: Number(plusForm.amount), months };
+      if (plusForm.paidAt) body.paidAt = plusForm.paidAt;
+      if (plusForm.note.trim()) body.note = plusForm.note.trim();
+      const data = await apiFetch(`/api/v1/super-admin/stores/${id}/manual-plus`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      setStore(data.store);
+      setPlusForm({ amount: "", months: "1", paidAt: "", note: "" });
+      toast.success(`Storezn+ active until ${formatDate(data.planRenewsAt)}`);
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to activate Storezn+");
+    } finally {
+      setActivatingPlus(false);
     }
   };
 
@@ -225,6 +264,70 @@ export default function SuperAdminStoreDetailPage({ params }) {
           <Input label="Monthly price" type="number" min="0" step="1" value={priceOverride} onChange={(e) => setPriceOverride(e.target.value)} className="flex-1" />
           <Button onClick={savePrice} loading={savingPrice}>Save</Button>
         </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-700">Storezn+ (offline payment)</p>
+          <Badge color={getEffectivePlan(store) === "plus" ? "green" : "slate"}>
+            {getEffectivePlan(store) === "plus" ? "Plus" : "Free"}
+          </Badge>
+        </div>
+        <p className="text-xs text-slate-500">
+          {getEffectivePlan(store) === "plus"
+            ? `Active until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "-"}${store.planCancelled ? " - won't auto-renew" : " - renews via Paystack"}.`
+            : "This store is on the free plan."}
+          {" "}Use this when a business pays you directly (transfer/cash). The amount is
+          logged to subscription revenue and Plus is granted for the months you enter,
+          stacking on any time already left. It won&apos;t auto-renew.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="Amount paid (₦)"
+            type="number"
+            min="0"
+            step="1"
+            value={plusForm.amount}
+            onChange={(e) => setPlusForm((f) => ({ ...f, amount: e.target.value }))}
+          />
+          <Input
+            label="Months"
+            type="number"
+            min="1"
+            max="36"
+            value={plusForm.months}
+            onChange={(e) => setPlusForm((f) => ({ ...f, months: e.target.value }))}
+          />
+          <Input
+            label="Paid on (optional)"
+            type="date"
+            value={plusForm.paidAt}
+            onChange={(e) => setPlusForm((f) => ({ ...f, paidAt: e.target.value }))}
+          />
+          <Input
+            label="Note (optional)"
+            value={plusForm.note}
+            onChange={(e) => setPlusForm((f) => ({ ...f, note: e.target.value }))}
+          />
+        </div>
+        <Button onClick={activatePlus} loading={activatingPlus} fullWidth>
+          {getEffectivePlan(store) === "plus" ? "Extend Storezn+" : "Activate Storezn+"}
+        </Button>
+
+        {subTx.length > 0 && (
+          <div className="pt-1">
+            <p className="text-xs font-medium text-slate-500 mb-1.5">Storezn+ payments</p>
+            <ul className="divide-y divide-slate-100 border border-slate-100 rounded-sm">
+              {subTx.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+                  <span className="text-slate-500">{formatDate(s.paidAt)}</span>
+                  <span className="text-slate-900 font-medium">{formatCurrency(s.amount)}</span>
+                  <Badge color={s.manual ? "amber" : "slate"}>{s.manual ? "Offline" : "Paystack"}</Badge>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div>

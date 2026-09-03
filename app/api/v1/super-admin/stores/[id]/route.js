@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../lib/db/index.js";
-import { stores, orders } from "../../../../../../lib/db/schema.js";
+import { stores, orders, storeSubscriptionTransactions } from "../../../../../../lib/db/schema.js";
 import { desc, eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
 import { validate, updateStoreStatusSchema } from "../../../../../../lib/validate.js";
@@ -16,12 +16,15 @@ export async function GET(req, { params }) {
   const store = await db.query.stores.findFirst({ where: eq(stores.id, id), with: { owner: true } });
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
-  const orderRows = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.storeId, id))
-    .orderBy(desc(orders.createdAt))
-    .limit(20);
+  const [orderRows, subRows] = await Promise.all([
+    db.select().from(orders).where(eq(orders.storeId, id)).orderBy(desc(orders.createdAt)).limit(20),
+    db
+      .select()
+      .from(storeSubscriptionTransactions)
+      .where(eq(storeSubscriptionTransactions.storeId, id))
+      .orderBy(desc(storeSubscriptionTransactions.paidAt))
+      .limit(50),
+  ]);
 
   const { owner, ...storeData } = store;
   return NextResponse.json({
@@ -33,6 +36,13 @@ export async function GET(req, { params }) {
       amount: o.totalAmount,
       commission: o.commissionAmount + (o.flatFeeAmount || 0),
       status: o.paymentStatus === "paid" ? o.status : o.paymentStatus,
+    })),
+    subscriptionTransactions: subRows.map((s) => ({
+      id: s.id,
+      amount: s.amount,
+      paidAt: s.paidAt,
+      reference: s.paystackReference,
+      manual: s.paystackReference?.startsWith("MANUAL-") || false,
     })),
   });
 }

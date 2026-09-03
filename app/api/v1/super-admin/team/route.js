@@ -25,6 +25,7 @@ export async function GET(req) {
       email: users.email,
       role: users.role,
       isBanned: users.isBanned,
+      lastActiveAt: users.lastActiveAt,
       createdAt: users.createdAt,
     })
     .from(users)

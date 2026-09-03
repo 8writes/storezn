@@ -10,7 +10,9 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
-import { formatDate } from "@/lib/format.js";
+import { formatDate, formatRelativeTime } from "@/lib/format.js";
+
+const isOnlineNow = (ts) => !!ts && Date.now() - new Date(ts).getTime() < 5 * 60_000;
 
 const EMPTY_FORM = { firstName: "", lastName: "", email: "", role: "admin" };
 const ROLE_OPTIONS = [
@@ -132,16 +134,17 @@ export default function SuperAdminTeamPage() {
                 <th className="px-4 py-3 font-medium">Team member</th>
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Last active</th>
                 <th className="px-4 py-3 font-medium">Added</th>
                 <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
               {team === null ? (
-                <TableRowSkeleton cols={5} />
+                <TableRowSkeleton cols={6} />
               ) : team.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">No team members yet</td>
+                  <td colSpan={6} className="px-4 py-6 text-center text-slate-400">No team members yet</td>
                 </tr>
               ) : (
                 team.map((member) => (
@@ -162,6 +165,17 @@ export default function SuperAdminTeamPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge color={member.isBanned ? "red" : "green"}>{member.isBanned ? "Suspended" : "Active"}</Badge>
+                    </td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${isOnlineNow(member.lastActiveAt) ? "bg-green-500" : "bg-slate-300"}`}
+                          aria-hidden
+                        />
+                        <span className={isOnlineNow(member.lastActiveAt) ? "text-green-700 font-medium" : "text-slate-500"}>
+                          {isOnlineNow(member.lastActiveAt) ? "Active now" : formatRelativeTime(member.lastActiveAt)}
+                        </span>
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(member.createdAt)}</td>
                     <td className="px-4 py-3 text-right">

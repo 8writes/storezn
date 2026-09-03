@@ -31,6 +31,7 @@ export async function GET(req) {
         phone: users.phone,
         emailVerified: users.emailVerified,
         emailNotificationsEnabled: users.emailNotificationsEnabled,
+        lastActiveAt: users.lastActiveAt,
         isBanned: users.isBanned,
         approvalStatus: users.approvalStatus,
         nin: users.nin,

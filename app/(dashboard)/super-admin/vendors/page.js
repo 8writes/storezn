@@ -11,7 +11,9 @@ import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { RevealNin } from "@/components/ui/RevealNin.js";
-import { formatDateTime } from "@/lib/format.js";
+import { formatDateTime, formatRelativeTime } from "@/lib/format.js";
+
+const isOnlineNow = (ts) => !!ts && Date.now() - new Date(ts).getTime() < 5 * 60_000;
 
 const STATUS_COLOR = { pending: "amber", approved: "green", rejected: "red" };
 const STATUS_OPTIONS = [
@@ -180,6 +182,7 @@ export default function SuperAdminVendorsPage() {
             <tr>
               <th className="px-4 py-3 font-medium">Vendor</th>
               <th className="px-4 py-3 font-medium">Contact</th>
+              <th className="px-4 py-3 font-medium">Last active</th>
               <th className="px-4 py-3 font-medium">Store(s)</th>
               <th className="px-4 py-3 font-medium">NIN</th>
               <th className="px-4 py-3 font-medium">Submitted</th>
@@ -191,10 +194,10 @@ export default function SuperAdminVendorsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <TableRowSkeleton cols={9} />
+              <TableRowSkeleton cols={10} />
             ) : vendors.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-6 text-center text-slate-700">No vendors match{q ? " your search" : ""}</td>
+                <td colSpan={10} className="px-4 py-6 text-center text-slate-700">No vendors match{q ? " your search" : ""}</td>
               </tr>
             ) : (
               vendors.map((v) => (
@@ -221,6 +224,17 @@ export default function SuperAdminVendorsPage() {
                     ) : (
                       <span className="text-slate-400 block mt-0.5">No WhatsApp</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-xs whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${isOnlineNow(v.lastActiveAt) ? "bg-green-500" : "bg-slate-300"}`}
+                        aria-hidden
+                      />
+                      <span className={isOnlineNow(v.lastActiveAt) ? "text-green-700 font-medium" : "text-slate-500"}>
+                        {isOnlineNow(v.lastActiveAt) ? "Active now" : formatRelativeTime(v.lastActiveAt)}
+                      </span>
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{v.storeNames.join(", ") || "-"}</td>
                   <td className="px-4 py-3 text-slate-500">
