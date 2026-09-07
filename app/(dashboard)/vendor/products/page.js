@@ -583,13 +583,24 @@ export default function VendorProductsPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-500" onClick={stockEdit ? (e) => e.stopPropagation() : undefined}>
                     {stockEdit && p.productType === "physical" ? (
-                      <input
-                        type="number"
-                        min="0"
-                        value={stockDraft[p.id] ?? (stockBase[p.id] ?? "")}
-                        onChange={(e) => setStockDraft((d) => ({ ...d, [p.id]: e.target.value }))}
-                        className="w-20 rounded-sm border border-slate-300 px-2 py-1 text-sm outline-none focus:border-brand-500"
-                      />
+                      (() => {
+                        const branchNow = stockBase[p.id] ?? 0;
+                        return (
+                          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                            <input
+                              type="number"
+                              min="0"
+                              value={stockDraft[p.id] ?? (stockBase[p.id] ?? "")}
+                              onChange={(e) => setStockDraft((d) => ({ ...d, [p.id]: e.target.value }))}
+                              className="w-20 rounded-sm border border-slate-300 px-2 py-1 text-sm outline-none focus:border-brand-500"
+                            />
+                            <span className="text-xs text-slate-400">
+                              now {branchNow}
+                              {p.stock != null && p.stock !== branchNow && ` · ${p.stock} total`}
+                            </span>
+                          </span>
+                        );
+                      })()
                     ) : p.productType === "physical" ? (
                       <span className="inline-flex items-center gap-2">
                         {p.stock ?? "-"}
