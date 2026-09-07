@@ -257,6 +257,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     () => typeof window !== "undefined" && localStorage.getItem(offlineKey) === "1",
   );
   const [pendingSync, setPendingSync] = useState(0);
+  const [syncing, setSyncing] = useState(false);
   const [offlineReceipt, setOfflineReceipt] = useState(null);
   const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false });
   const [offlineSetupOpen, setOfflineSetupOpen] = useState(false);
@@ -301,6 +302,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   // Push any sales that were completed while offline, and (best-effort)
   // keep a local catalogue snapshot fresh so search/scan survive a drop.
   const syncNow = useCallback(async () => {
+    setSyncing(true);
     try {
       const res = await flushQueue(storeId, apiFetch);
       setPendingSync(res.remaining);
@@ -311,6 +313,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       if (res.stuck > 0) toast.error(`${res.stuck} offline sale${res.stuck === 1 ? "" : "s"} couldn't sync - check Orders`);
     } catch {
       /* still offline - try again next tick */
+    } finally {
+      setSyncing(false);
     }
   }, [storeId, apiFetch, refresh]);
 
@@ -622,6 +626,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         summary={sessionData.summary}
         heldCount={heldCount}
         pendingSync={pendingSync}
+        syncing={syncing}
         onSync={syncNow}
         offlineMode={offlineMode}
         onToggleOfflineMode={toggleOfflineMode}
@@ -816,6 +821,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           expectedCashKobo={sessionData.summary?.drawer?.expectedCash ?? 0}
           heldCount={heldCount}
           pendingSync={pendingSync}
+          syncing={syncing}
           onSync={syncNow}
           onSubmit={closeRegister}
         />

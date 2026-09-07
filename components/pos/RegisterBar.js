@@ -1,5 +1,5 @@
 "use client";
-import { Calculator, Wallet, FileText, LockKeyhole, RefreshCw, Database, CloudOff, Cloud } from "lucide-react";
+import { Calculator, Wallet, FileText, LockKeyhole, RefreshCw, Database, CloudOff, Cloud, Loader2 } from "lucide-react";
 import { formatKobo } from "@/lib/money.js";
 
 function ago(iso) {
@@ -19,6 +19,7 @@ export function RegisterBar({
   summary,
   heldCount = 0,
   pendingSync = 0,
+  syncing = false,
   onSync,
   offlineMode = false,
   onToggleOfflineMode,
@@ -53,11 +54,13 @@ export function RegisterBar({
           <button
             type="button"
             onClick={onSync}
-            className="inline-flex items-center gap-1 rounded-sm border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 cursor-pointer"
+            disabled={syncing}
+            aria-busy={syncing}
+            className="inline-flex items-center gap-1 rounded-sm border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 cursor-pointer disabled:cursor-progress disabled:opacity-70"
             title="Send queued sales to the server now"
           >
-            <RefreshCw size={12} />
-            Sync{pendingSync > 0 ? ` · ${pendingSync}` : ""}
+            {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            {syncing ? "Syncing…" : `Sync${pendingSync > 0 ? ` · ${pendingSync}` : ""}`}
           </button>
         )}
       </span>

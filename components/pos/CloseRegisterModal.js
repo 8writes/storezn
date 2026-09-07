@@ -9,7 +9,7 @@ import { ZReport } from "./ZReport.js";
 // Two steps: count the drawer -> confirm -> the Z report is shown for
 // printing. onSubmit(countedCashNaira) resolves to the closed session's
 // zReport (or throws).
-export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount, pendingSync = 0, onSync, onSubmit }) {
+export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount, pendingSync = 0, syncing = false, onSync, onSubmit }) {
   const [counted, setCounted] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [zReport, setZReport] = useState(null);
@@ -49,8 +49,8 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
                 {pendingSync} sale{pendingSync === 1 ? "" : "s"} still to sync. The Z report is built from what the server
                 has, so send these up first.
               </p>
-              <Button type="button" fullWidth onClick={onSync}>
-                Sync {pendingSync} now
+              <Button type="button" fullWidth onClick={onSync} loading={syncing}>
+                {syncing ? "Syncing…" : `Sync ${pendingSync} now`}
               </Button>
             </div>
           ) : heldCount > 0 ? (
