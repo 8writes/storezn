@@ -70,58 +70,94 @@ export default function VendorProductsPage() {
   const [bulkResults, setBulkResults] = useState(null);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
-  // Inline "edit stock" mode for the desktop table.
-  const [stockEdit, setStockEdit] = useState(false);
-  const [stockBranch, setStockBranch] = useState(null); // { id, name, list }
-  const [stockDraft, setStockDraft] = useState({}); // productId -> string (as typed)
-  const [stockBase, setStockBase] = useState({}); // productId -> current number|null, for the selected branch
-  const [stockSaving, setStockSaving] = useState(false);
+  // Inline "Bulk Edit" mode for the desktop table: price, cost price, stock.
+  const [bulkEdit, setBulkEdit] = useState(false);
+  const [bulkBranch, setBulkBranch] = useState(null); // { id, name, list } - stock is per-branch
+  const [bulkDraft, setBulkDraft] = useState({}); // productId -> { price?, cost?, stock? } (as typed)
+  const [bulkStockBase, setBulkStockBase] = useState({}); // productId -> selected branch's stock (number|null)
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const loadBranchStock = (branchId) => {
     if (!token || !storeId) return;
     const qs = branchId ? `?branchId=${branchId}` : "";
     apiFetch(`/api/v1/vendor/stores/${storeId}/branch-stock${qs}`)
       .then((data) => {
-        setStockBranch({ id: data.branchId, name: data.branchName, list: data.branches || null });
-        setStockBase(data.stock || {});
-        setStockDraft({});
+        setBulkBranch({ id: data.branchId, name: data.branchName, list: data.branches || null });
+        setBulkStockBase(data.stock || {});
+        // Only the stock draft is branch-specific; keep any price/cost edits.
+        setBulkDraft((d) => Object.fromEntries(Object.entries(d).map(([id, v]) => [id, { ...v, stock: undefined }])));
       })
       .catch((err) => toast.error(err.message || "Couldn't load stock"));
   };
 
-  const startStockEdit = () => {
-    setStockEdit(true);
+  const startBulkEdit = () => {
+    setBulkEdit(true);
+    setBulkDraft({});
     loadBranchStock(null);
   };
-  const cancelStockEdit = () => {
-    setStockEdit(false);
-    setStockDraft({});
+  const cancelBulkEdit = () => {
+    setBulkEdit(false);
+    setBulkDraft({});
   };
 
-  const stockChanges = () =>
-    Object.entries(stockDraft)
-      .filter(([id, v]) => v !== "" && v != null && Number(v) !== (stockBase[id] ?? null))
-      .map(([id, v]) => ({ productId: id, stock: Number(v) }));
+  const setBulkField = (id, field, val) => setBulkDraft((d) => ({ ...d, [id]: { ...d[id], [field]: val } }));
 
-  const saveStock = async () => {
-    const updates = stockChanges();
-    if (updates.length === 0) {
-      cancelStockEdit();
+  // Rows with a real change, one entry per product: { id, price?, costPrice?, stock? }.
+  const bulkChanges = () => {
+    const out = [];
+    for (const [id, d] of Object.entries(bulkDraft)) {
+      const p = products.find((x) => x.id === id);
+      if (!p) continue;
+      const row = { id };
+      if (d.price != null && d.price !== "" && Number(d.price) > 0 && Number(d.price) !== p.price) row.price = Number(d.price);
+      if (d.cost != null && d.cost !== "" && Number(d.cost) >= 0 && Number(d.cost) !== (p.costPrice ?? null)) row.costPrice = Number(d.cost);
+      if (d.stock != null && d.stock !== "" && Number(d.stock) >= 0 && Number(d.stock) !== (bulkStockBase[id] ?? null)) row.stock = Number(d.stock);
+      if (row.price != null || row.costPrice != null || row.stock != null) out.push(row);
+    }
+    return out;
+  };
+
+  const saveBulk = async () => {
+    const changes = bulkChanges();
+    if (changes.length === 0) {
+      cancelBulkEdit();
       return;
     }
-    setStockSaving(true);
+    setBulkSaving(true);
     try {
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/branch-stock`, {
-        method: "PATCH",
-        body: JSON.stringify({ branchId: stockBranch?.id, updates }),
-      });
-      toast.success(`${data.updated} product${data.updated === 1 ? "" : "s"} updated`);
-      cancelStockEdit();
+      const stockRows = changes.filter((c) => c.stock != null).map((c) => ({ productId: c.id, stock: c.stock }));
+      const fieldRows = changes.filter((c) => c.price != null || c.costPrice != null);
+
+      if (stockRows.length) {
+        await apiFetch(`/api/v1/vendor/stores/${storeId}/branch-stock`, {
+          method: "PATCH",
+          body: JSON.stringify({ branchId: bulkBranch?.id, updates: stockRows }),
+        });
+      }
+
+      let failed = 0;
+      await Promise.all(
+        fieldRows.map(async (c) => {
+          const body = {};
+          if (c.price != null) body.price = c.price;
+          if (c.costPrice != null) body.costPrice = c.costPrice;
+          try {
+            await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${c.id}`, { method: "PATCH", body: JSON.stringify(body) });
+          } catch {
+            failed += 1;
+          }
+        }),
+      );
+
+      const done = changes.length - failed;
+      if (failed) toast.error(`${done} product${done === 1 ? "" : "s"} updated, ${failed} failed`);
+      else toast.success(`${done} product${done === 1 ? "" : "s"} updated`);
+      cancelBulkEdit();
       loadProducts();
     } catch (err) {
-      toast.error(err.message || "Failed to save stock");
+      toast.error(err.message || "Failed to save changes");
     } finally {
-      setStockSaving(false);
+      setBulkSaving(false);
     }
   };
 
@@ -237,10 +273,10 @@ export default function VendorProductsPage() {
             type="button"
             size="sm"
             variant="outline"
-            onClick={stockEdit ? cancelStockEdit : startStockEdit}
+            onClick={bulkEdit ? cancelBulkEdit : startBulkEdit}
             className="hidden sm:inline-flex"
           >
-            {stockEdit ? "Done" : "Bulk edit stock"}
+            {bulkEdit ? "Cancel" : "Bulk Edit"}
           </Button>
           <Link href={`/vendor/products/new${storeId ? `?storeId=${storeId}` : ""}`}>
             <Button type="button" size="sm">
@@ -508,28 +544,29 @@ export default function VendorProductsPage() {
 
       {/* Desktop: table */}
       <div className="hidden sm:block bg-white border border-slate-200 rounded-sm overflow-x-auto">
-        {stockEdit && (
+        {bulkEdit && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
             <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-slate-700">Editing stock</span>
-              {stockBranch?.list && stockBranch.list.length > 1 ? (
+              <span className="font-medium text-slate-700">Bulk edit</span>
+              <span className="text-xs text-slate-500">price · cost · stock</span>
+              {bulkBranch?.list && bulkBranch.list.length > 1 ? (
                 <div className="w-48">
                   <Select
-                    value={stockBranch.id || ""}
+                    value={bulkBranch.id || ""}
                     onChange={(v) => loadBranchStock(v)}
-                    options={stockBranch.list.map((b) => ({ value: b.id, label: b.name }))}
+                    options={bulkBranch.list.map((b) => ({ value: b.id, label: `Stock: ${b.name}` }))}
                   />
                 </div>
               ) : (
-                stockBranch?.name && <span className="text-slate-500">· {stockBranch.name}</span>
+                bulkBranch?.name && <span className="text-slate-500">· stock at {bulkBranch.name}</span>
               )}
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-500">{stockChanges().length} changed</span>
-              <Button type="button" size="sm" variant="outline" onClick={cancelStockEdit} disabled={stockSaving}>
+              <span className="text-xs text-slate-500">{bulkChanges().length} changed</span>
+              <Button type="button" size="sm" variant="outline" onClick={cancelBulkEdit} disabled={bulkSaving}>
                 Cancel
               </Button>
-              <Button type="button" size="sm" onClick={saveStock} loading={stockSaving} disabled={stockChanges().length === 0}>
+              <Button type="button" size="sm" onClick={saveBulk} loading={bulkSaving} disabled={bulkChanges().length === 0}>
                 Save changes
               </Button>
             </div>
@@ -541,6 +578,7 @@ export default function VendorProductsPage() {
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Category</th>
               <th className="px-4 py-3 font-medium">Price</th>
+              <th className="px-4 py-3 font-medium">Cost</th>
               <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Stock</th>
               <th className="px-4 py-3 font-medium">Status</th>
@@ -549,17 +587,17 @@ export default function VendorProductsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <TableRowSkeleton cols={7} />
+              <TableRowSkeleton cols={8} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-700">{q || categoryId || stockLevel ? "No products match your filters" : "No products yet"}</td>
+                <td colSpan={8} className="px-4 py-6 text-center text-slate-700">{q || categoryId || stockLevel ? "No products match your filters" : "No products yet"}</td>
               </tr>
             ) : (
               products.map((p) => (
                 <tr
                   key={p.id}
-                  onClick={stockEdit ? undefined : () => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
-                  className={`border-t border-slate-100 ${stockEdit ? "" : "cursor-pointer hover:bg-slate-50"}`}
+                  onClick={bulkEdit ? undefined : () => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
+                  className={`border-t border-slate-100 ${bulkEdit ? "" : "cursor-pointer hover:bg-slate-50"}`}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -574,24 +612,54 @@ export default function VendorProductsPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{p.categoryName || "-"}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatCurrency(p.price)}</td>
+                  <td className="px-4 py-3 text-slate-500" onClick={bulkEdit ? (e) => e.stopPropagation() : undefined}>
+                    {bulkEdit ? (
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={bulkDraft[p.id]?.price ?? p.price}
+                        onChange={(e) => setBulkField(p.id, "price", e.target.value)}
+                        className="w-24 rounded-sm border border-slate-300 px-2 py-1 text-sm outline-none focus:border-brand-500"
+                      />
+                    ) : (
+                      formatCurrency(p.price)
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500" onClick={bulkEdit ? (e) => e.stopPropagation() : undefined}>
+                    {bulkEdit ? (
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="—"
+                        value={bulkDraft[p.id]?.cost ?? (p.costPrice ?? "")}
+                        onChange={(e) => setBulkField(p.id, "cost", e.target.value)}
+                        className="w-24 rounded-sm border border-slate-300 px-2 py-1 text-sm outline-none focus:border-brand-500"
+                      />
+                    ) : p.costPrice != null ? (
+                      formatCurrency(p.costPrice)
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-slate-500 capitalize">
                     {p.productType}
                     {p.productType === "physical" && p.condition !== "new" && (
                       <span className="text-slate-700"> · {formatCondition(p.condition)}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-500" onClick={stockEdit ? (e) => e.stopPropagation() : undefined}>
-                    {stockEdit && p.productType === "physical" ? (
+                  <td className="px-4 py-3 text-slate-500" onClick={bulkEdit ? (e) => e.stopPropagation() : undefined}>
+                    {bulkEdit && p.productType === "physical" ? (
                       (() => {
-                        const branchNow = stockBase[p.id] ?? 0;
+                        const branchNow = bulkStockBase[p.id] ?? 0;
                         return (
                           <span className="inline-flex items-center gap-2 whitespace-nowrap">
                             <input
                               type="number"
                               min="0"
-                              value={stockDraft[p.id] ?? (stockBase[p.id] ?? "")}
-                              onChange={(e) => setStockDraft((d) => ({ ...d, [p.id]: e.target.value }))}
+                              value={bulkDraft[p.id]?.stock ?? (bulkStockBase[p.id] ?? "")}
+                              onChange={(e) => setBulkField(p.id, "stock", e.target.value)}
                               className="w-20 rounded-sm border border-slate-300 px-2 py-1 text-sm outline-none focus:border-brand-500"
                             />
                             <span className="text-xs text-slate-400">
