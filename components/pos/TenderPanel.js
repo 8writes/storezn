@@ -31,7 +31,16 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
   const balance = round2(total - paid);
   const overpay = round2(Math.max(0, paid - total));
   const hasCash = lines.some((l) => l.method === "cash");
-  const canComplete = paid >= total && (overpay === 0 || hasCash) && lines.length > 0;
+  // With split lines added, they have to cover the total (and any overpay
+  // has to be cash, since only cash gives change). With nothing added
+  // yet, "Complete" just settles the whole balance in one go with the
+  // selected method - fine for transfer/POS (exact amount, no change);
+  // cash still needs an explicit tendered amount so change can be worked
+  // out.
+  const canComplete =
+    lines.length > 0
+      ? paid >= total && (overpay === 0 || hasCash)
+      : method !== "cash" && total > 0;
 
   if (!open) return null;
 
@@ -54,6 +63,13 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
   };
 
   const complete = () => {
+    // Nothing added to the split list - settle the full balance with the
+    // selected method (guarded to non-cash by canComplete).
+    if (lines.length === 0) {
+      onComplete([{ method, amount: round2(total), changeGiven: 0, reference: reference.trim() || undefined }]);
+      return;
+    }
+
     let remainingChange = overpay;
     // walk lines from the end, attribute the whole overpay to the last cash line
     const out = [...lines].map((l) => ({ ...l, changeGiven: 0 }));
