@@ -220,8 +220,11 @@ export async function POST(req, { params }) {
           })),
         );
 
+        // Net cash the drawer sees for this sale: cash taken in, less any
+        // change handed back - which can be negative when a transfer/POS
+        // overpayment is settled in cash from the till (drawerDeltaFromTenders).
         const cashIn = drawerDeltaFromTenders(tendersKobo);
-        if (cashIn > 0) {
+        if (cashIn !== 0) {
           await tx.insert(cashMovements).values({
             sessionId: data.sessionId,
             kind: "cash_sale",

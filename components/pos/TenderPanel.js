@@ -16,9 +16,10 @@ const METHODS = [
 const round2 = (n) => Math.round(n * 100) / 100;
 
 // One payment per sale. Emits a single tender in naira:
-// [{ method, amount, changeGiven, reference }]. Only cash can be over the
-// total - the excess comes back as changeGiven. A blank amount means
-// "exactly the total".
+// [{ method, amount, changeGiven, reference }]. Any method can be over
+// the total - the excess is handed back as cash (changeGiven), e.g. a
+// customer who transfers a round number and collects the difference from
+// the drawer. A blank amount means "exactly the total".
 export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
   // Mounted fresh each time it opens (the parent gates on `open`), so
   // these initialisers are the reset.
@@ -27,14 +28,13 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
   const [reference, setReference] = useState("");
 
   const typed = amountInput.trim();
-  // Blank = pay exactly the total. A typed value is what was handed over.
+  // Blank = pay exactly the total. A typed value is what was handed over
+  // (for any method - a bank transfer of a round number counts too).
   const amount = typed === "" ? round2(total) : round2(Number(amountInput) || 0);
   const isCash = method === "cash";
-  const change = isCash ? round2(Math.max(0, amount - total)) : 0;
+  const change = round2(Math.max(0, amount - total));
   const shortBy = round2(Math.max(0, total - amount));
-  // Cash may be over (change); transfer/POS must land on the total.
-  const canComplete =
-    total > 0 && amount > 0 && (isCash ? amount >= total : Math.abs(amount - total) <= 0.01);
+  const canComplete = total > 0 && amount > 0 && shortBy === 0;
 
   if (!open) return null;
 
@@ -42,14 +42,14 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
     onComplete([
       {
         method,
-        amount: isCash ? amount : round2(total),
+        amount,
         changeGiven: change,
         reference: reference.trim() || undefined,
       },
     ]);
   };
 
-  const quickCash = () => {
+  const quickAmounts = () => {
     const chips = [round2(total)];
     for (const step of [500, 1000, 2000, 5000, 10000]) {
       const up = Math.ceil(total / step) * step;
@@ -96,31 +96,29 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
             ))}
           </div>
 
-          {isCash && (
-            <div className="flex flex-wrap gap-2">
-              {quickCash().map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setAmountInput(String(c))}
-                  className={`px-3 py-1.5 rounded-sm border text-sm font-medium cursor-pointer tabular-nums ${
-                    typed !== "" && Number(amountInput) === c
-                      ? "border-brand-600 bg-brand-50 text-brand-700"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  {formatCurrency(c)}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {quickAmounts().map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setAmountInput(String(c))}
+                className={`px-3 py-1.5 rounded-sm border text-sm font-medium cursor-pointer tabular-nums ${
+                  typed !== "" && Number(amountInput) === c
+                    ? "border-brand-600 bg-brand-50 text-brand-700"
+                    : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {formatCurrency(c)}
+              </button>
+            ))}
+          </div>
 
           <input
             type="number"
             inputMode="decimal"
             value={amountInput}
             onChange={(e) => setAmountInput(e.target.value)}
-            placeholder={isCash ? `Amount tendered (₦${Math.round(total).toLocaleString()})` : `Amount (₦${Math.round(total).toLocaleString()})`}
+            placeholder={`Amount ${isCash ? "tendered" : "received"} (₦${Math.round(total).toLocaleString()})`}
             className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base outline-none focus:border-brand-500"
           />
 
@@ -134,8 +132,8 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
             />
           )}
 
-          {!isCash && shortBy === 0 && typed !== "" && Math.abs(amount - total) > 0.01 && (
-            <p className="text-xs text-amber-600">Transfer / POS has to be the exact total. Leave blank for {formatCurrency(total)}.</p>
+          {change > 0 && !isCash && (
+            <p className="text-xs text-slate-500">{formatCurrency(change)} change to hand back in cash from the drawer.</p>
           )}
         </div>
 
