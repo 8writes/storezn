@@ -48,7 +48,11 @@ export default function RegistersPage() {
       .then(([r, b]) => {
         setRegisters(r.registers);
         setBranches(b.branches);
-        setBranchId((cur) => cur || b.branches[0]?.id || "");
+        // Only auto-pick when there's nothing to choose - on a
+        // multi-branch store the till must be placed deliberately (a
+        // silent default is how "Front Counter - Eliozu" ended up on the
+        // main branch), and the submit button already blocks on !branchId.
+        setBranchId((cur) => cur || (b.branches.length === 1 ? b.branches[0]?.id || "" : ""));
       })
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false));
@@ -197,7 +201,12 @@ export default function RegistersPage() {
         {branches.length > 1 && (
           <div className="space-y-1">
             <label className="text-sm font-medium text-slate-700">Branch</label>
-            <Select value={branchId} onChange={setBranchId} options={branches.map((b) => ({ value: b.id, label: b.name }))} />
+            <Select
+              value={branchId}
+              onChange={setBranchId}
+              options={[{ value: "", label: "Choose a branch…" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+            />
+            <p className="text-xs text-slate-500">Sales rung up on this till count against this branch&apos;s stock.</p>
           </div>
         )}
         <Button type="submit" loading={creating} disabled={!name.trim() || !branchId}>
