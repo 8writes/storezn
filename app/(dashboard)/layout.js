@@ -210,7 +210,13 @@ function NavLinkHint() {
 // Vendor/staff get a calmer, low-contrast nav (light sidebar, thin accent
 // instead of a solid fill) - super_admin keeps the original dark sidebar
 // untouched, see DashboardLayout's isVendor split.
-function NavLinks({ groups, pathname, onNavigate, muted = false }) {
+// While offline, every dashboard page except the register needs the
+// network to load anything - a click just lands on a blank/broken screen
+// and (with a POS session active) OfflineNavGuard yanks you back anyway.
+// So when `offline`, everything but the POS link renders inert.
+const OFFLINE_OK_HREF = "/vendor/pos";
+
+function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false }) {
   return (
     <>
       {groups.map((group) => (
@@ -222,30 +228,48 @@ function NavLinks({ groups, pathname, onNavigate, muted = false }) {
           >
             {group.title}
           </p>
-          {group.items.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={onNavigate}
-              className={
-                muted
-                  ? `flex items-center gap-3 px-4 py-2.5 text-sm font-medium border-l-2 transition-colors ${
-                      pathname === href
-                        ? "border-brand-500 bg-brand-50 text-brand-700"
-                        : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    }`
-                  : `flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors ${
-                      pathname === href
-                        ? "bg-brand-600 text-white"
-                        : "text-white hover:bg-white/10"
-                    }`
-              }
-            >
-              <Icon size={18} />
-              {label}
-              <NavLinkHint />
-            </Link>
-          ))}
+          {group.items.map(({ href, label, icon: Icon }) => {
+            const base = "flex items-center gap-3 px-4 py-2.5 text-sm font-medium";
+
+            if (offline && href !== OFFLINE_OK_HREF) {
+              return (
+                <span
+                  key={href}
+                  aria-disabled="true"
+                  title="Unavailable while offline"
+                  className={`${base} ${muted ? "border-l-2 border-transparent text-slate-600" : "text-white"} opacity-40 cursor-not-allowed select-none`}
+                >
+                  <Icon size={18} />
+                  {label}
+                </span>
+              );
+            }
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onNavigate}
+                className={
+                  muted
+                    ? `${base} border-l-2 transition-colors ${
+                        pathname === href
+                          ? "border-brand-500 bg-brand-50 text-brand-700"
+                          : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      }`
+                    : `${base} transition-colors ${
+                        pathname === href
+                          ? "bg-brand-600 text-white"
+                          : "text-white hover:bg-white/10"
+                      }`
+                }
+              >
+                <Icon size={18} />
+                {label}
+                <NavLinkHint />
+              </Link>
+            );
+          })}
         </div>
       ))}
     </>
@@ -258,6 +282,21 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [offline, setOffline] = useState(false);
+
+  // Mirrors OfflineNavGuard's listener - drives the sidebar going inert
+  // (see NavLinks' `offline` prop) so a click never starts a navigation
+  // that can only fail while the connection is down.
+  useEffect(() => {
+    const sync = () => setOffline(typeof navigator !== "undefined" && navigator.onLine === false);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
 
   // A signup-time "?next=" (e.g. from the Storezn+ pricing card) is
   // stashed in localStorage since signup doesn't auto-login (email
@@ -292,6 +331,9 @@ export default function DashboardLayout({ children }) {
   // scoped to the one store they were invited to - see canManageStore in
   // lib/auth.js and /api/v1/vendor/stores' staff branch.
   const isVendor = user.role === "vendor" || user.role === "staff";
+  // Only vendor/staff have an offline flow worth protecting (the
+  // register); super-admin nav is left alone.
+  const navOffline = isVendor && offline;
 
   const layout = (
     // Sticky sidebar, not a fixed-height internally-scrolled container -
@@ -320,15 +362,17 @@ export default function DashboardLayout({ children }) {
           )}
         </div>
         <nav className="flex-1 py-2 overflow-y-auto">
-          <NavLinks groups={groups} pathname={pathname} muted={isVendor} />
+          <NavLinks groups={groups} pathname={pathname} muted={isVendor} offline={navOffline} />
         </nav>
         <div className={`border-t shrink-0 ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
           <button
             type="button"
             onClick={logout}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium cursor-pointer ${
-              isVendor ? "text-slate-600 hover:bg-slate-50 hover:text-red-600" : "text-white hover:bg-white/10"
-            }`}
+            disabled={navOffline}
+            title={navOffline ? "Unavailable while offline" : undefined}
+            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium ${
+              navOffline ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+            } ${isVendor ? "text-slate-600 hover:bg-slate-50 hover:text-red-600" : "text-white hover:bg-white/10"}`}
           >
             <LogOut size={18} />
             Sign out
@@ -362,14 +406,18 @@ export default function DashboardLayout({ children }) {
             <button
               type="button"
               onClick={logout}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white hover:bg-white/10 cursor-pointer"
+              disabled={navOffline}
+              title={navOffline ? "Unavailable while offline" : undefined}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white hover:bg-white/10 ${
+                navOffline ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+              }`}
             >
               <LogOut size={18} />
               Sign out
             </button>
           }
         >
-          <NavLinks groups={groups} pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
+          <NavLinks groups={groups} pathname={pathname} onNavigate={() => setDrawerOpen(false)} offline={navOffline} />
         </MobileNavDrawer>
 
         <main className="flex-1 bg-slate-100">
