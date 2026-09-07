@@ -121,12 +121,21 @@ export async function POST(req, { params }) {
       for (const bs of branchStock) if (valid.has(bs.branchId)) stockByBranch[bs.branchId] = bs.stock;
     }
 
-    if (defaultBranch) {
+    // A branch-scoped staff member only stocks their own branch - fold
+    // any plain `stock` they sent into that branch and drop every other
+    // branch id, so they can never seed stock into a branch they don't
+    // run (mirrors the branch-stock PATCH route's staff guard).
+    if (user.role === "staff" && user.branchId && storeBranches.some((b) => b.id === user.branchId)) {
+      const own = stockByBranch?.[user.branchId] ?? productData.stock ?? 0;
+      stockByBranch = { [user.branchId]: own };
+    }
+
+    if (defaultBranch || stockByBranch) {
       await seedBranchStockForNewItem(tx, {
         storeId,
         productId: product.id,
         variantId: null,
-        initialBranchId: defaultBranch.id,
+        initialBranchId: defaultBranch?.id ?? null,
         initialStock: productData.stock ?? null,
         stockByBranch,
       });

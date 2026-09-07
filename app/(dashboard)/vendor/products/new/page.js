@@ -63,6 +63,9 @@ export default function VendorNewProductPage() {
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [branchCount, setBranchCount] = useState(1);
   const [branches, setBranches] = useState([]);
+  // Set only for a branch-scoped staff member - they stock their own
+  // branch, not the whole list (which they can't see).
+  const [myBranch, setMyBranch] = useState(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
 
   useEffect(() => {
@@ -98,6 +101,7 @@ export default function VendorNewProductPage() {
       .then((data) => {
         setBranchCount(data.branchCount || 1);
         setBranches(Array.isArray(data.branches) ? data.branches : []);
+        setMyBranch(data.myBranch || null);
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -251,7 +255,10 @@ export default function VendorNewProductPage() {
         condition: form.condition,
         images: form.images,
       };
-      if (branchCount > 1 && branches.length > 0) {
+      if (myBranch) {
+        const s = form.branchStock[myBranch.id];
+        if (s !== "" && s != null) payload.branchStock = [{ branchId: myBranch.id, stock: Number(s) }];
+      } else if (branchCount > 1 && branches.length > 0) {
         const bs = branches
           .map((b) => ({ branchId: b.id, stock: form.branchStock[b.id] }))
           .filter((x) => x.stock !== "" && x.stock != null)
@@ -355,7 +362,22 @@ export default function VendorNewProductPage() {
                   <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
                 </div>
                 {form.productType === "physical" &&
-                  (branchCount > 1 && branches.length > 0 ? (
+                  (myBranch ? (
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">Opening stock — {myBranch.name}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={form.branchStock[myBranch.id] ?? ""}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, branchStock: { ...f.branchStock, [myBranch.id]: e.target.value } }))
+                        }
+                        className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">Stock is added to your branch.</p>
+                    </div>
+                  ) : branchCount > 1 && branches.length > 0 ? (
                     <div className="sm:col-span-2">
                       <label className="text-sm font-medium text-slate-700">Opening stock by branch</label>
                       <div className="mt-1.5 space-y-2">

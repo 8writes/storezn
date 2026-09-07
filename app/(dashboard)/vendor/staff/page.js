@@ -28,6 +28,7 @@ export default function VendorStaffPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [inviting, setInviting] = useState(false);
   const [removingId, setRemovingId] = useState(null);
+  const [branchBusyId, setBranchBusyId] = useState(null);
 
   const load = () => {
     if (!token || !storeId) return;
@@ -63,6 +64,23 @@ export default function VendorStaffPage() {
       toast.error(err.message || "Failed to invite staff");
     } finally {
       setInviting(false);
+    }
+  };
+
+  const changeBranch = async (member, branchId) => {
+    if ((branchId || null) === (member.branchId || null)) return;
+    setBranchBusyId(member.id);
+    try {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/staff/${member.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ branchId: branchId || null }),
+      });
+      toast.success("Branch updated");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Failed to update branch");
+    } finally {
+      setBranchBusyId(null);
     }
   };
 
@@ -125,7 +143,21 @@ export default function VendorStaffPage() {
                       <p className="font-medium text-slate-900">{member.firstName} {member.lastName}</p>
                       <p className="text-xs text-slate-400">{member.email}</p>
                     </td>
-                    {branches.length > 1 && <td className="px-4 py-3 text-slate-500">{member.branchName || "—"}</td>}
+                    {branches.length > 1 && (
+                      <td className="px-4 py-3">
+                        <div className="max-w-[180px]">
+                          <Select
+                            value={member.branchId || ""}
+                            onChange={(v) => changeBranch(member, v)}
+                            disabled={branchBusyId === member.id}
+                            options={[
+                              { value: "", label: "All branches" },
+                              ...branches.map((b) => ({ value: b.id, label: b.name })),
+                            ]}
+                          />
+                        </div>
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-slate-500">{formatDate(member.createdAt)}</td>
                     <td className="px-4 py-3">
                       {member.activatedAt ? (

@@ -54,6 +54,14 @@ export async function GET(req, { params }) {
     .where(eq(branches.storeId, storeId))
     .orderBy(branches.createdAt);
 
+  // A branch-scoped staff member can't see the whole list, but does need
+  // their own branch (name + id) so the new-product form can offer
+  // opening stock for it - see that page + the create route's staff guard.
+  const myBranch =
+    user.role === "staff" && user.branchId
+      ? branchRows.find((b) => b.id === user.branchId) || null
+      : undefined;
+
   return NextResponse.json({
     store,
     effectiveCommissionRatePercent,
@@ -64,6 +72,7 @@ export async function GET(req, { params }) {
     storageLimitBytes,
     branchCount: branchRows.length,
     branches: isStoreOwner(user, store) ? branchRows : undefined,
+    myBranch,
   });
 }
 
