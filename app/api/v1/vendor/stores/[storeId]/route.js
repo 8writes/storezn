@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../lib/db/index.js";
 import { stores, platformSettings, branches } from "../../../../../../lib/db/schema.js";
-import { eq, count } from "drizzle-orm";
-import { getUser, canManageStore } from "../../../../../../lib/auth.js";
+import { eq } from "drizzle-orm";
+import { getUser, canManageStore, isStoreOwner } from "../../../../../../lib/auth.js";
 import { validate, updateVendorStoreSchema } from "../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../lib/storage/index.js";
 import { removeStoreUpload, getStoreStorageUsage } from "../../../../../../lib/storeUploads.js";
@@ -43,11 +43,16 @@ export async function GET(req, { params }) {
   const plusMonthlyPrice = store.subscriptionPriceOverride ?? settings?.plusMonthlyPrice ?? 5000;
   const storageUsedBytes = await getStoreStorageUsage(storeId);
   const storageLimitBytes = getStorageLimitBytes(store, settings || { freeStorageMb: 500, plusStorageMb: 5000 });
-  // Available to any canManageStore user (staff included), unlike the
-  // owner-only /branches list route - just the count, so a staff member
-  // can tell whether the plain product Stock field should be disabled in
-  // favor of Stock by branch, without needing team-management access.
-  const [{ branchCount }] = await db.select({ branchCount: count() }).from(branches).where(eq(branches.storeId, storeId));
+  // The count is available to any canManageStore user (staff included) so
+  // they can tell whether the plain product Stock field should be
+  // disabled in favor of Stock by branch. The branch list itself stays
+  // owner-only (matching the dedicated /branches route) - it's what the
+  // new-product form uses to offer per-branch opening stock.
+  const branchRows = await db
+    .select({ id: branches.id, name: branches.name, isDefault: branches.isDefault })
+    .from(branches)
+    .where(eq(branches.storeId, storeId))
+    .orderBy(branches.createdAt);
 
   return NextResponse.json({
     store,
@@ -57,7 +62,8 @@ export async function GET(req, { params }) {
     plusMonthlyPrice,
     storageUsedBytes,
     storageLimitBytes,
-    branchCount,
+    branchCount: branchRows.length,
+    branches: isStoreOwner(user, store) ? branchRows : undefined,
   });
 }
 

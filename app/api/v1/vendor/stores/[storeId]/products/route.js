@@ -99,16 +99,37 @@ export async function POST(req, { params }) {
     .limit(1);
   if (existing) return NextResponse.json({ error: "That product slug already exists" }, { status: 409 });
 
+  const { branchStock, ...productData } = result.data;
+
   const created = await db.transaction(async (tx) => {
-    const [product] = await tx.insert(products).values({ storeId, ...result.data }).returning();
-    // A new product only ever starts stocked at the store's default
-    // branch - a vendor allocates it to other branches afterward from
-    // the product edit page (see seedBranchStockForNewItem's own
-    // comment in lib/inventory.js for why every other branch still
-    // needs an explicit 0 row, not just no row at all).
-    const [defaultBranch] = await tx.select({ id: branches.id }).from(branches).where(and(eq(branches.storeId, storeId), eq(branches.isDefault, true))).limit(1);
+    const [product] = await tx.insert(products).values({ storeId, ...productData }).returning();
+
+    const storeBranches = await tx
+      .select({ id: branches.id, isDefault: branches.isDefault })
+      .from(branches)
+      .where(eq(branches.storeId, storeId));
+    const defaultBranch = storeBranches.find((b) => b.isDefault);
+
+    // Multi-branch store + a per-branch allocation from the create form -
+    // seed exactly those numbers (any branch omitted gets 0). Otherwise a
+    // new product just starts stocked at the default branch; other
+    // branches still get an explicit 0 row (see seedBranchStockForNewItem).
+    let stockByBranch;
+    if (Array.isArray(branchStock) && branchStock.length && storeBranches.length > 1) {
+      const valid = new Set(storeBranches.map((b) => b.id));
+      stockByBranch = {};
+      for (const bs of branchStock) if (valid.has(bs.branchId)) stockByBranch[bs.branchId] = bs.stock;
+    }
+
     if (defaultBranch) {
-      await seedBranchStockForNewItem(tx, { storeId, productId: product.id, variantId: null, initialBranchId: defaultBranch.id, initialStock: result.data.stock ?? null });
+      await seedBranchStockForNewItem(tx, {
+        storeId,
+        productId: product.id,
+        variantId: null,
+        initialBranchId: defaultBranch.id,
+        initialStock: productData.stock ?? null,
+        stockByBranch,
+      });
     }
     return product;
   });

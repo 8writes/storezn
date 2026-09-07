@@ -38,7 +38,7 @@ const CONDITION_OPTIONS = [
   { value: "used", label: "Used" },
 ];
 
-const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", condition: "new", stock: "", categoryId: "", images: [], videoUrl: "" };
+const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", condition: "new", stock: "", branchStock: {}, categoryId: "", images: [], videoUrl: "" };
 const EMPTY_CATEGORY = { name: "", slug: "" };
 
 export default function VendorNewProductPage() {
@@ -62,6 +62,7 @@ export default function VendorNewProductPage() {
   const [addingCategory, setAddingCategory] = useState(false);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [branchCount, setBranchCount] = useState(1);
+  const [branches, setBranches] = useState([]);
   const [uploadingVideo, setUploadingVideo] = useState(false);
 
   useEffect(() => {
@@ -94,7 +95,10 @@ export default function VendorNewProductPage() {
     // enough to just disable in favor of allocating stock per branch
     // after creating the product.
     apiFetch(`/api/v1/vendor/stores/${storeId}`)
-      .then((data) => setBranchCount(data.branchCount || 1))
+      .then((data) => {
+        setBranchCount(data.branchCount || 1);
+        setBranches(Array.isArray(data.branches) ? data.branches : []);
+      })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId]);
@@ -247,7 +251,15 @@ export default function VendorNewProductPage() {
         condition: form.condition,
         images: form.images,
       };
-      if (form.stock !== "") payload.stock = Number(form.stock);
+      if (branchCount > 1 && branches.length > 0) {
+        const bs = branches
+          .map((b) => ({ branchId: b.id, stock: form.branchStock[b.id] }))
+          .filter((x) => x.stock !== "" && x.stock != null)
+          .map((x) => ({ branchId: x.branchId, stock: Number(x.stock) }));
+        if (bs.length) payload.branchStock = bs;
+      } else if (form.stock !== "") {
+        payload.stock = Number(form.stock);
+      }
       if (form.categoryId) payload.categoryId = form.categoryId;
       if (form.sku) payload.sku = form.sku;
       if (form.description) payload.description = form.description;
@@ -342,19 +354,45 @@ export default function VendorNewProductPage() {
                   </div>
                   <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
                 </div>
-                {form.productType === "physical" && (
-                  <div>
-                    <Input
-                      label="Stock"
-                      type="number"
-                      min="0"
-                      value={form.stock}
-                      onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-                      disabled={branchCount > 1}
-                    />
-                    {branchCount > 1 && <p className="text-xs font-medium text-amber-600 mt-1">Set per branch after creating.</p>}
-                  </div>
-                )}
+                {form.productType === "physical" &&
+                  (branchCount > 1 && branches.length > 0 ? (
+                    <div className="sm:col-span-2">
+                      <label className="text-sm font-medium text-slate-700">Opening stock by branch</label>
+                      <div className="mt-1.5 space-y-2">
+                        {branches.map((b) => (
+                          <div key={b.id} className="flex items-center gap-3">
+                            <span className="flex-1 truncate text-sm text-slate-600">
+                              {b.name}
+                              {b.isDefault ? " (default)" : ""}
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={form.branchStock[b.id] ?? ""}
+                              onChange={(e) =>
+                                setForm((f) => ({ ...f, branchStock: { ...f.branchStock, [b.id]: e.target.value } }))
+                              }
+                              className="w-24 rounded-sm border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-brand-500"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">Blank counts as 0. You can adjust these anytime from the product page.</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <Input
+                        label="Stock"
+                        type="number"
+                        min="0"
+                        value={form.stock}
+                        onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+                        disabled={branchCount > 1}
+                      />
+                      {branchCount > 1 && <p className="text-xs font-medium text-amber-600 mt-1">Set per branch after creating.</p>}
+                    </div>
+                  ))}
                 <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
