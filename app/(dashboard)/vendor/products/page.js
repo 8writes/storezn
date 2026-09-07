@@ -70,6 +70,61 @@ export default function VendorProductsPage() {
   const [bulkResults, setBulkResults] = useState(null);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
+  // Inline "edit stock" mode for the desktop table.
+  const [stockEdit, setStockEdit] = useState(false);
+  const [stockBranch, setStockBranch] = useState(null); // { id, name, list }
+  const [stockDraft, setStockDraft] = useState({}); // productId -> string (as typed)
+  const [stockBase, setStockBase] = useState({}); // productId -> current number|null, for the selected branch
+  const [stockSaving, setStockSaving] = useState(false);
+
+  const loadBranchStock = (branchId) => {
+    if (!token || !storeId) return;
+    const qs = branchId ? `?branchId=${branchId}` : "";
+    apiFetch(`/api/v1/vendor/stores/${storeId}/branch-stock${qs}`)
+      .then((data) => {
+        setStockBranch({ id: data.branchId, name: data.branchName, list: data.branches || null });
+        setStockBase(data.stock || {});
+        setStockDraft({});
+      })
+      .catch((err) => toast.error(err.message || "Couldn't load stock"));
+  };
+
+  const startStockEdit = () => {
+    setStockEdit(true);
+    loadBranchStock(null);
+  };
+  const cancelStockEdit = () => {
+    setStockEdit(false);
+    setStockDraft({});
+  };
+
+  const stockChanges = () =>
+    Object.entries(stockDraft)
+      .filter(([id, v]) => v !== "" && v != null && Number(v) !== (stockBase[id] ?? null))
+      .map(([id, v]) => ({ productId: id, stock: Number(v) }));
+
+  const saveStock = async () => {
+    const updates = stockChanges();
+    if (updates.length === 0) {
+      cancelStockEdit();
+      return;
+    }
+    setStockSaving(true);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/branch-stock`, {
+        method: "PATCH",
+        body: JSON.stringify({ branchId: stockBranch?.id, updates }),
+      });
+      toast.success(`${data.updated} product${data.updated === 1 ? "" : "s"} updated`);
+      cancelStockEdit();
+      loadProducts();
+    } catch (err) {
+      toast.error(err.message || "Failed to save stock");
+    } finally {
+      setStockSaving(false);
+    }
+  };
+
   const resetBulk = () => {
     setBulkRows([]);
     setBulkFileName("");
@@ -177,12 +232,23 @@ export default function VendorProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-slate-900">Products</h1>
-        <Link href={`/vendor/products/new${storeId ? `?storeId=${storeId}` : ""}`}>
-          <Button type="button" size="sm">
-            <Plus size={16} />
-            Add product
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={stockEdit ? cancelStockEdit : startStockEdit}
+            className="hidden sm:inline-flex"
+          >
+            {stockEdit ? "Done" : "Bulk edit stock"}
           </Button>
-        </Link>
+          <Link href={`/vendor/products/new${storeId ? `?storeId=${storeId}` : ""}`}>
+            <Button type="button" size="sm">
+              <Plus size={16} />
+              Add product
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm">
@@ -442,6 +508,33 @@ export default function VendorProductsPage() {
 
       {/* Desktop: table */}
       <div className="hidden sm:block bg-white border border-slate-200 rounded-sm overflow-x-auto">
+        {stockEdit && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium text-slate-700">Editing stock</span>
+              {stockBranch?.list && stockBranch.list.length > 1 ? (
+                <div className="w-48">
+                  <Select
+                    value={stockBranch.id || ""}
+                    onChange={(v) => loadBranchStock(v)}
+                    options={stockBranch.list.map((b) => ({ value: b.id, label: b.name }))}
+                  />
+                </div>
+              ) : (
+                stockBranch?.name && <span className="text-slate-500">· {stockBranch.name}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500">{stockChanges().length} changed</span>
+              <Button type="button" size="sm" variant="outline" onClick={cancelStockEdit} disabled={stockSaving}>
+                Cancel
+              </Button>
+              <Button type="button" size="sm" onClick={saveStock} loading={stockSaving} disabled={stockChanges().length === 0}>
+                Save changes
+              </Button>
+            </div>
+          </div>
+        )}
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
@@ -465,8 +558,8 @@ export default function VendorProductsPage() {
               products.map((p) => (
                 <tr
                   key={p.id}
-                  onClick={() => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
-                  className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
+                  onClick={stockEdit ? undefined : () => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
+                  className={`border-t border-slate-100 ${stockEdit ? "" : "cursor-pointer hover:bg-slate-50"}`}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -488,8 +581,16 @@ export default function VendorProductsPage() {
                       <span className="text-slate-700"> · {formatCondition(p.condition)}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {p.productType === "physical" ? (
+                  <td className="px-4 py-3 text-slate-500" onClick={stockEdit ? (e) => e.stopPropagation() : undefined}>
+                    {stockEdit && p.productType === "physical" ? (
+                      <input
+                        type="number"
+                        min="0"
+                        value={stockDraft[p.id] ?? (stockBase[p.id] ?? "")}
+                        onChange={(e) => setStockDraft((d) => ({ ...d, [p.id]: e.target.value }))}
+                        className="w-20 rounded-sm border border-slate-300 px-2 py-1 text-sm outline-none focus:border-brand-500"
+                      />
+                    ) : p.productType === "physical" ? (
                       <span className="inline-flex items-center gap-2">
                         {p.stock ?? "-"}
                         {p.stock != null && p.stock <= lowStockThreshold && (
