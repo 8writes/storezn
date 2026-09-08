@@ -7,6 +7,7 @@ import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
+import { networkErrorMessage, serverErrorMessage, readJson } from "@/lib/fetchError.js";
 
 export default function StorefrontLoginPage() {
   const router = useRouter();
@@ -21,22 +22,36 @@ export default function StorefrontLoginPage() {
     e.preventDefault();
     setLoading(true);
     setUnverified(false);
+
+    let res;
     try {
-      const res = await fetch("/api/v1/auth/login", {
+      res = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
+    } catch (err) {
+      toast.error(networkErrorMessage(err) || "Couldn't reach the server. Check your connection and try again.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const data = await readJson(res);
       if (!res.ok) {
-        if (data.code === "EMAIL_NOT_VERIFIED") setUnverified(true);
-        throw new Error(data.error || "Login failed");
+        if (data?.code === "EMAIL_NOT_VERIFIED") setUnverified(true);
+        toast.error(data?.error || serverErrorMessage(res.status));
+        return;
+      }
+      if (!data?.token) {
+        toast.error(serverErrorMessage(res.status || 500));
+        return;
       }
 
       login(data.token, data.user);
       router.push(`/${searchParams.get("next") || ""}`);
-    } catch (err) {
-      toast.error(err.message || "Login failed");
+    } catch {
+      toast.error("Something went wrong. Please try again in a moment.");
     } finally {
       setLoading(false);
     }
@@ -51,8 +66,8 @@ export default function StorefrontLoginPage() {
         body: JSON.stringify({ email: form.email }),
       });
       toast.success("If that account needs verifying, a new link is on its way");
-    } catch {
-      toast.error("Something went wrong");
+    } catch (err) {
+      toast.error(networkErrorMessage(err) || "Couldn't send the link. Please try again in a moment.");
     } finally {
       setResending(false);
     }

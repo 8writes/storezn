@@ -9,7 +9,11 @@ import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { GUEST_CART_COOKIE, findCartItem } from "../../../../../lib/cart.js";
 
-const INVALID = NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+// A fresh Response per call - a module-level NextResponse would be a
+// single-use body stream shared across concurrent requests, so the
+// second caller to hit it could get an empty response the client then
+// can't parse (surfacing as "something went wrong").
+const invalid = () => NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
 
 // Compared against when no account matches, so a bad-email attempt costs
 // the same bcrypt time as a bad-password one - without this, response
@@ -26,13 +30,37 @@ const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 10);
 // split). Vendor signup issues its own tokens directly; this is the only
 // place staff/customer tokens get minted.
 export async function POST(req) {
-  const limit = checkRateLimit(req, "login", { max: 10, windowMs: 60_000 });
-  if (!limit.allowed) {
-    return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
+  try {
+    return await handleLogin(req);
+  } catch (err) {
+    // Any unhandled throw (DB connection blip, jwt/bcrypt, a bad env) -
+    // return parseable JSON with a real message so the client can say
+    // "try again" instead of choking on an HTML 500 and showing
+    // "something went wrong".
+    console.error("login failed:", err);
+    return NextResponse.json(
+      { error: "We couldn't sign you in right now. Please try again in a moment." },
+      { status: 503 },
+    );
   }
+}
 
+async function handleLogin(req) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+
+  // Two tiers: a generous per-IP cap catches broad abuse, a tight
+  // per-email cap stops someone hammering one account - so a shared
+  // office / mobile-carrier IP where several people mistype a password
+  // isn't collectively locked out by one person's typos.
+  const emailKey = typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
+  const ipOk = checkRateLimit(req, "login:ip", { max: 40, windowMs: 60_000 }).allowed;
+  const emailOk = emailKey
+    ? checkRateLimit(req, "login:email", { max: 8, windowMs: 60_000, userId: emailKey }).allowed
+    : true;
+  if (!ipOk || !emailOk) {
+    return NextResponse.json({ error: "Too many sign-in attempts. Please wait a minute and try again." }, { status: 429 });
+  }
 
   const result = validate(loginSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
@@ -58,11 +86,11 @@ export async function POST(req) {
 
     if (!account) {
       await bcrypt.compare(password, DUMMY_HASH);
-      return INVALID;
+      return invalid();
     }
 
     const valid = await bcrypt.compare(password, account.passwordHash);
-    if (!valid) return INVALID;
+    if (!valid) return invalid();
     // Checked only after the password is confirmed, so a wrong password on
     // a banned account is indistinguishable from a wrong password on any
     // other - "suspended" is never an email-enumeration oracle.
@@ -94,11 +122,11 @@ export async function POST(req) {
   const [account] = await db.select().from(customers).where(and(eq(customers.storeId, store.id), eq(customers.email, email))).limit(1);
   if (!account) {
     await bcrypt.compare(password, DUMMY_HASH);
-    return INVALID;
+    return invalid();
   }
 
   const valid = await bcrypt.compare(password, account.passwordHash);
-  if (!valid) return INVALID;
+  if (!valid) return invalid();
   if (account.isBanned) return NextResponse.json({ error: "This account has been suspended" }, { status: 403 });
   if (!account.emailVerified) {
     return NextResponse.json({ error: "Please verify your email before signing in", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });

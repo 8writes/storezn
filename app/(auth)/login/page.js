@@ -6,6 +6,7 @@ import { useAuth } from "../../../hooks/useAuth.js";
 import { Input } from "../../../components/ui/Input.js";
 import { PasswordInput } from "../../../components/ui/PasswordInput.js";
 import { Button } from "../../../components/ui/Button.js";
+import { networkErrorMessage, serverErrorMessage, readJson } from "../../../lib/fetchError.js";
 import { toast } from "sonner";
 
 function LoginForm() {
@@ -24,17 +25,32 @@ function LoginForm() {
     if (loading) return;
     setLoading(true);
     setUnverified(false);
+
+    let res;
     try {
-      const res = await fetch("/api/v1/auth/login", {
+      res = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
+    } catch (err) {
+      // fetch() rejected - never reached the server (offline, DNS,
+      // connection reset). Say so, rather than "something went wrong".
+      toast.error(networkErrorMessage(err) || "Couldn't reach Storezn. Check your connection and try again.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const data = await readJson(res);
 
       if (!res.ok) {
-        toast.error(data.error || "Login failed");
-        if (data.code === "EMAIL_NOT_VERIFIED") setUnverified(true);
+        toast.error(data?.error || serverErrorMessage(res.status));
+        if (data?.code === "EMAIL_NOT_VERIFIED") setUnverified(true);
+        return;
+      }
+      if (!data?.token) {
+        toast.error(serverErrorMessage(res.status || 500));
         return;
       }
 
@@ -47,7 +63,7 @@ function LoginForm() {
       // where VendorStoreProvider is already correctly wrapped.
       router.replace(next);
     } catch {
-      toast.error("Something went wrong");
+      toast.error("Something went wrong. Please try again in a moment.");
     } finally {
       setLoading(false);
     }
@@ -62,8 +78,8 @@ function LoginForm() {
         body: JSON.stringify({ email: form.email }),
       });
       toast.success("If that account needs verifying, a new link is on its way");
-    } catch {
-      toast.error("Something went wrong");
+    } catch (err) {
+      toast.error(networkErrorMessage(err) || "Couldn't send the link. Please try again in a moment.");
     } finally {
       setResending(false);
     }
@@ -120,7 +136,7 @@ function LoginForm() {
       </Button>
 
       <p className="text-center text-sm text-slate-500">
-        Don't have an account?{" "}
+        Don&apos;t have an account?{" "}
         <Link href="/signup" className="text-brand-600 hover:underline">Create an account</Link>
       </p>
     </form>

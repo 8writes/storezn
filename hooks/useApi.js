@@ -1,28 +1,36 @@
 "use client";
 import { useCallback } from "react";
+import { networkErrorMessage, serverErrorMessage } from "@/lib/fetchError.js";
 
 export function useApi(token) {
   const apiFetch = useCallback(
     async (url, options = {}) => {
-      const res = await fetch(url, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-          ...options.headers,
-        },
-      });
+      let res;
+      try {
+        res = await fetch(url, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
+            ...options.headers,
+          },
+        });
+      } catch (err) {
+        // Never reached the server - offline, DNS, connection reset. Give
+        // callers a message they can show a user as-is, not "Failed to fetch".
+        throw new Error(networkErrorMessage(err) || "Couldn't reach the server. Check your connection and try again.");
+      }
 
       let data;
       try {
         data = await res.json();
       } catch {
-        if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+        if (!res.ok) throw new Error(serverErrorMessage(res.status));
         return null;
       }
 
       if (!res.ok) {
-        throw new Error(data?.error || `Request failed: ${res.status}`);
+        throw new Error(data?.error || serverErrorMessage(res.status));
       }
 
       return data;
