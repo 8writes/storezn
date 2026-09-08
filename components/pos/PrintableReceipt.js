@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/Button.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { X } from "lucide-react";
 
 const RECEIPT_CSS = `
@@ -51,7 +51,7 @@ export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tender
           <div className="receipt bg-white border border-slate-200 rounded-sm p-5 font-mono text-[13px] text-slate-900 leading-relaxed">
             <div className="text-center">
               <p className="font-bold text-sm uppercase">{storeName}</p>
-              <p className="text-slate-500 text-[11px]">{new Date(soldAt).toLocaleString()}</p>
+              <p className="text-slate-500 text-[11px]">{formatDateTime(soldAt)}</p>
               <p className="text-slate-500 text-[11px]">Receipt {orderNumber}</p>
             </div>
             <div className="border-t border-dashed border-slate-300 my-2" />

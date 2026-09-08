@@ -9,7 +9,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { Button } from "@/components/ui/Button.js";
 import { ZReport } from "@/components/pos/ZReport.js";
 import { formatKobo } from "@/lib/money.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, formatDateTime } from "@/lib/format.js";
 
 const PAY_NAME = { cash: "Cash", card: "POS", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
 const paidBy = (methods) =>
@@ -68,15 +68,15 @@ export default function SessionDetailPage({ params }) {
   return (
     <div className="max-w-2xl mx-auto space-y-6 print:max-w-none">
       <div className="print:hidden">
-        <BackLink href="/vendor/pos/sessions" label="Back to sessions" />
+        <BackLink href="/vendor/pos/sessions" label="Back" />
       </div>
 
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">{register.name}</h1>
           <p className="text-sm text-slate-500">
-            {session.status === "open" ? "Open" : "Closed"} · opened {new Date(session.openedAt).toLocaleString()}
-            {session.closedAt && ` · closed ${new Date(session.closedAt).toLocaleString()}`}
+            {session.status === "open" ? "Open" : "Closed"} · opened {formatDateTime(session.openedAt)}
+            {session.closedAt && ` · closed ${formatDateTime(session.closedAt)}`}
           </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
@@ -121,7 +121,7 @@ export default function SessionDetailPage({ params }) {
                   </p>
                 )}
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {m.by || "—"} · {new Date(m.createdAt).toLocaleString()}
+                  {m.by || "—"} · {formatDateTime(m.createdAt)}
                 </p>
               </li>
             ))}

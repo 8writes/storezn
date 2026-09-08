@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Button } from "@/components/ui/Button.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { toNaira } from "@/lib/money.js";
 
 const RECEIPT_CSS = `
@@ -71,7 +71,7 @@ export default function ReceiptPage({ params }) {
       <div className="receipt bg-white border border-slate-200 rounded-sm p-5 font-mono text-[13px] text-slate-900 leading-relaxed">
         <div className="text-center">
           <p className="font-bold text-sm uppercase">{storeName}</p>
-          <p className="text-slate-500 text-[11px]">{new Date(order.paidAt || order.createdAt).toLocaleString()}</p>
+          <p className="text-slate-500 text-[11px]">{formatDateTime(order.paidAt || order.createdAt)}</p>
           <p className="text-slate-500 text-[11px]">Receipt {order.orderNumber}</p>
         </div>
 

@@ -1,5 +1,6 @@
 "use client";
 import { formatKobo } from "@/lib/money.js";
+import { formatDateTime } from "@/lib/format.js";
 
 const METHOD_LABEL = {
   cash: "Cash",
@@ -62,7 +63,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
       <div className="flex items-baseline justify-between">
         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">{isZ ? "Z report" : title}</h3>
         <span className="text-[11px] text-slate-500 tabular-nums">
-          {new Date(summary.generatedAt).toLocaleString()}
+          {formatDateTime(summary.generatedAt)}
         </span>
       </div>
 
@@ -152,7 +153,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
                   <p className="text-[11px] text-slate-500">
                     {m.reason || (m.orderNumber ? `Order ${m.orderNumber}` : "No reason given")}
                     {m.by ? ` — ${m.by}` : ""}
-                    {m.createdAt ? ` · ${new Date(m.createdAt).toLocaleString()}` : ""}
+                    {m.createdAt ? ` · ${formatDateTime(m.createdAt)}` : ""}
                   </p>
                 </li>
               ))}

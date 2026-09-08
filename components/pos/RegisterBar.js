@@ -1,6 +1,7 @@
 "use client";
 import { Calculator, Wallet, FileText, LockKeyhole, RefreshCw, Database, CloudOff, Cloud, Loader2 } from "lucide-react";
 import { formatKobo } from "@/lib/money.js";
+import { formatClockTime } from "@/lib/format.js";
 
 function ago(iso) {
   if (!iso) return "not saved";
@@ -66,7 +67,7 @@ export function RegisterBar({
       </span>
 
       <span className="text-slate-500">
-        Open since {new Date(session.openedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        Open since {formatClockTime(session.openedAt)}
       </span>
       <span className="text-slate-500">
         Drawer <span className="font-medium text-slate-900 tabular-nums">{formatKobo(expected)}</span>

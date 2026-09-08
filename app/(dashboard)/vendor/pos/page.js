@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/Input.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, formatClockTime } from "@/lib/format.js";
 import { formatKobo } from "@/lib/money.js";
 import { isEnterpriseStore } from "@/lib/storePlan.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
@@ -189,7 +189,7 @@ export default function SellPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <BackLink href="/vendor/orders" label="Back to orders" />
+      <BackLink href="/vendor/pos/sessions" label="Back to history" />
       {header}
 
       {loading || registers === null ? (
@@ -929,7 +929,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
                           )}
                           <p className="text-[11px] text-slate-500">
                             {s.itemCount} item{s.itemCount === 1 ? "" : "s"} · {formatCurrency(s.total)} ·{" "}
-                            {new Date(h.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {formatClockTime(h.createdAt)}
                           </p>
                         </div>
                         <button

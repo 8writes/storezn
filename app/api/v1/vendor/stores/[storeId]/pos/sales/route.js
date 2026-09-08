@@ -266,22 +266,34 @@ export async function POST(req, { params }) {
             (s, t) => (t.method === "cash" ? s + (t.amount - Number(t.changeGiven || 0)) : s),
             0,
           );
-          const changeFromDrawer = tendersKobo.reduce(
-            (s, t) => (t.method !== "cash" ? s + Number(t.changeGiven || 0) : s),
-            0,
+          const changeTenders = tendersKobo.filter(
+            (t) => t.method !== "cash" && Number(t.changeGiven || 0) > 0,
           );
+          const changeFromDrawer = changeTenders.reduce((s, t) => s + Number(t.changeGiven || 0), 0);
           const rows = [];
           if (cashTakenIn !== 0) {
             rows.push({ sessionId: settleSessionId, kind: "cash_sale", amount: cashTakenIn, orderId: order.id, createdBy: user.id });
           }
           if (changeFromDrawer > 0) {
+            // Name the account the customer overpaid on, so the drawer
+            // shortfall traces back to a specific POS terminal / bank
+            // account: "Opay POS", "Moniepoint transfer", or just "POS" /
+            // "a bank transfer" when the cashier didn't pick a provider.
+            const accounts = [
+              ...new Set(
+                changeTenders.map((t) => {
+                  const kind = t.method === "card" ? "POS" : "transfer";
+                  return t.provider ? `${t.provider} ${kind}` : t.method === "card" ? "POS" : "a bank transfer";
+                }),
+              ),
+            ].join(" + ");
             rows.push({
               sessionId: settleSessionId,
               kind: "change_out",
               amount: -changeFromDrawer,
               orderId: order.id,
               createdBy: user.id,
-              reason: "Cash change on a POS / transfer overpayment",
+              reason: `Cash change from an overpayment on ${accounts}`,
             });
           }
           if (rows.length) await tx.insert(cashMovements).values(rows);

@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/Select.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { formatKobo } from "@/lib/money.js";
+import { formatDateTime } from "@/lib/format.js";
 
 export default function SessionsPage() {
   const { token } = useAuth(true);
@@ -88,7 +89,7 @@ export default function SessionsPage() {
                       {s.registerName}
                     </Link>
                   </td>
-                  <td className="px-4 py-2.5 text-slate-600">{new Date(s.openedAt).toLocaleString()}</td>
+                  <td className="px-4 py-2.5 text-slate-600">{formatDateTime(s.openedAt)}</td>
                   <td className="px-4 py-2.5">
                     {s.status === "open" ? (
                       <span className="text-emerald-600 font-medium">Open</span>
