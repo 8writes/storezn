@@ -13,6 +13,8 @@ import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
 import {
   Menu,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
   Store,
   Settings,
   BarChart3,
@@ -219,31 +221,35 @@ function NavLinkHint() {
 // So when `offline`, everything but the POS link renders inert.
 const OFFLINE_OK_HREF = "/vendor/pos";
 
-function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false }) {
+function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false, collapsed = false }) {
   return (
     <>
       {groups.map((group) => (
         <div key={group.title}>
-          <p
-            className={`px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider first:pt-2 ${
-              muted ? "text-slate-400" : "text-white/40"
-            }`}
-          >
-            {group.title}
-          </p>
+          {collapsed ? (
+            <div className={`mx-3 my-2 border-t first:border-t-0 ${muted ? "border-slate-200" : "border-white/10"}`} />
+          ) : (
+            <p
+              className={`px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider first:pt-2 ${
+                muted ? "text-slate-400" : "text-white/40"
+              }`}
+            >
+              {group.title}
+            </p>
+          )}
           {group.items.map(({ href, label, icon: Icon }) => {
-            const base = "flex items-center gap-3 px-4 py-2.5 text-sm font-medium";
+            const base = `flex items-center gap-3 text-sm font-medium ${collapsed ? "px-0 py-2.5 justify-center" : "px-4 py-2.5"}`;
 
             if (offline && href !== OFFLINE_OK_HREF) {
               return (
                 <span
                   key={href}
                   aria-disabled="true"
-                  title="Unavailable while offline"
+                  title={collapsed ? `${label} — unavailable while offline` : "Unavailable while offline"}
                   className={`${base} ${muted ? "border-l-2 border-transparent text-slate-600" : "text-white"} opacity-40 cursor-not-allowed select-none`}
                 >
                   <Icon size={18} />
-                  {label}
+                  {!collapsed && label}
                 </span>
               );
             }
@@ -253,6 +259,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
                 key={href}
                 href={href}
                 onClick={onNavigate}
+                title={collapsed ? label : undefined}
                 className={
                   muted
                     ? `${base} border-l-2 transition-colors ${
@@ -268,8 +275,8 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
                 }
               >
                 <Icon size={18} />
-                {label}
-                <NavLinkHint />
+                {!collapsed && label}
+                {!collapsed && <NavLinkHint />}
               </Link>
             );
           })}
@@ -286,6 +293,26 @@ export default function DashboardLayout({ children }) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [offline, setOffline] = useState(false);
+  // Desktop sidebar collapse (icons only). Remembered per browser.
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      setNavCollapsed(localStorage.getItem("nav_collapsed") === "1");
+    } catch {
+      /* private mode / blocked storage - just start expanded */
+    }
+  }, []);
+  const toggleNav = () => {
+    setNavCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem("nav_collapsed", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   // Drives the sidebar going inert (see NavLinks' `offline` prop) so a
   // click never starts a navigation that can only fail. Uses the shared
@@ -349,32 +376,45 @@ export default function DashboardLayout({ children }) {
       {isVendor && <OfflineNavGuard />}
 
       <aside
-        className={`hidden sm:flex sm:w-60 shrink-0 flex-col h-dvh sticky top-0 ${
-          isVendor ? "bg-white border-r border-slate-200" : "bg-brand-900"
-        }`}
+        className={`hidden sm:flex shrink-0 flex-col h-dvh sticky top-0 transition-[width] duration-150 ${
+          navCollapsed ? "sm:w-16" : "sm:w-60"
+        } ${isVendor ? "bg-white border-r border-slate-200" : "bg-brand-900"}`}
       >
-        <div className={`flex items-center px-4 h-16 border-b shrink-0 ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
-          {isVendor ? (
+        <div className={`flex items-center h-16 border-b shrink-0 ${navCollapsed ? "justify-center px-0" : "px-4"} ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
+          {navCollapsed ? (
+            <span className={`text-lg font-extrabold ${isVendor ? "text-slate-900" : "text-white"}`}>S</span>
+          ) : isVendor ? (
             <StoreSwitcher textClassName="text-slate-900 font-extrabold tracking-tight text-sm" />
           ) : (
             <Image src="/storezn-logo.png" alt="Storezn" width={120} height={29} priority unoptimized />
           )}
         </div>
-        <nav className="flex-1 py-2 overflow-y-auto">
-          <NavLinks groups={groups} pathname={pathname} muted={isVendor} offline={navOffline} />
+        <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
+          <NavLinks groups={groups} pathname={pathname} muted={isVendor} offline={navOffline} collapsed={navCollapsed} />
         </nav>
         <div className={`border-t shrink-0 ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
           <button
             type="button"
+            onClick={toggleNav}
+            title={navCollapsed ? "Expand menu" : "Collapse menu"}
+            className={`w-full flex items-center gap-3 py-2.5 text-sm font-medium ${navCollapsed ? "justify-center px-0" : "px-4"} ${
+              isVendor ? "text-slate-500 hover:bg-slate-50 hover:text-slate-900" : "text-white/70 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            {navCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            {!navCollapsed && "Collapse"}
+          </button>
+          <button
+            type="button"
             onClick={logout}
             disabled={navOffline}
-            title={navOffline ? "Unavailable while offline" : undefined}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium ${
+            title={navOffline ? "Unavailable while offline" : navCollapsed ? "Sign out" : undefined}
+            className={`w-full flex items-center gap-3 py-3 text-sm font-medium ${navCollapsed ? "justify-center px-0" : "px-4"} ${
               navOffline ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
             } ${isVendor ? "text-slate-600 hover:bg-slate-50 hover:text-red-600" : "text-white hover:bg-white/10"}`}
           >
             <LogOut size={18} />
-            Sign out
+            {!navCollapsed && "Sign out"}
           </button>
         </div>
       </aside>

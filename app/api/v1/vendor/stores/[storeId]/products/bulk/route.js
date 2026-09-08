@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { products, categories, stores, branches } from "../../../../../../../../lib/db/schema.js";
-import { and, eq, ilike } from "drizzle-orm";
-import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
+import { products, productVariants, productBranchStock, categories, stores, branches } from "../../../../../../../../lib/db/schema.js";
+import { and, eq, ilike, isNull, sql } from "drizzle-orm";
+import { getUser, canManageStore, isStoreOwner } from "../../../../../../../../lib/auth.js";
 import { validate, bulkProductRowSchema } from "../../../../../../../../lib/validate.js";
 import { slugify } from "../../../../../../../../lib/slugify.js";
 import { seedBranchStockForNewItem } from "../../../../../../../../lib/inventory.js";
@@ -12,6 +12,77 @@ const MAX_ROWS = 500;
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
   return store;
+}
+
+// Everything the bulk-edit grid needs in one round trip: every base
+// product (name / sku / price / cost / category / expiry), the per-branch
+// stock map for the branch being edited, the branch list and the
+// category list.
+export async function GET(req, { params }) {
+  const user = await getUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { storeId } = await params;
+  const store = await loadStore(storeId);
+  if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
+  if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const branchRows = await db
+    .select({ id: branches.id, name: branches.name, isDefault: branches.isDefault })
+    .from(branches)
+    .where(eq(branches.storeId, storeId))
+    .orderBy(branches.createdAt);
+
+  const requested = new URL(req.url).searchParams.get("branchId")?.trim() || null;
+  let target;
+  if (user.role === "staff" && user.branchId) target = branchRows.find((b) => b.id === user.branchId);
+  else if (requested) target = branchRows.find((b) => b.id === requested);
+  else target = branchRows.find((b) => b.isDefault) || branchRows[0];
+  if (!target) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+
+  const variantCountSql = sql`(select count(*)::int from ${productVariants} where ${productVariants.productId} = ${products.id} and ${productVariants.isActive})`;
+  const [rows, stockRows, cats] = await Promise.all([
+    db
+      .select({
+        id: products.id,
+        name: products.name,
+        sku: products.sku,
+        price: products.price,
+        costPrice: products.costPrice,
+        categoryId: products.categoryId,
+        categoryName: categories.name,
+        expiryDate: products.expiryDate,
+        productType: products.productType,
+        stock: products.stock,
+        variantCount: variantCountSql,
+      })
+      .from(products)
+      .leftJoin(categories, eq(categories.id, products.categoryId))
+      .where(eq(products.storeId, storeId))
+      .orderBy(products.name),
+    db
+      .select({ productId: productBranchStock.productId, stock: productBranchStock.stock })
+      .from(productBranchStock)
+      .innerJoin(products, eq(products.id, productBranchStock.productId))
+      .where(and(eq(products.storeId, storeId), eq(productBranchStock.branchId, target.id), isNull(productBranchStock.variantId))),
+    db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.storeId, storeId)).orderBy(categories.name),
+  ]);
+
+  const stock = {};
+  for (const r of stockRows) stock[r.productId] = r.stock;
+
+  return NextResponse.json({
+    branchId: target.id,
+    branchName: target.name,
+    branches: isStoreOwner(user, store) ? branchRows.map((b) => ({ id: b.id, name: b.name, isDefault: b.isDefault })) : undefined,
+    categories: cats,
+    stock,
+    products: rows.map((r) => ({
+      ...r,
+      hasVariants: Number(r.variantCount) > 0,
+      variantCount: undefined,
+    })),
+  });
 }
 
 // Bulk product import (e.g. migrating a catalog from a spreadsheet). Rows
@@ -65,7 +136,22 @@ export async function POST(req, { params }) {
 
     try {
       let categoryId = null;
-      if (data.categoryName) {
+      if (data.categoryId) {
+        // Grid path: an id picked from the store's own category list.
+        if (!categoryCache.has(`id:${data.categoryId}`)) {
+          const [row] = await db
+            .select({ id: categories.id })
+            .from(categories)
+            .where(and(eq(categories.storeId, storeId), eq(categories.id, data.categoryId)))
+            .limit(1);
+          categoryCache.set(`id:${data.categoryId}`, row?.id || null);
+        }
+        categoryId = categoryCache.get(`id:${data.categoryId}`);
+        if (!categoryId) {
+          results.push({ row: rowNumber, name: data.name, status: "error", error: "That category doesn't belong to this store" });
+          continue;
+        }
+      } else if (data.categoryName) {
         if (!categoryCache.has(data.categoryName)) {
           const [categoryRow] = await db
             .select({ id: categories.id })

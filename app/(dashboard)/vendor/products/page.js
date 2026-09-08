@@ -98,113 +98,6 @@ export default function VendorProductsPage() {
   const [bulkResults, setBulkResults] = useState(null);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
-  // Inline "Bulk Edit" mode for the desktop table: price, cost price, stock.
-  const [bulkEdit, setBulkEdit] = useState(false);
-  const [bulkBranch, setBulkBranch] = useState(null); // { id, name, list } - stock is per-branch
-  const [bulkDraft, setBulkDraft] = useState({}); // productId -> { price?, cost?, stock? } (as typed)
-  const [bulkStockBase, setBulkStockBase] = useState({}); // productId -> selected branch's stock (number|null)
-  const [bulkSaving, setBulkSaving] = useState(false);
-
-  const loadBranchStock = (branchId) => {
-    if (!token || !storeId) return;
-    const qs = branchId ? `?branchId=${branchId}` : "";
-    apiFetch(`/api/v1/vendor/stores/${storeId}/branch-stock${qs}`)
-      .then((data) => {
-        setBulkBranch({ id: data.branchId, name: data.branchName, list: data.branches || null });
-        setBulkStockBase(data.stock || {});
-        // Only the stock draft is branch-specific; keep any price/cost edits.
-        setBulkDraft((d) => Object.fromEntries(Object.entries(d).map(([id, v]) => [id, { ...v, stock: undefined }])));
-      })
-      .catch((err) => toast.error(err.message || "Couldn't load stock"));
-  };
-
-  const startBulkEdit = () => {
-    setBulkEdit(true);
-    setBulkDraft({});
-    loadBranchStock(null);
-  };
-  const cancelBulkEdit = () => {
-    setBulkEdit(false);
-    setBulkDraft({});
-  };
-
-  // Bulk edit is a laptop-and-up feature (see the button). If the window
-  // drops below that while it's on, leave the mode so the user isn't
-  // stranded in it with no visible Cancel.
-  useEffect(() => {
-    if (!bulkEdit) return;
-    const check = () => {
-      if (window.matchMedia("(max-width: 1023px)").matches) {
-        setBulkEdit(false);
-        setBulkDraft({});
-      }
-    };
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, [bulkEdit]);
-
-  const setBulkField = (id, field, val) => setBulkDraft((d) => ({ ...d, [id]: { ...d[id], [field]: val } }));
-
-  // Rows with a real change, one entry per product: { id, price?, costPrice?, stock? }.
-  const bulkChanges = () => {
-    const out = [];
-    for (const [id, d] of Object.entries(bulkDraft)) {
-      const p = products.find((x) => x.id === id);
-      if (!p) continue;
-      const row = { id };
-      if (d.price != null && d.price !== "" && Number(d.price) > 0 && Number(d.price) !== p.price) row.price = Number(d.price);
-      if (d.cost != null && d.cost !== "" && Number(d.cost) >= 0 && Number(d.cost) !== (p.costPrice ?? null)) row.costPrice = Number(d.cost);
-      if (d.stock != null && d.stock !== "" && Number(d.stock) >= 0 && Number(d.stock) !== (bulkStockBase[id] ?? null)) row.stock = Number(d.stock);
-      if (row.price != null || row.costPrice != null || row.stock != null) out.push(row);
-    }
-    return out;
-  };
-
-  const saveBulk = async () => {
-    const changes = bulkChanges();
-    if (changes.length === 0) {
-      cancelBulkEdit();
-      return;
-    }
-    setBulkSaving(true);
-    try {
-      const stockRows = changes.filter((c) => c.stock != null).map((c) => ({ productId: c.id, stock: c.stock }));
-      const fieldRows = changes.filter((c) => c.price != null || c.costPrice != null);
-
-      if (stockRows.length) {
-        await apiFetch(`/api/v1/vendor/stores/${storeId}/branch-stock`, {
-          method: "PATCH",
-          body: JSON.stringify({ branchId: bulkBranch?.id, updates: stockRows }),
-        });
-      }
-
-      let failed = 0;
-      await Promise.all(
-        fieldRows.map(async (c) => {
-          const body = {};
-          if (c.price != null) body.price = c.price;
-          if (c.costPrice != null) body.costPrice = c.costPrice;
-          try {
-            await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${c.id}`, { method: "PATCH", body: JSON.stringify(body) });
-          } catch {
-            failed += 1;
-          }
-        }),
-      );
-
-      const done = changes.length - failed;
-      if (failed) toast.error(`${done} product${done === 1 ? "" : "s"} updated, ${failed} failed`);
-      else toast.success(`${done} product${done === 1 ? "" : "s"} updated`);
-      cancelBulkEdit();
-      loadProducts();
-    } catch (err) {
-      toast.error(err.message || "Failed to save changes");
-    } finally {
-      setBulkSaving(false);
-    }
-  };
-
   const resetBulk = () => {
     setBulkRows([]);
     setBulkFileName("");
@@ -330,18 +223,12 @@ export default function VendorProductsPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-slate-900">Products</h1>
         <div className="flex items-center gap-2">
-          {/* Inline bulk editing needs the full desktop table - the
-              controls are unusable in the horizontally-scrolled table on
-              a phone or small tablet, so it's laptop-width and up only. */}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={bulkEdit ? cancelBulkEdit : startBulkEdit}
-            className="hidden lg:inline-flex"
-          >
-            {bulkEdit ? "Cancel" : "Bulk Edit"}
-          </Button>
+          {/* The full add / edit grid - unusable on a phone, so laptop up. */}
+          <Link href="/vendor/products/bulk" className="hidden lg:inline-flex">
+            <Button type="button" size="sm" variant="outline">
+              Bulk edit
+            </Button>
+          </Link>
           <Link href={`/vendor/products/new${storeId ? `?storeId=${storeId}` : ""}`}>
             <Button type="button" size="sm">
               <Plus size={16} />
@@ -616,34 +503,6 @@ export default function VendorProductsPage() {
 
       {/* Desktop: table */}
       <div className="hidden sm:block bg-white border border-slate-200 rounded-sm overflow-x-auto">
-        {bulkEdit && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-slate-700">Bulk edit</span>
-              <span className="text-xs text-slate-500">price · cost · stock</span>
-              {bulkBranch?.list && bulkBranch.list.length > 1 ? (
-                <div className="w-48">
-                  <Select
-                    value={bulkBranch.id || ""}
-                    onChange={(v) => loadBranchStock(v)}
-                    options={bulkBranch.list.map((b) => ({ value: b.id, label: `Stock: ${b.name}` }))}
-                  />
-                </div>
-              ) : (
-                bulkBranch?.name && <span className="text-slate-500">· stock at {bulkBranch.name}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-500">{bulkChanges().length} changed</span>
-              <Button type="button" size="sm" variant="outline" onClick={cancelBulkEdit} disabled={bulkSaving}>
-                Cancel
-              </Button>
-              <Button type="button" size="sm" onClick={saveBulk} loading={bulkSaving} disabled={bulkChanges().length === 0}>
-                Save changes
-              </Button>
-            </div>
-          </div>
-        )}
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
@@ -668,8 +527,8 @@ export default function VendorProductsPage() {
               products.map((p) => (
                 <tr
                   key={p.id}
-                  onClick={bulkEdit ? undefined : () => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
-                  className={`border-t border-slate-100 ${bulkEdit ? "" : "cursor-pointer hover:bg-slate-50"}`}
+                  onClick={() => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
+                  className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -684,64 +543,16 @@ export default function VendorProductsPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{p.categoryName || "-"}</td>
-                  <td className="px-4 py-3 text-slate-500" onClick={bulkEdit ? (e) => e.stopPropagation() : undefined}>
-                    {bulkEdit ? (
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={bulkDraft[p.id]?.price ?? p.price}
-                        onChange={(e) => setBulkField(p.id, "price", e.target.value)}
-                        className="w-24 rounded-sm border border-slate-300 px-2 py-1 text-sm outline-none focus:border-brand-500"
-                      />
-                    ) : (
-                      formatCurrency(p.price)
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-500" onClick={bulkEdit ? (e) => e.stopPropagation() : undefined}>
-                    {bulkEdit ? (
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="—"
-                        value={bulkDraft[p.id]?.cost ?? (p.costPrice ?? "")}
-                        onChange={(e) => setBulkField(p.id, "cost", e.target.value)}
-                        className="w-24 rounded-sm border border-slate-300 px-2 py-1 text-sm outline-none focus:border-brand-500"
-                      />
-                    ) : p.costPrice != null ? (
-                      formatCurrency(p.costPrice)
-                    ) : (
-                      "—"
-                    )}
-                  </td>
+                  <td className="px-4 py-3 text-slate-500">{formatCurrency(p.price)}</td>
+                  <td className="px-4 py-3 text-slate-500">{p.costPrice != null ? formatCurrency(p.costPrice) : "—"}</td>
                   <td className="px-4 py-3 text-slate-500 capitalize">
                     {p.productType}
                     {p.productType === "physical" && p.condition !== "new" && (
                       <span className="text-slate-700"> · {formatCondition(p.condition)}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-500" onClick={bulkEdit ? (e) => e.stopPropagation() : undefined}>
-                    {bulkEdit && p.productType === "physical" ? (
-                      (() => {
-                        const branchNow = bulkStockBase[p.id] ?? 0;
-                        return (
-                          <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                            <input
-                              type="number"
-                              min="0"
-                              value={bulkDraft[p.id]?.stock ?? (bulkStockBase[p.id] ?? "")}
-                              onChange={(e) => setBulkField(p.id, "stock", e.target.value)}
-                              className="w-20 rounded-sm border border-slate-300 px-2 py-1 text-sm outline-none focus:border-brand-500"
-                            />
-                            <span className="text-xs text-slate-400">
-                              now {branchNow}
-                              {p.stock != null && p.stock !== branchNow && ` · ${p.stock} total`}
-                            </span>
-                          </span>
-                        );
-                      })()
-                    ) : p.productType === "physical" ? (
+                  <td className="px-4 py-3 text-slate-500">
+                    {p.productType === "physical" ? (
                       <span className="inline-flex items-center gap-2">
                         {p.stock ?? "-"}
                         {p.stock != null && p.stock <= lowStockThreshold && (

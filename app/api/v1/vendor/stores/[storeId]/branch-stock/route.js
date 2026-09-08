@@ -3,7 +3,7 @@ import { db } from "../../../../../../../lib/db/index.js";
 import { stores, branches, products, productBranchStock } from "../../../../../../../lib/db/schema.js";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getUser, canManageStore, isStoreOwner } from "../../../../../../../lib/auth.js";
-import { setBranchStock } from "../../../../../../../lib/inventory.js";
+import { setBranchStock, addBranchStock } from "../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 
 async function loadStore(storeId) {
@@ -84,12 +84,21 @@ export async function PATCH(req, { params }) {
   const { target } = await resolveBranch(user, storeId, body?.branchId?.trim() || null);
   if (!target) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
 
-  // Keep only well-formed rows for products that actually belong to this store.
+  // Keep only well-formed rows for products that belong to this store.
+  // Each row is either a SET ({ stock }) or an ADD ({ addStock } - a
+  // positive delta added to the branch's current count).
   const clean = [];
   for (const u of updates) {
-    const stock = u?.stock === null ? null : Number(u?.stock);
-    if (!u?.productId || (stock !== null && (!Number.isInteger(stock) || stock < 0))) continue;
-    clean.push({ productId: String(u.productId), stock });
+    if (!u?.productId) continue;
+    if (u.addStock != null && u.addStock !== "") {
+      const delta = Number(u.addStock);
+      if (!Number.isInteger(delta) || delta === 0) continue;
+      clean.push({ productId: String(u.productId), addStock: delta });
+    } else {
+      const stock = u.stock === null ? null : Number(u.stock);
+      if (stock !== null && (!Number.isInteger(stock) || stock < 0)) continue;
+      clean.push({ productId: String(u.productId), stock });
+    }
   }
   if (clean.length === 0) return NextResponse.json({ error: "No valid rows" }, { status: 400 });
 
@@ -103,12 +112,19 @@ export async function PATCH(req, { params }) {
 
   await db.transaction(async (tx) => {
     for (const c of toApply) {
-      await setBranchStock(tx, { productId: c.productId, variantId: null, branchId: target.id, stock: c.stock });
+      if (c.addStock != null) {
+        c.newStock = await addBranchStock(tx, { productId: c.productId, variantId: null, branchId: target.id, delta: c.addStock });
+      } else {
+        await setBranchStock(tx, { productId: c.productId, variantId: null, branchId: target.id, stock: c.stock });
+      }
     }
   });
 
   const named = toApply.map((c) => ({ ...c, name: nameById.get(c.productId) }));
-  const setLabel = (c) => `${c.name} → ${c.stock === null ? "not stocked" : c.stock}`;
+  const setLabel = (c) =>
+    c.addStock != null
+      ? `${c.name} +${c.addStock} → ${c.newStock}`
+      : `${c.name} → ${c.stock === null ? "not stocked" : c.stock}`;
 
   after(() =>
     logStoreActivity({
@@ -118,8 +134,8 @@ export async function PATCH(req, { params }) {
       action: "stock.adjust",
       summary:
         named.length === 1
-          ? `Set ${named[0].name} stock to ${named[0].stock === null ? "not stocked" : named[0].stock} at ${target.name}`
-          : `Set stock at ${target.name} on ${named.length} products — ${named
+          ? `${named[0].addStock != null ? "Added stock" : "Set stock"} — ${setLabel(named[0])} at ${target.name}`
+          : `Stock at ${target.name} on ${named.length} products — ${named
               .slice(0, 4)
               .map(setLabel)
               .join(", ")}${named.length > 4 ? `, +${named.length - 4} more` : ""}`,
