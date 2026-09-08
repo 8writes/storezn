@@ -11,6 +11,7 @@ import { formatCurrency, formatDateTime } from "@/lib/format.js";
 
 const CHANNEL_LABEL = { online: "Online store", pos: "Register (POS)", manual: "Recorded past sales" };
 const TENDER_LABEL = { cash: "Cash", card: "POS / card", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
+const CASH_KIND = { paid_in: "Paid in", paid_out: "Paid out", drop: "Cash drop" };
 
 function lastMonths(n) {
   const out = [];
@@ -46,6 +47,52 @@ function Rows({ title, rows, render }) {
             {render(r)}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// One line of the money-reconciliation panel. `value` is naira, already
+// signed the way it affects the till (negative = money that left as
+// something other than a sale). `flag` = colour a positive amber (an
+// over-count is still a discrepancy); `strong` = bold total row.
+function Recon({ label, value, flag, strong }) {
+  const neg = value < 0;
+  const cls = neg
+    ? "text-red-600"
+    : flag && value > 0
+      ? "text-amber-600"
+      : "text-slate-900";
+  return (
+    <div className={`flex items-center justify-between gap-4 ${strong ? "font-bold" : ""}`}>
+      <span className="text-slate-600">{label}</span>
+      <span className={`tabular-nums ${cls} ${strong ? "font-bold" : "font-medium"}`}>{formatCurrency(value)}</span>
+    </div>
+  );
+}
+
+// A scrolling, line-level audit table. Every row is one action a staff
+// member took that moved money away from a plain sale.
+function DetailTable({ title, head, rows, render }) {
+  if (!rows?.length) return null;
+  return (
+    <div className="border-t border-slate-100 pt-4">
+      <p className="text-sm font-semibold text-slate-700 mb-2">{title}</p>
+      <div className="overflow-x-auto border border-slate-200 rounded-sm max-h-96 overflow-y-auto">
+        <table className="w-full text-sm whitespace-nowrap">
+          <thead className="bg-slate-50 text-slate-500 text-left sticky top-0">
+            <tr>
+              {head.map((h, i) => (
+                <th key={i} className={`px-3 py-2 font-medium ${i === head.length - 1 ? "text-right" : ""}`}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-t border-slate-100">{render(r)}</tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -132,6 +179,17 @@ export default function VendorReportsPage() {
             <p className="text-xs text-slate-400">Generated {formatDateTime(report.generatedAt)}</p>
           </div>
 
+          {report.reviewFlags?.length > 0 && (
+            <div className="rounded-sm border border-amber-300 bg-amber-50 p-4">
+              <p className="text-sm font-bold text-amber-900 mb-1.5">Review these</p>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-amber-900">
+                {report.reviewFlags.map((f, i) => (
+                  <li key={i}>{f}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Stat label="Net sales" value={formatCurrency(s.netSales)} sub={`${s.salesCount} sale${s.salesCount === 1 ? "" : "s"}`} />
             <Stat label="Gross sales" value={formatCurrency(s.grossSales)} sub={`avg ${formatCurrency(s.avgOrderValue)}`} />
@@ -144,6 +202,22 @@ export default function VendorReportsPage() {
               sub={`${s.registersClosed} register close${s.registersClosed === 1 ? "" : "s"}`}
             />
           </div>
+
+          {report.reconciliation && (
+            <div className="border border-slate-200 rounded-sm p-4">
+              <p className="text-sm font-semibold text-slate-700 mb-2">Money reconciliation</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5 text-sm">
+                <Recon label="Gross sales" value={report.reconciliation.grossSales} />
+                <Recon label="Refunds paid out" value={-report.reconciliation.refundsTotal} />
+                <Recon label="Discounts given (order + line)" value={-report.reconciliation.discountsTotal} />
+                <Recon label="Price overrides — value off catalogue" value={-report.reconciliation.overridesGivenTotal} />
+                <Recon label="Cash paid out / drops" value={-report.reconciliation.paidOutTotal} />
+                <Recon label="Cash paid in" value={report.reconciliation.paidInTotal} />
+                <Recon label="Drawer over / short (all shifts)" value={report.reconciliation.drawerVarianceTotal} flag />
+                <Recon label="Total not collected as sale" value={-report.reconciliation.moneyGivenAway} strong />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Rows
@@ -242,6 +316,61 @@ export default function VendorReportsPage() {
             </div>
           </div>
 
+          {report.perStaff?.length > 0 && (
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-sm font-semibold text-slate-700 mb-2">Who did what</p>
+              <div className="overflow-x-auto border border-slate-200 rounded-sm">
+                <table className="w-full text-sm whitespace-nowrap">
+                  <thead className="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Staff</th>
+                      <th className="px-3 py-2 font-medium text-right">Sales</th>
+                      <th className="px-3 py-2 font-medium text-right">Value</th>
+                      <th className="px-3 py-2 font-medium text-right">Discounts</th>
+                      <th className="px-3 py-2 font-medium text-right">Overrides</th>
+                      <th className="px-3 py-2 font-medium text-right">Given away</th>
+                      <th className="px-3 py-2 font-medium text-right">Returns</th>
+                      <th className="px-3 py-2 font-medium text-right">Cash out</th>
+                      <th className="px-3 py-2 font-medium text-right">Shifts</th>
+                      <th className="px-3 py-2 font-medium text-right">Over / short</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.perStaff.map((p, i) => {
+                      const givenAway = (p.discountsValue || 0) + (p.overridesValue || 0);
+                      return (
+                        <tr key={i} className="border-t border-slate-100">
+                          <td className="px-3 py-2 text-slate-700">{p.name}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{p.salesCount || 0}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.salesValue || 0)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-500">
+                            {p.discountsCount || 0} · {formatCurrency(p.discountsValue || 0)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-500">
+                            {p.overrideLines || 0} · {formatCurrency(p.overridesValue || 0)}
+                          </td>
+                          <td className={`px-3 py-2 text-right tabular-nums font-medium ${givenAway > 0 ? "text-amber-600" : "text-slate-400"}`}>
+                            {givenAway > 0 ? formatCurrency(givenAway) : "—"}
+                          </td>
+                          <td className={`px-3 py-2 text-right tabular-nums ${p.returnsValue > 0 ? "text-red-600" : "text-slate-400"}`}>
+                            {p.returnsCount ? `${p.returnsCount} · ${formatCurrency(p.returnsValue)}` : "—"}
+                          </td>
+                          <td className={`px-3 py-2 text-right tabular-nums ${p.cashOutValue > 0 ? "text-red-600" : "text-slate-400"}`}>
+                            {p.cashOutCount ? `${p.cashOutCount} · ${formatCurrency(p.cashOutValue)}` : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-500">{p.shifts || 0}</td>
+                          <td className={`px-3 py-2 text-right tabular-nums font-medium ${p.overShort < 0 ? "text-red-600" : p.overShort > 0 ? "text-amber-600" : "text-slate-400"}`}>
+                            {p.shifts ? (p.overShort === 0 ? "balanced" : formatCurrency(p.overShort)) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {report.cashReconciliation?.length > 0 && (
             <div className="border-t border-slate-100 pt-4 space-y-3">
               <p className="text-sm font-semibold text-slate-700">Cash reconciliation &mdash; every shift closed this month</p>
@@ -304,6 +433,81 @@ export default function VendorReportsPage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {report.detail?.discounts?.length > 0 && (
+            <DetailTable
+              title={`Every discount given (${report.detail.discounts.length})`}
+              head={["When", "Order", "By", "Reason", "Amount"]}
+              rows={report.detail.discounts}
+              render={(r) => (
+                <>
+                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.orderNumber}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.by || "—"}</td>
+                  <td className="px-3 py-2 text-slate-500">{r.reason || "—"}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-amber-600 font-medium">{formatCurrency(r.amount)}</td>
+                </>
+              )}
+            />
+          )}
+
+          {report.detail?.priceOverrides?.length > 0 && (
+            <DetailTable
+              title={`Every price override (${report.detail.priceOverrides.length})`}
+              head={["When", "Order", "By", "Product", "Qty", "Catalogue", "Charged", "Given away"]}
+              rows={report.detail.priceOverrides}
+              render={(r) => (
+                <>
+                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.orderNumber}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.by || "—"}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.product}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{r.qty}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-500">{formatCurrency(r.catalogue)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.charged)}</td>
+                  <td className={`px-3 py-2 text-right tabular-nums font-medium ${r.givenAway > 0 ? "text-amber-600" : r.givenAway < 0 ? "text-green-700" : "text-slate-400"}`}>
+                    {formatCurrency(r.givenAway)}
+                  </td>
+                </>
+              )}
+            />
+          )}
+
+          {report.detail?.returns?.length > 0 && (
+            <DetailTable
+              title={`Every return / refund (${report.detail.returns.length})`}
+              head={["When", "Order", "By", "Note", "Amount"]}
+              rows={report.detail.returns}
+              render={(r) => (
+                <>
+                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.orderNumber}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.by || "—"}</td>
+                  <td className="px-3 py-2 text-slate-500">{r.note || "—"}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-red-600 font-medium">{formatCurrency(r.amount)}</td>
+                </>
+              )}
+            />
+          )}
+
+          {report.detail?.cashMovements?.length > 0 && (
+            <DetailTable
+              title={`Every cash paid in / out of a drawer (${report.detail.cashMovements.length})`}
+              head={["When", "By", "Type", "Reason", "Amount"]}
+              rows={report.detail.cashMovements}
+              render={(r) => (
+                <>
+                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.by}</td>
+                  <td className="px-3 py-2 text-slate-700">{CASH_KIND[r.kind] || r.kind}</td>
+                  <td className="px-3 py-2 text-slate-500">{r.reason || "—"}</td>
+                  <td className={`px-3 py-2 text-right tabular-nums font-medium ${r.kind === "paid_in" ? "text-green-700" : "text-red-600"}`}>
+                    {r.kind === "paid_in" ? "" : "−"}{formatCurrency(r.amount)}
+                  </td>
+                </>
+              )}
+            />
           )}
         </div>
       )}

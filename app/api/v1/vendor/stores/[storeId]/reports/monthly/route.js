@@ -14,10 +14,14 @@ import {
   branches,
   posSessions,
   posRegisters,
+  cashMovements,
   storeActivityLogs,
 } from "../../../../../../../../lib/db/schema.js";
 import { getUser, isStoreOwner } from "../../../../../../../../lib/auth.js";
 import { toNaira } from "../../../../../../../../lib/money.js";
+import { formatCurrency } from "../../../../../../../../lib/format.js";
+
+const money = (n) => formatCurrency(Number(n || 0));
 
 // A calendar-month business report for the store owner. Owner-only.
 // ?month=YYYY-MM (defaults to the current month). All money in naira.
@@ -220,6 +224,176 @@ export async function GET(req, { params }) {
     .orderBy(desc(storeActivityLogs.createdAt))
     .limit(100);
 
+  // ---------- forensic detail: every money-touching action, line-level ----------
+  const inMonthCreated = and(gte(orders.createdAt, start), lt(orders.createdAt, end), eq(orders.storeId, storeId));
+
+  const [
+    discountRows,
+    overrideRows,
+    refundRows,
+    cashOutRows,
+    salesByStaffRows,
+    discByStaffRows,
+    ovrByStaffRows,
+    retByStaffRows,
+    lineDiscTotalRow,
+    ovrGivenTotalRow,
+  ] = await Promise.all([
+    // every whole-order markdown
+    db
+      .select({ orderNumber: orders.orderNumber, at: orders.createdAt, by: orders.soldByName, amountKobo: orders.discountAmount, reason: orders.discountReason })
+      .from(orders)
+      .where(and(inMonthCreated, sql`${orders.discountAmount} > 0`))
+      .orderBy(desc(orders.createdAt))
+      .limit(300),
+    // every line where the cashier typed a different price
+    db
+      .select({
+        orderNumber: orders.orderNumber,
+        at: orders.createdAt,
+        by: orders.soldByName,
+        product: orderItems.productName,
+        qty: orderItems.quantity,
+        catalogue: orderItems.originalUnitPrice,
+        charged: orderItems.unitPrice,
+        lineTotal: orderItems.lineTotal,
+      })
+      .from(orderItems)
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(and(inMonthCreated, eq(orderItems.priceOverridden, true)))
+      .orderBy(desc(orders.createdAt))
+      .limit(300),
+    // every return / refund
+    db
+      .select({
+        orderNumber: orders.orderNumber,
+        at: orders.createdAt,
+        by: orders.soldByName,
+        amount: orders.totalAmount, // negative
+        against: orders.note,
+      })
+      .from(orders)
+      .where(and(inMonthCreated, sql`${orders.originalOrderId} is not null`))
+      .orderBy(desc(orders.createdAt))
+      .limit(300),
+    // every cash pulled out of a drawer
+    db
+      .select({
+        at: cashMovements.createdAt,
+        by: cashMovements.createdBy,
+        kind: cashMovements.kind,
+        amountKobo: cashMovements.amount, // negative for paid_out / drop
+        reason: cashMovements.reason,
+      })
+      .from(cashMovements)
+      .innerJoin(posSessions, eq(posSessions.id, cashMovements.sessionId))
+      .innerJoin(posRegisters, eq(posRegisters.id, posSessions.registerId))
+      .where(and(eq(posRegisters.storeId, storeId), gte(cashMovements.createdAt, start), lt(cashMovements.createdAt, end), inArray(cashMovements.kind, ["paid_out", "drop", "paid_in"])))
+      .orderBy(desc(cashMovements.createdAt))
+      .limit(300),
+    // per-staff sales
+    db
+      .select({ by: orders.soldByName, count: sql`count(*)`.mapWith(Number), value: sql`coalesce(sum(${orders.totalAmount}),0)`.mapWith(Number) })
+      .from(orders)
+      .where(and(inMonthCreated, isSale, sql`${orders.soldByName} is not null`))
+      .groupBy(orders.soldByName),
+    // per-staff whole-order discounts
+    db
+      .select({ by: orders.soldByName, count: sql`count(*)`.mapWith(Number), kobo: sql`coalesce(sum(${orders.discountAmount}),0)`.mapWith(Number) })
+      .from(orders)
+      .where(and(inMonthCreated, sql`${orders.discountAmount} > 0`, sql`${orders.soldByName} is not null`))
+      .groupBy(orders.soldByName),
+    // per-staff price overrides (value given away = catalogue value - line total)
+    db
+      .select({
+        by: orders.soldByName,
+        lines: sql`count(*)`.mapWith(Number),
+        given: sql`coalesce(sum(coalesce(${orderItems.originalUnitPrice}, ${orderItems.unitPrice}) * ${orderItems.quantity} - ${orderItems.lineTotal}), 0)`.mapWith(Number),
+      })
+      .from(orderItems)
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(and(inMonthCreated, eq(orderItems.priceOverridden, true), sql`${orders.soldByName} is not null`))
+      .groupBy(orders.soldByName),
+    // per-staff returns
+    db
+      .select({ by: orders.soldByName, count: sql`count(*)`.mapWith(Number), value: sql`coalesce(sum(-${orders.totalAmount}),0)`.mapWith(Number) })
+      .from(orders)
+      .where(and(inMonthCreated, sql`${orders.originalOrderId} is not null`, sql`${orders.soldByName} is not null`))
+      .groupBy(orders.soldByName),
+    // store-wide line-discount total (kobo)
+    db
+      .select({ kobo: sql`coalesce(sum(${orderItems.lineDiscount}),0)`.mapWith(Number) })
+      .from(orderItems)
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(and(inMonthCreated, isSale)),
+    // store-wide value given away via overrides (naira)
+    db
+      .select({ naira: sql`coalesce(sum(coalesce(${orderItems.originalUnitPrice}, ${orderItems.unitPrice}) * ${orderItems.quantity} - ${orderItems.lineTotal}), 0)`.mapWith(Number) })
+      .from(orderItems)
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(and(inMonthCreated, isSale, eq(orderItems.priceOverridden, true))),
+  ]);
+
+  // resolve cash-movement actor ids -> names (closers already resolved above)
+  const cashActorIds = [...new Set(cashOutRows.map((r) => r.by).filter((v) => v && !nameById[v]))];
+  if (cashActorIds.length) {
+    const [sN, uN] = await Promise.all([
+      db.select({ id: staff.id, f: staff.firstName, l: staff.lastName, e: staff.email }).from(staff).where(inArray(staff.id, cashActorIds)),
+      db.select({ id: users.id, f: users.firstName, l: users.lastName, e: users.email }).from(users).where(inArray(users.id, cashActorIds)),
+    ]);
+    for (const r of [...sN, ...uN]) nameById[r.id] = `${r.f || ""} ${r.l || ""}`.trim() || r.e;
+  }
+
+  // ---- assemble per-staff ----
+  const staffMap = new Map();
+  const bump = (name, patch) => {
+    const key = name || "Unknown";
+    const cur = staffMap.get(key) || {
+      name: key, salesCount: 0, salesValue: 0, discountsCount: 0, discountsValue: 0,
+      overrideLines: 0, overridesValue: 0, returnsCount: 0, returnsValue: 0,
+      cashOutCount: 0, cashOutValue: 0, shifts: 0, overShort: 0,
+    };
+    staffMap.set(key, { ...cur, ...Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, (cur[k] || 0) + v])) });
+  };
+  for (const r of salesByStaffRows) bump(r.by, { salesCount: r.count, salesValue: r.value });
+  for (const r of discByStaffRows) bump(r.by, { discountsCount: r.count, discountsValue: toNaira(r.kobo) });
+  for (const r of ovrByStaffRows) bump(r.by, { overrideLines: r.lines, overridesValue: r.given });
+  for (const r of retByStaffRows) bump(r.by, { returnsCount: r.count, returnsValue: r.value });
+  for (const r of cashOutRows) {
+    if (r.kind === "paid_in") continue;
+    bump(nameById[r.by] || "Unknown", { cashOutCount: 1, cashOutValue: toNaira(-r.amountKobo) });
+  }
+  for (const s of sessionRows) {
+    const n = nameById[s.closedBy] || "Unknown";
+    bump(n, { shifts: 1, overShort: toNaira(s.overShort || 0) });
+  }
+  const perStaff = [...staffMap.values()].sort((a, b) => b.salesValue - a.salesValue);
+
+  // ---- reconciliation ----
+  const drawerVarianceTotal = toNaira(cashVar?.overShortKobo || 0);
+  const discountsTotal = toNaira((totals.discountsKobo || 0) + (lineDiscTotalRow?.[0]?.kobo || 0));
+  const overridesGivenTotal = ovrGivenTotalRow?.[0]?.naira || 0;
+  const refundsTotal = Math.abs(totals.returnsTotal || 0);
+  const paidOutTotal = cashOutRows.filter((r) => r.kind !== "paid_in").reduce((s, r) => s + toNaira(-r.amountKobo), 0);
+  const paidInTotal = cashOutRows.filter((r) => r.kind === "paid_in").reduce((s, r) => s + toNaira(r.amountKobo), 0);
+
+  // ---- review flags ----
+  const flags = [];
+  const shortSessions = cashReconciliation.filter((r) => r.overShort < 0);
+  if (shortSessions.length) {
+    const t = shortSessions.reduce((s, r) => s + r.overShort, 0);
+    flags.push(`${shortSessions.length} shift${shortSessions.length === 1 ? "" : "s"} came up short — ${money(Math.abs(t))} in total.`);
+  }
+  for (const p of overShortByCashier) {
+    if (p.overShort < 0) flags.push(`${p.name}: ${money(Math.abs(p.overShort))} short across ${p.sessions} shift${p.sessions === 1 ? "" : "s"}.`);
+  }
+  for (const s of perStaff) {
+    if (s.discountsValue + s.overridesValue >= 5000)
+      flags.push(`${s.name} gave away ${money(s.discountsValue + s.overridesValue)} (${s.discountsCount} discounts, ${s.overrideLines} price overrides).`);
+    if (s.returnsValue >= 5000) flags.push(`${s.name} processed ${money(s.returnsValue)} in returns (${s.returnsCount}).`);
+    if (s.cashOutValue >= 5000) flags.push(`${s.name} took ${money(s.cashOutValue)} out of the drawer (${s.cashOutCount} paid-out/drops).`);
+  }
+
   return NextResponse.json({
     month: monthParam || `${year}-${String(month + 1).padStart(2, "0")}`,
     label,
@@ -263,6 +437,32 @@ export async function GET(req, { params }) {
       stockAdjustments: activity["stock.adjust"] || 0,
       priceEdits: activity["product.update"] || 0,
       registerCloses: activity["register.close"] || 0,
+    },
+    reconciliation: {
+      grossSales: totals.gross || 0,
+      netSales: net,
+      drawerVarianceTotal,
+      discountsTotal,
+      overridesGivenTotal,
+      refundsTotal,
+      paidOutTotal,
+      paidInTotal,
+      moneyGivenAway: discountsTotal + overridesGivenTotal + refundsTotal,
+    },
+    reviewFlags: flags,
+    perStaff,
+    detail: {
+      discounts: discountRows.map((r) => ({ orderNumber: r.orderNumber, at: r.at, by: r.by, amount: toNaira(r.amountKobo), reason: r.reason || null })),
+      priceOverrides: overrideRows.map((r) => ({
+        orderNumber: r.orderNumber, at: r.at, by: r.by, product: r.product, qty: r.qty,
+        catalogue: r.catalogue ?? r.charged, charged: r.charged, lineTotal: r.lineTotal,
+        givenAway: (r.catalogue ?? r.charged) * r.qty - r.lineTotal,
+      })),
+      returns: refundRows.map((r) => ({ orderNumber: r.orderNumber, at: r.at, by: r.by, amount: Math.abs(r.amount), note: r.against || null })),
+      cashMovements: cashOutRows.map((r) => ({
+        at: r.at, by: nameById[r.by] || "—", kind: r.kind,
+        amount: toNaira(Math.abs(r.amountKobo)), reason: r.reason || null,
+      })),
     },
     cashReconciliation,
     overShortByCashier,
