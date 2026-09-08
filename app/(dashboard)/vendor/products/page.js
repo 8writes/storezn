@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -51,6 +51,7 @@ export default function VendorProductsPage() {
 
   const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [products, setProducts] = useState([]);
+  const loadSeq = useRef(0);
   const [categories, setCategories] = useState([]);
   const [lowStockThreshold, setLowStockThreshold] = useState(5);
   const [pagination, setPagination] = useState(null);
@@ -169,6 +170,7 @@ export default function VendorProductsPage() {
 
   const loadProducts = () => {
     if (!token || !storeId) return;
+    const myReq = ++loadSeq.current;
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), pageSize: "10" });
     if (q.trim()) params.set("q", q.trim());
@@ -177,12 +179,19 @@ export default function VendorProductsPage() {
     if (stockLevel) params.set("stock", stockLevel);
     apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params.toString()}`)
       .then((data) => {
+        // Drop a stale response so a slow search for an earlier term
+        // can't overwrite the current results.
+        if (myReq !== loadSeq.current) return;
         setProducts(data.products);
         if (data.lowStockThreshold != null) setLowStockThreshold(data.lowStockThreshold);
         setPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load products"))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (myReq === loadSeq.current) toast.error(err.message || "Failed to load products");
+      })
+      .finally(() => {
+        if (myReq === loadSeq.current) setLoading(false);
+      });
   };
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Search, ImageOff, Loader2, Barcode, WifiOff } from "lucide-react";
 import { useApi } from "@/hooks/useApi.js";
@@ -36,14 +36,20 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
   const [scanning, setScanning] = useState(false);
   const [offline, setOffline] = useState(false);
   const searchRef = useRef(null);
+  // Guards against a slow request for an earlier term resolving after a
+  // newer one and overwriting the results (very visible when the DB is
+  // waking from idle and a search takes several seconds).
+  const reqRef = useRef(0);
 
   const load = async (pageNum, q) => {
+    const myReq = ++reqRef.current;
     const setBusy = pageNum === 1 ? setLoading : setLoadingMore;
     setBusy(true);
     const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE) });
     if (q?.trim()) params.set("q", q.trim());
     try {
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
+      if (myReq !== reqRef.current) return; // superseded
       setProducts((prev) => (pageNum === 1 ? data.products : [...prev, ...data.products]));
       setCache((prev) => ({ ...prev, ...Object.fromEntries(data.products.map((p) => [p.id, p])) }));
       setPagination(data.pagination || null);
@@ -51,12 +57,14 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
       setOffline(false);
       if (data.lowStockThreshold != null) setLowStock(data.lowStockThreshold);
     } catch (err) {
+      if (myReq !== reqRef.current) return;
       if (isNetErr(err)) {
         // No connection - search the catalogue snapshot instead.
         // Whole catalogue is cached; cap the grid so a 4k-SKU store
         // doesn't try to render every card, but a real search term
         // narrows it well within this anyway.
         const rows = await searchCatalog(storeId, q, q ? 200 : 100).catch(() => []);
+        if (myReq !== reqRef.current) return;
         setProducts(rows);
         setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
         setPagination(null);
@@ -66,7 +74,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
         toast.error(err.message || "Failed to load products");
       }
     } finally {
-      setBusy(false);
+      if (myReq === reqRef.current) setBusy(false);
     }
   };
 
@@ -201,11 +209,10 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId]);
 
-  const list = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
-  }, [products, search]);
+  // The server (or the offline catalogue) already filtered by the search
+  // term; re-filtering here by the live `search` value just blanked the
+  // grid for the split second `search` was ahead of the results.
+  const list = products;
 
   return (
     <div className="space-y-4 min-w-0">
