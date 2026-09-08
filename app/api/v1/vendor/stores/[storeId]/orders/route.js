@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { orders, stores } from "../../../../../../../lib/db/schema.js";
-import { and, count, desc, eq, ilike } from "drizzle-orm";
+import { orders, orderTenders, stores } from "../../../../../../../lib/db/schema.js";
+import { and, count, desc, eq, ilike, inArray } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
 
@@ -35,8 +35,24 @@ export async function GET(req, { params }) {
     db.select({ total: count() }).from(orders).where(and(...conditions)),
   ]);
 
+  // Payment method(s) per order for the list (one query, not N+1).
+  const ids = rows.map((r) => r.id);
+  const tenders = ids.length
+    ? await db
+        .select({ orderId: orderTenders.orderId, method: orderTenders.method, provider: orderTenders.provider })
+        .from(orderTenders)
+        .where(inArray(orderTenders.orderId, ids))
+    : [];
+  const methodsByOrder = new Map();
+  for (const t of tenders) {
+    const label = t.method === "card" ? `card${t.provider ? `:${t.provider}` : ""}` : t.method;
+    const arr = methodsByOrder.get(t.orderId) || [];
+    if (!arr.includes(label)) arr.push(label);
+    methodsByOrder.set(t.orderId, arr);
+  }
+
   return NextResponse.json({
-    orders: rows,
+    orders: rows.map((o) => ({ ...o, paymentMethods: methodsByOrder.get(o.id) || [] })),
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });
 }

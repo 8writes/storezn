@@ -16,6 +16,21 @@ import { formatCurrency, formatDate } from "@/lib/format.js";
 import { Plus } from "lucide-react";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", abandoned: "slate", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
+
+// ["card:Moniepoint", "cash"] -> "POS (Moniepoint) + Cash"
+const METHOD_NAME = { cash: "Cash", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
+function paidByLabel(methods) {
+  if (!methods?.length) return null;
+  return methods
+    .map((m) => {
+      if (m.startsWith("card")) {
+        const p = m.slice(5);
+        return `POS${p ? ` (${p})` : ""}`;
+      }
+      return METHOD_NAME[m] || m;
+    })
+    .join(" + ");
+}
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
   { value: "processing", label: "Processing" },
@@ -117,7 +132,10 @@ export default function VendorOrdersPage() {
                 <span className="text-sm font-medium text-slate-900 shrink-0">{formatCurrency(o.totalAmount)}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-500">{formatDate(o.createdAt)}</span>
+                <span className="text-xs text-slate-500">
+                  {formatDate(o.createdAt)}
+                  {paidByLabel(o.paymentMethods) && <span className="text-slate-400"> · {paidByLabel(o.paymentMethods)}</span>}
+                </span>
                 <Badge color={STATUS_COLOR[o.status] || "slate"}>{o.status.replace("_", " ")}</Badge>
               </div>
             </div>
@@ -134,16 +152,17 @@ export default function VendorOrdersPage() {
               <th className="px-4 py-3 font-medium">Order</th>
               <th className="px-4 py-3 font-medium">Date</th>
               <th className="px-4 py-3 font-medium">Total</th>
+              <th className="px-4 py-3 font-medium">Paid by</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <TableRowSkeleton cols={5} />
+              <TableRowSkeleton cols={6} />
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-700">{q ? "No orders match your search" : "No orders yet"}</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-700">{q ? "No orders match your search" : "No orders yet"}</td>
               </tr>
             ) : (
               orders.map((o) => (
@@ -160,6 +179,7 @@ export default function VendorOrdersPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(o.createdAt)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(o.totalAmount)}</td>
+                  <td className="px-4 py-3 text-slate-500">{paidByLabel(o.paymentMethods) || "—"}</td>
                   <td className="px-4 py-3">
                     <Badge color={STATUS_COLOR[o.status] || "slate"}>{o.status.replace("_", " ")}</Badge>
                   </td>

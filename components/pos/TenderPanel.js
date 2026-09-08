@@ -13,10 +13,14 @@ const METHODS = [
   { value: "card", label: "POS", icon: CreditCard },
 ];
 
+// POS terminal providers, for per-machine reconciliation. Free-text on
+// the server, so "Other" just lets the cashier type one in.
+const POS_PROVIDERS = ["Moniepoint", "Opay", "Other"];
+
 const round2 = (n) => Math.round(n * 100) / 100;
 
 // One payment per sale. Emits a single tender in naira:
-// [{ method, amount, changeGiven, reference }]. Any method can be over
+// [{ method, provider, amount, changeGiven, reference }]. Any method can be over
 // the total - the excess is handed back as cash (changeGiven), e.g. a
 // customer who transfers a round number and collects the difference from
 // the drawer. A blank amount means "exactly the total".
@@ -26,6 +30,9 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
   const [method, setMethod] = useState("cash");
   const [amountInput, setAmountInput] = useState("");
   const [reference, setReference] = useState("");
+  const [providerPick, setProviderPick] = useState("Moniepoint"); // one of POS_PROVIDERS
+  const [providerOther, setProviderOther] = useState("");
+  const provider = providerPick === "Other" ? providerOther.trim() : providerPick;
 
   const typed = amountInput.trim();
   // Blank = pay exactly the total. A typed value is what was handed over
@@ -34,7 +41,8 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
   const isCash = method === "cash";
   const change = round2(Math.max(0, amount - total));
   const shortBy = round2(Math.max(0, total - amount));
-  const canComplete = total > 0 && amount > 0 && shortBy === 0;
+  const isCard = method === "card";
+  const canComplete = total > 0 && amount > 0 && shortBy === 0 && (!isCard || !!provider);
 
   if (!open) return null;
 
@@ -42,6 +50,7 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
     onComplete([
       {
         method,
+        provider: isCard ? provider : undefined,
         amount,
         changeGiven: change,
         reference: reference.trim() || undefined,
@@ -96,6 +105,35 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
             ))}
           </div>
 
+          {isCard && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-slate-600">Which POS machine?</p>
+              <div className="flex flex-wrap gap-2">
+                {POS_PROVIDERS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setProviderPick(p)}
+                    className={`px-3 py-1.5 rounded-sm border text-sm font-medium cursor-pointer ${
+                      providerPick === p ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              {providerPick === "Other" && (
+                <input
+                  type="text"
+                  value={providerOther}
+                  onChange={(e) => setProviderOther(e.target.value)}
+                  placeholder="Provider name"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
+                />
+              )}
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2">
             {quickAmounts().map((c) => (
               <button
@@ -133,7 +171,10 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
           )}
 
           {change > 0 && !isCash && (
-            <p className="text-xs text-slate-500">{formatCurrency(change)} change to hand back in cash from the drawer.</p>
+            <p className="text-xs text-slate-500">
+              Customer overpaid by {method === "transfer" ? "transfer" : `POS${provider ? ` (${provider})` : ""}`} &mdash;{" "}
+              {formatCurrency(change)} change to hand back in cash from the drawer.
+            </p>
           )}
         </div>
 

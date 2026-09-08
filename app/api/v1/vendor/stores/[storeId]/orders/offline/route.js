@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { orders, orderItems, products, productVariants, stores, branches } from "../../../../../../../../lib/db/schema.js";
+import { orders, orderItems, orderTenders, products, productVariants, stores, branches } from "../../../../../../../../lib/db/schema.js";
+import { toKobo } from "../../../../../../../../lib/money.js";
 import { and, eq, inArray } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, createOfflineOrderSchema } from "../../../../../../../../lib/validate.js";
@@ -40,7 +41,7 @@ export async function POST(req, { params }) {
 
   const result = validate(createOfflineOrderSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  const { buyerName, buyerEmail, buyerPhone, note, delivered, items, branchId: requestedBranchId } = result.data;
+  const { buyerName, buyerEmail, buyerPhone, note, delivered, items, branchId: requestedBranchId, paymentMethod, paymentProvider } = result.data;
 
   // A branch-scoped staff member records the sale at their own branch,
   // regardless of what's submitted - a vendor/owner (or unscoped staff,
@@ -177,6 +178,17 @@ export async function POST(req, { params }) {
         })),
       );
 
+      // One tender line so a recorded sale carries its payment method the
+      // same way a till sale does (no cash drawer here - it's after the
+      // fact - so changeGiven stays 0 and there's no session).
+      await tx.insert(orderTenders).values({
+        orderId: createdOrder.id,
+        method: paymentMethod,
+        provider: paymentMethod === "card" && paymentProvider ? paymentProvider : null,
+        amount: toKobo(totalAmount),
+        changeGiven: 0,
+      });
+
       return createdOrder;
     });
   } catch (err) {
@@ -208,7 +220,9 @@ export async function POST(req, { params }) {
       actor: user,
       branchId,
       action: "order.manual",
-      summary: `Recorded a past sale · ${formatCurrency(order.totalAmount)} · ${resolvedItems.reduce((n, i) => n + i.quantity, 0)} item(s)`,
+      summary:
+        `Recorded a past sale · ${formatCurrency(order.totalAmount)} · ${resolvedItems.reduce((n, i) => n + i.quantity, 0)} item(s)` +
+        ` · ${paymentMethod === "card" ? `POS${paymentProvider ? ` (${paymentProvider})` : ""}` : paymentMethod}`,
       targetType: "order",
       targetId: order.id,
       metadata: { orderNumber: order.orderNumber, total: order.totalAmount },

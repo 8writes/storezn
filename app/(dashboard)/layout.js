@@ -37,6 +37,7 @@ import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
 import UpdatePrompt from "@/app/UpdatePrompt.js";
 import { OfflineNavGuard } from "@/components/pos/OfflineNavGuard.js";
+import { isOffline, onConnectivityChange } from "@/lib/connectivity.js";
 
 // Grouped so the sidebar reads as sections instead of one flat list of 9+
 // items - each group is a distinct concern (running the store day-to-day
@@ -286,18 +287,14 @@ export default function DashboardLayout({ children }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [offline, setOffline] = useState(false);
 
-  // Mirrors OfflineNavGuard's listener - drives the sidebar going inert
-  // (see NavLinks' `offline` prop) so a click never starts a navigation
-  // that can only fail while the connection is down.
+  // Drives the sidebar going inert (see NavLinks' `offline` prop) so a
+  // click never starts a navigation that can only fail. Uses the shared
+  // connectivity signal (lib/connectivity.js) - it flips the moment a
+  // real request fails, not only when the OS drops the interface, so a
+  // dead uplink on live Wi-Fi is caught too.
   useEffect(() => {
-    const sync = () => setOffline(typeof navigator !== "undefined" && navigator.onLine === false);
-    sync();
-    window.addEventListener("online", sync);
-    window.addEventListener("offline", sync);
-    return () => {
-      window.removeEventListener("online", sync);
-      window.removeEventListener("offline", sync);
-    };
+    setOffline(isOffline());
+    return onConnectivityChange(setOffline);
   }, []);
 
   // A signup-time "?next=" (e.g. from the Storezn+ pricing card) is

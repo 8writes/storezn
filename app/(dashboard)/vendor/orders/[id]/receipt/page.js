@@ -109,9 +109,13 @@ export default function ReceiptPage({ params }) {
             <div className="border-t border-dashed border-slate-300 my-2" />
             <div className="space-y-0.5">
               {tenders.map((t) => (
-                <Line key={t.id} label={METHOD[t.method] || t.method} value={formatCurrency(toNaira(t.amount))} />
+                <Line
+                  key={t.id}
+                  label={`${METHOD[t.method] || t.method}${t.provider ? ` · ${t.provider}` : ""}`}
+                  value={formatCurrency(toNaira(t.amount))}
+                />
               ))}
-              {cashChange > 0 && <Line label="Change" value={formatCurrency(toNaira(cashChange))} />}
+              {cashChange > 0 && <Line label="Change (cash from drawer)" value={formatCurrency(toNaira(cashChange))} />}
             </div>
           </>
         )}

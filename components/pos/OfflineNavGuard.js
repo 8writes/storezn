@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
+import { isOffline, onConnectivityChange } from "@/lib/connectivity.js";
 
 // While the device is offline, keep a cashier on the register. Every
 // other dashboard page needs the network to load anything, and the whole
@@ -40,14 +41,8 @@ export function OfflineNavGuard() {
   }, [pathname]);
 
   useEffect(() => {
-    const sync = () => setOffline(typeof navigator !== "undefined" && navigator.onLine === false);
-    sync();
-    window.addEventListener("online", sync);
-    window.addEventListener("offline", sync);
-    return () => {
-      window.removeEventListener("online", sync);
-      window.removeEventListener("offline", sync);
-    };
+    setOffline(isOffline());
+    return onConnectivityChange(setOffline);
   }, []);
 
   useEffect(() => {

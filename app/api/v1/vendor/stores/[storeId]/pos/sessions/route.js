@@ -1,11 +1,12 @@
 import { NextResponse, after } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { posSessions, posRegisters, cashMovements } from "@/lib/db/schema.js";
 import { validate, openSessionSchema } from "@/lib/validate.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadRegister } from "@/lib/posAccess.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
+import { parsePagination } from "@/lib/pagination.js";
 
 // GET  -> recent sessions for the store (for the session/Z-report list),
 //         newest first, register name joined.
@@ -17,33 +18,44 @@ export async function GET(req, { params }) {
   const ctx = await posContext(req, storeId);
   if (ctx.error) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
-  const rows = await db
-    .select({
-      id: posSessions.id,
-      registerId: posSessions.registerId,
-      registerName: posRegisters.name,
-      branchId: posRegisters.branchId,
-      status: posSessions.status,
-      openedBy: posSessions.openedBy,
-      openedAt: posSessions.openedAt,
-      openingFloat: posSessions.openingFloat,
-      closedAt: posSessions.closedAt,
-      expectedCash: posSessions.expectedCash,
-      countedCash: posSessions.countedCash,
-      overShort: posSessions.overShort,
-    })
-    .from(posSessions)
-    .innerJoin(posRegisters, eq(posSessions.registerId, posRegisters.id))
-    .where(eq(posRegisters.storeId, storeId))
-    .orderBy(desc(posSessions.openedAt))
-    .limit(60);
+  const { page, pageSize, limit, offset } = parsePagination(new URL(req.url).searchParams);
 
-  const scoped =
-    ctx.user.role === "staff" && ctx.user.branchId
-      ? rows.filter((r) => r.branchId === ctx.user.branchId)
-      : rows;
+  const where = [eq(posRegisters.storeId, storeId)];
+  if (ctx.user.role === "staff" && ctx.user.branchId) where.push(eq(posRegisters.branchId, ctx.user.branchId));
 
-  return NextResponse.json({ sessions: scoped });
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: posSessions.id,
+        registerId: posSessions.registerId,
+        registerName: posRegisters.name,
+        branchId: posRegisters.branchId,
+        status: posSessions.status,
+        openedBy: posSessions.openedBy,
+        openedAt: posSessions.openedAt,
+        openingFloat: posSessions.openingFloat,
+        closedAt: posSessions.closedAt,
+        expectedCash: posSessions.expectedCash,
+        countedCash: posSessions.countedCash,
+        overShort: posSessions.overShort,
+      })
+      .from(posSessions)
+      .innerJoin(posRegisters, eq(posSessions.registerId, posRegisters.id))
+      .where(and(...where))
+      .orderBy(desc(posSessions.openedAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ total: count() })
+      .from(posSessions)
+      .innerJoin(posRegisters, eq(posSessions.registerId, posRegisters.id))
+      .where(and(...where)),
+  ]);
+
+  return NextResponse.json({
+    sessions: rows,
+    pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+  });
 }
 
 export async function POST(req, { params }) {

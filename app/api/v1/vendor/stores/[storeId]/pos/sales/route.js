@@ -134,6 +134,7 @@ export async function POST(req, { params }) {
 
   const tendersKobo = data.tenders.map((t) => ({
     method: t.method,
+    provider: t.method === "card" && t.provider ? t.provider.trim() : null,
     amount: toKobo(t.amount),
     changeGiven: toKobo(t.changeGiven || 0),
     reference: t.reference || null,
@@ -240,6 +241,7 @@ export async function POST(req, { params }) {
           tendersKobo.map((t) => ({
             orderId: order.id,
             method: t.method,
+            provider: t.provider,
             amount: t.amount,
             changeGiven: t.changeGiven,
             reference: t.reference,
@@ -271,6 +273,11 @@ export async function POST(req, { params }) {
 
       const itemCount = resolved.reduce((n, r) => n + r.quantity, 0);
       const anyOverride = resolved.some((r) => r.overridden) || discountAmountKobo > 0;
+      // "cash", "POS (Moniepoint)", "transfer" ...  joined for a split.
+      const payLabel = tendersKobo
+        .map((t) => (t.method === "card" ? `POS${t.provider ? ` (${t.provider})` : ""}` : t.method))
+        .join(" + ");
+      const changeKobo = tendersKobo.reduce((s, t) => s + t.changeGiven, 0);
       after(() =>
         logStoreActivity({
           storeId,
@@ -278,7 +285,8 @@ export async function POST(req, { params }) {
           branchId,
           action: anyOverride ? "pos.sale.adjusted" : "pos.sale",
           summary:
-            `Rang up ${formatKobo(totalKobo)} · ${itemCount} item${itemCount === 1 ? "" : "s"}` +
+            `Rang up ${formatKobo(totalKobo)} · ${itemCount} item${itemCount === 1 ? "" : "s"} · ${payLabel}` +
+            (changeKobo > 0 ? ` · ${formatKobo(changeKobo)} cash change from drawer` : "") +
             (discountAmountKobo > 0 ? ` · ${formatKobo(discountAmountKobo)} off` : "") +
             (resolved.some((r) => r.overridden) ? " · price overridden" : "") +
             (settleSessionId !== data.sessionId ? " · synced to current shift" : ""),
@@ -291,6 +299,7 @@ export async function POST(req, { params }) {
             discountKobo: discountAmountKobo,
             overridden: resolved.some((r) => r.overridden),
             rehomed: settleSessionId !== data.sessionId,
+            tenders: tendersKobo.map((t) => ({ method: t.method, provider: t.provider, amountKobo: t.amount, changeKobo: t.changeGiven })),
           },
         }),
       );

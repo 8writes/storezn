@@ -35,6 +35,7 @@ export default function RecordPastSalePage() {
   const [cart, setCart] = useState([]);
   const [details, setDetails] = useState({});
   const [buyer, setBuyer] = useState({ buyerName: "Walk In Customer", buyerPhone: "", buyerEmail: "", note: "", delivered: true });
+  const [pay, setPay] = useState({ method: "cash", provider: "Moniepoint" }); // method: cash | card | transfer
   const [submitting, setSubmitting] = useState(false);
 
   const isOwner = user?.role === "vendor";
@@ -113,6 +114,8 @@ export default function RecordPastSalePage() {
       if (buyer.buyerPhone) payload.buyerPhone = buyer.buyerPhone;
       if (buyer.note) payload.note = buyer.note;
       if (branchId) payload.branchId = branchId;
+      payload.paymentMethod = pay.method;
+      if (pay.method === "card") payload.paymentProvider = pay.provider;
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/offline`, { method: "POST", body: JSON.stringify(payload) });
       toast.success("Sale recorded");
       router.push(`/vendor/orders/${data.order.id}?storeId=${storeId}`);
@@ -226,6 +229,52 @@ export default function RecordPastSalePage() {
             <Input label="Name" value={buyer.buyerName} onChange={(e) => setBuyer((b) => ({ ...b, buyerName: e.target.value }))} required />
             <Input label="Phone (optional)" value={buyer.buyerPhone} onChange={(e) => setBuyer((b) => ({ ...b, buyerPhone: e.target.value }))} />
             <Input label="Email (optional)" type="email" value={buyer.buyerEmail} onChange={(e) => setBuyer((b) => ({ ...b, buyerEmail: e.target.value }))} />
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-sm p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-700">Paid by</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { v: "cash", l: "Cash" },
+                { v: "card", l: "POS" },
+                { v: "transfer", l: "Transfer" },
+              ].map((o) => (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => setPay((p) => ({ ...p, method: o.v }))}
+                  className={`py-2 rounded-sm border text-sm font-medium cursor-pointer ${
+                    pay.method === o.v ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  {o.l}
+                </button>
+              ))}
+            </div>
+            {pay.method === "card" && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {["Moniepoint", "Opay", "Other"].map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPay((s) => ({ ...s, provider: p }))}
+                    className={`px-3 py-1.5 rounded-sm border text-sm font-medium cursor-pointer ${
+                      pay.provider === p ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                {pay.provider === "Other" && (
+                  <input
+                    type="text"
+                    placeholder="Provider"
+                    onChange={(e) => setPay((s) => ({ ...s, provider: e.target.value }))}
+                    className="px-3 py-1.5 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
+                  />
+                )}
+              </div>
+            )}
           </div>
 
           <div className="bg-white border border-slate-200 rounded-sm p-4">

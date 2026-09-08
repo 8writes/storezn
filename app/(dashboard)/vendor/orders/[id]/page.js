@@ -14,6 +14,7 @@ import { CopyButton } from "@/components/ui/CopyButton.js";
 import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
+import { toNaira } from "@/lib/money.js";
 import { downloadOrderPdf } from "@/lib/orderPdf.js";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", abandoned: "slate", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
@@ -227,6 +228,26 @@ export default function VendorOrderDetailPage({ params }) {
           <span>{formatCurrency(order.vendorPayoutAmount)}</span>
         </div>
       </div>
+
+      {data.tenders?.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-1.5">
+          <p className="text-sm font-semibold text-slate-700 mb-1">Payment</p>
+          {data.tenders.map((t) => {
+            const label = t.method === "card" ? `POS${t.provider ? ` · ${t.provider}` : ""}` : t.method.replace("_", " ");
+            const change = Number(t.changeGiven || 0);
+            return (
+              <div key={t.id} className="flex justify-between text-sm">
+                <span className="text-slate-600 capitalize">
+                  {label}
+                  {t.reference ? <span className="text-slate-400"> · {t.reference}</span> : null}
+                  {change > 0 ? <span className="text-slate-400"> · {formatCurrency(toNaira(change))} cash change from drawer</span> : null}
+                </span>
+                <span className="text-slate-900 tabular-nums">{formatCurrency(toNaira(t.amount))}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {order.shippingAddress && (
         <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700">

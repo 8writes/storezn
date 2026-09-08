@@ -93,9 +93,13 @@ export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tender
                 <div className="border-t border-dashed border-slate-300 my-2" />
                 <div className="space-y-0.5">
                   {tenders.map((t, i) => (
-                    <Line key={i} label={METHOD[t.method] || t.method} value={formatCurrency(t.amount)} />
+                    <Line
+                      key={i}
+                      label={`${METHOD[t.method] || t.method}${t.provider ? ` · ${t.provider}` : ""}`}
+                      value={formatCurrency(t.amount)}
+                    />
                   ))}
-                  {change > 0 && <Line label="Change" value={formatCurrency(change)} />}
+                  {change > 0 && <Line label="Change (cash)" value={formatCurrency(change)} />}
                 </div>
               </>
             )}

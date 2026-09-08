@@ -31,6 +31,8 @@ export function ZReport({ summary, title = "X report" }) {
   if (!summary) return null;
   const d = summary.drawer || {};
   const byMethod = summary.byTenderMethod || {};
+  const byProvider = summary.byCardProvider || {};
+  const nonCashChangeOut = summary.nonCashChangeOut || 0;
   const isZ = summary.countedCash != null;
 
   return (
@@ -66,6 +68,15 @@ export function ZReport({ summary, title = "X report" }) {
           )}
         </div>
 
+        {Object.keys(byProvider).length > 0 && (
+          <div className="px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">POS terminals</p>
+            {Object.entries(byProvider).map(([p, amt]) => (
+              <Row key={p} label={p} value={formatKobo(amt)} />
+            ))}
+          </div>
+        )}
+
         <div className="px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Cash drawer</p>
           <Row label="Opening float" value={formatKobo(d.openingFloat)} />
@@ -75,6 +86,11 @@ export function ZReport({ summary, title = "X report" }) {
           {d.paidOut !== 0 && <Row label="Paid out" value={formatKobo(d.paidOut)} tone="neg" />}
           {d.drops !== 0 && <Row label="Cash drops" value={formatKobo(d.drops)} tone="neg" />}
           <Row label="Expected in drawer" value={formatKobo(isZ ? summary.expectedCash : d.expectedCash)} strong />
+          {nonCashChangeOut > 0 && (
+            <p className="text-[11px] text-slate-400 pt-1">
+              Cash sales above are net of {formatKobo(nonCashChangeOut)} change handed back on POS / transfer overpayments.
+            </p>
+          )}
           {isZ && (
             <>
               <Row label="Counted" value={formatKobo(summary.countedCash)} strong />

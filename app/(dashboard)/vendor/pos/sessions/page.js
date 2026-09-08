@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Select } from "@/components/ui/Select.js";
 import { BackLink } from "@/components/ui/BackLink.js";
+import { Pagination } from "@/components/ui/Pagination.js";
 import { formatKobo } from "@/lib/money.js";
 
 export default function SessionsPage() {
@@ -14,6 +15,8 @@ export default function SessionsPage() {
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState("");
   const [sessions, setSessions] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,15 +31,20 @@ export default function SessionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  useEffect(() => setPage(1), [storeId]);
+
   useEffect(() => {
     if (!storeId) return;
     setLoading(true);
-    apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions`)
-      .then((data) => setSessions(data.sessions))
+    apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions?page=${page}&pageSize=20`)
+      .then((data) => {
+        setSessions(data.sessions);
+        setPagination(data.pagination || null);
+      })
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [storeId, page]);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -100,6 +108,7 @@ export default function SessionsPage() {
             )}
           </tbody>
         </table>
+        <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
     </div>
   );
