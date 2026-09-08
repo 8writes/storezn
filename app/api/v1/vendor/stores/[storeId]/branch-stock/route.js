@@ -94,11 +94,11 @@ export async function PATCH(req, { params }) {
   if (clean.length === 0) return NextResponse.json({ error: "No valid rows" }, { status: 400 });
 
   const owned = await db
-    .select({ id: products.id })
+    .select({ id: products.id, name: products.name })
     .from(products)
     .where(and(eq(products.storeId, storeId), inArray(products.id, clean.map((c) => c.productId))));
-  const ownedIds = new Set(owned.map((r) => r.id));
-  const toApply = clean.filter((c) => ownedIds.has(c.productId));
+  const nameById = new Map(owned.map((r) => [r.id, r.name]));
+  const toApply = clean.filter((c) => nameById.has(c.productId));
   if (toApply.length === 0) return NextResponse.json({ error: "No matching products" }, { status: 404 });
 
   await db.transaction(async (tx) => {
@@ -107,6 +107,9 @@ export async function PATCH(req, { params }) {
     }
   });
 
+  const named = toApply.map((c) => ({ ...c, name: nameById.get(c.productId) }));
+  const setLabel = (c) => `${c.name} → ${c.stock === null ? "not stocked" : c.stock}`;
+
   after(() =>
     logStoreActivity({
       storeId,
@@ -114,12 +117,15 @@ export async function PATCH(req, { params }) {
       branchId: target.id,
       action: "stock.adjust",
       summary:
-        toApply.length === 1
-          ? `Set stock to ${toApply[0].stock} at ${target.name}`
-          : `Adjusted stock on ${toApply.length} products at ${target.name}`,
-      targetType: "branch",
-      targetId: target.id,
-      metadata: { branchName: target.name, count: toApply.length, updates: toApply.slice(0, 50) },
+        named.length === 1
+          ? `Set ${named[0].name} stock to ${named[0].stock === null ? "not stocked" : named[0].stock} at ${target.name}`
+          : `Set stock at ${target.name} on ${named.length} products — ${named
+              .slice(0, 4)
+              .map(setLabel)
+              .join(", ")}${named.length > 4 ? `, +${named.length - 4} more` : ""}`,
+      targetType: named.length === 1 ? "product" : "branch",
+      targetId: named.length === 1 ? named[0].productId : target.id,
+      metadata: { branchName: target.name, count: named.length, updates: named.slice(0, 50) },
     }),
   );
 
