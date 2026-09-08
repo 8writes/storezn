@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { orders, orderItems, orderTenders, cashMovements } from "@/lib/db/schema.js";
 import { validate, posReturnSchema } from "@/lib/validate.js";
 import { generateOrderNumber } from "@/lib/orders.js";
 import { restockItems } from "@/lib/inventory.js";
-import { toKobo, toNaira } from "@/lib/money.js";
+import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
+import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
 
 // A till return. Creates a linked NEGATIVE order (the original is never
 // touched - history stays additive), restocks the returned units at the
@@ -99,6 +100,8 @@ export async function POST(req, { params }) {
         guestEmail: original.guestEmail,
         status: "refunded",
         paymentStatus: "paid",
+        soldById: user.id,
+        soldByName: actorLabel(user),
         subtotal: -toNaira(refundKobo),
         shippingFee: 0,
         totalAmount: -toNaira(refundKobo),
@@ -163,6 +166,19 @@ export async function POST(req, { params }) {
 
     return ret;
   });
+
+  after(() =>
+    logStoreActivity({
+      storeId,
+      actor: user,
+      branchId: original.branchId,
+      action: "pos.return",
+      summary: `Refunded ${formatKobo(refundKobo)} against ${original.orderNumber} (${data.refundMethod || "cash"})`,
+      targetType: "order",
+      targetId: returnOrder.id,
+      metadata: { refundKobo, refundMethod: data.refundMethod || "cash", originalOrderId: original.id, originalOrderNumber: original.orderNumber },
+    }),
+  );
 
   return NextResponse.json({ order: returnOrder, refundAmount: toNaira(refundKobo) }, { status: 201 });
 }

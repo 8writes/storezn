@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { cashMovements } from "@/lib/db/schema.js";
 import { validate, cashMovementSchema } from "@/lib/validate.js";
-import { toKobo } from "@/lib/money.js";
+import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
+import { logStoreActivity } from "@/lib/storeActivity.js";
 
 // Cashier cash-drawer actions: paid_in (+), paid_out (-), drop (-).
 // cash_sale / cash_refund are written by the sale/return routes, not
@@ -37,6 +38,20 @@ export async function POST(req, { params }) {
       createdBy: ctx.user.id,
     })
     .returning();
+
+  const label = { paid_in: "Paid in", paid_out: "Paid out", drop: "Cash drop" }[result.data.kind] || result.data.kind;
+  after(() =>
+    logStoreActivity({
+      storeId,
+      actor: ctx.user,
+      branchId: row.register.branchId,
+      action: `cash.${result.data.kind}`,
+      summary: `${label} ${formatKobo(magnitude)} · ${result.data.reason}`,
+      targetType: "session",
+      targetId: id,
+      metadata: { kind: result.data.kind, amountKobo: magnitude, reason: result.data.reason },
+    }),
+  );
 
   return NextResponse.json({ movement }, { status: 201 });
 }

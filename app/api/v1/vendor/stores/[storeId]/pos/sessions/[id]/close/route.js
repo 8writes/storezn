@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { posSessions, cashMovements, orders, orderTenders, posHeldSales } from "@/lib/db/schema.js";
 import { validate, closeSessionSchema } from "@/lib/validate.js";
-import { toKobo } from "@/lib/money.js";
+import { toKobo, formatKobo } from "@/lib/money.js";
 import { buildSessionSummary } from "@/lib/pos.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
+import { logStoreActivity } from "@/lib/storeActivity.js";
 
 // The Z report: count the drawer, freeze the figures, write the
 // immutable snapshot, close the session. A register can't open a fresh
@@ -73,6 +74,28 @@ export async function POST(req, { params }) {
     })
     .where(eq(posSessions.id, id))
     .returning();
+
+  after(() =>
+    logStoreActivity({
+      storeId,
+      actor: ctx.user,
+      branchId: row.register.branchId,
+      action: "register.close",
+      summary:
+        `Closed ${row.register.name} · counted ${formatKobo(countedCash)} vs expected ${formatKobo(expectedCash)}` +
+        (overShort === 0 ? " (balanced)" : ` (${overShort > 0 ? "over" : "short"} ${formatKobo(Math.abs(overShort))})`),
+      targetType: "session",
+      targetId: id,
+      metadata: {
+        registerName: row.register.name,
+        countedCashKobo: countedCash,
+        expectedCashKobo: expectedCash,
+        overShortKobo: overShort,
+        saleCount: summary.saleCount,
+        grossSalesKobo: summary.grossSales,
+      },
+    }),
+  );
 
   return NextResponse.json({ session: closed, zReport: closed.zReport });
 }

@@ -155,6 +155,7 @@ const NAV_BY_ROLE = {
       items: [
         { href: "/vendor/staff", label: "Staff", icon: UserCog },
         { href: "/vendor/branches", label: "Branches", icon: Building2 },
+        { href: "/vendor/activity", label: "Activity log", icon: History },
       ],
     },
     {

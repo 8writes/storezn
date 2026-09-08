@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { posSessions, posRegisters, cashMovements } from "@/lib/db/schema.js";
 import { validate, openSessionSchema } from "@/lib/validate.js";
-import { toKobo } from "@/lib/money.js";
+import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadRegister } from "@/lib/posAccess.js";
+import { logStoreActivity } from "@/lib/storeActivity.js";
 
 // GET  -> recent sessions for the store (for the session/Z-report list),
 //         newest first, register name joined.
@@ -76,6 +77,18 @@ export async function POST(req, { params }) {
       }
       return s;
     });
+    after(() =>
+      logStoreActivity({
+        storeId,
+        actor: ctx.user,
+        branchId: register.branchId,
+        action: "register.open",
+        summary: `Opened ${register.name} with ${formatKobo(floatKobo)} float`,
+        targetType: "session",
+        targetId: session.id,
+        metadata: { registerName: register.name, openingFloatKobo: floatKobo },
+      }),
+    );
     return NextResponse.json({ session }, { status: 201 });
   } catch (err) {
     // uq_pos_sessions_open_register - a session is already open here.

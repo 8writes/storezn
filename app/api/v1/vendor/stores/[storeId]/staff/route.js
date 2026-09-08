@@ -8,6 +8,7 @@ import { validate, inviteStaffSchema } from "../../../../../../../lib/validate.j
 import { sendMail } from "../../../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../../../lib/email/escapeHtml.js";
 import { getStaffLimit } from "../../../../../../../lib/storePlan.js";
+import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -148,6 +149,18 @@ export async function POST(req, { params }) {
       html: `<p>Hi ${escapeHtml(firstName)},</p><p>${escapeHtml(user.firstName) || "The team"} added you as staff on <strong>${escapeHtml(store.name)}</strong>'s Storezn dashboard.</p><p>Set your password to get started. This link expires in 7 days.</p><p><a href="${setPasswordUrl}">Set your password</a></p>`,
       fromName: store.name,
     }).catch((err) => console.error("sendMail failed (staff invite):", err)),
+  );
+
+  after(() =>
+    logStoreActivity({
+      storeId,
+      actor: user,
+      action: "staff.add",
+      summary: `Invited ${firstName} ${lastName} (${email}) as staff`,
+      targetType: "staff",
+      targetId: newStaff.id,
+      metadata: { name: `${firstName} ${lastName}`.trim(), email, branchId: resolvedBranchId },
+    }),
   );
 
   const { passwordHash: _, ...safeStaff } = newStaff;

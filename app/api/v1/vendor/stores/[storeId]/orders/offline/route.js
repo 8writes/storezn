@@ -10,6 +10,7 @@ import { sendMail } from "../../../../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
 import { computeWholesalePrice } from "../../../../../../../../lib/pricing.js";
+import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
 import { reserveStock, OutOfStockError } from "../../../../../../../../lib/inventory.js";
 
 async function loadStore(storeId) {
@@ -137,6 +138,8 @@ export async function POST(req, { params }) {
           branchId,
           userId: null,
           orderNumber,
+          soldById: user.id,
+          soldByName: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
           guestEmail: buyerEmail || null,
           buyerName,
           buyerPhone: buyerPhone || null,
@@ -198,6 +201,19 @@ export async function POST(req, { params }) {
       }).catch((err) => console.error("sendMail failed (offline order confirmation):", err)),
     );
   }
+
+  after(() =>
+    logStoreActivity({
+      storeId,
+      actor: user,
+      branchId,
+      action: "order.manual",
+      summary: `Recorded a past sale · ${formatCurrency(order.totalAmount)} · ${resolvedItems.reduce((n, i) => n + i.quantity, 0)} item(s)`,
+      targetType: "order",
+      targetId: order.id,
+      metadata: { orderNumber: order.orderNumber, total: order.totalAmount },
+    }),
+  );
 
   return NextResponse.json({ order }, { status: 201 });
 }

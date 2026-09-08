@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { orders, orderItems, orderTenders, cashMovements, products, productVariants } from "@/lib/db/schema.js";
@@ -6,7 +6,8 @@ import { validate, posSaleSchema } from "@/lib/validate.js";
 import { generateOrderNumber, computeOrderTotals } from "@/lib/orders.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
 import { reserveStock, OutOfStockError } from "@/lib/inventory.js";
-import { toKobo, toNaira } from "@/lib/money.js";
+import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
+import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
 import { validateTenders, drawerDeltaFromTenders } from "@/lib/pos.js";
 import { posContext, loadSession, loadSessionAny, openSessionForRegister } from "@/lib/posAccess.js";
 
@@ -194,6 +195,8 @@ export async function POST(req, { params }) {
             buyerPhone: data.buyerPhone || null,
             status: "delivered",
             paymentStatus: "paid",
+            soldById: user.id,
+            soldByName: actorLabel(user),
             subtotal: toNaira(subtotalKobo),
             shippingFee: 0,
             totalAmount: totals.totalAmount,
@@ -265,6 +268,33 @@ export async function POST(req, { params }) {
       });
 
       const lines = await db.select().from(orderItems).where(eq(orderItems.orderId, created.id));
+
+      const itemCount = resolved.reduce((n, r) => n + r.quantity, 0);
+      const anyOverride = resolved.some((r) => r.overridden) || discountAmountKobo > 0;
+      after(() =>
+        logStoreActivity({
+          storeId,
+          actor: user,
+          branchId,
+          action: anyOverride ? "pos.sale.adjusted" : "pos.sale",
+          summary:
+            `Rang up ${formatKobo(totalKobo)} · ${itemCount} item${itemCount === 1 ? "" : "s"}` +
+            (discountAmountKobo > 0 ? ` · ${formatKobo(discountAmountKobo)} off` : "") +
+            (resolved.some((r) => r.overridden) ? " · price overridden" : "") +
+            (settleSessionId !== data.sessionId ? " · synced to current shift" : ""),
+          targetType: "order",
+          targetId: created.id,
+          metadata: {
+            orderNumber: created.orderNumber,
+            totalKobo,
+            itemCount,
+            discountKobo: discountAmountKobo,
+            overridden: resolved.some((r) => r.overridden),
+            rehomed: settleSessionId !== data.sessionId,
+          },
+        }),
+      );
+
       return NextResponse.json({ order: created, items: lines, orderNumber: created.orderNumber }, { status: 201 });
     } catch (err) {
       if (err instanceof OutOfStockError) {

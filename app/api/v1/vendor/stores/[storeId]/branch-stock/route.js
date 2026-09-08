@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { stores, branches, products, productBranchStock } from "../../../../../../../lib/db/schema.js";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getUser, canManageStore, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { setBranchStock } from "../../../../../../../lib/inventory.js";
+import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -105,6 +106,22 @@ export async function PATCH(req, { params }) {
       await setBranchStock(tx, { productId: c.productId, variantId: null, branchId: target.id, stock: c.stock });
     }
   });
+
+  after(() =>
+    logStoreActivity({
+      storeId,
+      actor: user,
+      branchId: target.id,
+      action: "stock.adjust",
+      summary:
+        toApply.length === 1
+          ? `Set stock to ${toApply[0].stock} at ${target.name}`
+          : `Adjusted stock on ${toApply.length} products at ${target.name}`,
+      targetType: "branch",
+      targetId: target.id,
+      metadata: { branchName: target.name, count: toApply.length, updates: toApply.slice(0, 50) },
+    }),
+  );
 
   return NextResponse.json({ updated: toApply.length, branchId: target.id });
 }

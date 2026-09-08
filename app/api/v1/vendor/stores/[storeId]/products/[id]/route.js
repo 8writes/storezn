@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
 import { products, stores, productVariants, cartItems, reviews, orderItems, orders, branches, productBranchStock } from "../../../../../../../../lib/db/schema.js";
 import { and, eq, ne, sql } from "drizzle-orm";
@@ -7,6 +7,10 @@ import { validate, updateProductSchema } from "../../../../../../../../lib/valid
 import { deletePublicFile } from "../../../../../../../../lib/storage/index.js";
 import { removeStoreUpload } from "../../../../../../../../lib/storeUploads.js";
 import { setBranchStock } from "../../../../../../../../lib/inventory.js";
+import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
+import { formatCurrency } from "../../../../../../../../lib/format.js";
+
+const money = (v) => (v == null ? "—" : formatCurrency(v));
 
 async function loadStoreAndProduct(storeId, productId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -102,6 +106,27 @@ export async function PATCH(req, { params }) {
     Promise.all([deletePublicFile(product.videoUrl), removeStoreUpload(product.videoUrl)]).catch(() => {});
   }
 
+  // Audit the changes an owner cares about (price, cost, availability,
+  // stock) - not every photo reorder.
+  const bits = [];
+  if (result.data.price != null && Number(result.data.price) !== product.price) bits.push(`price ${money(product.price)} → ${money(result.data.price)}`);
+  if ("costPrice" in result.data && (result.data.costPrice ?? null) !== (product.costPrice ?? null)) bits.push(`cost ${money(product.costPrice)} → ${money(result.data.costPrice)}`);
+  if (result.data.isActive != null && result.data.isActive !== product.isActive) bits.push(result.data.isActive ? "set live" : "archived");
+  if (stock !== undefined && stock !== product.stock) bits.push(`stock ${product.stock ?? "∞"} → ${stock}`);
+  if (bits.length) {
+    after(() =>
+      logStoreActivity({
+        storeId,
+        actor: user,
+        action: "product.update",
+        summary: `${product.name}: ${bits.join(", ")}`,
+        targetType: "product",
+        targetId: id,
+        metadata: { name: product.name, changes: bits },
+      }),
+    );
+  }
+
   return NextResponse.json({ product: updated });
 }
 
@@ -146,6 +171,18 @@ export async function DELETE(req, { params }) {
   if (product.videoUrl) {
     Promise.all([deletePublicFile(product.videoUrl), removeStoreUpload(product.videoUrl)]).catch(() => {});
   }
+
+  after(() =>
+    logStoreActivity({
+      storeId,
+      actor: user,
+      action: "product.delete",
+      summary: `Deleted product "${product.name}"`,
+      targetType: "product",
+      targetId: id,
+      metadata: { name: product.name, sku: product.sku || null },
+    }),
+  );
 
   return NextResponse.json({ ok: true });
 }

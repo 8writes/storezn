@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { products, productVariants, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
 import { and, asc, count, desc, eq, gt, ilike, isNull, lte, or, sql } from "drizzle-orm";
@@ -6,6 +6,7 @@ import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
 import { seedBranchStockForNewItem, LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
+import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -142,5 +143,17 @@ export async function POST(req, { params }) {
     }
     return product;
   });
+  after(() =>
+    logStoreActivity({
+      storeId,
+      actor: user,
+      action: "product.create",
+      summary: `Added product "${created.name}"`,
+      targetType: "product",
+      targetId: created.id,
+      metadata: { name: created.name, sku: created.sku || null, price: created.price },
+    }),
+  );
+
   return NextResponse.json({ product: created }, { status: 201 });
 }
