@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Upload, ImageOff, ChevronDown, FileSpreadsheet, CheckCircle2, XCircle, SlidersHorizontal, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -46,6 +46,8 @@ const BULK_TEMPLATE_ROW = {
 
 export default function VendorProductsPage() {
   const router = useRouter();
+  // Deep link from the dashboard's "Low stock" card: /vendor/products?stock=low
+  const initialStock = useSearchParams().get("stock") || "";
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
@@ -59,7 +61,7 @@ export default function VendorProductsPage() {
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [sort, setSort] = useState("newest");
-  const [stockLevel, setStockLevel] = useState(""); // "" | in | low | out
+  const [stockLevel, setStockLevel] = useState(["in", "low", "out"].includes(initialStock) ? initialStock : ""); // "" | in | low | out
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -209,13 +211,20 @@ export default function VendorProductsPage() {
     setPage(1);
   }, [q, categoryId, sort, stockLevel, storeId]);
 
+  const storeFiltersInit = useRef(false);
   useEffect(() => {
     if (!token || !storeId) return;
     apiFetch(`/api/v1/vendor/stores/${storeId}/categories`)
       .then((data) => setCategories(data.categories))
       .catch(() => {});
-    setCategoryId("");
-    setStockLevel("");
+    // Don't clobber a filter that came in via the URL (?stock=low from
+    // the dashboard) on the first run - only reset when the store
+    // actually switches after that.
+    if (storeFiltersInit.current) {
+      setCategoryId("");
+      setStockLevel("");
+    }
+    storeFiltersInit.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId]);
 

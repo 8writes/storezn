@@ -50,7 +50,11 @@ export async function PATCH(req) {
   const result = validate(updateProfileAndNotificationsSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  const [updated] = await db.update(table).set(result.data).where(eq(table.id, user.id)).returning();
+  // An empty phone field means "remove it", not "".
+  const patch = { ...result.data };
+  if (patch.phone === "") patch.phone = null;
+
+  const [updated] = await db.update(table).set(patch).where(eq(table.id, user.id)).returning();
   const { passwordHash: _, ...safeUser } = updated;
   return NextResponse.json({ user: { ...safeUser, role: user.role } });
 }

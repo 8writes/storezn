@@ -5,7 +5,7 @@ import { stores, platformSettings, users } from "../../../../../../../lib/db/sch
 import { eq } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { initializeTransaction } from "../../../../../../../lib/paystack.js";
-import { isPlusStore } from "../../../../../../../lib/storePlan.js";
+import { isPlusStore, isEnterpriseStore } from "../../../../../../../lib/storePlan.js";
 
 const nanoid = customAlphabet("0123456789ABCDEFGHJKLMNPQRSTUVWXYZ", 12);
 
@@ -28,6 +28,9 @@ export async function POST(req, { params }) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!isStoreOwner(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if (isEnterpriseStore(store)) {
+    return NextResponse.json({ error: "This store is on Storezn Enterprise, which already includes Storezn+" }, { status: 400 });
+  }
   if (isPlusStore(store)) {
     return NextResponse.json({ error: "This store is already on Storezn+" }, { status: 400 });
   }

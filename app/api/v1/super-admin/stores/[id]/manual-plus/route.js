@@ -40,7 +40,7 @@ export async function POST(req, { params }) {
 
   const result = validate(manualPlusActivationSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  const { amount, months, paidAt, note } = result.data;
+  const { amount, months, plan, paidAt, note } = result.data;
 
   const now = new Date();
   // Stack onto whatever Plus time is left rather than shortening it.
@@ -62,7 +62,7 @@ export async function POST(req, { params }) {
     });
     const [row] = await tx
       .update(stores)
-      .set({ plan: "plus", planCancelled: true, planRenewsAt })
+      .set({ plan, planCancelled: true, planRenewsAt })
       .where(eq(stores.id, id))
       .returning();
     return row;
@@ -73,7 +73,7 @@ export async function POST(req, { params }) {
     action: "store.manual_plus",
     targetType: "store",
     targetId: id,
-    metadata: { amount, months, note: note || null, planRenewsAt: planRenewsAt.toISOString() },
+    metadata: { amount, months, plan, note: note || null, planRenewsAt: planRenewsAt.toISOString() },
   });
 
   return NextResponse.json({ store: updated, planRenewsAt });

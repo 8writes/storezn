@@ -6,7 +6,7 @@ import { getUser, canManageStore, isStoreOwner } from "../../../../../../lib/aut
 import { validate, updateVendorStoreSchema } from "../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../lib/storage/index.js";
 import { removeStoreUpload, getStoreStorageUsage } from "../../../../../../lib/storeUploads.js";
-import { isPlusStore, getStorageLimitBytes } from "../../../../../../lib/storePlan.js";
+import { isPlusStore, isEnterpriseStore, getEffectivePlan, getStorageLimitBytes } from "../../../../../../lib/storePlan.js";
 import { isColorTooLight } from "../../../../../../lib/colorShades.js";
 
 // The two upload-backed fields - PATCHing over (or clearing) either one
@@ -37,6 +37,8 @@ export async function GET(req, { params }) {
   // commission rate) - see platformSettings.defaultFlatFee.
   const effectiveFlatFee = settings?.defaultFlatFee ?? 0;
   const isPlus = isPlusStore(store);
+  const isEnterprise = isEnterpriseStore(store);
+  const plan = getEffectivePlan(store);
   // Same override pattern as commission above - surfaces the price
   // this store will actually be charged, not the platform default, so a
   // discounted vendor never sees one number here and gets billed another.
@@ -67,6 +69,8 @@ export async function GET(req, { params }) {
     effectiveCommissionRatePercent,
     effectiveFlatFee,
     isPlus,
+    isEnterprise,
+    plan,
     plusMonthlyPrice,
     storageUsedBytes,
     storageLimitBytes,

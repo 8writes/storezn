@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { Input } from "@/components/ui/Input.js";
+import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { BackLink } from "@/components/ui/BackLink.js";
@@ -24,7 +25,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
   const [subTx, setSubTx] = useState([]);
   const [rateOverride, setRateOverride] = useState("");
   const [priceOverride, setPriceOverride] = useState("");
-  const [plusForm, setPlusForm] = useState({ amount: "", months: "1", paidAt: "", note: "" });
+  const [plusForm, setPlusForm] = useState({ amount: "", months: "1", plan: "plus", paidAt: "", note: "" });
   const [activatingPlus, setActivatingPlus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,17 +91,19 @@ export default function SuperAdminStoreDetailPage({ params }) {
       return;
     }
     const months = Number(plusForm.months) || 1;
+    const planName = plusForm.plan === "enterprise" ? "Storezn Enterprise" : "Storezn+";
+    const alreadyOnThis = getEffectivePlan(store) === plusForm.plan;
     const ok = await confirm({
-      title: `Activate Storezn+ for ${store.name}?`,
-      description: `Records ${formatCurrency(Number(plusForm.amount))} as an off-platform payment and grants Storezn+ for ${months} month${months === 1 ? "" : "s"}${
-        getEffectivePlan(store) === "plus" ? " on top of the time already left" : ""
+      title: `Activate ${planName} for ${store.name}?`,
+      description: `Records ${formatCurrency(Number(plusForm.amount))} as an off-platform payment and grants ${planName} for ${months} month${months === 1 ? "" : "s"}${
+        alreadyOnThis ? " on top of the time already left" : ""
       }. It won't auto-renew.`,
       confirmLabel: "Activate",
     });
     if (!ok) return;
     setActivatingPlus(true);
     try {
-      const body = { amount: Number(plusForm.amount), months };
+      const body = { amount: Number(plusForm.amount), months, plan: plusForm.plan };
       if (plusForm.paidAt) body.paidAt = plusForm.paidAt;
       if (plusForm.note.trim()) body.note = plusForm.note.trim();
       const data = await apiFetch(`/api/v1/super-admin/stores/${id}/manual-plus`, {
@@ -108,11 +111,11 @@ export default function SuperAdminStoreDetailPage({ params }) {
         body: JSON.stringify(body),
       });
       setStore(data.store);
-      setPlusForm({ amount: "", months: "1", paidAt: "", note: "" });
-      toast.success(`Storezn+ active until ${formatDate(data.planRenewsAt)}`);
+      setPlusForm({ amount: "", months: "1", plan: "plus", paidAt: "", note: "" });
+      toast.success(`${planName} active until ${formatDate(data.planRenewsAt)}`);
       load();
     } catch (err) {
-      toast.error(err.message || "Failed to activate Storezn+");
+      toast.error(err.message || `Failed to activate ${planName}`);
     } finally {
       setActivatingPlus(false);
     }
@@ -268,20 +271,34 @@ export default function SuperAdminStoreDetailPage({ params }) {
 
       <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-700">Storezn+ (offline payment)</p>
-          <Badge color={getEffectivePlan(store) === "plus" ? "green" : "slate"}>
-            {getEffectivePlan(store) === "plus" ? "Plus" : "Free"}
+          <p className="text-sm font-semibold text-slate-700">Plan (offline payment)</p>
+          <Badge color={getEffectivePlan(store) === "free" ? "slate" : getEffectivePlan(store) === "enterprise" ? "blue" : "green"}>
+            {getEffectivePlan(store) === "enterprise" ? "Enterprise" : getEffectivePlan(store) === "plus" ? "Plus" : "Free"}
           </Badge>
         </div>
         <p className="text-xs text-slate-500">
-          {getEffectivePlan(store) === "plus"
-            ? `Active until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "-"}${store.planCancelled ? " - won't auto-renew" : " - renews via Paystack"}.`
-            : "This store is on the free plan."}
+          {getEffectivePlan(store) === "free"
+            ? "This store is on the free plan."
+            : `${getEffectivePlan(store) === "enterprise" ? "Enterprise" : "Plus"} active until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "-"}${store.planCancelled ? " - won't auto-renew" : " - renews via Paystack"}.`}
           {" "}Use this when a business pays you directly (transfer/cash). The amount is
-          logged to subscription revenue and Plus is granted for the months you enter,
-          stacking on any time already left. It won&apos;t auto-renew.
+          logged to subscription revenue and the plan is granted for the months you enter,
+          stacking on any time already left. It won&apos;t auto-renew. Enterprise adds the
+          in-person point-of-sale suite (registers, shifts &amp; Z-reports, offline selling,
+          recorded past sales, the month-end forensic report) on top of everything in Plus.
         </p>
         <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <Select
+              label="Plan"
+              searchable={false}
+              options={[
+                { value: "plus", label: "Storezn+" },
+                { value: "enterprise", label: "Storezn Enterprise" },
+              ]}
+              value={plusForm.plan}
+              onChange={(v) => setPlusForm((f) => ({ ...f, plan: v }))}
+            />
+          </div>
           <Input
             label="Amount paid (₦)"
             type="number"
@@ -311,7 +328,8 @@ export default function SuperAdminStoreDetailPage({ params }) {
           />
         </div>
         <Button onClick={activatePlus} loading={activatingPlus} fullWidth>
-          {getEffectivePlan(store) === "plus" ? "Extend Storezn+" : "Activate Storezn+"}
+          {getEffectivePlan(store) === plusForm.plan ? "Extend" : "Activate"}{" "}
+          {plusForm.plan === "enterprise" ? "Storezn Enterprise" : "Storezn+"}
         </Button>
 
         {subTx.length > 0 && (

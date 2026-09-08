@@ -13,7 +13,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { Switch } from "@/components/ui/Switch.js";
 import { formatCurrency } from "@/lib/format.js";
-import { isPlusStore } from "@/lib/storePlan.js";
+import { isEnterpriseStore } from "@/lib/storePlan.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
@@ -130,17 +130,18 @@ export default function RecordPastSalePage() {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
-  if (activeStore && !isPlusStore(activeStore)) {
+  if (activeStore && !isEnterpriseStore(activeStore)) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <BackLink href="/vendor/orders" label="Back to orders" />
         <div className="bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
-          <h1 className="text-lg font-bold text-slate-900">Recording offline sales is a Storezn+ feature</h1>
+          <h1 className="text-lg font-bold text-slate-900">Recording past sales is a Storezn Enterprise feature</h1>
           <p className="text-sm text-slate-500 max-w-sm mx-auto">
-            Upgrade to log sales made in person, by phone, or in cash so they show up in your order history and stock.
+            Log sales made in person, by phone, or in cash so they show up in your order history and stock.
+            Enterprise is set up by the Storezn team.
           </p>
           <Link href="/vendor/plus" className="inline-block">
-            <Button type="button">Upgrade to Storezn+</Button>
+            <Button type="button">See Enterprise</Button>
           </Link>
         </div>
       </div>

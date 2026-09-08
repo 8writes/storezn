@@ -269,14 +269,15 @@ export default function VendorDashboardPage() {
             <StatGridSkeleton count={4} />
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard icon={Wallet} label="Revenue (your payout)" value={formatCurrency(stats.revenue)} color="green" />
-              <StatCard icon={ShoppingBag} label="Orders" value={stats.orders.total} sub={`${stats.orders.pending} in progress`} />
-              <StatCard icon={Package} label="Products" value={stats.products.total} sub={`${stats.products.live} live`} />
+              <StatCard icon={Wallet} label="Revenue (your payout)" value={formatCurrency(stats.revenue)} color="green" href="/vendor/payouts" />
+              <StatCard icon={ShoppingBag} label="Orders" value={stats.orders.total} sub={`${stats.orders.pending} in progress`} href="/vendor/orders" />
+              <StatCard icon={Package} label="Products" value={stats.products.total} sub={`${stats.products.live} live`} href="/vendor/products" />
               <StatCard
                 icon={AlertTriangle}
                 label="Low stock"
                 value={stats.products.lowStock}
                 color={stats.products.lowStock > 0 ? "amber" : "brand"}
+                href="/vendor/products?stock=low"
               />
             </div>
           )}

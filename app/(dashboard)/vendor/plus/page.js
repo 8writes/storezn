@@ -8,15 +8,83 @@ import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
-import { Sparkles, CalendarClock, Receipt, Check, X } from "lucide-react";
+import { Sparkles, Building2, CalendarClock, Receipt, Check } from "lucide-react";
 
-const FEATURES = [
-  { title: "Offline orders", text: "Record in-person, phone, and cash sales." },
-  { title: "Custom domain", text: "Use your own domain instead of a storezn.com subdomain." },
-  { title: "Multiple branches", text: "Track stock and staff separately across more than one location." },
-  { title: "More staff", text: "Bring on more people to help run the store." },
-  { title: "More storage", text: "Room for a bigger product catalog." },
+const SUPPORT_EMAIL = "support@ozmictech.com";
+
+// Storezn+ is the self-serve tier (Paystack checkout on this page).
+const PLUS_FEATURES = [
+  {
+    title: "Your own web address",
+    text: "Run the store on a domain you own (yourstore.com) instead of a storezn.com subdomain. We provision and renew the SSL certificate for you — you point your DNS once and it stays working.",
+  },
+  {
+    title: "More than one branch",
+    text: "Open extra locations and keep each branch's stock, staff and sales separate. Assign a staff member to a single branch, move stock between branches, and see per-branch numbers in every report.",
+  },
+  {
+    title: "A bigger team",
+    text: "Add more staff logins beyond the free limit, each with their own password and only the access they need — a cashier sees their till, a manager sees the store.",
+  },
+  {
+    title: "More media storage",
+    text: "A larger allowance for product photos and store images, so a big catalogue with several pictures per item doesn't run out of room.",
+  },
+  {
+    title: "Storefront theme colour",
+    text: "Set your brand's accent colour across the storefront — buttons, links and highlights all pick it up.",
+  },
 ];
+
+// Storezn Enterprise is a superset of Plus. It's only ever switched on by
+// the Storezn team (an off-platform arrangement, see the super-admin
+// store page) — there is no self-checkout for it on this page.
+const ENTERPRISE_FEATURES = [
+  {
+    title: "In-person registers (POS)",
+    text: "Open a till on any phone, tablet or computer. Ring walk-in customers up item by item, scan or search your catalogue, take cash, transfer or POS-machine payments, give change from the drawer, and print or text a receipt.",
+  },
+  {
+    title: "Shifts & Z-reports",
+    text: "Every cashier opens their own shift with a counted opening float and closes it with a counted drawer. The Z-report shows expected vs counted cash for every payment type and exactly what is over or short.",
+  },
+  {
+    title: "Keeps working offline",
+    text: "When the internet drops, selling carries on. Sales, stock counts and price changes are saved on the device and sync automatically the moment the connection is back — nothing is lost.",
+  },
+  {
+    title: "Record past & phone sales",
+    text: "Log a sale that happened away from the storefront — a phone order, a WhatsApp order, a cash sale — so it lands in your order history and pulls stock down like any other order.",
+  },
+  {
+    title: "Cash-drawer movements",
+    text: "Track money paid into or taken out of the drawer during a shift (a supplier paid in cash, the owner lifts a float) with a reason recorded on every entry.",
+  },
+  {
+    title: "Payment-account tracking",
+    text: "Record which POS machine or transfer account each payment landed in — Moniepoint, Opay, and so on — and trace every naira of change back to where it was given from.",
+  },
+  {
+    title: "Month-end forensic report",
+    text: "A full audit document for the month: sales against cash counted, every discount, price override, refund and drawer shortage, plus a per-staff breakdown of who did what and where money left as something other than a sale.",
+  },
+];
+
+function FeatureList({ features }) {
+  return (
+    <ul className="space-y-2.5">
+      {features.map(({ title, text }) => (
+        <li key={title} className="flex items-start gap-2.5 text-sm">
+          <Check size={16} className="text-brand-600 shrink-0 mt-0.5" />
+          <span>
+            <span className="font-medium text-slate-900">{title}</span>
+            <span className="text-slate-500"> &mdash; {text}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 // Team management, payouts, and this billing page are all owner-only
 // concerns (see isStoreOwner in lib/auth.js and the NAV_BY_ROLE.staff
@@ -29,6 +97,7 @@ export default function VendorPlusPage() {
 
   const [store, setStore] = useState(null);
   const [isPlus, setIsPlus] = useState(false);
+  const [isEnterprise, setIsEnterprise] = useState(false);
   const [plusMonthlyPrice, setPlusMonthlyPrice] = useState(5000);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
@@ -44,6 +113,7 @@ export default function VendorPlusPage() {
       .then((data) => {
         setStore(data.store);
         setIsPlus(!!data.isPlus);
+        setIsEnterprise(!!data.isEnterprise);
         setPlusMonthlyPrice(data.plusMonthlyPrice || 5000);
       })
       .catch((err) => toast.error(err.message || "Failed to load store"))
@@ -90,99 +160,142 @@ export default function VendorPlusPage() {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
+  // Enterprise is a superset of Plus - an Enterprise store already has
+  // every Plus feature, so the self-serve Plus checkout is hidden for it.
+  const plusActive = isPlus && !isEnterprise;
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
-      <h1 className="text-xl font-bold text-slate-900">Storezn+</h1>
+      <h1 className="text-xl font-bold text-slate-900">Plans</h1>
 
       {loading || !store ? (
         <FormSkeleton fields={3} />
       ) : (
-        <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
-          {/* Branded header band - the price is the single biggest thing
-              on it, deliberately, so there's no ambiguity about what
-              you're agreeing to before you even reach the confirm step. */}
-          <div className="bg-gradient-to-br from-brand-700 to-brand-900 px-6 py-8 text-white relative overflow-hidden">
-            <div
-              className="absolute inset-0 opacity-20"
-              style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
-            />
-            <div className="relative flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-2 text-brand-100 text-sm font-medium">
-                <Sparkles size={16} />
-                Storezn+
+        <>
+          {/* -------- Storezn+ -------- */}
+          <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+            <div className="bg-gradient-to-br from-brand-700 to-brand-900 px-6 py-8 text-white relative overflow-hidden">
+              <div
+                className="absolute inset-0 opacity-20"
+                style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
+              />
+              <div className="relative flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-2 text-brand-100 text-sm font-medium">
+                  <Sparkles size={16} />
+                  Storezn+
+                </div>
+                {isEnterprise ? (
+                  <Badge color="blue">Included with Enterprise</Badge>
+                ) : isPlus ? (
+                  <Badge color={store.planCancelled ? "amber" : "green"}>
+                    {store.planCancelled ? "Not renewing" : "Active"}
+                  </Badge>
+                ) : null}
               </div>
+              <p className="relative mt-2 text-4xl font-extrabold tracking-tight">
+                {formatCurrency(plusMonthlyPrice)}
+                <span className="text-lg font-medium text-brand-200">/month</span>
+              </p>
+              <p className="relative mt-1 text-sm text-brand-100">Billed every month, cancel anytime.</p>
+            </div>
+
+            <div className="p-6 space-y-6">
               {isPlus && (
-                <Badge color={store.planCancelled ? "amber" : "green"}>
-                  {store.planCancelled ? "Not renewing" : "Active"}
-                </Badge>
+                <div className="flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-sm p-4 text-sm text-slate-700">
+                  <CalendarClock size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                  <p>
+                    {isEnterprise
+                      ? "Your store is on Storezn Enterprise, which already includes everything in Storezn+."
+                      : store.planCancelled
+                        ? `Cancelled - you'll keep Storezn+ until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "your current period ends"}.`
+                        : `Renews ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "monthly"} at ${formatCurrency(plusMonthlyPrice)}/month.`}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">What you get</p>
+                <FeatureList features={PLUS_FEATURES} />
+              </div>
+
+              {plusActive && !store.planCancelled && (
+                <Button type="button" variant="outline" fullWidth loading={cancelling} onClick={handleCancelSubscription}>
+                  Cancel subscription
+                </Button>
+              )}
+              {!isPlus && (
+                <>
+                  <Button type="button" onClick={openConfirm} fullWidth size="lg">
+                    Upgrade to Storezn+
+                  </Button>
+                  <p className="text-xs text-slate-400 text-center">
+                    {formatCurrency(plusMonthlyPrice)}/month, billed automatically until you cancel.
+                  </p>
+                </>
               )}
             </div>
-            <p className="relative mt-2 text-4xl font-extrabold tracking-tight">
-              {formatCurrency(plusMonthlyPrice)}
-              <span className="text-lg font-medium text-brand-200">/month</span>
-            </p>
-            <p className="relative mt-1 text-sm text-brand-100">Billed every month, cancel anytime.</p>
           </div>
 
-          <div className="p-6 space-y-6">
-            {isPlus ? (
-              <>
+          {/* -------- Storezn Enterprise -------- */}
+          <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+            <div className="bg-gradient-to-br from-slate-800 to-slate-950 px-6 py-8 text-white relative overflow-hidden">
+              <div
+                className="absolute inset-0 opacity-20"
+                style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
+              />
+              <div className="relative flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                  <Building2 size={16} />
+                  Storezn Enterprise
+                </div>
+                {isEnterprise && (
+                  <Badge color={store.planCancelled ? "amber" : "green"}>
+                    {store.planCancelled ? "Not renewing" : "Active"}
+                  </Badge>
+                )}
+              </div>
+              <p className="relative mt-2 text-2xl font-extrabold tracking-tight">
+                Everything in Storezn+, plus a full point-of-sale system
+              </p>
+              <p className="relative mt-1 text-sm text-slate-300">
+                Set up with you by the Storezn team. Pricing depends on your branches and tills.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {isEnterprise && (
                 <div className="flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-sm p-4 text-sm text-slate-700">
                   <CalendarClock size={16} className="text-slate-400 shrink-0 mt-0.5" />
                   <p>
                     {store.planCancelled
-                      ? `Cancelled - you'll keep Storezn+ until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "your current period ends"}.`
-                      : `Renews ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "monthly"} at ${formatCurrency(plusMonthlyPrice)}/month.`}
+                      ? `Your Enterprise term runs until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "the end of the paid period"}. Talk to us before then to keep it going.`
+                      : `Active${store.planRenewsAt ? ` until ${formatDate(store.planRenewsAt)}` : ""}. Renewals are arranged with the Storezn team.`}
                   </p>
                 </div>
+              )}
 
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">What you get</p>
-                  <ul className="space-y-2">
-                    {FEATURES.map(({ title, text }) => (
-                      <li key={title} className="flex items-start gap-2.5 text-sm">
-                        <Check size={16} className="text-brand-600 shrink-0 mt-0.5" />
-                        <span>
-                          <span className="font-medium text-slate-900">{title}</span>{" "}
-                          <span className="text-slate-500">- {text}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {!store.planCancelled && (
-                  <Button type="button" variant="outline" fullWidth loading={cancelling} onClick={handleCancelSubscription}>
-                    Cancel subscription
-                  </Button>
-                )}
-              </>
-            ) : (
-              <>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">What you get</p>
-                  <ul className="space-y-2">
-                    {FEATURES.map(({ title, text }) => (
-                      <li key={title} className="flex items-start gap-2.5 text-sm">
-                        <Check size={16} className="text-brand-600 shrink-0 mt-0.5" />
-                        <span>
-                          <span className="font-medium text-slate-900">{title}</span>{" "}
-                          <span className="text-slate-500">- {text}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <Button type="button" onClick={openConfirm} fullWidth size="lg">
-                  Upgrade to Storezn+
-                </Button>
-                <p className="text-xs text-slate-400 text-center">
-                  {formatCurrency(plusMonthlyPrice)}/month, billed automatically until you cancel.
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  {isEnterprise ? "What's included" : "What you get on top of Storezn+"}
                 </p>
-              </>
-            )}
+                <FeatureList features={ENTERPRISE_FEATURES} />
+              </div>
+
+              {!isEnterprise && (
+                <div className="space-y-2">
+                  <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Storezn Enterprise enquiry")}`} className="block">
+                    <Button type="button" fullWidth size="lg">
+                      Contact us about Enterprise
+                    </Button>
+                  </a>
+                  <p className="text-xs text-slate-400 text-center">
+                    Email {SUPPORT_EMAIL} and we&apos;ll set it up on your store.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {transactions && transactions.length > 0 && (
@@ -225,7 +338,7 @@ export default function VendorPlusPage() {
                 </p>
               </div>
               <button type="button" onClick={() => setConfirmOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
-                <X size={18} />
+                &times;
               </button>
             </div>
 

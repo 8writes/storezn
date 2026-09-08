@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
-import { isPlusStore } from "@/lib/storePlan.js";
+import { isEnterpriseStore } from "@/lib/storePlan.js";
 import { Calculator, Trash2, Check, X } from "lucide-react";
 
 export default function RegistersPage() {
@@ -110,14 +110,17 @@ export default function RegistersPage() {
     return <p className="text-sm text-slate-700">Only the store owner manages registers.</p>;
   }
 
-  if (!loading && store && !isPlusStore(store)) {
+  if (!loading && store && !isEnterpriseStore(store)) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <BackLink href="/vendor/orders" label="Back to orders" />
         <div className="bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
-          <h1 className="text-lg font-bold text-slate-900">Registers are a Storezn+ feature</h1>
+          <h1 className="text-lg font-bold text-slate-900">Registers are a Storezn Enterprise feature</h1>
+          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+            Enterprise adds the full in-person point-of-sale suite. It&apos;s set up by the Storezn team.
+          </p>
           <Link href="/vendor/plus" className="inline-block">
-            <Button type="button">Upgrade to Storezn+</Button>
+            <Button type="button">See Enterprise</Button>
           </Link>
         </div>
       </div>

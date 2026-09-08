@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { formatCurrency } from "@/lib/format.js";
 import { formatKobo } from "@/lib/money.js";
-import { isPlusStore } from "@/lib/storePlan.js";
+import { isEnterpriseStore } from "@/lib/storePlan.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { RegisterBar } from "@/components/pos/RegisterBar.js";
@@ -169,17 +169,18 @@ export default function SellPage() {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
-  if (activeStore && !isPlusStore(activeStore)) {
+  if (activeStore && !isEnterpriseStore(activeStore)) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <BackLink href="/vendor/orders" label="Back to orders" />
         <div className="bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
-          <h1 className="text-lg font-bold text-slate-900">In-person selling is a Storezn+ feature</h1>
+          <h1 className="text-lg font-bold text-slate-900">In-person selling is a Storezn Enterprise feature</h1>
           <p className="text-sm text-slate-500 max-w-sm mx-auto">
-            Upgrade to run a register - take sales in person with split payments, a cash drawer, and end-of-day reports.
+            Run a register to take sales in person - item-by-item ring-up, cash drawer, POS-machine and transfer payments,
+            shift Z-reports, and offline mode. Enterprise is set up by the Storezn team.
           </p>
           <Link href="/vendor/plus" className="inline-block">
-            <Button type="button">Upgrade to Storezn+</Button>
+            <Button type="button">See Enterprise</Button>
           </Link>
         </div>
       </div>
