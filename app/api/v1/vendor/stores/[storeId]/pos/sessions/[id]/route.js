@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
-import { posSessions, cashMovements, orders, orderTenders, posHeldSales } from "@/lib/db/schema.js";
+import { posSessions, cashMovements, orders, orderTenders, posHeldSales, staff, users } from "@/lib/db/schema.js";
 import { toKobo } from "@/lib/money.js";
 import { buildSessionSummary } from "@/lib/pos.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
@@ -60,11 +60,30 @@ export async function GET(req, { params }) {
     methodsByOrder.set(t.orderId, arr);
   }
 
+  // Name every cash movement: who moved the money, and (for a sale/refund
+  // movement) which order it was - so the Z report's cash-movement list
+  // shows exactly what happened, not just a running total.
+  const actorIds = [...new Set(movements.map((m) => m.createdBy).filter(Boolean))];
+  const nameById = {};
+  if (actorIds.length) {
+    const [staffN, userN] = await Promise.all([
+      db.select({ id: staff.id, f: staff.firstName, l: staff.lastName, e: staff.email }).from(staff).where(inArray(staff.id, actorIds)),
+      db.select({ id: users.id, f: users.firstName, l: users.lastName, e: users.email }).from(users).where(inArray(users.id, actorIds)),
+    ]);
+    for (const r of [...staffN, ...userN]) nameById[r.id] = `${r.f || ""} ${r.l || ""}`.trim() || r.e;
+  }
+  const orderNoById = new Map(sessionOrders.map((o) => [o.id, o.orderNumber]));
+  const movementsOut = movements.map((m) => ({
+    ...m,
+    by: nameById[m.createdBy] || null,
+    orderNumber: m.orderId ? orderNoById.get(m.orderId) || null : null,
+  }));
+
   return NextResponse.json({
     session: row.session,
     register: { id: row.register.id, name: row.register.name, branchId: row.register.branchId },
     summary,
-    movements,
+    movements: movementsOut,
     orders: sessionOrders.map((o) => ({ ...o, paymentMethods: methodsByOrder.get(o.id) || [] })),
     heldSales: held,
   });

@@ -32,6 +32,17 @@ const MOVE_LABEL = {
   drop: "Cash drop",
 };
 
+// A plain-language note under each movement kind so the owner can read
+// the ledger without knowing the jargon.
+const MOVE_HINT = {
+  float: "Cash the drawer was started with",
+  cash_sale: "Cash taken in for a sale (net of any change given)",
+  cash_refund: "Cash paid back to a customer for a return",
+  paid_in: "Cash added to the drawer during the shift",
+  paid_out: "Cash taken out of the drawer during the shift",
+  drop: "Cash moved from the drawer to the safe / bank",
+};
+
 export default function SessionDetailPage({ params }) {
   const { id } = use(params);
   const storeId = useSearchParams().get("storeId");
@@ -72,22 +83,44 @@ export default function SessionDetailPage({ params }) {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm p-4">
-        <ZReport summary={report} title={session.status === "open" ? "X report" : "Z report"} />
+        <ZReport summary={report} title={session.status === "open" ? "X report" : "Z report"} movements={movements} />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-hidden print:break-inside-avoid">
-        <p className="text-sm font-semibold text-slate-700 px-4 py-2.5 border-b border-slate-100">Cash movements</p>
+        <div className="px-4 py-2.5 border-b border-slate-100">
+          <p className="text-sm font-semibold text-slate-700">Cash movements</p>
+          <p className="text-xs text-slate-400">Every entry in and out of this drawer, in order &mdash; who did it, when, and why.</p>
+        </div>
         {movements.length === 0 ? (
           <p className="text-sm text-slate-500 px-4 py-4">None</p>
         ) : (
           <ul className="divide-y divide-slate-100 text-sm">
             {movements.map((m) => (
-              <li key={m.id} className="flex justify-between gap-4 px-4 py-2">
-                <span className="text-slate-700">
-                  {MOVE_LABEL[m.kind] || m.kind}
-                  {m.reason ? <span className="text-slate-400"> · {m.reason}</span> : null}
-                </span>
-                <span className={`tabular-nums ${m.amount < 0 ? "text-red-600" : "text-slate-900"}`}>{formatKobo(m.amount)}</span>
+              <li key={m.id} className="px-4 py-2.5">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="font-medium text-slate-800">{MOVE_LABEL[m.kind] || m.kind}</span>
+                  <span className={`tabular-nums font-medium ${m.amount < 0 ? "text-red-600" : "text-slate-900"}`}>
+                    {m.amount > 0 ? "+" : ""}{formatKobo(m.amount)}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">{MOVE_HINT[m.kind] || ""}</p>
+                {(m.reason || m.orderNumber) && (
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    {m.orderNumber ? (
+                      <Link
+                        href={`/vendor/orders/${m.orderId}?storeId=${storeId}`}
+                        className="text-brand-700 hover:text-brand-800 print:text-slate-700"
+                      >
+                        {m.orderNumber}
+                      </Link>
+                    ) : null}
+                    {m.orderNumber && m.reason ? " · " : ""}
+                    {m.reason || ""}
+                  </p>
+                )}
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {m.by || "—"} · {new Date(m.createdAt).toLocaleString()}
+                </p>
               </li>
             ))}
           </ul>

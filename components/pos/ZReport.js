@@ -9,6 +9,16 @@ const METHOD_LABEL = {
   store_credit: "Store credit",
 };
 
+const MOVE_LABEL = {
+  cash_refund: "Cash refund",
+  paid_in: "Paid in",
+  paid_out: "Paid out",
+  drop: "Cash drop",
+};
+// The hand-entered movements - what the owner actually needs itemised.
+// Opening float and cash sales are already their own drawer lines.
+const ITEMISED_KINDS = ["paid_in", "paid_out", "drop", "cash_refund"];
+
 function Row({ label, value, strong, tone }) {
   return (
     <div className={`flex justify-between gap-4 py-1.5 text-sm ${strong ? "font-semibold text-slate-900" : "text-slate-700"}`}>
@@ -27,13 +37,24 @@ function Row({ label, value, strong, tone }) {
 // Renders an X-report summary (live) or a stored z_report snapshot - the
 // shape is the same (see lib/pos.js buildSessionSummary). `counted` /
 // `expected` / `overShort` are only present on a Z.
-export function ZReport({ summary, title = "X report" }) {
+export function ZReport({ summary, title = "X report", movements = [] }) {
   if (!summary) return null;
   const d = summary.drawer || {};
   const byMethod = summary.byTenderMethod || {};
   const byAccount = summary.byAccount || [];
   const nonCashChangeOut = summary.nonCashChangeOut || 0;
   const isZ = summary.countedCash != null;
+  // Line-item every hand-entered cash move so the drawer figure is never
+  // a mystery - "Paid out -₦40,000" on its own tells you nothing. Prefer
+  // a live movements list (it carries staff names); fall back to the
+  // snapshot's own cashEvents for a stored Z / the sell screen.
+  const cashEvents = (
+    movements && movements.length
+      ? movements.filter((m) => ITEMISED_KINDS.includes(m.kind))
+      : summary.cashEvents || []
+  )
+    .slice()
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   return (
     <div className="space-y-4">
@@ -107,6 +128,31 @@ export function ZReport({ summary, title = "X report" }) {
             </>
           )}
         </div>
+
+        {cashEvents.length > 0 && (
+          <div className="px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              Money moved in / out of the drawer
+            </p>
+            <ul className="space-y-1.5">
+              {cashEvents.map((m) => (
+                <li key={m.id} className="text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-slate-700">{MOVE_LABEL[m.kind] || m.kind}</span>
+                    <span className={`tabular-nums ${m.amount < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                      {m.amount > 0 ? "+" : ""}{formatKobo(m.amount)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    {m.reason || (m.orderNumber ? `Order ${m.orderNumber}` : "No reason given")}
+                    {m.by ? ` — ${m.by}` : ""}
+                    {m.createdAt ? ` · ${new Date(m.createdAt).toLocaleString()}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );
