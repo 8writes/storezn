@@ -127,6 +127,7 @@ const NAV_BY_ROLE = {
       items: [
         { href: "/vendor/dashboard", label: "Dashboard", icon: Store },
         { href: "/vendor/analytics", label: "Analytics", icon: BarChart3 },
+        { href: "/vendor/reports", label: "Monthly report", icon: Receipt },
         { href: "/vendor/products", label: "Products", icon: Package },
         { href: "/vendor/categories", label: "Categories", icon: Tags },
         { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
