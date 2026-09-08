@@ -1,7 +1,19 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../lib/db/index.js";
-import { stores, orders, storeSubscriptionTransactions } from "../../../../../../lib/db/schema.js";
-import { desc, eq } from "drizzle-orm";
+import {
+  stores,
+  orders,
+  products,
+  staff,
+  branches,
+  customers,
+  posRegisters,
+  posSessions,
+  storeActivityLogs,
+  activityLogs,
+  storeSubscriptionTransactions,
+} from "../../../../../../lib/db/schema.js";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
 import { validate, updateStoreStatusSchema } from "../../../../../../lib/validate.js";
 import { logActivity } from "../../../../../../lib/activityLog.js";
@@ -16,7 +28,18 @@ export async function GET(req, { params }) {
   const store = await db.query.stores.findFirst({ where: eq(stores.id, id), with: { owner: true } });
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
-  const [orderRows, subRows] = await Promise.all([
+  const [
+    orderRows,
+    subRows,
+    [orderAgg],
+    [prodAgg],
+    [staffAgg],
+    [branchAgg],
+    [custAgg],
+    [posAgg],
+    activityRows,
+    adminRows,
+  ] = await Promise.all([
     db.select().from(orders).where(eq(orders.storeId, id)).orderBy(desc(orders.createdAt)).limit(20),
     db
       .select()
@@ -24,18 +47,125 @@ export async function GET(req, { params }) {
       .where(eq(storeSubscriptionTransactions.storeId, id))
       .orderBy(desc(storeSubscriptionTransactions.paidAt))
       .limit(50),
+    // Lifetime money + order picture. "paid" and not refunded, same basis
+    // as payouts / the vendor dashboard; returns (originalOrderId set) are
+    // excluded from the order count but their negative totals still net
+    // out of GMV/payout so the figures match what the vendor was paid.
+    db
+      .select({
+        total: sql`count(*) filter (where ${orders.paymentStatus} = 'paid' and ${orders.status} <> 'refunded' and ${orders.originalOrderId} is null)`.mapWith(Number),
+        pending: sql`count(*) filter (where ${orders.status} in ('processing', 'shipped'))`.mapWith(Number),
+        refunds: sql`count(*) filter (where ${orders.originalOrderId} is not null)`.mapWith(Number),
+        gmv: sql`coalesce(sum(${orders.totalAmount}) filter (where ${orders.paymentStatus} = 'paid' and ${orders.status} <> 'refunded'), 0)`.mapWith(Number),
+        payout: sql`coalesce(sum(${orders.vendorPayoutAmount}) filter (where ${orders.paymentStatus} = 'paid' and ${orders.status} <> 'refunded'), 0)`.mapWith(Number),
+        commission: sql`coalesce(sum(${orders.commissionAmount} + coalesce(${orders.flatFeeAmount}, 0)) filter (where ${orders.paymentStatus} = 'paid' and ${orders.status} <> 'refunded'), 0)`.mapWith(Number),
+        firstAt: sql`min(${orders.createdAt})`,
+        lastAt: sql`max(${orders.createdAt})`,
+      })
+      .from(orders)
+      .where(eq(orders.storeId, id)),
+    db
+      .select({
+        total: sql`count(*)`.mapWith(Number),
+        live: sql`count(*) filter (where ${products.isActive})`.mapWith(Number),
+      })
+      .from(products)
+      .where(eq(products.storeId, id)),
+    db.select({ total: sql`count(*)`.mapWith(Number) }).from(staff).where(eq(staff.storeId, id)),
+    db.select({ total: sql`count(*)`.mapWith(Number) }).from(branches).where(eq(branches.storeId, id)),
+    db
+      .select({ total: sql`count(*)`.mapWith(Number) })
+      .from(customers)
+      .where(and(eq(customers.storeId, id), isNull(customers.deletedAt))),
+    db
+      .select({
+        registers: sql`count(distinct ${posRegisters.id})`.mapWith(Number),
+        openSessions: sql`count(*) filter (where ${posSessions.status} = 'open')`.mapWith(Number),
+        lastSessionAt: sql`max(${posSessions.openedAt})`,
+      })
+      .from(posRegisters)
+      .leftJoin(posSessions, eq(posSessions.registerId, posRegisters.id))
+      .where(eq(posRegisters.storeId, id)),
+    // The store's own audit trail (lib/storeActivity.js) - the same feed
+    // the owner sees at /vendor/activity, newest first.
+    db
+      .select({ log: storeActivityLogs, branchName: branches.name })
+      .from(storeActivityLogs)
+      .leftJoin(branches, eq(branches.id, storeActivityLogs.branchId))
+      .where(eq(storeActivityLogs.storeId, id))
+      .orderBy(desc(storeActivityLogs.createdAt))
+      .limit(25),
+    // Platform-team actions taken ON this store (enable/disable, manual
+    // plan grants, price/rate overrides, payout unlock).
+    db
+      .select()
+      .from(activityLogs)
+      .where(and(eq(activityLogs.targetType, "store"), eq(activityLogs.targetId, id)))
+      .orderBy(desc(activityLogs.createdAt))
+      .limit(20),
   ]);
 
   const { owner, ...storeData } = store;
   return NextResponse.json({
     store: storeData,
-    owner: owner ? { firstName: owner.firstName, lastName: owner.lastName, email: owner.email, phone: owner.phone } : null,
+    owner: owner
+      ? {
+          id: owner.id,
+          firstName: owner.firstName,
+          lastName: owner.lastName,
+          email: owner.email,
+          phone: owner.phone,
+          approvalStatus: owner.approvalStatus,
+          lastActiveAt: owner.lastActiveAt,
+          createdAt: owner.createdAt,
+        }
+      : null,
+    stats: {
+      orders: {
+        total: orderAgg?.total || 0,
+        pending: orderAgg?.pending || 0,
+        refunds: orderAgg?.refunds || 0,
+      },
+      gmv: orderAgg?.gmv || 0,
+      payout: orderAgg?.payout || 0,
+      commission: orderAgg?.commission || 0,
+      firstOrderAt: orderAgg?.firstAt || null,
+      lastOrderAt: orderAgg?.lastAt || null,
+      products: { total: prodAgg?.total || 0, live: prodAgg?.live || 0 },
+      staff: staffAgg?.total || 0,
+      branches: branchAgg?.total || 0,
+      customers: custAgg?.total || 0,
+      pos: {
+        registers: posAgg?.registers || 0,
+        openSessions: posAgg?.openSessions || 0,
+        lastSessionAt: posAgg?.lastSessionAt || null,
+      },
+    },
+    storeActivity: activityRows.map((r) => ({
+      id: r.log.id,
+      action: r.log.action,
+      summary: r.log.summary,
+      actorName: r.log.actorName,
+      actorRole: r.log.actorRole,
+      branchName: r.branchName || null,
+      createdAt: r.log.createdAt,
+    })),
+    adminActivity: adminRows.map((a) => ({
+      id: a.id,
+      action: a.action,
+      actorName: a.actorName,
+      actorRole: a.actorRole,
+      metadata: a.metadata,
+      createdAt: a.createdAt,
+    })),
     transactions: orderRows.map((o) => ({
       id: o.id,
       createdAt: o.createdAt,
       amount: o.totalAmount,
       commission: o.commissionAmount + (o.flatFeeAmount || 0),
       status: o.paymentStatus === "paid" ? o.status : o.paymentStatus,
+      channel: o.channel,
+      isReturn: !!o.originalOrderId,
     })),
     subscriptionTransactions: subRows.map((s) => ({
       id: s.id,
