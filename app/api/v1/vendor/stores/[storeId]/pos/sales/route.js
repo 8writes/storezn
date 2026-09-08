@@ -8,7 +8,7 @@ import { computeWholesalePrice } from "@/lib/pricing.js";
 import { reserveStock, OutOfStockError } from "@/lib/inventory.js";
 import { toKobo, toNaira } from "@/lib/money.js";
 import { validateTenders, drawerDeltaFromTenders } from "@/lib/pos.js";
-import { posContext, loadSession } from "@/lib/posAccess.js";
+import { posContext, loadSession, loadSessionAny, openSessionForRegister } from "@/lib/posAccess.js";
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -27,11 +27,35 @@ export async function POST(req, { params }) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   const data = result.data;
 
-  const sessionRow = await loadSession(storeId, data.sessionId, user);
-  if (!sessionRow) return NextResponse.json({ error: "Session not found" }, { status: 404 });
-  if (sessionRow.session.status !== "open") {
-    return NextResponse.json({ error: "This register session is closed - open a new one" }, { status: 409 });
+  // A sale posted well after it was rung up is a queued offline replay
+  // (a live ring-up reaches the server in seconds). Those get lenient
+  // session handling below - the sale really happened, so a shift that
+  // has since been closed, or a branch reassignment, must not strand it.
+  const isDelayedSale = !!data.soldAt && Date.now() - new Date(data.soldAt).getTime() > 90_000;
+
+  let sessionRow = await loadSession(storeId, data.sessionId, user);
+
+  if (!sessionRow && isDelayedSale) {
+    // Branch scoping changed under the cashier, or the session id is
+    // stale - look it up store-wide and carry on.
+    sessionRow = await loadSessionAny(storeId, data.sessionId);
   }
+  if (!sessionRow) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+
+  if (sessionRow.session.status !== "open") {
+    if (!isDelayedSale) {
+      return NextResponse.json({ error: "This register session is closed - open a new one" }, { status: 409 });
+    }
+    // Re-home a pre-close offline sale onto the shift that's open on the
+    // same register now. If nothing is open, it still records against the
+    // original (closed) shift - the sale is preserved; the drawer
+    // movement is skipped so an immutable Z report isn't disturbed.
+    const openNow = await openSessionForRegister(sessionRow.register.id);
+    if (openNow) sessionRow = openNow;
+  }
+
+  const settleSessionId = sessionRow.session.id;
+  const sessionIsOpen = sessionRow.session.status === "open";
   const branchId = sessionRow.register.branchId;
 
   const paymentReference = `POS-${data.idempotencyKey}`;
@@ -181,7 +205,7 @@ export async function POST(req, { params }) {
             note: data.note || null,
             isOffline: true,
             channel: "pos",
-            posSessionId: data.sessionId,
+            posSessionId: settleSessionId,
             discountAmount: discountAmountKobo,
             discountReason: data.discountReason || null,
             paymentReference,
@@ -216,17 +240,20 @@ export async function POST(req, { params }) {
             amount: t.amount,
             changeGiven: t.changeGiven,
             reference: t.reference,
-            sessionId: data.sessionId,
+            sessionId: settleSessionId,
           })),
         );
 
         // Net cash the drawer sees for this sale: cash taken in, less any
         // change handed back - which can be negative when a transfer/POS
-        // overpayment is settled in cash from the till (drawerDeltaFromTenders).
+        // overpayment is settled in cash from the till
+        // (drawerDeltaFromTenders). Skipped when the sale is landing on an
+        // already-closed shift (a late offline replay with no open shift
+        // to re-home to) - its Z report is immutable.
         const cashIn = drawerDeltaFromTenders(tendersKobo);
-        if (cashIn !== 0) {
+        if (cashIn !== 0 && sessionIsOpen) {
           await tx.insert(cashMovements).values({
-            sessionId: data.sessionId,
+            sessionId: settleSessionId,
             kind: "cash_sale",
             amount: cashIn,
             orderId: order.id,
