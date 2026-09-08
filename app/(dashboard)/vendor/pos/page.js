@@ -245,6 +245,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [tenderOpen, setTenderOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
+  const [cashSubmitting, setCashSubmitting] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [xOpen, setXOpen] = useState(false);
   const [heldOpen, setHeldOpen] = useState(false);
@@ -595,17 +596,21 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     }
   };
 
-  const submitCashMovement = async ({ kind, amount, reason }) => {
+  const submitCashMovement = async ({ kind, amount, reason, clientRef }) => {
+    if (cashSubmitting) return;
+    setCashSubmitting(true);
     try {
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${openSession.session.id}/movements`, {
+      const res = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${openSession.session.id}/movements`, {
         method: "POST",
-        body: JSON.stringify({ kind, amount, reason }),
+        body: JSON.stringify({ kind, amount, reason, clientRef }),
       });
       setCashOpen(false);
       refresh();
-      toast.success("Recorded");
+      toast.success(res?.replayed ? "Already recorded" : "Recorded");
     } catch (err) {
       toast.error(err.message || "Couldn't record that");
+    } finally {
+      setCashSubmitting(false);
     }
   };
 
@@ -828,7 +833,14 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           onComplete={completeSale}
         />
       )}
-      {cashOpen && <CashDrawerModal open onClose={() => setCashOpen(false)} onSubmit={submitCashMovement} />}
+      {cashOpen && (
+        <CashDrawerModal
+          open
+          onClose={() => !cashSubmitting && setCashOpen(false)}
+          onSubmit={submitCashMovement}
+          submitting={cashSubmitting}
+        />
+      )}
       {closeOpen && (
         <CloseRegisterModal
           open

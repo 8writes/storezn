@@ -3,6 +3,17 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 
+// A fresh id each time the modal mounts (it unmounts on close), reused
+// for every retry of THIS action so the server dedupes a flaky-network
+// double-submit instead of recording the payout twice.
+function newRef() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `cm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
 const KINDS = [
   { value: "paid_in", label: "Paid in", hint: "Cash added to the drawer (e.g. more change floated in)" },
   { value: "paid_out", label: "Paid out", hint: "Cash taken out (petty cash, supplier paid from the till)" },
@@ -15,6 +26,7 @@ export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
   const [kind, setKind] = useState("paid_out");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [clientRef] = useState(newRef);
 
   if (!open) return null;
   const active = KINDS.find((k) => k.value === kind);
@@ -65,8 +77,8 @@ export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
             type="button"
             fullWidth
             loading={submitting}
-            disabled={!valid}
-            onClick={() => onSubmit({ kind, amount: Number(amount), reason: reason.trim() })}
+            disabled={!valid || submitting}
+            onClick={() => onSubmit({ kind, amount: Number(amount), reason: reason.trim(), clientRef })}
           >
             Record {active.label.toLowerCase()}
           </Button>

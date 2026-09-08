@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { cashMovements } from "@/lib/db/schema.js";
 import { validate, cashMovementSchema } from "@/lib/validate.js";
@@ -27,17 +27,48 @@ export async function POST(req, { params }) {
 
   const magnitude = toKobo(result.data.amount);
   const amount = result.data.kind === "paid_in" ? magnitude : -magnitude;
+  const clientRef = result.data.clientRef || null;
 
-  const [movement] = await db
-    .insert(cashMovements)
-    .values({
-      sessionId: id,
-      kind: result.data.kind,
-      amount,
-      reason: result.data.reason,
-      createdBy: ctx.user.id,
-    })
-    .returning();
+  // Idempotent on clientRef: a retry / double-tap with the same key
+  // returns the movement that already landed instead of recording it
+  // again (the incident this guards against: one payout written 27x on a
+  // flaky connection).
+  if (clientRef) {
+    const [existing] = await db
+      .select()
+      .from(cashMovements)
+      .where(and(eq(cashMovements.sessionId, id), eq(cashMovements.clientRef, clientRef)))
+      .limit(1);
+    if (existing) return NextResponse.json({ movement: existing, replayed: true }, { status: 200 });
+  }
+
+  let movement;
+  try {
+    [movement] = await db
+      .insert(cashMovements)
+      .values({
+        sessionId: id,
+        kind: result.data.kind,
+        amount,
+        reason: result.data.reason,
+        createdBy: ctx.user.id,
+        clientRef,
+      })
+      .returning();
+  } catch (err) {
+    // Lost the race with a concurrent identical request - the unique
+    // index (session_id, client_ref) rejected the second insert. Return
+    // the row the winner wrote.
+    if (clientRef && /unique|duplicate key/i.test(err.message || "")) {
+      const [winner] = await db
+        .select()
+        .from(cashMovements)
+        .where(and(eq(cashMovements.sessionId, id), eq(cashMovements.clientRef, clientRef)))
+        .limit(1);
+      if (winner) return NextResponse.json({ movement: winner, replayed: true }, { status: 200 });
+    }
+    throw err;
+  }
 
   const label = { paid_in: "Paid in", paid_out: "Paid out", drop: "Cash drop" }[result.data.kind] || result.data.kind;
   after(() =>
