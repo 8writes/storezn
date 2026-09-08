@@ -614,10 +614,11 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     }
   };
 
-  const closeRegister = async (countedCash) => {
+  // payload: { countedCash } | { countBreakdown } | { forced, forcedReason }
+  const closeRegister = async (payload) => {
     const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${openSession.session.id}/close`, {
       method: "POST",
-      body: JSON.stringify({ countedCash }),
+      body: JSON.stringify({ ...payload, pendingSyncCount: pendingSync }),
     });
     reloadRegisters();
     return data.zReport;

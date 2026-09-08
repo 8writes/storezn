@@ -38,6 +38,9 @@ export async function GET(req, { params }) {
         expectedCash: posSessions.expectedCash,
         countedCash: posSessions.countedCash,
         overShort: posSessions.overShort,
+        closeMethod: posSessions.closeMethod,
+        provisional: posSessions.provisional,
+        reviewStatus: posSessions.reviewStatus,
       })
       .from(posSessions)
       .innerJoin(posRegisters, eq(posSessions.registerId, posRegisters.id))

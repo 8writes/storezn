@@ -175,6 +175,11 @@ export async function GET(req, { params }) {
       counted: posSessions.countedCash,
       overShort: posSessions.overShort,
       closedBy: posSessions.closedBy,
+      closeMethod: posSessions.closeMethod,
+      provisional: posSessions.provisional,
+      pendingSyncCount: posSessions.pendingSyncCount,
+      reviewStatus: posSessions.reviewStatus,
+      forcedReason: posSessions.forcedReason,
     })
     .from(posSessions)
     .innerJoin(posRegisters, eq(posRegisters.id, posSessions.registerId))
@@ -198,6 +203,10 @@ export async function GET(req, { params }) {
     expected: toNaira(s.expected || 0),
     counted: toNaira(s.counted || 0),
     overShort: toNaira(s.overShort || 0),
+    notCounted: s.closeMethod === "forced_uncounted",
+    provisional: !!s.provisional,
+    needsReview: s.reviewStatus === "pending",
+    forcedReason: s.forcedReason || null,
   }));
   const perPerson = {};
   for (const s of sessionRows) {
@@ -379,6 +388,20 @@ export async function GET(req, { params }) {
 
   // ---- review flags ----
   const flags = [];
+  const notCounted = cashReconciliation.filter((r) => r.notCounted);
+  if (notCounted.length) {
+    flags.push(
+      `${notCounted.length} shift${notCounted.length === 1 ? " was" : "s were"} closed WITHOUT counting the drawer (system figure used) — no real cash check happened.`,
+    );
+  }
+  const awaitingReview = cashReconciliation.filter((r) => r.needsReview);
+  if (awaitingReview.length) {
+    flags.push(`${awaitingReview.length} shift close${awaitingReview.length === 1 ? "" : "s"} still awaiting owner review.`);
+  }
+  const provisionalShifts = cashReconciliation.filter((r) => r.provisional);
+  if (provisionalShifts.length) {
+    flags.push(`${provisionalShifts.length} shift${provisionalShifts.length === 1 ? "" : "s"} closed with sales still unsynced — figures provisional.`);
+  }
   const shortSessions = cashReconciliation.filter((r) => r.overShort < 0);
   if (shortSessions.length) {
     const t = shortSessions.reduce((s, r) => s + r.overShort, 0);

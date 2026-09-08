@@ -36,23 +36,33 @@ export async function POST(req, { params }) {
 
   let sessionRow = await loadSession(storeId, data.sessionId, user);
 
-  if (!sessionRow && isDelayedSale) {
+  if (!sessionRow) {
     // Branch scoping changed under the cashier, or the session id is
-    // stale - look it up store-wide and carry on.
+    // stale - look it up store-wide and carry on. Done for ANY sale, not
+    // just clearly-delayed ones: a queued replay whose `soldAt` is
+    // missing or <90s old must never be permanently stranded (that's what
+    // blocked a register close - one sale stuck on a 409 forever).
     sessionRow = await loadSessionAny(storeId, data.sessionId);
   }
   if (!sessionRow) return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
   if (sessionRow.session.status !== "open") {
-    if (!isDelayedSale) {
+    // Re-home onto whatever shift is open on the same register now. This
+    // used to 409 unless the sale looked "delayed"; it no longer does -
+    // a sale that carries an idempotency key is a real completed sale,
+    // and rejecting it forever just strands revenue and blocks the close.
+    const openNow = await openSessionForRegister(sessionRow.register.id);
+    if (openNow) {
+      sessionRow = openNow;
+    } else if (!isDelayedSale) {
+      // Nothing open to re-home to AND this looks like a live ring-up
+      // against a just-closed shift - surface that to the cashier so they
+      // open a new session, rather than silently booking it to a closed Z.
       return NextResponse.json({ error: "This register session is closed - open a new one" }, { status: 409 });
     }
-    // Re-home a pre-close offline sale onto the shift that's open on the
-    // same register now. If nothing is open, it still records against the
-    // original (closed) shift - the sale is preserved; the drawer
-    // movement is skipped so an immutable Z report isn't disturbed.
-    const openNow = await openSessionForRegister(sessionRow.register.id);
-    if (openNow) sessionRow = openNow;
+    // else: delayed replay, no open shift - fall through and record it
+    // against the original (closed) shift; the drawer movement is skipped
+    // below so the immutable Z report isn't disturbed.
   }
 
   const settleSessionId = sessionRow.session.id;

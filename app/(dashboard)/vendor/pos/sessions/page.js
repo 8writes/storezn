@@ -94,7 +94,18 @@ export default function SessionsPage() {
                     {s.status === "open" ? (
                       <span className="text-emerald-600 font-medium">Open</span>
                     ) : (
-                      <span className="text-slate-500">Closed</span>
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        <span className="text-slate-500">Closed</span>
+                        {s.closeMethod === "forced_uncounted" && (
+                          <span className="rounded-sm bg-red-100 text-red-700 text-[10px] font-semibold px-1.5 py-0.5">not counted</span>
+                        )}
+                        {s.provisional && (
+                          <span className="rounded-sm bg-amber-100 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5">provisional</span>
+                        )}
+                        {s.reviewStatus === "pending" && (
+                          <span className="rounded-sm bg-amber-100 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5">review</span>
+                        )}
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">

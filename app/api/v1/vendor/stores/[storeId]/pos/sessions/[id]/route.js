@@ -1,10 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { posSessions, cashMovements, orders, orderTenders, posHeldSales, staff, users } from "@/lib/db/schema.js";
-import { toKobo } from "@/lib/money.js";
+import { toKobo, formatKobo } from "@/lib/money.js";
 import { buildSessionSummary } from "@/lib/pos.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
+import { validate, reviewSessionSchema } from "@/lib/validate.js";
+import { logStoreActivity } from "@/lib/storeActivity.js";
 
 // Session detail + a live X-report summary. Polled by the sell screen for
 // the session bar, and rendered in full on the session/Z-report view.
@@ -87,4 +89,54 @@ export async function GET(req, { params }) {
     orders: sessionOrders.map((o) => ({ ...o, paymentMethods: methodsByOrder.get(o.id) || [] })),
     heldSales: held,
   });
+}
+
+// Owner sign-off on a flagged close (forced / provisional / big variance).
+// Owner-only - a staff member can't clear their own review flag.
+export async function PATCH(req, { params }) {
+  const { storeId, id } = await params;
+  const ctx = await posContext(req, storeId, { owner: true });
+  if (ctx.error) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
+
+  const row = await loadSession(storeId, id, ctx.user);
+  if (!row) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  if (row.session.status !== "closed") {
+    return NextResponse.json({ error: "Only a closed shift can be reviewed" }, { status: 409 });
+  }
+  if (row.session.reviewStatus !== "pending") {
+    return NextResponse.json({ error: "This shift isn't awaiting review" }, { status: 409 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const result = validate(reviewSessionSchema, body || {});
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+
+  const [updated] = await db
+    .update(posSessions)
+    .set({
+      reviewStatus: "approved",
+      reviewedBy: ctx.user.id,
+      reviewedAt: new Date(),
+      reviewNote: result.data.note || null,
+    })
+    .where(eq(posSessions.id, id))
+    .returning();
+
+  after(() =>
+    logStoreActivity({
+      storeId,
+      actor: ctx.user,
+      branchId: row.register.branchId,
+      action: "register.close.reviewed",
+      summary:
+        `Reviewed & approved the close of ${row.register.name}` +
+        (Number(row.session.overShort) ? ` (${row.session.overShort > 0 ? "over" : "short"} ${formatKobo(Math.abs(row.session.overShort))})` : "") +
+        (result.data.note ? ` · ${result.data.note}` : ""),
+      targetType: "session",
+      targetId: id,
+      metadata: { note: result.data.note || null, overShortKobo: row.session.overShort },
+    }),
+  );
+
+  return NextResponse.json({ session: updated });
 }

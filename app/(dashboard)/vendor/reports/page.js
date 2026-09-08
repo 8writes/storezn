@@ -398,6 +398,7 @@ export default function VendorReportsPage() {
                       <th className="px-3 py-2 font-medium text-right">Expected</th>
                       <th className="px-3 py-2 font-medium text-right">Counted</th>
                       <th className="px-3 py-2 font-medium text-right">Over / short</th>
+                      <th className="px-3 py-2 font-medium">Close</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -410,6 +411,16 @@ export default function VendorReportsPage() {
                         <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.counted)}</td>
                         <td className={`px-3 py-2 text-right tabular-nums font-medium ${r.overShort < 0 ? "text-red-600" : r.overShort > 0 ? "text-amber-600" : "text-slate-400"}`}>
                           {r.overShort === 0 ? "—" : formatCurrency(r.overShort)}
+                        </td>
+                        <td className="px-3 py-2 text-xs whitespace-nowrap">
+                          {r.notCounted ? (
+                            <span className="text-red-600 font-medium" title={r.forcedReason || ""}>not counted</span>
+                          ) : r.provisional ? (
+                            <span className="text-amber-600 font-medium">provisional</span>
+                          ) : (
+                            <span className="text-slate-400">counted</span>
+                          )}
+                          {r.needsReview && <span className="text-amber-600"> · review</span>}
                         </td>
                       </tr>
                     ))}

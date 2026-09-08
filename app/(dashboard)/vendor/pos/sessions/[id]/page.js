@@ -48,9 +48,11 @@ const MOVE_HINT = {
 export default function SessionDetailPage({ params }) {
   const { id } = use(params);
   const storeId = useSearchParams().get("storeId");
-  const { token } = useAuth(true);
+  const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const [data, setData] = useState(null);
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewing, setReviewing] = useState(false);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -60,10 +62,28 @@ export default function SessionDetailPage({ params }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId, id]);
 
+  const approveClose = async () => {
+    setReviewing(true);
+    try {
+      const res = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ note: reviewNote.trim() || undefined }),
+      });
+      setData((d) => ({ ...d, session: { ...d.session, ...res.session } }));
+      toast.success("Close approved");
+    } catch (err) {
+      toast.error(err.message || "Couldn't approve");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
   if (!data) return <div className="max-w-2xl mx-auto h-64 bg-slate-100 rounded-sm animate-pulse" />;
 
   const { session, register, summary, movements, orders } = data;
   const report = session.zReport || summary;
+  const isOwner = user?.role === "vendor" || user?.role === "super_admin";
+  const forced = session.closeMethod === "forced_uncounted";
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 print:max-w-none">
@@ -84,8 +104,82 @@ export default function SessionDetailPage({ params }) {
         </Button>
       </div>
 
+      {session.status === "closed" && (session.provisional || forced || session.reviewStatus !== "ok") && (
+        <div
+          className={`rounded-sm border p-4 space-y-2 text-sm ${
+            session.reviewStatus === "approved" ? "border-slate-200 bg-slate-50" : "border-amber-300 bg-amber-50"
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            {forced && <span className="inline-flex rounded-sm bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5">Not counted</span>}
+            {session.provisional && (
+              <span className="inline-flex rounded-sm bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-0.5">
+                Provisional{session.pendingSyncCount ? ` · ${session.pendingSyncCount} unsynced` : ""}
+              </span>
+            )}
+            {session.reviewStatus === "pending" && (
+              <span className="inline-flex rounded-sm bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-0.5">Needs owner review</span>
+            )}
+            {session.reviewStatus === "approved" && (
+              <span className="inline-flex rounded-sm bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5">Reviewed</span>
+            )}
+          </div>
+
+          {forced && (
+            <p className="text-amber-900">
+              The drawer wasn&apos;t counted &mdash; the system&apos;s expected figure ({formatKobo(report.expectedCash)}) was recorded.
+              {session.forcedReason ? ` Reason: “${session.forcedReason}”.` : ""}
+            </p>
+          )}
+          {session.provisional && (
+            <p className="text-amber-900">
+              {session.pendingSyncCount} sale{session.pendingSyncCount === 1 ? "" : "s"} hadn&apos;t synced at close, so the totals may still move.
+            </p>
+          )}
+
+          {session.reviewStatus === "approved" && (
+            <p className="text-slate-500 text-xs">
+              Approved{session.reviewedAt ? ` ${formatDateTime(session.reviewedAt)}` : ""}
+              {session.reviewNote ? ` · “${session.reviewNote}”` : ""}
+            </p>
+          )}
+
+          {session.reviewStatus === "pending" && isOwner && (
+            <div className="pt-1 space-y-2 print:hidden">
+              <input
+                type="text"
+                value={reviewNote}
+                onChange={(e) => setReviewNote(e.target.value)}
+                placeholder="Note (optional) — what you found / did"
+                className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500 bg-white"
+              />
+              <Button type="button" size="sm" loading={reviewing} onClick={approveClose}>
+                Approve this close
+              </Button>
+            </div>
+          )}
+          {session.reviewStatus === "pending" && !isOwner && (
+            <p className="text-amber-900 text-xs">The store owner needs to review and sign off on this shift.</p>
+          )}
+        </div>
+      )}
+
       <div className="bg-white border border-slate-200 rounded-sm p-4">
         <ZReport summary={report} title={session.status === "open" ? "X report" : "Z report"} movements={movements} />
+        {session.countBreakdown && Object.keys(session.countBreakdown).length > 0 && (
+          <div className="mt-3 border-t border-slate-100 pt-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Counted by notes</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-slate-600">
+              {Object.entries(session.countBreakdown)
+                .sort((a, b) => Number(b[0]) - Number(a[0]))
+                .map(([denom, qty]) => (
+                  <span key={denom} className="tabular-nums">
+                    ₦{Number(denom).toLocaleString()} × {qty}
+                  </span>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-hidden print:break-inside-avoid">
