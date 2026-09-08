@@ -229,6 +229,70 @@ export default function VendorReportsPage() {
               <Stat label="Register closes" value={report.activity.registerCloses} />
             </div>
           </div>
+
+          {report.cashReconciliation?.length > 0 && (
+            <div className="border-t border-slate-100 pt-4 space-y-3">
+              <p className="text-sm font-semibold text-slate-700">Cash reconciliation &mdash; every shift closed this month</p>
+              {report.overShortByCashier?.length > 0 && (
+                <div className="border border-slate-200 rounded-sm divide-y divide-slate-100">
+                  {report.overShortByCashier.map((c) => (
+                    <div key={c.name} className="flex items-center justify-between gap-4 px-3 py-2 text-sm">
+                      <span className="text-slate-700">
+                        {c.name} <span className="text-slate-400">· {c.sessions} shift{c.sessions === 1 ? "" : "s"}</span>
+                      </span>
+                      <span className={`font-medium tabular-nums ${c.overShort < 0 ? "text-red-600" : c.overShort > 0 ? "text-amber-600" : "text-slate-500"}`}>
+                        {c.overShort === 0 ? "balanced" : `${c.overShort > 0 ? "over " : "short "}${formatCurrency(Math.abs(c.overShort))}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="overflow-x-auto border border-slate-200 rounded-sm">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Closed</th>
+                      <th className="px-3 py-2 font-medium">Register</th>
+                      <th className="px-3 py-2 font-medium">Cashier</th>
+                      <th className="px-3 py-2 font-medium text-right">Expected</th>
+                      <th className="px-3 py-2 font-medium text-right">Counted</th>
+                      <th className="px-3 py-2 font-medium text-right">Over / short</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.cashReconciliation.map((r, i) => (
+                      <tr key={i} className="border-t border-slate-100">
+                        <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.closedAt)}</td>
+                        <td className="px-3 py-2 text-slate-700">{r.register}</td>
+                        <td className="px-3 py-2 text-slate-700">{r.cashier}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.expected)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.counted)}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums font-medium ${r.overShort < 0 ? "text-red-600" : r.overShort > 0 ? "text-amber-600" : "text-slate-400"}`}>
+                          {r.overShort === 0 ? "—" : formatCurrency(r.overShort)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {report.stockAdjustments?.length > 0 && (
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-sm font-semibold text-slate-700 mb-2">Stock &amp; price changes this month ({report.stockAdjustments.length})</p>
+              <div className="border border-slate-200 rounded-sm divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                {report.stockAdjustments.map((a, i) => (
+                  <div key={i} className="flex items-start justify-between gap-4 px-3 py-2 text-sm">
+                    <span className="text-slate-700">{a.what}</span>
+                    <span className="text-xs text-slate-400 whitespace-nowrap shrink-0">
+                      {a.by} · {formatDateTime(a.at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

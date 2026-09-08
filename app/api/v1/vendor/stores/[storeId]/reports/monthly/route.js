@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "../../../../../../../../lib/db/index.js";
 import {
   stores,
+  staff,
+  users,
   orders,
   orderItems,
   orderTenders,
@@ -154,6 +156,66 @@ export async function GET(req, { params }) {
   const net = (totals.gross || 0) + (totals.returnsTotal || 0);
   const activity = Object.fromEntries(activityCounts.map((r) => [r.action, r.n]));
 
+  // --- month-end audit: per-shift cash reconciliation + the stock
+  // adjustments made in the month, both by whom ---
+  const sessionRows = await db
+    .select({
+      id: posSessions.id,
+      registerName: posRegisters.name,
+      closedAt: posSessions.closedAt,
+      expected: posSessions.expectedCash,
+      counted: posSessions.countedCash,
+      overShort: posSessions.overShort,
+      closedBy: posSessions.closedBy,
+    })
+    .from(posSessions)
+    .innerJoin(posRegisters, eq(posRegisters.id, posSessions.registerId))
+    .where(and(eq(posRegisters.storeId, storeId), sql`${posSessions.closedAt} >= ${start.toISOString()}`, sql`${posSessions.closedAt} < ${end.toISOString()}`))
+    .orderBy(sql`${posSessions.closedAt} desc`);
+
+  const closerIds = [...new Set(sessionRows.map((s) => s.closedBy).filter(Boolean))];
+  const nameById = {};
+  if (closerIds.length) {
+    const [staffN, userN] = await Promise.all([
+      db.select({ id: staff.id, f: staff.firstName, l: staff.lastName, e: staff.email }).from(staff).where(inArray(staff.id, closerIds)),
+      db.select({ id: users.id, f: users.firstName, l: users.lastName, e: users.email }).from(users).where(inArray(users.id, closerIds)),
+    ]);
+    for (const r of [...staffN, ...userN]) nameById[r.id] = `${r.f || ""} ${r.l || ""}`.trim() || r.e;
+  }
+
+  const cashReconciliation = sessionRows.map((s) => ({
+    register: s.registerName,
+    cashier: nameById[s.closedBy] || "—",
+    closedAt: s.closedAt,
+    expected: toNaira(s.expected || 0),
+    counted: toNaira(s.counted || 0),
+    overShort: toNaira(s.overShort || 0),
+  }));
+  const perPerson = {};
+  for (const s of sessionRows) {
+    const k = nameById[s.closedBy] || "—";
+    perPerson[k] = perPerson[k] || { sessions: 0, kobo: 0 };
+    perPerson[k].sessions += 1;
+    perPerson[k].kobo += s.overShort || 0;
+  }
+  const overShortByCashier = Object.entries(perPerson)
+    .map(([name, v]) => ({ name, sessions: v.sessions, overShort: toNaira(v.kobo) }))
+    .sort((a, b) => a.overShort - b.overShort);
+
+  const stockAdjustments = await db
+    .select({ actorName: storeActivityLogs.actorName, summary: storeActivityLogs.summary, createdAt: storeActivityLogs.createdAt })
+    .from(storeActivityLogs)
+    .where(
+      and(
+        eq(storeActivityLogs.storeId, storeId),
+        gte(storeActivityLogs.createdAt, start),
+        lt(storeActivityLogs.createdAt, end),
+        or(eq(storeActivityLogs.action, "stock.adjust"), eq(storeActivityLogs.action, "product.update")),
+      ),
+    )
+    .orderBy(desc(storeActivityLogs.createdAt))
+    .limit(100);
+
   return NextResponse.json({
     month: monthParam || `${year}-${String(month + 1).padStart(2, "0")}`,
     label,
@@ -187,5 +249,8 @@ export async function GET(req, { params }) {
       priceEdits: activity["product.update"] || 0,
       registerCloses: activity["register.close"] || 0,
     },
+    cashReconciliation,
+    overShortByCashier,
+    stockAdjustments: stockAdjustments.map((r) => ({ by: r.actorName, what: r.summary, at: r.createdAt })),
   });
 }
