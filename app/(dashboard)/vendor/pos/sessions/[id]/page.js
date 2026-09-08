@@ -30,17 +30,19 @@ const MOVE_LABEL = {
   paid_in: "Paid in",
   paid_out: "Paid out",
   drop: "Cash drop",
+  change_out: "Change given (POS / transfer)",
 };
 
 // A plain-language note under each movement kind so the owner can read
 // the ledger without knowing the jargon.
 const MOVE_HINT = {
   float: "Cash the drawer was started with",
-  cash_sale: "Cash taken in for a sale (net of any change given)",
+  cash_sale: "Cash taken in for a sale",
   cash_refund: "Cash paid back to a customer for a return",
   paid_in: "Cash added to the drawer during the shift",
   paid_out: "Cash taken out of the drawer during the shift",
   drop: "Cash moved from the drawer to the safe / bank",
+  change_out: "Cash change handed back because the customer overpaid on POS / transfer",
 };
 
 export default function SessionDetailPage({ params }) {

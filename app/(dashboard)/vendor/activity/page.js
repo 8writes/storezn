@@ -61,7 +61,7 @@ export default function VendorActivityPage() {
 
   useEffect(() => {
     if (!token || !storeId) return;
-    const qs = new URLSearchParams({ page: String(page), pageSize: "30" });
+    const qs = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (group) qs.set("group", group);
     apiFetch(`/api/v1/vendor/stores/${storeId}/activity?${qs}`)
       .then((data) => {

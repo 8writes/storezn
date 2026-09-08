@@ -8,7 +8,7 @@ import { computeWholesalePrice } from "@/lib/pricing.js";
 import { reserveStock, OutOfStockError } from "@/lib/inventory.js";
 import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
-import { validateTenders, drawerDeltaFromTenders } from "@/lib/pos.js";
+import { validateTenders } from "@/lib/pos.js";
 import { posContext, loadSession, loadSessionAny, openSessionForRegister } from "@/lib/posAccess.js";
 
 const UNIQUE_VIOLATION = "23505";
@@ -251,21 +251,40 @@ export async function POST(req, { params }) {
           })),
         );
 
-        // Net cash the drawer sees for this sale: cash taken in, less any
-        // change handed back - which can be negative when a transfer/POS
-        // overpayment is settled in cash from the till
-        // (drawerDeltaFromTenders). Skipped when the sale is landing on an
-        // already-closed shift (a late offline replay with no open shift
-        // to re-home to) - its Z report is immutable.
-        const cashIn = drawerDeltaFromTenders(tendersKobo);
-        if (cashIn !== 0 && sessionIsOpen) {
-          await tx.insert(cashMovements).values({
-            sessionId: settleSessionId,
-            kind: "cash_sale",
-            amount: cashIn,
-            orderId: order.id,
-            createdBy: user.id,
-          });
+        // Two distinct things can happen to the drawer on one sale, and
+        // they're logged as two separate movements so the Z report reads
+        // honestly (rather than one net "cash_sale" that goes negative
+        // when it's really change handed out on a card/transfer order):
+        //   1. cash actually taken in for cash tenders  -> `cash_sale`
+        //   2. cash change handed back on a POS/transfer overpayment
+        //      -> `change_out` (its own kind: not a sale, not a
+        //      discretionary paid-out).
+        // Skipped when the sale lands on an already-closed shift (a late
+        // offline replay with no open shift to re-home to) - its Z is immutable.
+        if (sessionIsOpen) {
+          const cashTakenIn = tendersKobo.reduce(
+            (s, t) => (t.method === "cash" ? s + (t.amount - Number(t.changeGiven || 0)) : s),
+            0,
+          );
+          const changeFromDrawer = tendersKobo.reduce(
+            (s, t) => (t.method !== "cash" ? s + Number(t.changeGiven || 0) : s),
+            0,
+          );
+          const rows = [];
+          if (cashTakenIn !== 0) {
+            rows.push({ sessionId: settleSessionId, kind: "cash_sale", amount: cashTakenIn, orderId: order.id, createdBy: user.id });
+          }
+          if (changeFromDrawer > 0) {
+            rows.push({
+              sessionId: settleSessionId,
+              kind: "change_out",
+              amount: -changeFromDrawer,
+              orderId: order.id,
+              createdBy: user.id,
+              reason: "Cash change on a POS / transfer overpayment",
+            });
+          }
+          if (rows.length) await tx.insert(cashMovements).values(rows);
         }
 
         return order;

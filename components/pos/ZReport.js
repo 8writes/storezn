@@ -14,10 +14,11 @@ const MOVE_LABEL = {
   paid_in: "Paid in",
   paid_out: "Paid out",
   drop: "Cash drop",
+  change_out: "Change given (POS / transfer)",
 };
-// The hand-entered movements - what the owner actually needs itemised.
-// Opening float and cash sales are already their own drawer lines.
-const ITEMISED_KINDS = ["paid_in", "paid_out", "drop", "cash_refund"];
+// Everything that moved the drawer other than the plain float / cash
+// sales - what the owner needs to see itemised.
+const ITEMISED_KINDS = ["paid_in", "paid_out", "drop", "cash_refund", "change_out"];
 
 function Row({ label, value, strong, tone }) {
   return (
@@ -110,8 +111,13 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
           {d.paidIn !== 0 && <Row label="Paid in" value={formatKobo(d.paidIn)} tone="pos" />}
           {d.paidOut !== 0 && <Row label="Paid out" value={formatKobo(d.paidOut)} tone="neg" />}
           {d.drops !== 0 && <Row label="Cash drops" value={formatKobo(d.drops)} tone="neg" />}
+          {(d.changeOut || 0) !== 0 && (
+            <Row label="Change given (POS / transfer overpayment)" value={formatKobo(d.changeOut)} tone="neg" />
+          )}
           <Row label="Expected in drawer" value={formatKobo(isZ ? summary.expectedCash : d.expectedCash)} strong />
-          {nonCashChangeOut > 0 && (
+          {/* Older shifts (before the change_out split) folded that change
+              into a negative cash-sale figure - keep the note for them. */}
+          {!(d.changeOut || 0) && nonCashChangeOut > 0 && (
             <p className="text-[11px] text-slate-400 pt-1">
               Cash sales above are net of {formatKobo(nonCashChangeOut)} change handed back on POS / transfer overpayments.
             </p>

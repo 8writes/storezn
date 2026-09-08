@@ -103,6 +103,22 @@ export default function VendorProductsPage() {
     setBulkDraft({});
   };
 
+  // Bulk edit is a laptop-and-up feature (see the button). If the window
+  // drops below that while it's on, leave the mode so the user isn't
+  // stranded in it with no visible Cancel.
+  useEffect(() => {
+    if (!bulkEdit) return;
+    const check = () => {
+      if (window.matchMedia("(max-width: 1023px)").matches) {
+        setBulkEdit(false);
+        setBulkDraft({});
+      }
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [bulkEdit]);
+
   const setBulkField = (id, field, val) => setBulkDraft((d) => ({ ...d, [id]: { ...d[id], [field]: val } }));
 
   // Rows with a real change, one entry per product: { id, price?, costPrice?, stock? }.
@@ -174,7 +190,7 @@ export default function VendorProductsPage() {
     if (!token || !storeId) return;
     const myReq = ++loadSeq.current;
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: "10" });
+    const params = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (q.trim()) params.set("q", q.trim());
     if (categoryId) params.set("category", categoryId);
     if (sort && sort !== "newest") params.set("sort", sort);
@@ -287,12 +303,15 @@ export default function VendorProductsPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-slate-900">Products</h1>
         <div className="flex items-center gap-2">
+          {/* Inline bulk editing needs the full desktop table - the
+              controls are unusable in the horizontally-scrolled table on
+              a phone or small tablet, so it's laptop-width and up only. */}
           <Button
             type="button"
             size="sm"
             variant="outline"
             onClick={bulkEdit ? cancelBulkEdit : startBulkEdit}
-            className="hidden sm:inline-flex"
+            className="hidden lg:inline-flex"
           >
             {bulkEdit ? "Cancel" : "Bulk Edit"}
           </Button>
