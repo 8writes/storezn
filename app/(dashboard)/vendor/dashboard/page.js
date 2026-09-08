@@ -17,6 +17,7 @@ import {
   HelpCircle,
   ListChecks,
   ClipboardList,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -268,18 +269,37 @@ export default function VendorDashboardPage() {
           {statsLoading || !stats ? (
             <StatGridSkeleton count={4} />
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard icon={Wallet} label="Revenue (your payout)" value={formatCurrency(stats.revenue)} color="green" href="/vendor/payouts" />
-              <StatCard icon={ShoppingBag} label="Orders" value={stats.orders.total} sub={`${stats.orders.pending} in progress`} href="/vendor/orders" />
-              <StatCard icon={Package} label="Products" value={stats.products.total} sub={`${stats.products.live} live`} href="/vendor/products" />
-              <StatCard
-                icon={AlertTriangle}
-                label="Low stock"
-                value={stats.products.lowStock}
-                color={stats.products.lowStock > 0 ? "amber" : "brand"}
-                href="/vendor/products?stock=low"
-              />
-            </div>
+            (() => {
+              const showExpiry = (stats.products.expiringSoon || 0) + (stats.products.expired || 0) > 0;
+              return (
+                <div className={`grid grid-cols-2 gap-3 ${showExpiry ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-4"}`}>
+                  <StatCard icon={Wallet} label="Revenue (your payout)" value={formatCurrency(stats.revenue)} color="green" href="/vendor/payouts" />
+                  <StatCard icon={ShoppingBag} label="Orders" value={stats.orders.total} sub={`${stats.orders.pending} in progress`} href="/vendor/orders" />
+                  <StatCard icon={Package} label="Products" value={stats.products.total} sub={`${stats.products.live} live`} href="/vendor/products" />
+                  <StatCard
+                    icon={AlertTriangle}
+                    label="Low stock"
+                    value={stats.products.lowStock}
+                    color={stats.products.lowStock > 0 ? "amber" : "brand"}
+                    href="/vendor/products?stock=low"
+                  />
+                  {showExpiry && (
+                    <StatCard
+                      icon={CalendarClock}
+                      label={stats.products.expired > 0 ? "Expired / expiring" : "Expiring soon"}
+                      value={stats.products.expired > 0 ? stats.products.expired : stats.products.expiringSoon}
+                      sub={
+                        stats.products.expired > 0
+                          ? `${stats.products.expiringSoon} more within 30 days`
+                          : "within 30 days"
+                      }
+                      color={stats.products.expired > 0 ? "red" : "amber"}
+                      href={`/vendor/products?expiry=${stats.products.expired > 0 ? "expired" : "soon"}`}
+                    />
+                  )}
+                </div>
+              );
+            })()
           )}
 
           <div>

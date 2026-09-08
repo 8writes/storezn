@@ -31,8 +31,29 @@ const STOCK_OPTIONS = [
   { value: "out", label: "Out of stock" },
 ];
 const STOCK_LABEL = Object.fromEntries(STOCK_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label]));
+const EXPIRY_OPTIONS = [
+  { value: "", label: "Any date" },
+  { value: "soon", label: "Expiring within 30 days" },
+  { value: "expired", label: "Already expired" },
+];
+const EXPIRY_LABEL = Object.fromEntries(EXPIRY_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label]));
 
-const BULK_HEADERS = ["name", "price", "sku", "description", "productType", "condition", "stock", "categoryName"];
+// -> { text, tone } for the expiry chip, or null. tone: red = past, amber
+// = within 30 days, slate = further out.
+function expiryChip(iso) {
+  if (!iso) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const days = Math.round((d - today) / 86400000);
+  if (days < 0) return { text: days === -1 ? "Expired yesterday" : `Expired ${-days}d ago`, tone: "red" };
+  if (days === 0) return { text: "Expires today", tone: "red" };
+  if (days <= 30) return { text: `Expires in ${days}d`, tone: "amber" };
+  return { text: `Expires ${d.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`, tone: "slate" };
+}
+
+const BULK_HEADERS = ["name", "price", "sku", "description", "productType", "condition", "stock", "expiryDate", "categoryName"];
 const BULK_TEMPLATE_ROW = {
   name: "Red Tote Bag",
   price: "15000",
@@ -41,13 +62,16 @@ const BULK_TEMPLATE_ROW = {
   productType: "physical",
   condition: "new",
   stock: "20",
+  expiryDate: "",
   categoryName: "Bags",
 };
 
 export default function VendorProductsPage() {
   const router = useRouter();
-  // Deep link from the dashboard's "Low stock" card: /vendor/products?stock=low
-  const initialStock = useSearchParams().get("stock") || "";
+  // Deep links from the dashboard cards: ?stock=low , ?expiry=soon|expired
+  const sp = useSearchParams();
+  const initialStock = sp.get("stock") || "";
+  const initialExpiry = sp.get("expiry") || "";
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
@@ -62,10 +86,11 @@ export default function VendorProductsPage() {
   const [categoryId, setCategoryId] = useState("");
   const [sort, setSort] = useState("newest");
   const [stockLevel, setStockLevel] = useState(["in", "low", "out"].includes(initialStock) ? initialStock : ""); // "" | in | low | out
+  const [expiry, setExpiry] = useState(["soon", "expired"].includes(initialExpiry) ? initialExpiry : ""); // "" | soon | expired
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const activeFilterCount = (categoryId ? 1 : 0) + (sort !== "newest" ? 1 : 0) + (stockLevel ? 1 : 0);
+  const activeFilterCount = (categoryId ? 1 : 0) + (sort !== "newest" ? 1 : 0) + (stockLevel ? 1 : 0) + (expiry ? 1 : 0);
 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkRows, setBulkRows] = useState([]);
@@ -195,6 +220,7 @@ export default function VendorProductsPage() {
     if (categoryId) params.set("category", categoryId);
     if (sort && sort !== "newest") params.set("sort", sort);
     if (stockLevel) params.set("stock", stockLevel);
+    if (expiry) params.set("expiry", expiry);
     apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params.toString()}`)
       .then((data) => {
         // Drop a stale response so a slow search for an earlier term
@@ -221,11 +247,11 @@ export default function VendorProductsPage() {
     if (!token || !storeId) return;
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, page, q, categoryId, sort, stockLevel]);
+  }, [token, storeId, page, q, categoryId, sort, stockLevel, expiry]);
 
   useEffect(() => {
     setPage(1);
-  }, [q, categoryId, sort, stockLevel, storeId]);
+  }, [q, categoryId, sort, stockLevel, expiry, storeId]);
 
   const storeFiltersInit = useRef(false);
   useEffect(() => {
@@ -239,6 +265,7 @@ export default function VendorProductsPage() {
     if (storeFiltersInit.current) {
       setCategoryId("");
       setStockLevel("");
+      setExpiry("");
     }
     storeFiltersInit.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -475,10 +502,13 @@ export default function VendorProductsPage() {
         </Link>
       </div>
 
-      {(activeFilterCount > 0 || stockLevel) && (
+      {activeFilterCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {stockLevel && (
             <FilterChip label={STOCK_LABEL[stockLevel]} onClear={() => setStockLevel("")} />
+          )}
+          {expiry && (
+            <FilterChip label={EXPIRY_LABEL[expiry]} onClear={() => setExpiry("")} />
           )}
           {categoryId && (
             <FilterChip
@@ -495,6 +525,7 @@ export default function VendorProductsPage() {
               setCategoryId("");
               setSort("newest");
               setStockLevel("");
+              setExpiry("");
             }}
             className="text-slate-500 hover:text-slate-800 underline cursor-pointer"
           >
@@ -512,6 +543,8 @@ export default function VendorProductsPage() {
           setSort={setSort}
           stockLevel={stockLevel}
           setStockLevel={setStockLevel}
+          expiry={expiry}
+          setExpiry={setExpiry}
           onClose={() => setFiltersOpen(false)}
         />
       )}
@@ -528,6 +561,7 @@ export default function VendorProductsPage() {
         ) : (
           products.map((p) => {
             const lowStock = p.productType === "physical" && p.stock != null && p.stock <= lowStockThreshold;
+            const exp = expiryChip(p.expiryDate);
             return (
               <div
                 key={p.id}
@@ -563,6 +597,7 @@ export default function VendorProductsPage() {
                     {lowStock && (
                       <Badge color={p.stock === 0 ? "red" : "amber"}>{p.stock === 0 ? "Out of stock" : "Low stock"}</Badge>
                     )}
+                    {exp && exp.tone !== "slate" && <Badge color={exp.tone}>{exp.text}</Badge>}
                     <Link
                       href={`/vendor/products/${p.id}/edit?storeId=${storeId}`}
                       onClick={(e) => e.stopPropagation()}
@@ -718,9 +753,13 @@ export default function VendorProductsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge color={p.isActive ? "green" : "slate"}>{p.isActive ? "Live" : "Archived"}</Badge>
                       {p.suspendedAt && <Badge color="red">Suspended</Badge>}
+                      {(() => {
+                        const e = expiryChip(p.expiryDate);
+                        return e && e.tone !== "slate" ? <Badge color={e.tone}>{e.text}</Badge> : null;
+                      })()}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
@@ -751,8 +790,8 @@ function FilterChip({ label, onClear }) {
 // Filter picker as a screen-safe sheet: a bottom sheet on phones, a
 // centred card on desktop, capped at 85vh with its own scrolling body so
 // it never runs off the viewport. Filters apply live as they're changed.
-function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setSort, stockLevel, setStockLevel, onClose }) {
-  const anyActive = categoryId || sort !== "newest" || stockLevel;
+function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setSort, stockLevel, setStockLevel, expiry, setExpiry, onClose }) {
+  const anyActive = categoryId || sort !== "newest" || stockLevel || expiry;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
@@ -776,6 +815,24 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
                   onClick={() => setStockLevel(o.value)}
                   className={`px-3 py-2 rounded-sm border text-sm font-medium cursor-pointer transition-colors ${
                     stockLevel === o.value ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Expiry</p>
+            <div className="grid grid-cols-1 gap-2">
+              {EXPIRY_OPTIONS.map((o) => (
+                <button
+                  key={o.value || "any"}
+                  type="button"
+                  onClick={() => setExpiry(o.value)}
+                  className={`px-3 py-2 rounded-sm border text-sm font-medium cursor-pointer transition-colors text-left ${
+                    expiry === o.value ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
                   }`}
                 >
                   {o.label}
@@ -809,6 +866,7 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
               setCategoryId("");
               setSort("newest");
               setStockLevel("");
+              setExpiry("");
             }}
             className="text-sm font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >

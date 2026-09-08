@@ -52,6 +52,15 @@ export async function GET(req, { params }) {
     conditions.push(lte(products.stock, 0));
   }
 
+  // Expiry filter. "soon" = a use-by date within the next 30 days (and
+  // not already past); "expired" = a use-by date that's passed.
+  const expiryFilter = searchParams.get("expiry")?.trim();
+  if (expiryFilter === "soon") {
+    conditions.push(sql`${products.expiryDate} is not null and ${products.expiryDate} >= current_date and ${products.expiryDate} < current_date + 30`);
+  } else if (expiryFilter === "expired") {
+    conditions.push(sql`${products.expiryDate} is not null and ${products.expiryDate} < current_date`);
+  }
+
   // Active-variant count per product, so the POS can skip a per-item
   // "does this have options?" round trip when adding to the sale.
   const variantCountSql = sql`(
@@ -101,6 +110,8 @@ export async function POST(req, { params }) {
   if (existing) return NextResponse.json({ error: "That product slug already exists" }, { status: 409 });
 
   const { branchStock, ...productData } = result.data;
+  // The `date` column rejects "" - the form sends "" to mean "no date".
+  if (productData.expiryDate === "") productData.expiryDate = null;
 
   const created = await db.transaction(async (tx) => {
     const [product] = await tx.insert(products).values({ storeId, ...productData }).returning();

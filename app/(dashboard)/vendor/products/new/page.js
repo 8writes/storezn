@@ -38,7 +38,7 @@ const CONDITION_OPTIONS = [
   { value: "used", label: "Used" },
 ];
 
-const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", condition: "new", stock: "", branchStock: {}, categoryId: "", images: [], videoUrl: "" };
+const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "" };
 const EMPTY_CATEGORY = { name: "", slug: "" };
 
 export default function VendorNewProductPage() {
@@ -269,6 +269,7 @@ export default function VendorNewProductPage() {
       }
       if (form.categoryId) payload.categoryId = form.categoryId;
       if (form.sku) payload.sku = form.sku;
+      if (form.expiryDate) payload.expiryDate = form.expiryDate;
       if (form.description) payload.description = form.description;
       const sg = normalizeSizeGuide(form.sizeGuide);
       if (sg) payload.sizeGuide = sg;
@@ -361,6 +362,14 @@ export default function VendorNewProductPage() {
                   </div>
                   <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
                 </div>
+                {form.productType === "physical" && (
+                  <Input
+                    type="date"
+                    label="Expiry / use-by date (optional)"
+                    value={form.expiryDate}
+                    onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
+                  />
+                )}
                 {form.productType === "physical" &&
                   (myBranch ? (
                     <div>

@@ -115,6 +115,7 @@ export async function POST(req, { params }) {
             productType: data.productType,
             condition: data.condition,
             stock: data.stock ?? null,
+            expiryDate: data.expiryDate || null,
             isActive: true,
           })
           .returning();

@@ -96,6 +96,7 @@ export default function VendorProductEditPage({ params }) {
           productType: product.productType,
           condition: product.condition,
           stock: product.stock != null ? String(product.stock) : "",
+          expiryDate: product.expiryDate || "",
           categoryId: product.categoryId || "",
           images: product.images || [],
           videoUrl: product.videoUrl || "",
@@ -259,6 +260,7 @@ export default function VendorProductEditPage({ params }) {
         productType: form.productType,
         condition: form.condition,
         categoryId: form.categoryId || null,
+        expiryDate: form.expiryDate || null,
         description: form.description || undefined,
         sizeGuide: normalizeSizeGuide(form.sizeGuide),
         images: form.images,
@@ -314,6 +316,14 @@ export default function VendorProductEditPage({ params }) {
             </div>
             <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
           </div>
+          {form.productType === "physical" && (
+            <Input
+              type="date"
+              label="Expiry / use-by date (optional)"
+              value={form.expiryDate}
+              onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
+            />
+          )}
           <PriceInput label="Price" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />
           <div>
             <div className="flex items-center gap-1.5 mb-1">

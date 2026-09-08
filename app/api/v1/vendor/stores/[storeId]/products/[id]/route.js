@@ -76,6 +76,8 @@ export async function PATCH(req, { params }) {
   // so the aggregate stays in sync instead of drifting from a direct
   // write.
   const { stock, ...rest } = result.data;
+  // The `date` column rejects "" - "" from the form means "clear the date".
+  if (rest.expiryDate === "") rest.expiryDate = null;
   const [updated] = await db
     .update(products)
     .set({ ...rest, updatedAt: new Date() })

@@ -36,6 +36,9 @@ export async function GET(req, { params }) {
       // Only physical products with a tracked (non-null) stock count -
       // digital/unlimited items can't be "low".
       lowStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} is not null and ${products.stock} <= ${LOW_STOCK_THRESHOLD})`.mapWith(Number),
+      // Perishables past their date, or within the next 30 days.
+      expired: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} < current_date)`.mapWith(Number),
+      expiringSoon: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} >= current_date and ${products.expiryDate} < current_date + 30)`.mapWith(Number),
     })
     .from(products)
     .where(eq(products.storeId, storeId));
@@ -43,6 +46,12 @@ export async function GET(req, { params }) {
   return NextResponse.json({
     orders: { total: orderStats?.totalOrders || 0, pending: orderStats?.pending || 0 },
     revenue: orderStats?.totalRevenue || 0,
-    products: { total: productStats?.total || 0, live: productStats?.live || 0, lowStock: productStats?.lowStock || 0 },
+    products: {
+      total: productStats?.total || 0,
+      live: productStats?.live || 0,
+      lowStock: productStats?.lowStock || 0,
+      expired: productStats?.expired || 0,
+      expiringSoon: productStats?.expiringSoon || 0,
+    },
   });
 }
