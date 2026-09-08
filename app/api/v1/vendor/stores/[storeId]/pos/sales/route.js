@@ -134,7 +134,9 @@ export async function POST(req, { params }) {
 
   const tendersKobo = data.tenders.map((t) => ({
     method: t.method,
-    provider: t.method === "card" && t.provider ? t.provider.trim() : null,
+    // Provider account: a POS terminal for a card swipe, the same
+    // provider's bank account for a transfer.
+    provider: (t.method === "card" || t.method === "transfer") && t.provider ? t.provider.trim() : null,
     amount: toKobo(t.amount),
     changeGiven: toKobo(t.changeGiven || 0),
     reference: t.reference || null,
@@ -273,9 +275,12 @@ export async function POST(req, { params }) {
 
       const itemCount = resolved.reduce((n, r) => n + r.quantity, 0);
       const anyOverride = resolved.some((r) => r.overridden) || discountAmountKobo > 0;
-      // "cash", "POS (Moniepoint)", "transfer" ...  joined for a split.
+      // "cash", "POS (Moniepoint)", "transfer (Opay)" ... joined for a split.
       const payLabel = tendersKobo
-        .map((t) => (t.method === "card" ? `POS${t.provider ? ` (${t.provider})` : ""}` : t.method))
+        .map((t) => {
+          const base = t.method === "card" ? "POS" : t.method;
+          return `${base}${t.provider ? ` (${t.provider})` : ""}`;
+        })
         .join(" + ");
       const changeKobo = tendersKobo.reduce((s, t) => s + t.changeGiven, 0);
       after(() =>

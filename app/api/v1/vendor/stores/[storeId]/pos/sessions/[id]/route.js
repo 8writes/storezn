@@ -51,12 +51,21 @@ export async function GET(req, { params }) {
     movements,
   });
 
+  // Payment method(s) per order, so the Sales list can show "paid by".
+  const methodsByOrder = new Map();
+  for (const t of tenders) {
+    const label = t.provider ? `${t.method}:${t.provider}` : t.method;
+    const arr = methodsByOrder.get(t.orderId) || [];
+    if (!arr.includes(label)) arr.push(label);
+    methodsByOrder.set(t.orderId, arr);
+  }
+
   return NextResponse.json({
     session: row.session,
     register: { id: row.register.id, name: row.register.name, branchId: row.register.branchId },
     summary,
     movements,
-    orders: sessionOrders,
+    orders: sessionOrders.map((o) => ({ ...o, paymentMethods: methodsByOrder.get(o.id) || [] })),
     heldSales: held,
   });
 }

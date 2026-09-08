@@ -11,6 +11,18 @@ import { ZReport } from "@/components/pos/ZReport.js";
 import { formatKobo } from "@/lib/money.js";
 import { formatCurrency } from "@/lib/format.js";
 
+const PAY_NAME = { cash: "Cash", card: "POS", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
+const paidBy = (methods) =>
+  !methods?.length
+    ? null
+    : methods
+        .map((m) => {
+          const [method, provider] = m.split(":");
+          const n = PAY_NAME[method] || method;
+          return provider ? `${n} (${provider})` : n;
+        })
+        .join(" + ");
+
 const MOVE_LABEL = {
   float: "Opening float",
   cash_sale: "Cash sale",
@@ -95,6 +107,7 @@ export default function SessionDetailPage({ params }) {
                 <Link href={`/vendor/orders/${o.id}?storeId=${storeId}`} className="text-brand-700 hover:text-brand-800 print:text-slate-700">
                   {o.orderNumber}
                   {o.originalOrderId ? <span className="text-slate-400"> · return</span> : null}
+                  {paidBy(o.paymentMethods) && <span className="text-slate-400"> · {paidBy(o.paymentMethods)}</span>}
                 </Link>
                 <span className={`tabular-nums ${Number(o.totalAmount) < 0 ? "text-red-600" : "text-slate-900"}`}>
                   {formatCurrency(o.totalAmount)}

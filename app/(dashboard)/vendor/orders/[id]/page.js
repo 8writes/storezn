@@ -233,7 +233,8 @@ export default function VendorOrderDetailPage({ params }) {
         <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-1.5">
           <p className="text-sm font-semibold text-slate-700 mb-1">Payment</p>
           {data.tenders.map((t) => {
-            const label = t.method === "card" ? `POS${t.provider ? ` · ${t.provider}` : ""}` : t.method.replace("_", " ");
+            const base = t.method === "card" ? "POS" : t.method.replace("_", " ");
+            const label = t.provider ? `${base} · ${t.provider}` : base;
             const change = Number(t.changeGiven || 0);
             return (
               <div key={t.id} className="flex justify-between text-sm">

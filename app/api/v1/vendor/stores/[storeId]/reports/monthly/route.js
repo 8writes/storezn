@@ -82,11 +82,15 @@ export async function GET(req, { params }) {
       .where(and(inMonth, isSale))
       .groupBy(orders.branchId, branches.name),
     db
-      .select({ method: orderTenders.method, amountKobo: sql`coalesce(sum(${orderTenders.amount} - ${orderTenders.changeGiven}), 0)`.mapWith(Number) })
+      .select({
+        method: orderTenders.method,
+        provider: orderTenders.provider,
+        amountKobo: sql`coalesce(sum(${orderTenders.amount} - ${orderTenders.changeGiven}), 0)`.mapWith(Number),
+      })
       .from(orderTenders)
       .innerJoin(orders, eq(orders.id, orderTenders.orderId))
       .where(and(eq(orders.storeId, storeId), gte(orders.createdAt, start), lt(orders.createdAt, end)))
-      .groupBy(orderTenders.method),
+      .groupBy(orderTenders.method, orderTenders.provider),
     db
       .select({
         productId: orderItems.productId,
@@ -235,7 +239,18 @@ export async function GET(req, { params }) {
     },
     byChannel: byChannel.map((r) => ({ channel: r.channel, count: r.count, revenue: r.revenue })),
     byBranch: byBranch.map((r) => ({ branch: r.branchName || "Unassigned", count: r.count, revenue: r.revenue })),
-    byTender: byTender.map((r) => ({ method: r.method, amount: toNaira(r.amountKobo) })),
+    byTender: Object.values(
+      byTender.reduce((acc, r) => {
+        acc[r.method] = acc[r.method] || { method: r.method, amountKobo: 0 };
+        acc[r.method].amountKobo += r.amountKobo;
+        return acc;
+      }, {}),
+    ).map((r) => ({ method: r.method, amount: toNaira(r.amountKobo) })),
+    // Full traceability: every non-cash stream by the account it landed in.
+    byAccount: byTender
+      .filter((r) => r.method !== "cash")
+      .map((r) => ({ method: r.method, provider: (r.provider || "").trim() || "Unspecified", amount: toNaira(r.amountKobo) }))
+      .sort((a, b) => b.amount - a.amount),
     topProductsByRevenue: topByRevenue.map((r) => ({ name: r.name, qty: r.qty, revenue: r.revenue })),
     topProductsByQty: topByQty.map((r) => ({ name: r.name, qty: r.qty })),
     byCategory: byCategory.map((r) => ({ name: r.name || "Uncategorised", qty: r.qty, revenue: r.revenue })),

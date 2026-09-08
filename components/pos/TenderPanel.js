@@ -13,8 +13,10 @@ const METHODS = [
   { value: "card", label: "POS", icon: CreditCard },
 ];
 
-// POS terminal providers, for per-machine reconciliation. Free-text on
-// the server, so "Other" just lets the cashier type one in.
+// The provider account money landed in - a POS terminal for a card swipe,
+// the same provider's bank account for a transfer - so every stream
+// reconciles per account. Free-text on the server; "Other" lets the
+// cashier type one.
 const POS_PROVIDERS = ["Moniepoint", "Opay", "Other"];
 
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -41,8 +43,10 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
   const isCash = method === "cash";
   const change = round2(Math.max(0, amount - total));
   const shortBy = round2(Math.max(0, total - amount));
-  const isCard = method === "card";
-  const canComplete = total > 0 && amount > 0 && shortBy === 0 && (!isCard || !!provider);
+  // Both card (POS terminal) and transfer (provider bank account) need
+  // the provider so the money traces back to an account.
+  const needsProvider = method === "card" || method === "transfer";
+  const canComplete = total > 0 && amount > 0 && shortBy === 0 && (!needsProvider || !!provider);
 
   if (!open) return null;
 
@@ -50,7 +54,7 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
     onComplete([
       {
         method,
-        provider: isCard ? provider : undefined,
+        provider: needsProvider ? provider : undefined,
         amount,
         changeGiven: change,
         reference: reference.trim() || undefined,
@@ -105,9 +109,11 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
             ))}
           </div>
 
-          {isCard && (
+          {needsProvider && (
             <div className="space-y-2">
-              <p className="text-xs font-medium text-slate-600">Which POS machine?</p>
+              <p className="text-xs font-medium text-slate-600">
+                {method === "transfer" ? "Which account was it transferred to?" : "Which POS machine?"}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {POS_PROVIDERS.map((p) => (
                   <button
@@ -172,8 +178,8 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
 
           {change > 0 && !isCash && (
             <p className="text-xs text-slate-500">
-              Customer overpaid by {method === "transfer" ? "transfer" : `POS${provider ? ` (${provider})` : ""}`} &mdash;{" "}
-              {formatCurrency(change)} change to hand back in cash from the drawer.
+              Customer overpaid by {method === "transfer" ? "transfer" : "POS"}
+              {provider ? ` (${provider})` : ""} &mdash; {formatCurrency(change)} change to hand back in cash from the drawer.
             </p>
           )}
         </div>

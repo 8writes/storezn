@@ -45,7 +45,7 @@ export async function GET(req, { params }) {
     : [];
   const methodsByOrder = new Map();
   for (const t of tenders) {
-    const label = t.method === "card" ? `card${t.provider ? `:${t.provider}` : ""}` : t.method;
+    const label = t.provider ? `${t.method}:${t.provider}` : t.method;
     const arr = methodsByOrder.get(t.orderId) || [];
     if (!arr.includes(label)) arr.push(label);
     methodsByOrder.set(t.orderId, arr);

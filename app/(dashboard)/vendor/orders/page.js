@@ -17,17 +17,15 @@ import { Plus } from "lucide-react";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", abandoned: "slate", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 
-// ["card:Moniepoint", "cash"] -> "POS (Moniepoint) + Cash"
-const METHOD_NAME = { cash: "Cash", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
+// ["card:Moniepoint", "transfer:Opay", "cash"] -> "POS (Moniepoint) + Transfer (Opay) + Cash"
+const METHOD_NAME = { cash: "Cash", card: "POS", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
 function paidByLabel(methods) {
   if (!methods?.length) return null;
   return methods
     .map((m) => {
-      if (m.startsWith("card")) {
-        const p = m.slice(5);
-        return `POS${p ? ` (${p})` : ""}`;
-      }
-      return METHOD_NAME[m] || m;
+      const [method, provider] = m.split(":");
+      const name = METHOD_NAME[method] || method;
+      return provider ? `${name} (${provider})` : name;
     })
     .join(" + ");
 }

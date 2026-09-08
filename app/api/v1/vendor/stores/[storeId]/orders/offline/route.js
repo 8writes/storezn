@@ -184,7 +184,7 @@ export async function POST(req, { params }) {
       await tx.insert(orderTenders).values({
         orderId: createdOrder.id,
         method: paymentMethod,
-        provider: paymentMethod === "card" && paymentProvider ? paymentProvider : null,
+        provider: (paymentMethod === "card" || paymentMethod === "transfer") && paymentProvider ? paymentProvider : null,
         amount: toKobo(totalAmount),
         changeGiven: 0,
       });
@@ -222,7 +222,7 @@ export async function POST(req, { params }) {
       action: "order.manual",
       summary:
         `Recorded a past sale · ${formatCurrency(order.totalAmount)} · ${resolvedItems.reduce((n, i) => n + i.quantity, 0)} item(s)` +
-        ` · ${paymentMethod === "card" ? `POS${paymentProvider ? ` (${paymentProvider})` : ""}` : paymentMethod}`,
+        ` · ${paymentMethod === "card" ? "POS" : paymentMethod}${paymentProvider && paymentMethod !== "cash" ? ` (${paymentProvider})` : ""}`,
       targetType: "order",
       targetId: order.id,
       metadata: { orderNumber: order.orderNumber, total: order.totalAmount },

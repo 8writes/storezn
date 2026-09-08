@@ -115,7 +115,7 @@ export default function RecordPastSalePage() {
       if (buyer.note) payload.note = buyer.note;
       if (branchId) payload.branchId = branchId;
       payload.paymentMethod = pay.method;
-      if (pay.method === "card") payload.paymentProvider = pay.provider;
+      if (pay.method === "card" || pay.method === "transfer") payload.paymentProvider = pay.provider;
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/offline`, { method: "POST", body: JSON.stringify(payload) });
       toast.success("Sale recorded");
       router.push(`/vendor/orders/${data.order.id}?storeId=${storeId}`);
@@ -251,8 +251,11 @@ export default function RecordPastSalePage() {
                 </button>
               ))}
             </div>
-            {pay.method === "card" && (
+            {(pay.method === "card" || pay.method === "transfer") && (
               <div className="flex flex-wrap gap-2 pt-1">
+                <span className="w-full text-xs text-slate-500">
+                  {pay.method === "transfer" ? "Transferred to which account?" : "Which POS machine?"}
+                </span>
                 {["Moniepoint", "Opay", "Other"].map((p) => (
                   <button
                     key={p}

@@ -169,6 +169,18 @@ export default function VendorReportsPage() {
               )}
             />
             <Rows
+              title="Into which account (POS / transfer)"
+              rows={report.byAccount}
+              render={(r) => (
+                <>
+                  <span className="text-slate-700">
+                    {(r.method === "card" ? "POS" : TENDER_LABEL[r.method] || r.method)} &middot; {r.provider}
+                  </span>
+                  <span className="text-slate-900 font-medium tabular-nums">{formatCurrency(r.amount)}</span>
+                </>
+              )}
+            />
+            <Rows
               title="By branch"
               rows={report.byBranch}
               render={(r) => (

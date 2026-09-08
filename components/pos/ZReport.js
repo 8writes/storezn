@@ -31,7 +31,7 @@ export function ZReport({ summary, title = "X report" }) {
   if (!summary) return null;
   const d = summary.drawer || {};
   const byMethod = summary.byTenderMethod || {};
-  const byProvider = summary.byCardProvider || {};
+  const byAccount = summary.byAccount || [];
   const nonCashChangeOut = summary.nonCashChangeOut || 0;
   const isZ = summary.countedCash != null;
 
@@ -68,11 +68,15 @@ export function ZReport({ summary, title = "X report" }) {
           )}
         </div>
 
-        {Object.keys(byProvider).length > 0 && (
+        {byAccount.length > 0 && (
           <div className="px-3 py-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">POS terminals</p>
-            {Object.entries(byProvider).map(([p, amt]) => (
-              <Row key={p} label={p} value={formatKobo(amt)} />
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Into which account</p>
+            {byAccount.map((a) => (
+              <Row
+                key={`${a.method}|${a.provider}`}
+                label={`${a.method === "card" ? "POS" : METHOD_LABEL[a.method] || a.method} · ${a.provider}`}
+                value={formatKobo(a.amount)}
+              />
             ))}
           </div>
         )}
