@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
 import { products, productVariants, productBranchStock, categories, stores, branches } from "../../../../../../../../lib/db/schema.js";
-import { and, eq, ilike, isNull, sql } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { getUser, canManageStore, isStoreOwner } from "../../../../../../../../lib/auth.js";
 import { validate, bulkProductRowSchema } from "../../../../../../../../lib/validate.js";
+import { parsePagination } from "../../../../../../../../lib/pagination.js";
 import { slugify } from "../../../../../../../../lib/slugify.js";
 import { seedBranchStockForNewItem } from "../../../../../../../../lib/inventory.js";
 
@@ -14,10 +15,10 @@ async function loadStore(storeId) {
   return store;
 }
 
-// Everything the bulk-edit grid needs in one round trip: every base
-// product (name / sku / price / cost / category / expiry), the per-branch
-// stock map for the branch being edited, the branch list and the
-// category list.
+// One page (20 by default) of base products for the bulk-edit grid, plus
+// the branch's stock for just those rows. ?q= narrows by name / SKU (used
+// by the grid's search and its "scan to find"); ?page= walks the rest
+// ("load more"). branches + categories only ride along on page 1.
 export async function GET(req, { params }) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -27,21 +28,28 @@ export async function GET(req, { params }) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const sp = new URL(req.url).searchParams;
+  const { page, pageSize, limit, offset } = parsePagination(sp);
+  const q = sp.get("q")?.trim();
+
   const branchRows = await db
     .select({ id: branches.id, name: branches.name, isDefault: branches.isDefault })
     .from(branches)
     .where(eq(branches.storeId, storeId))
     .orderBy(branches.createdAt);
 
-  const requested = new URL(req.url).searchParams.get("branchId")?.trim() || null;
+  const requested = sp.get("branchId")?.trim() || null;
   let target;
   if (user.role === "staff" && user.branchId) target = branchRows.find((b) => b.id === user.branchId);
   else if (requested) target = branchRows.find((b) => b.id === requested);
   else target = branchRows.find((b) => b.isDefault) || branchRows[0];
   if (!target) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
 
+  const where = [eq(products.storeId, storeId)];
+  if (q) where.push(or(ilike(products.name, `%${q}%`), ilike(products.sku, `%${q}%`)));
+
   const variantCountSql = sql`(select count(*)::int from ${productVariants} where ${productVariants.productId} = ${products.id} and ${productVariants.isActive})`;
-  const [rows, stockRows, cats] = await Promise.all([
+  const [rows, [{ total }], cats] = await Promise.all([
     db
       .select({
         id: products.id,
@@ -58,30 +66,34 @@ export async function GET(req, { params }) {
       })
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))
-      .where(eq(products.storeId, storeId))
-      .orderBy(products.name),
-    db
-      .select({ productId: productBranchStock.productId, stock: productBranchStock.stock })
-      .from(productBranchStock)
-      .innerJoin(products, eq(products.id, productBranchStock.productId))
-      .where(and(eq(products.storeId, storeId), eq(productBranchStock.branchId, target.id), isNull(productBranchStock.variantId))),
-    db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.storeId, storeId)).orderBy(categories.name),
+      .where(and(...where))
+      .orderBy(products.name)
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: count() }).from(products).where(and(...where)),
+    page === 1
+      ? db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.storeId, storeId)).orderBy(categories.name)
+      : Promise.resolve(null),
   ]);
 
+  const ids = rows.map((r) => r.id);
+  const stockRows = ids.length
+    ? await db
+        .select({ productId: productBranchStock.productId, stock: productBranchStock.stock })
+        .from(productBranchStock)
+        .where(and(inArray(productBranchStock.productId, ids), eq(productBranchStock.branchId, target.id), isNull(productBranchStock.variantId)))
+    : [];
   const stock = {};
   for (const r of stockRows) stock[r.productId] = r.stock;
 
   return NextResponse.json({
     branchId: target.id,
     branchName: target.name,
-    branches: isStoreOwner(user, store) ? branchRows.map((b) => ({ id: b.id, name: b.name, isDefault: b.isDefault })) : undefined,
-    categories: cats,
+    branches: page === 1 ? (isStoreOwner(user, store) ? branchRows.map((b) => ({ id: b.id, name: b.name, isDefault: b.isDefault })) : undefined) : undefined,
+    categories: cats || undefined,
     stock,
-    products: rows.map((r) => ({
-      ...r,
-      hasVariants: Number(r.variantCount) > 0,
-      variantCount: undefined,
-    })),
+    products: rows.map((r) => ({ ...r, hasVariants: Number(r.variantCount) > 0, variantCount: undefined })),
+    pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });
 }
 

@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -9,28 +9,19 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { Button } from "@/components/ui/Button.js";
 import { Select } from "@/components/ui/Select.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
+import { BarcodeScanButton } from "@/components/pos/BarcodeScanButton.js";
 
-// Spreadsheet-style bulk add / edit. Loads every product as an editable
-// row, lets you change price / cost / stock / category / expiry in place,
-// and add brand-new products as extra rows - all saved in one go. Stock
-// per row is either "Set" (overwrite) or "Add" (+ to the current count).
+// Spreadsheet-style bulk add / edit. Loads products 20 at a time ("load
+// more"), lets you change price / cost / stock / category / expiry in
+// place, and add new products as rows - scanned or typed. Edits live in
+// their own map so paging / searching never drops them. Stock per row is
+// "Set" (overwrite) or "Add" (+ to the current count).
 
-const MAX = 500;
+const PAGE_SIZE = 20;
 const uid = () => `new_${Math.random().toString(36).slice(2, 10)}`;
 
-function blankRow() {
-  return {
-    _id: uid(),
-    isNew: true,
-    name: "",
-    sku: "",
-    categoryId: "",
-    price: "",
-    costPrice: "",
-    stock: "", // opening stock for a new product
-    stockMode: "set",
-    expiryDate: "",
-  };
+function blankRow(sku = "") {
+  return { _id: uid(), name: "", sku, categoryId: "", price: "", costPrice: "", stock: "", stockMode: "set", expiryDate: "" };
 }
 
 export default function BulkProductsPage() {
@@ -39,101 +30,174 @@ export default function BulkProductsPage() {
   const { stores, storeId, loading: storeLoading } = useVendorStore();
 
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [branchId, setBranchId] = useState(null);
   const [branchName, setBranchName] = useState("");
   const [branchList, setBranchList] = useState(null);
   const [categories, setCategories] = useState([]);
-  const [rows, setRows] = useState([]); // existing, editable
-  const [newRows, setNewRows] = useState([]);
-  const [q, setQ] = useState("");
-  // Immutable snapshot at load time - productId -> original values - so we
-  // can tell what actually changed. State, not a ref (read during render).
-  const [base, setBase] = useState({});
 
-  const load = (bId) => {
+  const [serverRows, setServerRows] = useState([]); // {id, name, sku, price, costPrice, categoryId, expiryDate, productType, hasVariants}
+  const [base, setBase] = useState({}); // id -> original values (accumulates, never cleared while on the page)
+  const [meta, setMeta] = useState({}); // id -> { hasVariants, productType }
+  const [edits, setEdits] = useState({}); // id -> { field: value } - only changed fields
+  const [newRows, setNewRows] = useState([]);
+  const [pagination, setPagination] = useState(null);
+
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [lastScan, setLastScan] = useState("");
+  const tableRef = useRef(null);
+
+  // Debounce the search box / scan-to-find.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const fetchPage = useCallback(
+    async ({ page, bId, query, append }) => {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+      if (bId) params.set("branchId", bId);
+      if (query) params.set("q", query);
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/bulk?${params}`);
+
+      setBranchId(data.branchId);
+      setBranchName(data.branchName);
+      if (data.branches) setBranchList(data.branches);
+      if (data.categories) setCategories(data.categories);
+      setPagination(data.pagination || null);
+
+      setBase((prev) => {
+        const next = { ...prev };
+        for (const p of data.products) {
+          if (!next[p.id]) {
+            next[p.id] = {
+              name: p.name || "",
+              sku: p.sku || "",
+              categoryId: p.categoryId || "",
+              price: p.price != null ? String(p.price) : "",
+              costPrice: p.costPrice != null ? String(p.costPrice) : "",
+              expiryDate: p.expiryDate || "",
+              stock: data.stock?.[p.id] ?? null,
+            };
+          } else if (data.stock && p.id in data.stock) {
+            // Branch changed - refresh the base stock for this row.
+            next[p.id] = { ...next[p.id], stock: data.stock[p.id] };
+          }
+        }
+        return next;
+      });
+      setMeta((prev) => {
+        const next = { ...prev };
+        for (const p of data.products) next[p.id] = { hasVariants: p.hasVariants, productType: p.productType };
+        return next;
+      });
+
+      const incoming = data.products.map((p) => ({ id: p.id }));
+      setServerRows((prev) => {
+        if (!append) return incoming;
+        const seen = new Set(prev.map((r) => r.id));
+        return [...prev, ...incoming.filter((r) => !seen.has(r.id))];
+      });
+    },
+    [apiFetch, storeId],
+  );
+
+  // Initial load + branch switch + search all replace the list from page 1.
+  useEffect(() => {
     if (!token || !storeId) return;
     setLoading(true);
-    const qs = bId ? `?branchId=${bId}` : "";
-    apiFetch(`/api/v1/vendor/stores/${storeId}/products/bulk${qs}`)
-      .then((data) => {
-        setBranchId(data.branchId);
-        setBranchName(data.branchName);
-        setBranchList(data.branches || null);
-        setCategories(data.categories || []);
-        const nextBase = {};
-        const mapped = (data.products || []).map((p) => {
-          const b = {
-            name: p.name || "",
-            sku: p.sku || "",
-            categoryId: p.categoryId || "",
-            price: p.price != null ? String(p.price) : "",
-            costPrice: p.costPrice != null ? String(p.costPrice) : "",
-            expiryDate: p.expiryDate || "",
-            stock: data.stock?.[p.id] ?? null,
-          };
-          nextBase[p.id] = b;
-          return {
-            _id: p.id,
-            id: p.id,
-            hasVariants: p.hasVariants,
-            productType: p.productType,
-            ...b,
-            stockInput: "", // "add" mode: the delta; "set" mode: exact count. Blank = unchanged.
-            stockMode: "add", // existing rows default to ADD
-          };
-        });
-        setBase(nextBase);
-        setRows(mapped);
-      })
+    fetchPage({ page: 1, bId: branchId, query: debouncedQ, append: false })
+      .catch((err) => toast.error(err.message || "Couldn't load products"))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, storeId, debouncedQ]);
+
+  const changeBranch = (bId) => {
+    setLoading(true);
+    fetchPage({ page: 1, bId, query: debouncedQ, append: false })
       .catch((err) => toast.error(err.message || "Couldn't load products"))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    load(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId]);
+  const loadMore = () => {
+    if (!pagination || pagination.page >= pagination.totalPages) return;
+    setLoadingMore(true);
+    fetchPage({ page: pagination.page + 1, bId: branchId, query: debouncedQ, append: true })
+      .catch((err) => toast.error(err.message || "Couldn't load more"))
+      .finally(() => setLoadingMore(false));
+  };
 
-  const setRow = (id, patch) => setRows((rs) => rs.map((r) => (r._id === id ? { ...r, ...patch } : r)));
+  const editRow = (id, patch) => setEdits((e) => ({ ...e, [id]: { ...e[id], ...patch } }));
   const setNewRow = (id, patch) => setNewRows((rs) => rs.map((r) => (r._id === id ? { ...r, ...patch } : r)));
+
+  const scanNewRow = (code) => {
+    const row = blankRow(code);
+    setNewRows((n) => [row, ...n]);
+    toast.success(`Row added for ${code}`);
+    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+  const scanFind = (code) => {
+    setQ(code);
+    setLastScan(code.toLowerCase());
+  };
 
   const catOptions = useMemo(
     () => [{ value: "", label: "— none —" }, ...categories.map((c) => ({ value: c.id, label: c.name }))],
     [categories],
   );
 
-  const visibleRows = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    if (!t) return rows;
-    return rows.filter((r) => r.name.toLowerCase().includes(t) || (r.sku || "").toLowerCase().includes(t));
-  }, [rows, q]);
+  // Merge base + edits for a row id.
+  const merged = useCallback(
+    (id) => {
+      const b = base[id] || {};
+      const e = edits[id] || {};
+      return {
+        _id: id,
+        id,
+        name: e.name ?? b.name ?? "",
+        sku: e.sku ?? b.sku ?? "",
+        categoryId: e.categoryId ?? b.categoryId ?? "",
+        price: e.price ?? b.price ?? "",
+        costPrice: e.costPrice ?? b.costPrice ?? "",
+        expiryDate: e.expiryDate ?? b.expiryDate ?? "",
+        stockInput: e.stockInput ?? "",
+        stockMode: e.stockMode ?? "add",
+        hasVariants: meta[id]?.hasVariants,
+        productType: meta[id]?.productType,
+      };
+    },
+    [base, edits, meta],
+  );
 
-  // What actually changed, ready to send.
   const plan = useMemo(() => {
-    const fieldPatches = []; // { id, body }
-    const stockSets = []; // { productId, stock }
-    const stockAdds = []; // { productId, addStock }
-    for (const r of rows) {
-      const b = base[r.id] || {};
+    const fieldPatches = [];
+    const stockSets = [];
+    const stockAdds = [];
+    for (const [id, e] of Object.entries(edits)) {
+      const b = base[id] || {};
+      const m = meta[id] || {};
       const body = {};
-      if (r.name.trim() && r.name.trim() !== b.name) body.name = r.name.trim();
-      if ((r.sku || "").trim() !== (b.sku || "")) body.sku = r.sku.trim() || null;
-      if ((r.categoryId || "") !== (b.categoryId || "")) body.categoryId = r.categoryId || null;
-      if (r.price !== "" && Number(r.price) > 0 && Number(r.price) !== Number(b.price)) body.price = Number(r.price);
-      if (r.costPrice !== b.costPrice) {
-        if (r.costPrice === "") body.costPrice = null;
-        else if (Number(r.costPrice) >= 0 && Number(r.costPrice) !== Number(b.costPrice)) body.costPrice = Number(r.costPrice);
+      const name = (e.name ?? b.name ?? "").trim();
+      if (e.name != null && name && name !== b.name) body.name = name;
+      if (e.sku != null && (e.sku || "").trim() !== (b.sku || "")) body.sku = e.sku.trim() || null;
+      if (e.categoryId != null && (e.categoryId || "") !== (b.categoryId || "")) body.categoryId = e.categoryId || null;
+      if (e.price != null && e.price !== "" && Number(e.price) > 0 && Number(e.price) !== Number(b.price)) body.price = Number(e.price);
+      if (e.costPrice != null && e.costPrice !== b.costPrice) {
+        if (e.costPrice === "") body.costPrice = null;
+        else if (Number(e.costPrice) >= 0 && Number(e.costPrice) !== Number(b.costPrice)) body.costPrice = Number(e.costPrice);
       }
-      if ((r.expiryDate || "") !== (b.expiryDate || "")) body.expiryDate = r.expiryDate || null;
-      if (Object.keys(body).length) fieldPatches.push({ id: r.id, body });
+      if (e.expiryDate != null && (e.expiryDate || "") !== (b.expiryDate || "")) body.expiryDate = e.expiryDate || null;
+      if (Object.keys(body).length) fieldPatches.push({ id, body });
 
-      const inp = String(r.stockInput ?? "").trim();
-      if (inp !== "" && !r.hasVariants && r.productType === "physical") {
+      const inp = String(e.stockInput ?? "").trim();
+      if (inp !== "" && !m.hasVariants && m.productType === "physical") {
         const n = Number(inp);
+        const mode = e.stockMode ?? "add";
         if (Number.isInteger(n)) {
-          if (r.stockMode === "add" && n !== 0) stockAdds.push({ productId: r.id, addStock: n });
-          else if (r.stockMode === "set" && n >= 0 && n !== (b.stock ?? null)) stockSets.push({ productId: r.id, stock: n });
+          if (mode === "add" && n !== 0) stockAdds.push({ productId: id, addStock: n });
+          else if (mode === "set" && n >= 0 && n !== (b.stock ?? null)) stockSets.push({ productId: id, stock: n });
         }
       }
     }
@@ -151,7 +215,7 @@ export default function BulkProductsPage() {
         condition: "new",
       }));
     return { fieldPatches, stockSets, stockAdds, creates };
-  }, [rows, newRows, base]);
+  }, [edits, base, meta, newRows]);
 
   const changeCount = plan.fieldPatches.length + plan.stockSets.length + plan.stockAdds.length + plan.creates.length;
 
@@ -162,7 +226,6 @@ export default function BulkProductsPage() {
     let added = 0;
     let failed = 0;
     try {
-      // 1. new products
       if (plan.creates.length) {
         const res = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/bulk`, {
           method: "POST",
@@ -172,7 +235,6 @@ export default function BulkProductsPage() {
         failed += res.summary?.failed || 0;
         (res.results || []).filter((x) => x.status === "error").forEach((x) => toast.error(`Row "${x.name || "?"}": ${x.error}`));
       }
-      // 2. stock (one call, set + add rows together)
       const stockUpdates = [...plan.stockSets, ...plan.stockAdds];
       if (stockUpdates.length) {
         try {
@@ -186,7 +248,6 @@ export default function BulkProductsPage() {
           toast.error(err.message || "Stock update failed");
         }
       }
-      // 3. field patches, per product
       await Promise.all(
         plan.fieldPatches.map(async (p) => {
           try {
@@ -204,8 +265,14 @@ export default function BulkProductsPage() {
       if (failed) bits.push(`${failed} failed`);
       if (failed) toast.error(bits.join(" · "));
       else toast.success(bits.join(" · ") || "Saved");
+
+      // Reset everything and reload from page 1.
+      setEdits({});
       setNewRows([]);
-      load(branchId);
+      setBase({});
+      setMeta({});
+      setLoading(true);
+      await fetchPage({ page: 1, bId: branchId, query: debouncedQ, append: false }).finally(() => setLoading(false));
     } finally {
       setSaving(false);
     }
@@ -217,6 +284,8 @@ export default function BulkProductsPage() {
   if (!storeLoading && stores.length === 0) {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
+
+  const canLoadMore = !q && pagination && pagination.page < pagination.totalPages;
 
   return (
     <div className="space-y-4">
@@ -238,7 +307,7 @@ export default function BulkProductsPage() {
                 searchable={false}
                 options={branchList.map((b) => ({ value: b.id, label: b.name }))}
                 value={branchId || ""}
-                onChange={(v) => load(v)}
+                onChange={changeBranch}
               />
             </div>
           )}
@@ -248,41 +317,38 @@ export default function BulkProductsPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-72">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search by name or SKU"
+            className="w-full pl-8 pr-8 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
+          />
+          {q && (
+            <button type="button" onClick={() => { setQ(""); setLastScan(""); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <BarcodeScanButton onScan={scanFind} className="!py-1.5" />
+        <span className="text-xs text-slate-500">
+          {q ? `${serverRows.length} match${serverRows.length === 1 ? "" : "es"}` : pagination ? `${serverRows.length} of ${pagination.total}` : ""}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <BarcodeScanButton onScan={scanNewRow} className="!py-1.5" />
+          <Button type="button" size="sm" variant="outline" onClick={() => setNewRows((n) => [blankRow(), blankRow(), blankRow(), ...n])}>
+            <Plus size={14} /> Add rows
+          </Button>
+        </div>
+      </div>
+
       {loading ? (
         <FormSkeleton fields={6} />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative w-full sm:w-72">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Filter rows by name or SKU"
-                className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
-              />
-            </div>
-            <span className="text-xs text-slate-500">
-              {visibleRows.length} of {rows.length} product{rows.length === 1 ? "" : "s"}
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="ml-auto"
-              onClick={() => setNewRows((n) => [...n, blankRow(), blankRow(), blankRow()])}
-            >
-              <Plus size={14} /> Add rows
-            </Button>
-          </div>
-
-          {rows.length > MAX && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-sm px-3 py-2">
-              This store has {rows.length} products. The grid still works but a CSV import may be smoother for very large edits.
-            </p>
-          )}
-
-          <div className="overflow-x-auto border border-slate-200 rounded-sm">
+          <div ref={tableRef} className="overflow-x-auto border border-slate-200 rounded-sm">
             <table className="w-full text-sm min-w-[1000px]">
               <thead className="bg-slate-50 text-slate-500 text-left sticky top-0 z-10">
                 <tr>
@@ -308,21 +374,51 @@ export default function BulkProductsPage() {
                     onRemove={() => setNewRows((n) => n.filter((x) => x._id !== r._id))}
                   />
                 ))}
-                {newRows.length > 0 && (
+                {newRows.length > 0 && serverRows.length > 0 && (
                   <tr>
                     <td colSpan={8} className="px-2 py-1.5 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                       Existing products
                     </td>
                   </tr>
                 )}
-                {visibleRows.map((r) => (
-                  <GridRow key={r._id} r={r} catOptions={catOptions} baseStock={base[r.id]?.stock ?? null} onChange={(patch) => setRow(r._id, patch)} />
-                ))}
+                {serverRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-6 text-center text-slate-400">
+                      {q ? `No product matches "${q}"` : "No products yet"}
+                    </td>
+                  </tr>
+                ) : (
+                  serverRows.map((sr) => {
+                    const row = merged(sr.id);
+                    const touched = !!edits[sr.id] && Object.keys(edits[sr.id]).length > 0;
+                    const hit = lastScan && (row.sku || "").toLowerCase() === lastScan;
+                    return (
+                      <GridRow
+                        key={sr.id}
+                        r={row}
+                        catOptions={catOptions}
+                        baseStock={base[sr.id]?.stock ?? null}
+                        touched={touched}
+                        highlight={hit}
+                        onChange={(patch) => editRow(sr.id, patch)}
+                      />
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-3">
+            {canLoadMore ? (
+              <Button type="button" variant="outline" size="sm" onClick={loadMore} loading={loadingMore}>
+                Load 20 more ({pagination.total - serverRows.length} left)
+              </Button>
+            ) : (
+              <span className="text-xs text-slate-400">
+                {q ? "" : pagination && serverRows.length >= pagination.total ? "All products loaded" : ""}
+              </span>
+            )}
             <Button type="button" onClick={save} loading={saving} disabled={changeCount === 0}>
               Save {changeCount ? `(${changeCount} change${changeCount === 1 ? "" : "s"})` : "changes"}
             </Button>
@@ -333,28 +429,20 @@ export default function BulkProductsPage() {
   );
 }
 
-function GridRow({ r, isNew, catOptions, baseStock, onChange, onRemove }) {
+function GridRow({ r, isNew, catOptions, baseStock, touched, highlight, onChange, onRemove }) {
   const inputCls = "w-full px-1.5 py-1 border border-slate-200 rounded-sm text-sm outline-none focus:border-brand-500 bg-white";
+  const rowCls = isNew ? "bg-emerald-50/40" : highlight ? "bg-amber-50 ring-1 ring-amber-300" : touched ? "bg-blue-50/40" : "";
 
   return (
-    <tr className={isNew ? "bg-emerald-50/40" : ""}>
+    <tr className={rowCls}>
       <td className="px-2 py-1">
-        <input
-          className={inputCls}
-          value={r.name}
-          placeholder={isNew ? "New product name" : ""}
-          onChange={(e) => onChange({ name: e.target.value })}
-        />
+        <input className={inputCls} value={r.name} placeholder={isNew ? "New product name" : ""} onChange={(e) => onChange({ name: e.target.value })} />
       </td>
       <td className="px-2 py-1">
         <input className={inputCls} value={r.sku || ""} onChange={(e) => onChange({ sku: e.target.value })} />
       </td>
       <td className="px-2 py-1">
-        <select
-          className={inputCls}
-          value={r.categoryId || ""}
-          onChange={(e) => onChange({ categoryId: e.target.value })}
-        >
+        <select className={inputCls} value={r.categoryId || ""} onChange={(e) => onChange({ categoryId: e.target.value })}>
           {catOptions.map((o) => (
             <option key={o.value || "none"} value={o.value}>
               {o.label}
@@ -363,35 +451,14 @@ function GridRow({ r, isNew, catOptions, baseStock, onChange, onRemove }) {
         </select>
       </td>
       <td className="px-2 py-1">
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          className={`${inputCls} text-right tabular-nums`}
-          value={r.price}
-          onChange={(e) => onChange({ price: e.target.value })}
-        />
+        <input type="number" min="0" step="0.01" className={`${inputCls} text-right tabular-nums`} value={r.price} onChange={(e) => onChange({ price: e.target.value })} />
       </td>
       <td className="px-2 py-1">
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          className={`${inputCls} text-right tabular-nums`}
-          value={r.costPrice}
-          onChange={(e) => onChange({ costPrice: e.target.value })}
-        />
+        <input type="number" min="0" step="0.01" className={`${inputCls} text-right tabular-nums`} value={r.costPrice} onChange={(e) => onChange({ costPrice: e.target.value })} />
       </td>
       <td className="px-2 py-1">
         {isNew ? (
-          <input
-            type="number"
-            min="0"
-            className={`${inputCls} tabular-nums`}
-            placeholder="opening stock"
-            value={r.stock}
-            onChange={(e) => onChange({ stock: e.target.value })}
-          />
+          <input type="number" min="0" className={`${inputCls} tabular-nums`} placeholder="opening stock" value={r.stock} onChange={(e) => onChange({ stock: e.target.value })} />
         ) : r.hasVariants ? (
           <span className="text-xs text-slate-400">has variants — edit per variant</span>
         ) : r.productType !== "physical" ? (
@@ -400,38 +467,19 @@ function GridRow({ r, isNew, catOptions, baseStock, onChange, onRemove }) {
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-slate-500 tabular-nums w-14 shrink-0">now {baseStock ?? 0}</span>
             <div className="flex rounded-sm border border-slate-200 overflow-hidden text-[11px] shrink-0">
-              <button
-                type="button"
-                onClick={() => onChange({ stockMode: "add" })}
-                className={`px-1.5 py-1 ${r.stockMode === "add" ? "bg-brand-600 text-white" : "bg-white text-slate-500"}`}
-              >
+              <button type="button" onClick={() => onChange({ stockMode: "add" })} className={`px-1.5 py-1 ${r.stockMode === "add" ? "bg-brand-600 text-white" : "bg-white text-slate-500"}`}>
                 +Add
               </button>
-              <button
-                type="button"
-                onClick={() => onChange({ stockMode: "set" })}
-                className={`px-1.5 py-1 ${r.stockMode === "set" ? "bg-brand-600 text-white" : "bg-white text-slate-500"}`}
-              >
+              <button type="button" onClick={() => onChange({ stockMode: "set" })} className={`px-1.5 py-1 ${r.stockMode === "set" ? "bg-brand-600 text-white" : "bg-white text-slate-500"}`}>
                 Set
               </button>
             </div>
-            <input
-              type="number"
-              className={`${inputCls} tabular-nums`}
-              placeholder={r.stockMode === "add" ? "+ qty" : "exact"}
-              value={r.stockInput || ""}
-              onChange={(e) => onChange({ stockInput: e.target.value })}
-            />
+            <input type="number" className={`${inputCls} tabular-nums`} placeholder={r.stockMode === "add" ? "+ qty" : "exact"} value={r.stockInput || ""} onChange={(e) => onChange({ stockInput: e.target.value })} />
           </div>
         )}
       </td>
       <td className="px-2 py-1">
-        <input
-          type="date"
-          className={inputCls}
-          value={r.expiryDate || ""}
-          onChange={(e) => onChange({ expiryDate: e.target.value })}
-        />
+        <input type="date" className={inputCls} value={r.expiryDate || ""} onChange={(e) => onChange({ expiryDate: e.target.value })} />
       </td>
       <td className="px-1 py-1 text-center">
         {isNew && (
