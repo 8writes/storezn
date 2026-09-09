@@ -460,10 +460,14 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const completeSale = async (tenders) => {
     setSubmitting(true);
     const soldAt = new Date().toISOString();
+    // Always carry a real number (a recalled held sale can reach here
+    // with orderNo still null) - never serialise null into the payload.
+    const num = orderNo || generateOrderNumber();
+    if (num !== orderNo) setOrderNo(num);
     const payload = {
       sessionId: openSession.session.id,
       idempotencyKey: saleKey,
-      orderNumber: orderNo,
+      orderNumber: num,
       soldAt,
       items: cart.map((r) => ({
         productId: r.productId,
@@ -485,7 +489,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     // Snapshot for the printable receipt - built the same way whether the
     // sale reaches the server now or is queued for later.
     const receipt = {
-      orderNumber: orderNo,
+      orderNumber: num,
       soldAt,
       lines: lines.map((l) => ({
         name: l.product?.name || "Item",

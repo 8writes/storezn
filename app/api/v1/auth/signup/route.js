@@ -2,22 +2,34 @@ import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "../../../../../lib/db/index.js";
 import { customers, blockedEmails } from "../../../../../lib/db/schema.js";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, gt, or, sql } from "drizzle-orm";
 import { validate, customerSignupSchema } from "../../../../../lib/validate.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { sendVerificationEmail } from "../../../../../lib/emailVerification.js";
 import { normalizeEmail, emailDomain, isEmailBlocked } from "../../../../../lib/emailNormalize.js";
 import { sendPushToRole } from "../../../../../lib/push.js";
+import { readDevice } from "../../../../../lib/device.js";
+import { isDeviceBanned, banDevice, logAbuseEvent, maybeAutoBanFromAbuse, AUTO_BAN } from "../../../../../lib/deviceBan.js";
+
+const BANNED = (extra) => NextResponse.json({ error: "Access from this device has been restricted.", banned: true, ...extra }, { status: 403 });
 
 // Customer self-signup, scoped to whichever store's storefront the
-// request came from (via Host). Uniqueness is per (storeId, email) AND
-// per (storeId, normalizedEmail) - see customers in lib/db/schema.js -
-// so one mailbox can't farm accounts with foo+1@ / foo+2@ / etc.
+// request came from (via Host). Guards: per-(store,email) + per-(store,
+// normalizedEmail) uniqueness, the super-admin block-list, and a device
+// ban / auto-ban for abuse (see lib/deviceBan.js + the privacy policy).
 export async function POST(req) {
   const limit = checkRateLimit(req, "customer-signup", { max: 5, windowMs: 60_000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
+  }
+
+  const device = readDevice(req);
+
+  // 1. Already-barred device.
+  if (await isDeviceBanned(device)) {
+    await logAbuseEvent({ ...device, kind: "banned_device" });
+    return BANNED();
   }
 
   const host = req.headers.get("host") || "";
@@ -33,13 +45,29 @@ export async function POST(req) {
   const normalized = normalizeEmail(email);
   const domain = emailDomain(email);
 
-  // Super-admin block-list (spam-account farming).
+  // 2. Super-admin block-list. A device that keeps hitting it gets
+  //    auto-banned once it crosses the abuse threshold.
   const blockRows = await db
     .select({ value: blockedEmails.value, kind: blockedEmails.kind })
     .from(blockedEmails)
     .where(or(and(eq(blockedEmails.kind, "email"), eq(blockedEmails.value, normalized)), and(eq(blockedEmails.kind, "domain"), eq(blockedEmails.value, domain))));
   if (isEmailBlocked(email, blockRows)) {
+    await logAbuseEvent({ ...device, normalizedEmail: normalized, kind: "blocked_email" });
+    if (await maybeAutoBanFromAbuse({ ...device, subjectEmail: email })) return BANNED();
     return NextResponse.json({ error: "This email address can't be used to sign up." }, { status: 403 });
+  }
+
+  // 3. Signup flood from one device.
+  if (device.deviceId) {
+    const [{ n }] = await db
+      .select({ n: sql`count(*)`.mapWith(Number) })
+      .from(customers)
+      .where(and(eq(customers.signupDeviceId, device.deviceId), gt(customers.createdAt, sql`now() - interval '${sql.raw(String(AUTO_BAN.WINDOW_HOURS))} hours'`)));
+    if (n >= AUTO_BAN.AUTO_BAN_SIGNUPS - 1) {
+      await logAbuseEvent({ ...device, normalizedEmail: normalized, kind: "signup_flood" });
+      await banDevice({ ...device, reason: `Auto: ${n + 1} accounts from one device in ${AUTO_BAN.WINDOW_HOURS}h`, autoFlagged: true, subjectEmail: email });
+      return BANNED();
+    }
   }
 
   const [existing] = await db
@@ -62,11 +90,12 @@ export async function POST(req) {
         normalizedEmail: normalized,
         passwordHash,
         emailVerified: false,
+        signupDeviceId: device.deviceId,
+        signupIp: device.ip,
         termsAcceptedAt: new Date(),
       })
       .returning();
   } catch (err) {
-    // Lost a race with a simultaneous signup for the same mailbox.
     if (/unique|duplicate key/i.test(err.message || "")) {
       return NextResponse.json({ error: "That email is already in use" }, { status: 409 });
     }
@@ -75,8 +104,6 @@ export async function POST(req) {
 
   after(() => {
     sendVerificationEmail({ user: created, req, kind: "customer" }).catch((e) => console.error("sendVerificationEmail failed (signup):", e));
-    // Platform team gets pinged on every new customer so a spam wave can
-    // be caught early (see the block-list above / super-admin settings).
     const notice = {
       title: "New customer signup",
       body: `${firstName} ${lastName} · ${email} · ${store.name}`,

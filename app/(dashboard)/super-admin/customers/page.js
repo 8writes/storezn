@@ -19,6 +19,7 @@ export default function SuperAdminCustomersPage() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [verifyingId, setVerifyingId] = useState(null);
+  const [banningId, setBanningId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -59,6 +60,41 @@ export default function SuperAdminCustomersPage() {
     }
   };
 
+  const handleBan = async (c) => {
+    if (c.isBanned) {
+      // Unban: find and lift any device ban tied to this email, else just clear the flag.
+      setBanningId(c.id);
+      try {
+        const { devices } = await apiFetch("/api/v1/super-admin/bans");
+        const row = (devices || []).find((d) => !d.unbannedAt && d.subjectEmail === c.email);
+        if (row) await apiFetch(`/api/v1/super-admin/bans/${row.id}`, { method: "DELETE" });
+        else await apiFetch(`/api/v1/super-admin/customers/${c.id}`, { method: "PATCH", body: JSON.stringify({ isBanned: false }) });
+        toast.success("Customer unbanned");
+        load();
+      } catch (err) {
+        toast.error(err.message || "Couldn't unban");
+      } finally {
+        setBanningId(null);
+      }
+      return;
+    }
+    const reason = window.prompt("Ban this customer. Reason (shown to them on appeal):", "Bulk account creation / abuse");
+    if (!reason) return;
+    setBanningId(c.id);
+    try {
+      await apiFetch("/api/v1/super-admin/bans", {
+        method: "POST",
+        body: JSON.stringify({ customerId: c.id, banSignupDevice: true, reason: reason.trim() }),
+      });
+      toast.success(c.signupDeviceId ? "Customer + their device banned" : "Customer banned");
+      load();
+    } catch (err) {
+      toast.error(err.message || "Couldn't ban");
+    } finally {
+      setBanningId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Customers</h1>
@@ -96,19 +132,30 @@ export default function SuperAdminCustomersPage() {
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(c.totalSpent)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(c.createdAt)}</td>
                   <td className="px-4 py-3">
-                    <Badge color={c.emailVerified ? "green" : "amber"}>{c.emailVerified ? "Verified" : "Unverified"}</Badge>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge color={c.emailVerified ? "green" : "amber"}>{c.emailVerified ? "Verified" : "Unverified"}</Badge>
+                      {c.isBanned && <Badge color="red">Banned</Badge>}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
                     {!c.emailVerified && (
                       <button
                         type="button"
                         disabled={verifyingId === c.id}
                         onClick={() => handleVerify(c)}
-                        className="text-green-600 hover:underline disabled:opacity-50 cursor-pointer"
+                        className="text-green-600 hover:underline disabled:opacity-50 cursor-pointer mr-3"
                       >
                         Verify manually
                       </button>
                     )}
+                    <button
+                      type="button"
+                      disabled={banningId === c.id}
+                      onClick={() => handleBan(c)}
+                      className={`hover:underline disabled:opacity-50 cursor-pointer ${c.isBanned ? "text-brand-600" : "text-red-600"}`}
+                    >
+                      {c.isBanned ? "Unban" : "Ban"}
+                    </button>
                   </td>
                 </tr>
               ))

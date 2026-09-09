@@ -12,7 +12,7 @@ export default function TermsPage() {
         <div>
           <Link href="/" className="text-sm text-brand-600 hover:underline"> Storezn</Link>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 mt-4">Terms of Service</h1>
-          <p className="text-sm text-slate-700 mt-1">Last updated August 2026</p>
+          <p className="text-sm text-slate-700 mt-1">Last updated September 2026</p>
         </div>
 
         <div className="space-y-8 text-sm text-slate-700 leading-relaxed">
@@ -83,7 +83,45 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-slate-900">6. Orders, refunds, and disputes</h2>
+            <h2 className="text-base font-semibold text-slate-900">6. Restrictions</h2>
+            <p>You may not, and may not permit or help anyone else to:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>reverse-engineer, decompile, or otherwise attempt to derive the source code or underlying structure of the platform;</li>
+              <li>copy, imitate, or reproduce the platform&apos;s features, workflows, or design for the purpose of building a competing product;</li>
+              <li>scrape, crawl, harvest, or bulk-download data from the platform by any automated or manual means;</li>
+              <li>create accounts in bulk, or share your account credentials or access with anyone else;</li>
+              <li>use the platform, or any data or output obtained from it, for a commercial purpose other than operating your own store or shopping as a customer;</li>
+              <li>resell, sublicense, rent, or otherwise redistribute the platform or access to it;</li>
+              <li>modify, adapt, translate, or create derivative works of the platform or its code.</li>
+            </ul>
+            <p>
+              A violation of this section may result in the immediate suspension or permanent ban of the account and any
+              device associated with it, without notice, and Storezn reserves the right to pursue any legal remedies
+              available to it.
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-base font-semibold text-slate-900">7. Enforcement, suspension, and appeals</h2>
+            <p>
+              To keep the platform safe and to detect abuse (bulk account creation, scraping, fraud, and the conduct in
+              section 6), we collect and process limited technical information about the connections and devices used to
+              access Storezn &mdash; including an IP address, a randomly-generated device identifier, and a small set of
+              non-identifying browser characteristics. This is described in full in our{" "}
+              <a href="/privacy" className="text-brand-600 hover:underline">Privacy Policy</a>.
+            </p>
+            <p>
+              We may suspend or ban an account, or block a device, automatically (for example after repeated blocked
+              signup attempts from one device) or by manual review. If your access has been restricted and you believe it
+              was in error, you may appeal by emailing{" "}
+              <a href="mailto:support@ozmictech.com?subject=Account%20appeal" className="text-brand-600 hover:underline">support@ozmictech.com</a>{" "}
+              from the email address on the account, describing what happened. We aim to respond within a few business
+              days.
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-base font-semibold text-slate-900">8. Orders, refunds, and disputes</h2>
             <p>
               A customer may request a refund on a delivered order, stating their reason. The vendor reviews and
               decides on that request. Storezn may step in if a vendor is unresponsive or a pattern of complaints
@@ -92,7 +130,7 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-slate-900">7. Suspension and termination</h2>
+            <h2 className="text-base font-semibold text-slate-900">9. Suspension and termination</h2>
             <p>
               We may suspend an individual product, a vendor&apos;s entire store, or an account, if we reasonably believe
               this agreement, the law, or a customer&apos;s rights are being violated. A suspended product or store is
@@ -103,7 +141,7 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-slate-900">8. Limitation of liability</h2>
+            <h2 className="text-base font-semibold text-slate-900">10. Limitation of liability</h2>
             <p>
               Storezn provides the platform &quot;as is.&quot; To the extent permitted by law, we are not liable for a
               vendor&apos;s products, listings, fulfillment, or conduct, or for a customer&apos;s misuse of a product purchased
@@ -113,7 +151,7 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-slate-900">9. Changes to these Terms</h2>
+            <h2 className="text-base font-semibold text-slate-900">11. Changes to these Terms</h2>
             <p>
               We may update these Terms as the platform changes. Continuing to use Storezn after an update means you
               accept the revised Terms.
@@ -121,7 +159,7 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-base font-semibold text-slate-900">10. Contact</h2>
+            <h2 className="text-base font-semibold text-slate-900">12. Contact</h2>
             <p>
               Questions about these Terms can be sent to{" "}
               <a href="mailto:support@ozmictech.com" className="text-brand-600 hover:underline">support@ozmictech.com</a>.

@@ -8,6 +8,8 @@ import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { sendVerificationEmail } from "../../../../../lib/emailVerification.js";
 import { sendPushToRole } from "../../../../../lib/push.js";
 import { normalizeEmail, emailDomain, isEmailBlocked } from "../../../../../lib/emailNormalize.js";
+import { readDevice } from "../../../../../lib/device.js";
+import { isDeviceBanned, logAbuseEvent } from "../../../../../lib/deviceBan.js";
 
 // Public self-signup for vendors: anyone can create their own store and
 // vendor account, no super_admin involved. Same store+vendor transaction
@@ -18,6 +20,12 @@ export async function POST(req) {
   const limit = checkRateLimit(req, "vendor-signup", { max: 5, windowMs: 60_000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
+  }
+
+  const device = readDevice(req);
+  if (await isDeviceBanned(device)) {
+    await logAbuseEvent({ ...device, kind: "banned_device" });
+    return NextResponse.json({ error: "Access from this device has been restricted.", banned: true }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
@@ -62,6 +70,8 @@ export async function POST(req) {
         passwordHash,
         role: "vendor",
         emailVerified: false,
+        signupDeviceId: device.deviceId,
+        signupIp: device.ip,
         termsAcceptedAt: new Date(),
         // Every other role defaults to "approved" (see
         // users.approvalStatus in lib/db/schema.js) - a new vendor

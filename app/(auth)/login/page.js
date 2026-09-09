@@ -7,6 +7,8 @@ import { Input } from "../../../components/ui/Input.js";
 import { PasswordInput } from "../../../components/ui/PasswordInput.js";
 import { Button } from "../../../components/ui/Button.js";
 import { networkErrorMessage, serverErrorMessage, readJson } from "../../../lib/fetchError.js";
+import { deviceHeaders } from "../../../lib/clientDevice.js";
+import { BannedNotice } from "../../../components/BannedNotice.js";
 import { toast } from "sonner";
 
 function LoginForm() {
@@ -19,6 +21,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [unverified, setUnverified] = useState(false);
   const [resending, setResending] = useState(false);
+  const [banned, setBanned] = useState(null); // { reason } | null
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,7 +33,7 @@ function LoginForm() {
     try {
       res = await fetch("/api/v1/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...deviceHeaders() },
         body: JSON.stringify(form),
       });
     } catch (err) {
@@ -45,6 +48,10 @@ function LoginForm() {
       const data = await readJson(res);
 
       if (!res.ok) {
+        if (data?.banned) {
+          setBanned({ reason: data.reason || null });
+          return;
+        }
         toast.error(data?.error || serverErrorMessage(res.status));
         if (data?.code === "EMAIL_NOT_VERIFIED") setUnverified(true);
         return;
@@ -84,6 +91,8 @@ function LoginForm() {
       setResending(false);
     }
   };
+
+  if (banned) return <BannedNotice reason={banned.reason} />;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">

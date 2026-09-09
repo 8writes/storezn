@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
 import { networkErrorMessage, serverErrorMessage, readJson } from "@/lib/fetchError.js";
+import { deviceHeaders } from "@/lib/clientDevice.js";
+import { BannedNotice } from "@/components/BannedNotice.js";
 
 export default function StorefrontLoginPage() {
   const router = useRouter();
@@ -17,6 +19,7 @@ export default function StorefrontLoginPage() {
   const [loading, setLoading] = useState(false);
   const [unverified, setUnverified] = useState(false);
   const [resending, setResending] = useState(false);
+  const [banned, setBanned] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,7 +30,7 @@ export default function StorefrontLoginPage() {
     try {
       res = await fetch("/api/v1/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...deviceHeaders() },
         body: JSON.stringify(form),
       });
     } catch (err) {
@@ -39,6 +42,10 @@ export default function StorefrontLoginPage() {
     try {
       const data = await readJson(res);
       if (!res.ok) {
+        if (data?.banned) {
+          setBanned({ reason: data.reason || null });
+          return;
+        }
         if (data?.code === "EMAIL_NOT_VERIFIED") setUnverified(true);
         toast.error(data?.error || serverErrorMessage(res.status));
         return;
@@ -72,6 +79,8 @@ export default function StorefrontLoginPage() {
       setResending(false);
     }
   };
+
+  if (banned) return <BannedNotice reason={banned.reason} />;
 
   return (
     <div className="max-w-sm mx-auto py-8 space-y-8">

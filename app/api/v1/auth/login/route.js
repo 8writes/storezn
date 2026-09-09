@@ -8,6 +8,8 @@ import { validate, loginSchema } from "../../../../../lib/validate.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { GUEST_CART_COOKIE, findCartItem } from "../../../../../lib/cart.js";
+import { readDevice } from "../../../../../lib/device.js";
+import { isDeviceBanned } from "../../../../../lib/deviceBan.js";
 
 // A fresh Response per call - a module-level NextResponse would be a
 // single-use body stream shared across concurrent requests, so the
@@ -48,6 +50,12 @@ export async function POST(req) {
 async function handleLogin(req) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+
+  // A barred device can't sign in from anywhere - the account may be
+  // fine, the device isn't (see lib/deviceBan.js + the /banned page).
+  if (await isDeviceBanned(readDevice(req))) {
+    return NextResponse.json({ error: "Access from this device has been restricted.", banned: true }, { status: 403 });
+  }
 
   // Two tiers: a generous per-IP cap catches broad abuse, a tight
   // per-email cap stops someone hammering one account - so a shared
@@ -94,7 +102,7 @@ async function handleLogin(req) {
     // Checked only after the password is confirmed, so a wrong password on
     // a banned account is indistinguishable from a wrong password on any
     // other - "suspended" is never an email-enumeration oracle.
-    if (account.isBanned) return NextResponse.json({ error: "This account has been suspended" }, { status: 403 });
+    if (account.isBanned) return NextResponse.json({ error: "This account has been suspended.", banned: true, reason: account.bannedReason || null }, { status: 403 });
     if (!account.emailVerified) {
       return NextResponse.json({ error: "Please verify your email before signing in", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });
     }
@@ -127,7 +135,7 @@ async function handleLogin(req) {
 
   const valid = await bcrypt.compare(password, account.passwordHash);
   if (!valid) return invalid();
-  if (account.isBanned) return NextResponse.json({ error: "This account has been suspended" }, { status: 403 });
+  if (account.isBanned) return NextResponse.json({ error: "This account has been suspended.", banned: true, reason: account.bannedReason || null }, { status: 403 });
   if (!account.emailVerified) {
     return NextResponse.json({ error: "Please verify your email before signing in", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });
   }

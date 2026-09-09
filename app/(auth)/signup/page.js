@@ -10,6 +10,8 @@ import { Select } from "@/components/ui/Select.js";
 import { slugifyStoreName } from "@/lib/slugify.js";
 import { NIGERIA_STATE_OPTIONS } from "@/lib/nigeria.js";
 import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
+import { deviceHeaders } from "@/lib/clientDevice.js";
+import { BannedNotice } from "@/components/BannedNotice.js";
 
 const EMPTY_FORM = {
   name: "",
@@ -25,6 +27,7 @@ function VendorSignupForm() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState(false);
+  const [banned, setBanned] = useState(null);
 
   // Signup doesn't auto-login (email must be verified first, see below),
   // so a "?next=" here can't just be handed to a redirect the way
@@ -51,11 +54,17 @@ function VendorSignupForm() {
     try {
       const res = await fetch("/api/v1/vendor/signup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...deviceHeaders() },
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Signup failed");
+      if (!res.ok) {
+        if (data?.banned) {
+          setBanned({ reason: data.reason || null });
+          return;
+        }
+        throw new Error(data.error || "Signup failed");
+      }
 
       // No auto-login - login now requires a verified email, and the
       // account can't be verified yet (that link just landed in their
@@ -67,6 +76,8 @@ function VendorSignupForm() {
       setLoading(false);
     }
   };
+
+  if (banned) return <BannedNotice reason={banned.reason} />;
 
   if (created) {
     return (

@@ -59,6 +59,7 @@ const NAV_BY_ROLE = {
         { href: "/super-admin/orders", label: "Orders", icon: ShoppingBag },
         { href: "/super-admin/transactions", label: "Transactions", icon: Receipt },
         { href: "/super-admin/customers", label: "Customers", icon: Users },
+        { href: "/super-admin/bans", label: "Bans", icon: ShieldCheck },
       ],
     },
     {
@@ -97,6 +98,7 @@ const NAV_BY_ROLE = {
         { href: "/super-admin/orders", label: "Orders", icon: ShoppingBag },
         { href: "/super-admin/transactions", label: "Transactions", icon: Receipt },
         { href: "/super-admin/customers", label: "Customers", icon: Users },
+        { href: "/super-admin/bans", label: "Bans", icon: ShieldCheck },
       ],
     },
     {

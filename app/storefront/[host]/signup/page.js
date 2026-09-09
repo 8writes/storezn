@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
+import { deviceHeaders } from "@/lib/clientDevice.js";
+import { BannedNotice } from "@/components/BannedNotice.js";
 
 const EMPTY_FORM = { firstName: "", lastName: "", email: "", password: "" };
 
@@ -12,6 +14,7 @@ export default function StorefrontSignupPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState(false);
+  const [banned, setBanned] = useState(null);
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -21,11 +24,17 @@ export default function StorefrontSignupPage() {
     try {
       const res = await fetch("/api/v1/auth/signup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...deviceHeaders() },
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Signup failed");
+      if (!res.ok) {
+        if (data?.banned) {
+          setBanned({ reason: data.reason || null });
+          return;
+        }
+        throw new Error(data.error || "Signup failed");
+      }
 
       // No auto-login - login now requires a verified email, and the
       // account can't be verified yet (that link just landed in their
@@ -37,6 +46,8 @@ export default function StorefrontSignupPage() {
       setLoading(false);
     }
   };
+
+  if (banned) return <BannedNotice reason={banned.reason} />;
 
   if (created) {
     return (

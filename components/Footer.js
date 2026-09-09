@@ -12,6 +12,12 @@ export function Footer() {
             <Link href="/help" className="hover:underline">
               Vendor guide
             </Link>
+            <Link href="/terms" className="hover:underline">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:underline">
+              Privacy
+            </Link>
             <a
               href="https://ozmictech.com/"
               target="_blank"

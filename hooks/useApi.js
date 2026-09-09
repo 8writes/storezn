@@ -2,6 +2,7 @@
 import { useCallback } from "react";
 import { networkErrorMessage, serverErrorMessage } from "@/lib/fetchError.js";
 import { markOffline, markOnline } from "@/lib/connectivity.js";
+import { deviceHeaders } from "@/lib/clientDevice.js";
 
 export function useApi(token) {
   const apiFetch = useCallback(
@@ -12,6 +13,7 @@ export function useApi(token) {
           ...options,
           headers: {
             "Content-Type": "application/json",
+            ...deviceHeaders(),
             ...(token && { Authorization: `Bearer ${token}` }),
             ...options.headers,
           },
@@ -34,7 +36,10 @@ export function useApi(token) {
       }
 
       if (!res.ok) {
-        throw new Error(data?.error || serverErrorMessage(res.status));
+        const e = new Error(data?.error || serverErrorMessage(res.status));
+        e.status = res.status;
+        if (data?.banned) e.banned = true;
+        throw e;
       }
 
       return data;
