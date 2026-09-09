@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { desc, eq, inArray } from "drizzle-orm";
+import { count, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { posSessions, cashMovements, orders, orderTenders, posHeldSales, staff, users } from "@/lib/db/schema.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
@@ -8,8 +8,40 @@ import { posContext, loadSession } from "@/lib/posAccess.js";
 import { validate, reviewSessionSchema } from "@/lib/validate.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 
+const LIST_PAGE = 20;
+
+// Resolve cash-movement actor ids (staff or users) to display names.
+async function resolveNames(ids) {
+  const nameById = {};
+  if (!ids.length) return nameById;
+  const [staffN, userN] = await Promise.all([
+    db.select({ id: staff.id, f: staff.firstName, l: staff.lastName, e: staff.email }).from(staff).where(inArray(staff.id, ids)),
+    db.select({ id: users.id, f: users.firstName, l: users.lastName, e: users.email }).from(users).where(inArray(users.id, ids)),
+  ]);
+  for (const r of [...staffN, ...userN]) nameById[r.id] = `${r.f || ""} ${r.l || ""}`.trim() || r.e;
+  return nameById;
+}
+
+// method(:provider) label per order, so a Sales row can show "paid by".
+async function methodsFor(orderIds) {
+  const map = new Map();
+  if (!orderIds.length) return map;
+  const tenders = await db.select().from(orderTenders).where(inArray(orderTenders.orderId, orderIds));
+  for (const t of tenders) {
+    const label = t.provider ? `${t.method}:${t.provider}` : t.method;
+    const arr = map.get(t.orderId) || [];
+    if (!arr.includes(label)) arr.push(label);
+    map.set(t.orderId, arr);
+  }
+  return map;
+}
+
 // Session detail + a live X-report summary. Polled by the sell screen for
 // the session bar, and rendered in full on the session/Z-report view.
+//
+// ?movementsPage=N or ?ordersPage=N returns just that one paginated list
+// (20/page, newest first) for the session page's "load more" - the heavy
+// summary is skipped.
 export async function GET(req, { params }) {
   const { storeId, id } = await params;
   const ctx = await posContext(req, storeId);
@@ -18,6 +50,47 @@ export async function GET(req, { params }) {
   const row = await loadSession(storeId, id, ctx.user);
   if (!row) return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
+  const sp = new URL(req.url).searchParams;
+
+  // ---- "load more" for the Cash movements list ----
+  if (sp.get("movementsPage")) {
+    const page = Math.max(1, parseInt(sp.get("movementsPage"), 10) || 1);
+    const [rows, [{ total }]] = await Promise.all([
+      db.select().from(cashMovements).where(eq(cashMovements.sessionId, id)).orderBy(desc(cashMovements.createdAt)).limit(LIST_PAGE).offset((page - 1) * LIST_PAGE),
+      db.select({ total: count() }).from(cashMovements).where(eq(cashMovements.sessionId, id)),
+    ]);
+    const nameById = await resolveNames([...new Set(rows.map((m) => m.createdBy).filter(Boolean))]);
+    const ordIds = [...new Set(rows.map((m) => m.orderId).filter(Boolean))];
+    const orderNoById = ordIds.length
+      ? new Map((await db.select({ id: orders.id, orderNumber: orders.orderNumber }).from(orders).where(inArray(orders.id, ordIds))).map((o) => [o.id, o.orderNumber]))
+      : new Map();
+    return NextResponse.json({
+      movements: rows.map((m) => ({ ...m, by: nameById[m.createdBy] || null, orderNumber: m.orderId ? orderNoById.get(m.orderId) || null : null })),
+      pagination: { page, pageSize: LIST_PAGE, total, totalPages: Math.max(1, Math.ceil(total / LIST_PAGE)) },
+    });
+  }
+
+  // ---- "load more" for the Sales list ----
+  if (sp.get("ordersPage")) {
+    const page = Math.max(1, parseInt(sp.get("ordersPage"), 10) || 1);
+    const [rows, [{ total }]] = await Promise.all([
+      db
+        .select({ id: orders.id, orderNumber: orders.orderNumber, totalAmount: orders.totalAmount, originalOrderId: orders.originalOrderId, createdAt: orders.createdAt })
+        .from(orders)
+        .where(eq(orders.posSessionId, id))
+        .orderBy(desc(orders.createdAt))
+        .limit(LIST_PAGE)
+        .offset((page - 1) * LIST_PAGE),
+      db.select({ total: count() }).from(orders).where(eq(orders.posSessionId, id)),
+    ]);
+    const methods = await methodsFor(rows.map((o) => o.id));
+    return NextResponse.json({
+      orders: rows.map((o) => ({ ...o, paymentMethods: methods.get(o.id) || [] })),
+      pagination: { page, pageSize: LIST_PAGE, total, totalPages: Math.max(1, Math.ceil(total / LIST_PAGE)) },
+    });
+  }
+
+  // ---- full detail: summary (all data) + first page of each list ----
   const [movements, sessionOrders, held] = await Promise.all([
     db.select().from(cashMovements).where(eq(cashMovements.sessionId, id)).orderBy(cashMovements.createdAt),
     db
@@ -37,23 +110,16 @@ export async function GET(req, { params }) {
   ]);
 
   const orderIds = sessionOrders.map((o) => o.id);
-  const tenders = orderIds.length
-    ? await db.select().from(orderTenders).where(eq(orderTenders.sessionId, id))
-    : [];
+  const tenders = orderIds.length ? await db.select().from(orderTenders).where(eq(orderTenders.sessionId, id)) : [];
 
   // orders.totalAmount is naira (real); the summary works in kobo.
   const summary = buildSessionSummary({
     session: row.session,
-    orders: sessionOrders.map((o) => ({
-      ...o,
-      totalAmount: toKobo(o.totalAmount),
-      discountAmount: o.discountAmount || 0,
-    })),
+    orders: sessionOrders.map((o) => ({ ...o, totalAmount: toKobo(o.totalAmount), discountAmount: o.discountAmount || 0 })),
     tenders,
     movements,
   });
 
-  // Payment method(s) per order, so the Sales list can show "paid by".
   const methodsByOrder = new Map();
   for (const t of tenders) {
     const label = t.provider ? `${t.method}:${t.provider}` : t.method;
@@ -62,20 +128,20 @@ export async function GET(req, { params }) {
     methodsByOrder.set(t.orderId, arr);
   }
 
-  // Name every cash movement: who moved the money, and (for a sale/refund
-  // movement) which order it was - so the Z report's cash-movement list
-  // shows exactly what happened, not just a running total.
-  const actorIds = [...new Set(movements.map((m) => m.createdBy).filter(Boolean))];
-  const nameById = {};
-  if (actorIds.length) {
-    const [staffN, userN] = await Promise.all([
-      db.select({ id: staff.id, f: staff.firstName, l: staff.lastName, e: staff.email }).from(staff).where(inArray(staff.id, actorIds)),
-      db.select({ id: users.id, f: users.firstName, l: users.lastName, e: users.email }).from(users).where(inArray(users.id, actorIds)),
-    ]);
-    for (const r of [...staffN, ...userN]) nameById[r.id] = `${r.f || ""} ${r.l || ""}`.trim() || r.e;
-  }
+  const nameById = await resolveNames([...new Set(movements.map((m) => m.createdBy).filter(Boolean))]);
   const orderNoById = new Map(sessionOrders.map((o) => [o.id, o.orderNumber]));
-  const movementsOut = movements.map((m) => ({
+
+  // Name the itemised cash events so the Z report's own mini-list stays
+  // informative even though the full ledger below is now paginated.
+  summary.cashEvents = (summary.cashEvents || []).map((m) => ({
+    ...m,
+    by: nameById[m.createdBy] || null,
+    orderNumber: m.orderId ? orderNoById.get(m.orderId) || null : null,
+  }));
+
+  // Newest first for the paginated list; only the first page is sent here.
+  const movementsDesc = [...movements].reverse();
+  const movementsOut = movementsDesc.slice(0, LIST_PAGE).map((m) => ({
     ...m,
     by: nameById[m.createdBy] || null,
     orderNumber: m.orderId ? orderNoById.get(m.orderId) || null : null,
@@ -86,7 +152,9 @@ export async function GET(req, { params }) {
     register: { id: row.register.id, name: row.register.name, branchId: row.register.branchId },
     summary,
     movements: movementsOut,
-    orders: sessionOrders.map((o) => ({ ...o, paymentMethods: methodsByOrder.get(o.id) || [] })),
+    movementsTotal: movements.length,
+    orders: sessionOrders.slice(0, LIST_PAGE).map((o) => ({ ...o, paymentMethods: methodsByOrder.get(o.id) || [] })),
+    ordersTotal: sessionOrders.length,
     heldSales: held,
   });
 }

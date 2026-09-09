@@ -54,13 +54,56 @@ export default function SessionDetailPage({ params }) {
   const [reviewNote, setReviewNote] = useState("");
   const [reviewing, setReviewing] = useState(false);
 
+  // The Cash movements + Sales lists load 20 at a time.
+  const [moves, setMoves] = useState([]);
+  const [movesPage, setMovesPage] = useState(1);
+  const [movesTotal, setMovesTotal] = useState(0);
+  const [movesLoading, setMovesLoading] = useState(false);
+  const [ords, setOrds] = useState([]);
+  const [ordsPage, setOrdsPage] = useState(1);
+  const [ordsTotal, setOrdsTotal] = useState(0);
+  const [ordsLoading, setOrdsLoading] = useState(false);
+
   useEffect(() => {
     if (!token || !storeId) return;
     apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${id}`)
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        setMoves(d.movements || []);
+        setMovesTotal(d.movementsTotal ?? (d.movements || []).length);
+        setMovesPage(1);
+        setOrds(d.orders || []);
+        setOrdsTotal(d.ordersTotal ?? (d.orders || []).length);
+        setOrdsPage(1);
+      })
       .catch((err) => toast.error(err.message || "Couldn't load the session"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId, id]);
+
+  const loadMoreMoves = async () => {
+    setMovesLoading(true);
+    try {
+      const res = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${id}?movementsPage=${movesPage + 1}`);
+      setMoves((m) => [...m, ...(res.movements || [])]);
+      setMovesPage((p) => p + 1);
+    } catch (err) {
+      toast.error(err.message || "Couldn't load more");
+    } finally {
+      setMovesLoading(false);
+    }
+  };
+  const loadMoreOrds = async () => {
+    setOrdsLoading(true);
+    try {
+      const res = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${id}?ordersPage=${ordsPage + 1}`);
+      setOrds((o) => [...o, ...(res.orders || [])]);
+      setOrdsPage((p) => p + 1);
+    } catch (err) {
+      toast.error(err.message || "Couldn't load more");
+    } finally {
+      setOrdsLoading(false);
+    }
+  };
 
   const approveClose = async () => {
     setReviewing(true);
@@ -80,8 +123,10 @@ export default function SessionDetailPage({ params }) {
 
   if (!data) return <div className="max-w-2xl mx-auto h-64 bg-slate-100 rounded-sm animate-pulse" />;
 
-  const { session, register, summary, movements, orders } = data;
-  const report = session.zReport || summary;
+  const { session, register, summary } = data;
+  // Frozen Z for a closed shift, but always with the freshly-computed
+  // itemised cash events (the frozen ones can be stale/absent).
+  const report = { ...(session.zReport || summary), cashEvents: summary.cashEvents };
   const isOwner = user?.role === "vendor" || user?.role === "super_admin";
   const forced = session.closeMethod === "forced_uncounted";
 
@@ -165,7 +210,7 @@ export default function SessionDetailPage({ params }) {
       )}
 
       <div className="bg-white border border-slate-200 rounded-sm p-4">
-        <ZReport summary={report} title={session.status === "open" ? "X report" : "Z report"} movements={movements} />
+        <ZReport summary={report} title={session.status === "open" ? "X report" : "Z report"} />
         {session.countBreakdown && Object.keys(session.countBreakdown).length > 0 && (
           <div className="mt-3 border-t border-slate-100 pt-2">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Counted by notes</p>
@@ -184,66 +229,84 @@ export default function SessionDetailPage({ params }) {
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-hidden print:break-inside-avoid">
         <div className="px-4 py-2.5 border-b border-slate-100">
-          <p className="text-sm font-semibold text-slate-700">Cash movements</p>
-          <p className="text-xs text-slate-400">Every entry in and out of this drawer, in order &mdash; who did it, when, and why.</p>
+          <p className="text-sm font-semibold text-slate-700">Cash movements ({movesTotal})</p>
+          <p className="text-xs text-slate-400">Every entry in and out of this drawer, newest first &mdash; who did it, when, and why.</p>
         </div>
-        {movements.length === 0 ? (
+        {moves.length === 0 ? (
           <p className="text-sm text-slate-500 px-4 py-4">None</p>
         ) : (
-          <ul className="divide-y divide-slate-100 text-sm">
-            {movements.map((m) => (
-              <li key={m.id} className="px-4 py-2.5">
-                <div className="flex items-baseline justify-between gap-4">
-                  <span className="font-medium text-slate-800">{MOVE_LABEL[m.kind] || m.kind}</span>
-                  <span className={`tabular-nums font-medium ${m.amount < 0 ? "text-red-600" : "text-slate-900"}`}>
-                    {m.amount > 0 ? "+" : ""}{formatKobo(m.amount)}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 mt-0.5">{MOVE_HINT[m.kind] || ""}</p>
-                {(m.reason || m.orderNumber) && (
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    {m.orderNumber ? (
-                      <Link
-                        href={`/vendor/orders/${m.orderId}?storeId=${storeId}`}
-                        className="text-brand-700 hover:text-brand-800 print:text-slate-700"
-                      >
-                        {m.orderNumber}
-                      </Link>
-                    ) : null}
-                    {m.orderNumber && m.reason ? " · " : ""}
-                    {m.reason || ""}
+          <>
+            <ul className="divide-y divide-slate-100 text-sm">
+              {moves.map((m) => (
+                <li key={m.id} className="px-4 py-2.5">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="font-medium text-slate-800">{MOVE_LABEL[m.kind] || m.kind}</span>
+                    <span className={`tabular-nums font-medium ${m.amount < 0 ? "text-red-600" : "text-slate-900"}`}>
+                      {m.amount > 0 ? "+" : ""}{formatKobo(m.amount)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">{MOVE_HINT[m.kind] || ""}</p>
+                  {(m.reason || m.orderNumber) && (
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      {m.orderNumber ? (
+                        <Link
+                          href={`/vendor/orders/${m.orderId}?storeId=${storeId}`}
+                          className="text-brand-700 hover:text-brand-800 print:text-slate-700"
+                        >
+                          {m.orderNumber}
+                        </Link>
+                      ) : null}
+                      {m.orderNumber && m.reason ? " · " : ""}
+                      {m.reason || ""}
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {m.by || "—"} · {formatDateTime(m.createdAt)}
                   </p>
-                )}
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {m.by || "—"} · {formatDateTime(m.createdAt)}
-                </p>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+            {moves.length < movesTotal && (
+              <div className="border-t border-slate-100 p-2 print:hidden">
+                <Button type="button" variant="outline" size="sm" fullWidth loading={movesLoading} onClick={loadMoreMoves}>
+                  Load 20 more ({movesTotal - moves.length} left)
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-sm overflow-hidden print:break-inside-avoid">
         <p className="text-sm font-semibold text-slate-700 px-4 py-2.5 border-b border-slate-100">
-          Sales ({orders.length})
+          Sales ({ordsTotal})
         </p>
-        {orders.length === 0 ? (
+        {ords.length === 0 ? (
           <p className="text-sm text-slate-500 px-4 py-4">None</p>
         ) : (
-          <ul className="divide-y divide-slate-100 text-sm">
-            {orders.map((o) => (
-              <li key={o.id} className="flex justify-between gap-4 px-4 py-2">
-                <Link href={`/vendor/orders/${o.id}?storeId=${storeId}`} className="text-brand-700 hover:text-brand-800 print:text-slate-700">
-                  {o.orderNumber}
-                  {o.originalOrderId ? <span className="text-slate-400"> · return</span> : null}
-                  {paidBy(o.paymentMethods) && <span className="text-slate-400"> · {paidBy(o.paymentMethods)}</span>}
-                </Link>
-                <span className={`tabular-nums ${Number(o.totalAmount) < 0 ? "text-red-600" : "text-slate-900"}`}>
-                  {formatCurrency(o.totalAmount)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="divide-y divide-slate-100 text-sm">
+              {ords.map((o) => (
+                <li key={o.id} className="flex justify-between gap-4 px-4 py-2">
+                  <Link href={`/vendor/orders/${o.id}?storeId=${storeId}`} className="text-brand-700 hover:text-brand-800 print:text-slate-700">
+                    {o.orderNumber}
+                    {o.originalOrderId ? <span className="text-slate-400"> · return</span> : null}
+                    {paidBy(o.paymentMethods) && <span className="text-slate-400"> · {paidBy(o.paymentMethods)}</span>}
+                  </Link>
+                  <span className={`tabular-nums ${Number(o.totalAmount) < 0 ? "text-red-600" : "text-slate-900"}`}>
+                    {formatCurrency(o.totalAmount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {ords.length < ordsTotal && (
+              <div className="border-t border-slate-100 p-2 print:hidden">
+                <Button type="button" variant="outline" size="sm" fullWidth loading={ordsLoading} onClick={loadMoreOrds}>
+                  Load 20 more ({ordsTotal - ords.length} left)
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
