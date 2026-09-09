@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
+import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { PushNotificationToggle } from "@/components/ui/PushNotificationToggle.js";
@@ -97,6 +98,8 @@ export default function SuperAdminSettingsPage() {
 
       <PushNotificationToggle token={token} />
 
+      <BlockedEmails token={token} />
+
       {loading ? (
         <FormSkeleton fields={2} />
       ) : (
@@ -183,6 +186,97 @@ export default function SuperAdminSettingsPage() {
             <Button onClick={save} loading={saving}>Save</Button>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+// Signup block-list - emails / domains that are outright rejected at
+// signup (customer and vendor). Its own fetch so it isn't tied to the
+// settings form's loading state.
+function BlockedEmails({ token }) {
+  const { apiFetch } = useApi(token);
+  const [rows, setRows] = useState(null);
+  const [value, setValue] = useState("");
+  const [reason, setReason] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch("/api/v1/super-admin/blocked-emails")
+      .then((d) => setRows(d.blocked))
+      .catch(() => setRows([]));
+  }, [token, apiFetch]);
+
+  const add = async () => {
+    if (!value.trim()) return;
+    setAdding(true);
+    try {
+      const d = await apiFetch("/api/v1/super-admin/blocked-emails", {
+        method: "POST",
+        body: JSON.stringify({ value: value.trim(), reason: reason.trim() || undefined }),
+      });
+      setRows((r) => [d.blocked, ...(r || [])]);
+      setValue("");
+      setReason("");
+      toast.success("Added to the block-list");
+    } catch (err) {
+      toast.error(err.message || "Couldn't add that");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const remove = async (id) => {
+    try {
+      await apiFetch(`/api/v1/super-admin/blocked-emails/${id}`, { method: "DELETE" });
+      setRows((r) => (r || []).filter((x) => x.id !== id));
+    } catch (err) {
+      toast.error(err.message || "Couldn't remove that");
+    }
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+      <div>
+        <p className="text-sm font-semibold text-slate-700">Blocked signup emails</p>
+        <p className="text-xs text-slate-500 mt-1">
+          An <span className="font-medium">email</span> (blocks that mailbox and all its <code>+tag</code> aliases) or a bare{" "}
+          <span className="font-medium">domain</span> like <code>mailinator.com</code> (blocks the whole domain). Applies to
+          customer and vendor signup.
+        </p>
+      </div>
+      <div className="flex items-end gap-2">
+        <Input
+          label="Email or domain"
+          placeholder="spammer@gmail.com  or  tempmail.com"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="flex-1"
+        />
+        <Button onClick={add} loading={adding} disabled={!value.trim()}>Add</Button>
+      </div>
+      <Input label="Reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} />
+
+      {rows === null ? (
+        <p className="text-xs text-slate-400">Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-slate-400">Nothing blocked.</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 border border-slate-100 rounded-sm">
+          {rows.map((b) => (
+            <li key={b.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+              <span className="min-w-0">
+                <span className="font-medium text-slate-800 break-all">{b.value}</span>
+                <span className="ml-1.5 text-[10px] uppercase tracking-wide text-slate-400">{b.kind}</span>
+                {b.reason && <span className="block text-xs text-slate-500 truncate">{b.reason}</span>}
+              </span>
+              <button type="button" onClick={() => remove(b.id)} className="text-slate-400 hover:text-red-600 shrink-0" title="Remove">
+                <Trash2 size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

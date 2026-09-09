@@ -1,12 +1,13 @@
 import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "../../../../../lib/db/index.js";
-import { stores, users, branches } from "../../../../../lib/db/schema.js";
-import { eq } from "drizzle-orm";
+import { stores, users, branches, blockedEmails } from "../../../../../lib/db/schema.js";
+import { and, eq, or } from "drizzle-orm";
 import { validate, vendorSignupSchema } from "../../../../../lib/validate.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { sendVerificationEmail } from "../../../../../lib/emailVerification.js";
 import { sendPushToRole } from "../../../../../lib/push.js";
+import { normalizeEmail, emailDomain, isEmailBlocked } from "../../../../../lib/emailNormalize.js";
 
 // Public self-signup for vendors: anyone can create their own store and
 // vendor account, no super_admin involved. Same store+vendor transaction
@@ -29,6 +30,19 @@ export async function POST(req) {
   const [existingStore] = await db.select({ id: stores.id }).from(stores).where(eq(stores.slug, storeData.slug)).limit(1);
   if (existingStore) {
     return NextResponse.json({ error: "That store slug is already in use" }, { status: 409 });
+  }
+
+  const blockRows = await db
+    .select({ value: blockedEmails.value, kind: blockedEmails.kind })
+    .from(blockedEmails)
+    .where(
+      or(
+        and(eq(blockedEmails.kind, "email"), eq(blockedEmails.value, normalizeEmail(vendor.email))),
+        and(eq(blockedEmails.kind, "domain"), eq(blockedEmails.value, emailDomain(vendor.email))),
+      ),
+    );
+  if (isEmailBlocked(vendor.email, blockRows)) {
+    return NextResponse.json({ error: "This email address can't be used to sign up." }, { status: 403 });
   }
 
   const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, vendor.email)).limit(1);
