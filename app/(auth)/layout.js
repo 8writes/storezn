@@ -4,7 +4,7 @@ import { Toaster } from "sonner";
 
 export default function AuthLayout({ children }) {
   return (
-    <div className="min-h-screen flex">
+    <div className="font-ui min-h-screen flex">
       <Toaster position="top-right" offset="10vh" closeButton={true} />
 
       <div className="hidden md:flex md:w-1/2 lg:w-2/5 flex-col justify-between bg-linear-to-br from-slate-900 to-brand-900 text-white p-10">

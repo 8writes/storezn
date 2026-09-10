@@ -347,9 +347,9 @@ export default function DashboardLayout({ children }) {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex">
+      <div className="font-ui min-h-screen flex">
         <div className="hidden sm:block sm:w-60 shrink-0 bg-brand-900" />
-        <div className="flex-1 p-4 sm:p-8 space-y-6 bg-slate-100">
+        <div className="flex-1 p-4 sm:p-8 space-y-6 bg-canvas">
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-40 w-full" />
         </div>
@@ -371,7 +371,7 @@ export default function DashboardLayout({ children }) {
     // see school-app's layout.js for why: nested overflow containers get
     // the 100vh math wrong across embedded webviews/mobile browser chrome
     // and end up dragging the sidebar away as the page scroll.
-    <div className="min-h-screen flex">
+    <div className="font-ui min-h-screen flex">
       {/* offset clears the sticky mobile header (h-16 = 64px) plus a
           small gap - top-right on desktop sits below nothing (the
           sidebar has no top bar), but the fixed offset doesn't hurt

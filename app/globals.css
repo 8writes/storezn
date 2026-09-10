@@ -46,14 +46,12 @@
   --color-sunken: #f1efeb;
   --color-hairline: #e9e6e1;
 
-  /* Radius - one notch softer. `rounded-sm` (used ~everywhere) goes
-     4px -> 6px: felt on every card, button, input and badge without a
-     single class change. */
-  --radius-xs: 0.125rem;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  /* Platform UI typeface (dashboard / admin / auth). Storefront keeps
+     Jakarta via the body default. Opt in with `font-ui`. */
+  --font-ui: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Radius: Tailwind defaults, unchanged. Everything uses `rounded-sm`
+     (4px) - one radius, kept small and consistent, on purpose. */
 
   /* Elevation - soft, warm-tinted (stone, not pure black), so cards
      lift off the warm canvas gently instead of with a hard grey edge. */
@@ -173,6 +171,21 @@ body {
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+/* Platform typography (Inter). `.font-ui` is set on the dashboard + auth
+   shells; the storefront is untouched. */
+.font-ui {
+  font-family: var(--font-ui);
+}
+/* Inter runs a touch large; -1% tracking on headings and lined-up
+   figures in tables read tighter and more "product". */
+.font-ui :is(h1, h2, h3) {
+  letter-spacing: -0.011em;
+}
+.font-ui :is(th, td),
+.font-ui .tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Respect a user's reduced-motion setting - drop the decorative stuff,
