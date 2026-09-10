@@ -41,6 +41,10 @@ export function ProductGallery({ images = [], videoUrl, name }) {
           ref={stripRef}
           onScroll={(e) => onStripScroll(e.currentTarget)}
           className="flex aspect-4/5 bg-slate-100 overflow-x-auto snap-x snap-mandatory scrollbar-none"
+          // Only claim horizontal drags - a vertical/diagonal swipe on the
+          // (tall, full-width) image passes straight through to page
+          // scroll instead of getting locked into the carousel.
+          style={{ touchAction: "pan-x pinch-zoom" }}
         >
           {slides.map((slide, i) => (
             <div key={slide.src} className="w-full h-full shrink-0 snap-center">
