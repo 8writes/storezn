@@ -368,8 +368,8 @@ export default function VendorProductsPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="flex-1 sm:w-72" />
+        <div className="flex items-center gap-2 w-full">
+          <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="flex-1" />
           <button
             type="button"
             onClick={() => setFiltersOpen(true)}

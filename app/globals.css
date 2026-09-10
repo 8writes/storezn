@@ -98,7 +98,7 @@
   --color-surface: #181b21;
   --color-canvas: #0e1013;
   --color-sunken: #0a0b0d;
-  --color-hairline: #2b313a;
+  --color-hairline: #333b46;
   --foreground: #eef1f5;
 
   /* `--color-white` is deliberately NOT remapped: `text-white` always
@@ -107,14 +107,14 @@
      nothing left relying on white as a surface here. */
 
   --color-slate-50: #15181d;
-  --color-slate-100: #1e222a;
-  --color-slate-200: #2b313a;
-  --color-slate-300: #3b434e;
-  --color-slate-400: #69737f;
-  --color-slate-500: #8b95a1;
-  --color-slate-600: #a4adb8;
-  --color-slate-700: #c0c8d1;
-  --color-slate-800: #dbe0e6;
+  --color-slate-100: #1f242c;
+  --color-slate-200: #333b46;
+  --color-slate-300: #434c58;
+  --color-slate-400: #7d8794;
+  --color-slate-500: #97a1ad;
+  --color-slate-600: #aeb7c2;
+  --color-slate-700: #c6cdd6;
+  --color-slate-800: #dde2e8;
   --color-slate-900: #eef1f5;
 
   /* Saturated steps used as BOTH a solid button bg and as text - nudged
