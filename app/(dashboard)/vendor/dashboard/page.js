@@ -24,6 +24,9 @@ import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Button } from "@/components/ui/Button.js";
 import { StatCard } from "@/components/ui/StatCard.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
+import { Card } from "@/components/ui/Card.js";
+import { Alert } from "@/components/ui/Alert.js";
 import { CopyableUrl } from "@/components/ui/CopyableUrl.js";
 import { StoreQrCodeButton } from "@/components/ui/StoreQrCodeButton.js";
 import { SetupGuideModal } from "@/components/ui/SetupGuideModal.js";
@@ -196,19 +199,28 @@ export default function VendorDashboardPage() {
     <div className="space-y-6">
       {isOwner && <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />}
 
-      <div className="flex flex-col items-start gap-3">
-        <h1 className="text-xl font-bold text-slate-900">Welcome, {user?.firstName}
-        </h1>
-      </div>
+      <PageHeader
+        title={`Welcome, ${user?.firstName || ""}`.trim()}
+        description={store ? "Here's how your store is doing today." : undefined}
+        actions={
+          isOwner && store ? (
+            <Link href={`/vendor/products/new?storeId=${storeId}`}>
+              <Button size="sm">
+                <Plus size={15} /> Add product
+              </Button>
+            </Link>
+          ) : null
+        }
+      />
 
       {stores.length === 0 ? (
         <p className="text-sm text-slate-700">No store set up yet, contact the platform admin.</p>
       ) : (
         <>
           {isOwner && store && verification?.approvalStatus === "approved" && (
-            <div className="space-y-1.5 bg-brand-50 border border-brand-100 rounded-sm p-4">
-              <label className="text-sm font-semibold text-slate-900">This is your store&apos;s link</label>
-              <p className="text-xs text-slate-500">Anyone who opens it can browse and buy from you - copy it and share it on WhatsApp, Instagram, anywhere.</p>
+            <Card className="bg-brand-50! border-brand-100! space-y-1.5">
+              <p className="text-sm font-semibold text-slate-900">This is your store&apos;s link</p>
+              <p className="text-xs text-slate-500">Anyone who opens it can browse and buy from you &mdash; copy it and share it on WhatsApp, Instagram, anywhere.</p>
               <div className="pt-1">
                 <CopyableUrl
                   url={getStorefrontUrl(store)}
@@ -216,54 +228,51 @@ export default function VendorDashboardPage() {
                   extra={<StoreQrCodeButton storeName={store.name} storeUrl={getStorefrontUrl(store)} />}
                 />
               </div>
-            </div>
+            </Card>
           )}
 
           {isOwner && store && verification && verification.approvalStatus !== "approved" && (
-            <div className="max-w-md bg-slate-50 border border-dashed border-slate-200 rounded-sm p-4">
+            <Card pad="sm" className="max-w-md border-dashed bg-slate-50!">
               <p className="text-sm font-semibold text-slate-500">Your store&apos;s link will appear here</p>
-              <p className="text-xs text-slate-700 mt-0.5">Once your identity is verified below, you&apos;ll get a shareable link customers can use to shop from you.</p>
-            </div>
+              <p className="text-xs text-slate-500 mt-0.5">Once your identity is verified below, you&apos;ll get a shareable link customers can use to shop from you.</p>
+            </Card>
           )}
 
           {isOwner && verification && verification.approvalStatus !== "approved" && (
-            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-sm p-4">
-              <ShieldAlert size={18} className="text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-800">
-                {verification.approvalStatus === "rejected" ? (
-                  <>
-                    <p className="font-medium">Identity verification rejected</p>
-                    <p>
-                      Your store stays hidden from customers until this is resolved.{" "}
-                      <Link href="/vendor/verification" className="underline font-medium">Resubmit your NIN</Link>.
-                    </p>
-                  </>
-                ) : verification.nin ? (
-                  <>
-                    <p className="font-medium">Identity verification pending</p>
-                    <p>Your NIN is under review - your store stays hidden from customers until it&apos;s approved.</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-medium">Verify your identity</p>
-                    <p>
-                      Customers can&apos;t see or order from your store until you&apos;re verified.{" "}
-                      <Link href="/vendor/verification" className="underline font-medium">Submit your NIN</Link>.
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
+            <Alert
+              tone="warning"
+              icon={ShieldAlert}
+              title={
+                verification.approvalStatus === "rejected"
+                  ? "Identity verification rejected"
+                  : verification.nin
+                    ? "Identity verification pending"
+                    : "Verify your identity"
+              }
+            >
+              {verification.approvalStatus === "rejected" ? (
+                <p>
+                  Your store stays hidden from customers until this is resolved.{" "}
+                  <Link href="/vendor/verification" className="underline font-medium">Resubmit your NIN</Link>.
+                </p>
+              ) : verification.nin ? (
+                <p>Your NIN is under review &mdash; your store stays hidden from customers until it&apos;s approved.</p>
+              ) : (
+                <p>
+                  Customers can&apos;t see or order from your store until you&apos;re verified.{" "}
+                  <Link href="/vendor/verification" className="underline font-medium">Submit your NIN</Link>.
+                </p>
+              )}
+            </Alert>
           )}
 
           {isOwner && store && !store.subAccountCode && (
-            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-sm p-4">
-              <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-800">
-                <p className="font-medium">Payment setup incomplete</p>
-                <p>Customers can&apos;t check out from your store yet. <Link href="/vendor/payouts" className="underline font-medium">Finish payment setup</Link>.</p>
-              </div>
-            </div>
+            <Alert tone="warning" title="Payment setup incomplete">
+              <p>
+                Customers can&apos;t check out from your store yet.{" "}
+                <Link href="/vendor/payouts" className="underline font-medium">Finish payment setup</Link>.
+              </p>
+            </Alert>
           )}
 
           {statsLoading || !stats ? (
@@ -303,16 +312,20 @@ export default function VendorDashboardPage() {
           )}
 
           <div>
-            <p className="text-sm font-semibold text-slate-700 mb-3">Quick actions</p>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2.5">Quick actions</p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
               {SHORTCUTS(storeId, () => setGuideForceOpen(true), isOwner).map(({ label, icon: Icon, href, onClick }) => {
                 const content = (
                   <>
-                    <Icon size={20} className="text-brand-600" />
-                    <span className="text-xs font-medium text-slate-700 text-center leading-tight">{label}</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-brand-100 text-brand-700 transition-colors group-hover:bg-brand-600 group-hover:text-white">
+                      <Icon size={17} />
+                    </span>
+                    <span className="text-xs font-medium text-slate-600 text-center leading-tight">{label}</span>
                   </>
                 );
-                const className = "flex flex-col items-center justify-center gap-2 bg-surface border border-slate-200 rounded-sm p-4 hover:border-brand-300 hover:bg-brand-50/50 transition-colors cursor-pointer";
+                const className =
+                  "group flex flex-col items-center justify-center gap-2 bg-surface border border-slate-200 rounded-sm shadow-xs p-4 " +
+                  "transition-[box-shadow,border-color] duration-150 hover:shadow-sm hover:border-brand-300 cursor-pointer";
                 return href ? (
                   <Link key={label} href={href} className={className}>
                     {content}
