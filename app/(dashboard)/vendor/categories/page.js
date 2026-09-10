@@ -140,7 +140,7 @@ export default function VendorCategoriesPage() {
           <form
             ref={formRef}
             onSubmit={handleSubmit}
-            className="bg-white border border-slate-200 rounded-sm p-5 space-y-4 scroll-mt-4"
+            className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4 scroll-mt-4"
           >
             <p className="text-sm font-semibold text-slate-700">
               {editingId ? "Edit category" : "Add a category"}
@@ -179,7 +179,7 @@ export default function VendorCategoriesPage() {
             </div>
           </form>
 
-          <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+          <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
             {categories.length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-slate-700">No categories yet.</p>
             ) : (

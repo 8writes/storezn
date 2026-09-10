@@ -165,16 +165,16 @@ export default function VendorPayoutsPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-xl font-bold text-slate-900">Payouts</h1>
-        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="h-18 w-full max-w-md rounded-sm" />
         </div>
-        <div className="bg-white border border-slate-200 rounded-sm p-4 space-y-3">
+        <div className="bg-surface border border-slate-200 rounded-sm p-4 space-y-3">
           <Skeleton className="h-4 w-2/3" />
           <Skeleton className="h-9 w-44 rounded-sm" />
         </div>
         <StatGridSkeleton count={4} />
-        <div className="bg-white border border-slate-200 rounded-sm p-2">
+        <div className="bg-surface border border-slate-200 rounded-sm p-2">
           <TableRowSkeleton cols={7} rows={5} />
         </div>
       </div>
@@ -185,7 +185,7 @@ export default function VendorPayoutsPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Payouts</h1>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-slate-700">Payout account</label>
           <Badge color={data?.payoutAccount ? "green" : "amber"}>
@@ -317,7 +317,7 @@ export default function VendorPayoutsPage() {
         <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="max-w-xs" />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>

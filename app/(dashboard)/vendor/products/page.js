@@ -238,7 +238,7 @@ export default function VendorProductsPage() {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm">
+      <div className="bg-surface border border-slate-200 rounded-sm">
         <button
           type="button"
           onClick={() => setBulkOpen((o) => !o)}
@@ -442,7 +442,7 @@ export default function VendorProductsPage() {
         {loading ? (
           <CardListSkeleton count={5} />
         ) : products.length === 0 ? (
-          <p className="bg-white border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
+          <p className="bg-surface border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
             {q || categoryId || stockLevel ? "No products match your filters" : "No products yet"}
           </p>
         ) : (
@@ -458,7 +458,7 @@ export default function VendorProductsPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") router.push(`/vendor/products/${p.id}?storeId=${storeId}`);
                 }}
-                className="flex gap-3 bg-white border border-slate-200 rounded-sm p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                className="flex gap-3 bg-surface border border-slate-200 rounded-sm p-4 cursor-pointer hover:bg-slate-50 transition-colors"
               >
                 {p.images?.[0] ? (
                   <img src={p.images[0]} alt="" className="w-16 h-16 rounded-sm object-cover bg-slate-100 shrink-0" />
@@ -502,7 +502,7 @@ export default function VendorProductsPage() {
       </div>
 
       {/* Desktop: table */}
-      <div className="hidden sm:block bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      <div className="hidden sm:block bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
@@ -607,7 +607,7 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white w-full sm:max-w-md rounded-t-sm sm:rounded-sm shadow-xl flex flex-col max-h-[85vh]">
+      <div className="relative bg-surface w-full sm:max-w-md rounded-t-sm sm:rounded-sm shadow-xl flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
           <p className="text-sm font-bold text-slate-900">Filters</p>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700 cursor-pointer">

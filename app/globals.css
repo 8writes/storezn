@@ -46,6 +46,11 @@
   --color-sunken: #f1efeb;
   --color-hairline: #e9e6e1;
 
+  /* The card / panel surface. `bg-surface` everywhere the platform used
+     to say `bg-white` - so dark mode can flip it in one place without
+     also flipping `text-white` (which always sits on a colour). */
+  --color-surface: #ffffff;
+
   /* Platform UI typeface (dashboard / admin / auth). Storefront keeps
      Jakarta via the body default. Opt in with `font-ui`. */
   --font-ui: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -67,6 +72,83 @@
 :root {
   --background: var(--color-canvas);
   --foreground: #0f172a;
+}
+
+/* ---------------------------------------------------------------------------
+   Dark mode - PLATFORM ONLY (dashboard / admin / auth). `[data-theme="dark"]`
+   is put on <html> only while on a platform route (see the no-FOUC script
+   in app/layout.js + ThemeScope). The storefront / marketing pages never
+   get a dark ancestor, so they stay on the :root light values above.
+
+   Almost every colour in the app is a Tailwind token = a CSS variable, so
+   re-pointing the neutral ramp + surface here flips the whole platform
+   with no per-component changes. The slate ramp is inverted-and-tuned:
+   `text-slate-900` (headings) -> near-white, `bg-slate-100` (panels) ->
+   a dark panel, `border-slate-200` -> a faint light hairline.
+--------------------------------------------------------------------------- */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Elevation order (dark): canvas (page) < sunken wells is deeper, then
+     slate-50/100 sit right around the card surface (they're mostly used
+     as section / header / hover fills), borders clearly lighter, text
+     climbs to near-white. Cards lift off the page; nested fills stay
+     quiet. A naive slate invert would put "light panels" above the
+     cards - this keeps the stack readable. */
+  --color-surface: #181b21;
+  --color-canvas: #0e1013;
+  --color-sunken: #0a0b0d;
+  --color-hairline: #2b313a;
+  --foreground: #eef1f5;
+
+  --color-white: #181b21; /* stray `bg-white` still lands on a surface */
+
+  --color-slate-50: #15181d;
+  --color-slate-100: #1e222a;
+  --color-slate-200: #2b313a;
+  --color-slate-300: #3b434e;
+  --color-slate-400: #69737f;
+  --color-slate-500: #8b95a1;
+  --color-slate-600: #a4adb8;
+  --color-slate-700: #c0c8d1;
+  --color-slate-800: #dbe0e6;
+  --color-slate-900: #eef1f5;
+
+  /* Saturated steps used as BOTH a solid button bg and as text - nudged
+     to a value that clears contrast on the dark surface either way. */
+  --color-brand-600: #1fb872;
+  --color-red-600: #ef4444;
+  --color-accent-600: #e06b3c;
+  --color-info-600: #3b82f6;
+
+  /* Tint pairs (`bg-X-100 text-X-700` badges / alerts). Panels are the
+     hue mixed into the canvas; the text step is the hue lifted toward
+     white so it stays legible on that panel. */
+  --color-brand-50:  color-mix(in oklab, var(--color-brand-500) 10%, var(--color-canvas));
+  --color-brand-100: color-mix(in oklab, var(--color-brand-500) 20%, var(--color-canvas));
+  --color-brand-700: color-mix(in oklab, var(--color-brand-400) 82%, white);
+  --color-brand-800: color-mix(in oklab, var(--color-brand-400) 88%, white);
+  --color-green-100: color-mix(in oklab, oklch(0.72 0.19 149) 20%, var(--color-canvas));
+  --color-green-700: color-mix(in oklab, oklch(0.72 0.19 149) 82%, white);
+  --color-accent-50:  color-mix(in oklab, var(--color-accent-500) 10%, var(--color-canvas));
+  --color-accent-100: color-mix(in oklab, var(--color-accent-500) 20%, var(--color-canvas));
+  --color-accent-700: color-mix(in oklab, var(--color-accent-400) 85%, white);
+  --color-info-50:  color-mix(in oklab, var(--color-info-600) 12%, var(--color-canvas));
+  --color-info-100: color-mix(in oklab, var(--color-info-600) 22%, var(--color-canvas));
+  --color-info-700: color-mix(in oklab, #3b82f6 88%, white);
+  --color-red-50:  color-mix(in oklab, #ef4444 10%, var(--color-canvas));
+  --color-red-100: color-mix(in oklab, #ef4444 20%, var(--color-canvas));
+  --color-red-700: color-mix(in oklab, #f87171 90%, white);
+  --color-amber-100: color-mix(in oklab, #f59e0b 22%, var(--color-canvas));
+  --color-amber-700: color-mix(in oklab, #fbbf24 90%, white);
+  --color-amber-800: color-mix(in oklab, #fbbf24 92%, white);
+
+  /* Elevation on dark = a faint light ring + a soft deep blur. */
+  --shadow-xs: 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-sm: 0 0 0 1px rgb(255 255 255 / 0.04), 0 2px 8px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 0 0 1px rgb(255 255 255 / 0.05), 0 6px 16px -2px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 0 0 1px rgb(255 255 255 / 0.06), 0 16px 40px -8px rgb(0 0 0 / 0.6);
+  --shadow-xl: 0 0 0 1px rgb(255 255 255 / 0.06), 0 28px 60px -12px rgb(0 0 0 / 0.7);
 }
 
 body {
@@ -134,6 +216,9 @@ body {
   transform: translateX(-100%);
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
   animation: shimmer 1.6s var(--ease-out-soft) infinite;
+}
+[data-theme="dark"] .animate-shimmer::after {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), transparent);
 }
 
 .nav-link-hint {

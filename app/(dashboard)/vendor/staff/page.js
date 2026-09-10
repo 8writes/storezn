@@ -118,7 +118,7 @@ export default function VendorStaffPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
-        <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+        <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-left">
               <tr>
@@ -184,7 +184,7 @@ export default function VendorStaffPage() {
           </table>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-slate-700">Invite staff</p>
             <span className="text-xs text-slate-400">{staff?.length ?? 0} of {maxStaff}</span>

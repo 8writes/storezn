@@ -57,7 +57,7 @@ export default function SuperAdminAnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-sm p-5">
+            <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5">
               <p className="text-sm font-semibold text-slate-700 mb-4">GMV, last 30 days</p>
               <Chart
                 type="line"
@@ -86,7 +86,7 @@ export default function SuperAdminAnalyticsPage() {
               />
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-sm p-5">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5">
               <p className="text-sm font-semibold text-slate-700 mb-4">Top stores by GMV</p>
               {data.topStores.length === 0 ? (
                 <p className="text-sm text-slate-400 py-8 text-center">No sales yet.</p>
@@ -111,7 +111,7 @@ export default function SuperAdminAnalyticsPage() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-5">
+          <div className="bg-surface border border-slate-200 rounded-sm p-5">
             <p className="text-sm font-semibold text-slate-700 mb-4">Orders per day, last 30 days</p>
             <Chart
               type="bar"

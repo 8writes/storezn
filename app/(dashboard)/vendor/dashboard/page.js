@@ -312,7 +312,7 @@ export default function VendorDashboardPage() {
                     <span className="text-xs font-medium text-slate-700 text-center leading-tight">{label}</span>
                   </>
                 );
-                const className = "flex flex-col items-center justify-center gap-2 bg-white border border-slate-200 rounded-sm p-4 hover:border-brand-300 hover:bg-brand-50/50 transition-colors cursor-pointer";
+                const className = "flex flex-col items-center justify-center gap-2 bg-surface border border-slate-200 rounded-sm p-4 hover:border-brand-300 hover:bg-brand-50/50 transition-colors cursor-pointer";
                 return href ? (
                   <Link key={label} href={href} className={className}>
                     {content}

@@ -53,7 +53,7 @@ export function BranchStockPanel({ apiFetch, storeId, productId, onTotalBranches
   if (!data || data.totalBranches <= 1) return null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-5">
+    <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-5">
       <div>
         <p className="text-sm font-semibold text-slate-700">Stock by branch</p>
         <p className="text-xs text-slate-500 mt-0.5">Leave blank for unlimited at that branch.</p>

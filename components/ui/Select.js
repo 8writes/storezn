@@ -82,7 +82,7 @@ export function Select({
           type="button"
           disabled={disabled || loading}
           onClick={() => setOpen((o) => !o)}
-          className={`w-full flex items-center justify-between px-3 py-2 border rounded-sm text-base outline-none bg-white cursor-pointer transition-colors disabled:bg-slate-50 disabled:cursor-not-allowed text-left ${
+          className={`w-full flex items-center justify-between px-3 py-2 border rounded-sm text-base outline-none bg-surface cursor-pointer transition-colors disabled:bg-slate-50 disabled:cursor-not-allowed text-left ${
             active
               ? "border-brand-600 focus:border-brand-600"
               : accent
@@ -111,7 +111,7 @@ export function Select({
         </button>
 
         {open && !loading && (
-          <div className="absolute z-20 mt-1 w-full max-h-72 flex flex-col bg-white border border-slate-200 rounded-sm shadow-lg overflow-hidden">
+          <div className="absolute z-20 mt-1 w-full max-h-72 flex flex-col bg-surface border border-slate-200 rounded-sm shadow-lg overflow-hidden">
             {searchable && (
               <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 shrink-0">
                 <Search size={14} className="text-slate-700 shrink-0" />

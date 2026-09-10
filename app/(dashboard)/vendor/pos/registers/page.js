@@ -114,7 +114,7 @@ export default function RegistersPage() {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <BackLink href="/vendor/orders" label="Back to orders" />
-        <div className="bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
+        <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h1 className="text-lg font-bold text-slate-900">Registers are a Storezn Enterprise feature</h1>
           <p className="text-sm text-slate-500 max-w-sm mx-auto">
             Enterprise adds the full in-person point-of-sale suite. It&apos;s set up by the Storezn team.
@@ -148,7 +148,7 @@ export default function RegistersPage() {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-sm divide-y divide-slate-100">
+      <div className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-100">
         {loading ? (
           <div className="p-6 text-sm text-slate-400">Loading…</div>
         ) : registers.length === 0 ? (
@@ -198,7 +198,7 @@ export default function RegistersPage() {
         )}
       </div>
 
-      <form onSubmit={create} className="bg-white border border-slate-200 rounded-sm p-4 space-y-3">
+      <form onSubmit={create} className="bg-surface border border-slate-200 rounded-sm p-4 space-y-3">
         <p className="text-sm font-semibold text-slate-700">Add a register</p>
         <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Front counter" required />
         {branches.length > 1 && (

@@ -36,7 +36,7 @@ export default function SuperAdminActivityLogPage() {
         <p className="text-sm text-slate-500 mt-1">Actions taken by admin and platform staff accounts.</p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>

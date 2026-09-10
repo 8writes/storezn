@@ -10,7 +10,7 @@ export function Input({ label, hint, error, className = "", id, ...props }) {
       <input
         id={inputId}
         aria-invalid={error ? true : undefined}
-        className={`w-full px-3 py-2 rounded-sm border bg-white text-base sm:text-sm text-slate-900 placeholder:text-slate-400
+        className={`w-full px-3 py-2 rounded-sm border bg-surface text-base sm:text-sm text-slate-900 placeholder:text-slate-400
           outline-none transition-[border-color,box-shadow] duration-150
           ${error
             ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"

@@ -69,7 +69,7 @@ export default function VendorShippingPage() {
         <FormSkeleton fields={3} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+          <form onSubmit={handleSave} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
             <div>
               <label className="text-sm font-medium text-slate-700">Default delivery fee</label>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -180,7 +180,7 @@ function ShippingRatesManager({ storeId, apiFetch, token }) {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+    <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-slate-700">Shipping rates by state/city</p>
         <p className="text-xs text-slate-500">

@@ -55,7 +55,7 @@ export function SetupGuideModal({ open, onClose, steps }) {
           which then scrolls away with the parent's content instead of
           staying pinned full-height - the opposite of what this is for. */}
       <div className="fixed inset-0 bg-black/50" style={{ transform: "translateZ(0)" }} onClick={onClose} />
-      <div className="relative bg-white rounded-sm shadow-xl w-full max-w-lg p-6 space-y-5 my-auto">
+      <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-lg p-6 space-y-5 my-auto">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-bold text-slate-900 text-lg">Get your store ready</h2>

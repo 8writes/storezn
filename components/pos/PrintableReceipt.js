@@ -34,7 +34,7 @@ export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tender
   return (
     <div className="receipt-modal-backdrop fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="fixed inset-0 bg-black/50 no-print" onClick={onClose} />
-      <div className="receipt-modal relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[92vh] flex flex-col">
+      <div className="receipt-modal relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between p-3 border-b border-slate-100 no-print">
           <p className="text-sm font-bold text-slate-900">{pending ? "Saved offline" : "Sale complete"}</p>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700 cursor-pointer">
@@ -48,7 +48,7 @@ export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tender
               No connection - this sale is queued and will sync automatically when you&apos;re back online.
             </p>
           )}
-          <div className="receipt bg-white border border-slate-200 rounded-sm p-5 font-mono text-[13px] text-slate-900 leading-relaxed">
+          <div className="receipt bg-surface border border-slate-200 rounded-sm p-5 font-mono text-[13px] text-slate-900 leading-relaxed">
             <div className="text-center">
               <p className="font-bold text-sm uppercase">{storeName}</p>
               <p className="text-slate-500 text-[11px]">{formatDateTime(soldAt)}</p>

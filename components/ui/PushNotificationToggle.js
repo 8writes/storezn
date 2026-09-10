@@ -54,7 +54,7 @@ export function PushNotificationToggle({ token }) {
   if (supported === false || supported === null) return null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
+    <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
         {subscribed ? (
           <Bell size={18} className="text-brand-600 shrink-0" />

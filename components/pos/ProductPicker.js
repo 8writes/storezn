@@ -230,7 +230,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
             }
           }}
           placeholder="Scan a barcode, or search by name / SKU"
-          className="w-full pl-9 pr-10 py-2.5 border border-slate-300 rounded-sm text-base outline-none focus:border-brand-500 bg-white"
+          className="w-full pl-9 pr-10 py-2.5 border border-slate-300 rounded-sm text-base outline-none focus:border-brand-500 bg-surface"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
           {scanning ? <Loader2 size={15} className="animate-spin" /> : <Barcode size={15} />}
@@ -265,7 +265,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
                 key={p.id}
                 onClick={() => tapProduct(p)}
                 disabled={out || busy}
-                className="relative text-left bg-white border border-slate-200 rounded-sm overflow-hidden hover:border-brand-400 hover:shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="relative text-left bg-surface border border-slate-200 rounded-sm overflow-hidden hover:border-brand-400 hover:shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 {cartQty > 0 && (
                   <span className="absolute top-1.5 right-1.5 z-10 min-w-5 h-5 px-1 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center">
@@ -279,12 +279,12 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
                     <ImageOff size={22} className="text-slate-300" />
                   )}
                   {busy && (
-                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-surface/70 flex items-center justify-center">
                       <Loader2 size={20} className="text-brand-600 animate-spin" />
                     </div>
                   )}
                   {out && (
-                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-surface/80 flex items-center justify-center">
                       <span className="text-xs font-semibold text-red-600">Out of stock</span>
                     </div>
                   )}
@@ -314,7 +314,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
       {picker && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="fixed inset-0 bg-black/50" onClick={() => setPicker(null)} />
-          <div className="relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[80vh] flex flex-col">
+          <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[80vh] flex flex-col">
             <div className="flex items-center gap-3 p-4 border-b border-slate-100">
               <p className="text-sm font-semibold text-slate-900 truncate flex-1">{picker.name}</p>
               <button type="button" onClick={() => setPicker(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">

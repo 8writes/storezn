@@ -265,7 +265,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-2">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-2">
           <p className="text-sm font-semibold text-slate-700">Vendor contact</p>
           {owner ? (
             <dl className="text-sm space-y-1.5">
@@ -285,7 +285,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
           )}
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-2">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-2">
           <p className="text-sm font-semibold text-slate-700">Store details</p>
           <dl className="text-sm space-y-1.5">
             <Detail label="Plan">
@@ -311,7 +311,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
         <p className="text-sm font-semibold text-slate-700">Payout account</p>
         {store.subAccountCode ? (
           <>
@@ -345,7 +345,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         )}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
         <p className="text-sm font-semibold text-slate-700">Custom commission rate</p>
         <p className="text-xs text-slate-500">Leave blank to use the platform default rate.</p>
         <div className="flex items-end gap-3">
@@ -354,7 +354,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
         <p className="text-sm font-semibold text-slate-700">Custom Storezn+ price</p>
         <p className="text-xs text-slate-500">Leave blank to use the platform default price. Only applies the next time this store subscribes - doesn&apos;t change an already-active subscription&apos;s charge.</p>
         <div className="flex items-end gap-3">
@@ -363,7 +363,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-slate-700">Plan (offline payment)</p>
           <Badge color={getEffectivePlan(store) === "free" ? "slate" : getEffectivePlan(store) === "enterprise" ? "blue" : "green"}>
@@ -450,7 +450,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         {storeActivity.length === 0 ? (
           <p className="text-sm text-slate-700">Nothing logged yet.</p>
         ) : (
-          <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+          <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-left">
                 <tr>
@@ -488,7 +488,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         <div>
           <p className="text-sm font-semibold text-slate-700 mb-1">Admin actions on this store</p>
           <p className="text-xs text-slate-500 mb-3">What the Storezn team has changed here.</p>
-          <ul className="bg-white border border-slate-200 rounded-sm divide-y divide-slate-100 text-sm">
+          <ul className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-100 text-sm">
             {adminActivity.map((a) => (
               <li key={a.id} className="flex items-start justify-between gap-4 px-4 py-2.5">
                 <div>
@@ -518,7 +518,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         {transactions.length === 0 ? (
           <p className="text-sm text-slate-700">No orders yet.</p>
         ) : (
-          <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+          <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-left">
                 <tr>

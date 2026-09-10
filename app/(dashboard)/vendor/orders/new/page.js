@@ -134,7 +134,7 @@ export default function RecordPastSalePage() {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <BackLink href="/vendor/orders" label="Back to orders" />
-        <div className="bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
+        <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h1 className="text-lg font-bold text-slate-900">Recording past sales is a Storezn Enterprise feature</h1>
           <p className="text-sm text-slate-500 max-w-sm mx-auto">
             Log sales made in person, by phone, or in cash so they show up in your order history and stock.
@@ -184,7 +184,7 @@ export default function RecordPastSalePage() {
         <ProductPicker storeId={storeId} token={token} onAdd={addToCart} cartCountByProduct={countByProduct} />
 
         <div className="space-y-4 lg:sticky lg:top-4">
-          <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+          <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
             <p className="text-sm font-semibold text-slate-700 px-4 py-3 border-b border-slate-100 flex items-center gap-2">
               <ShoppingCart size={16} className="text-slate-400" /> Current sale
             </p>
@@ -225,14 +225,14 @@ export default function RecordPastSalePage() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-4 space-y-3">
+          <div className="bg-surface border border-slate-200 rounded-sm p-4 space-y-3">
             <p className="text-sm font-semibold text-slate-700">Customer</p>
             <Input label="Name" value={buyer.buyerName} onChange={(e) => setBuyer((b) => ({ ...b, buyerName: e.target.value }))} required />
             <Input label="Phone (optional)" value={buyer.buyerPhone} onChange={(e) => setBuyer((b) => ({ ...b, buyerPhone: e.target.value }))} />
             <Input label="Email (optional)" type="email" value={buyer.buyerEmail} onChange={(e) => setBuyer((b) => ({ ...b, buyerEmail: e.target.value }))} />
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-4 space-y-2">
+          <div className="bg-surface border border-slate-200 rounded-sm p-4 space-y-2">
             <p className="text-sm font-semibold text-slate-700">Paid by</p>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -281,11 +281,11 @@ export default function RecordPastSalePage() {
             )}
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-4">
+          <div className="bg-surface border border-slate-200 rounded-sm p-4">
             <Textarea label="Note (optional)" rows={2} value={buyer.note} onChange={(e) => setBuyer((b) => ({ ...b, note: e.target.value }))} />
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-4">
+          <div className="bg-surface border border-slate-200 rounded-sm p-4">
             <Switch
               checked={buyer.delivered}
               onChange={(delivered) => setBuyer((b) => ({ ...b, delivered }))}

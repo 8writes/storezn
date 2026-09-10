@@ -4,7 +4,7 @@ export function Skeleton({ className = "" }) {
 
 export function EventCardSkeleton() {
   return (
-    <div className="flex flex-row-reverse bg-white rounded-sm overflow-hidden shadow-sm border border-slate-100">
+    <div className="flex flex-row-reverse bg-surface rounded-sm overflow-hidden shadow-sm border border-slate-100">
       <Skeleton className="w-28 sm:w-44 md:w-56 h-28 sm:h-36 shrink-0 rounded-none" />
       <div className="p-3 sm:p-5 flex-1 space-y-2.5">
         <Skeleton className="h-4 w-4/5" />
@@ -18,7 +18,7 @@ export function EventCardSkeleton() {
 
 export function StatCardSkeleton() {
   return (
-    <div className="bg-white border border-slate-200 rounded-sm p-3 flex items-start gap-3">
+    <div className="bg-surface border border-slate-200 rounded-sm p-3 flex items-start gap-3">
       <Skeleton className="w-8 h-8 rounded-sm shrink-0" />
       <div className="flex-1 space-y-2 pt-0.5">
         <Skeleton className="h-4 w-2/3" />
@@ -62,7 +62,7 @@ export function CardListSkeleton({ count = 3 }) {
   return (
     <div className="space-y-4">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="bg-white border border-slate-200 rounded-sm p-4 space-y-2">
+        <div key={i} className="bg-surface border border-slate-200 rounded-sm p-4 space-y-2">
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-3.5 w-2/3" />
           <Skeleton className="h-3.5 w-1/2" />
@@ -86,7 +86,7 @@ export function ListRowSkeleton() {
 
 export function DashboardEventCardSkeleton() {
   return (
-    <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+    <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
       <Skeleton className="h-32 w-full rounded-none" />
       <div className="p-4 space-y-2">
         <Skeleton className="h-4 w-3/4" />
@@ -102,7 +102,7 @@ export function DashboardEventCardSkeleton() {
 // spinner into a form-shaped layout.
 export function FormSkeleton({ fields = 4 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-sm p-6 space-y-5">
+    <div className="bg-surface border border-slate-200 rounded-sm p-6 space-y-5">
       {Array.from({ length: fields }, (_, i) => (
         <div key={i} className="space-y-2">
           <Skeleton className="h-3 w-24" />
@@ -160,7 +160,7 @@ export function VendorDashboardSkeleton() {
         <Skeleton className="h-4 w-28 mb-3" />
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
           {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="flex flex-col items-center justify-center gap-2 bg-white border border-slate-200 rounded-sm p-4">
+            <div key={i} className="flex flex-col items-center justify-center gap-2 bg-surface border border-slate-200 rounded-sm p-4">
               <Skeleton className="w-5 h-5 rounded-full" />
               <Skeleton className="h-2.5 w-12" />
             </div>
@@ -176,7 +176,7 @@ export function VendorDashboardSkeleton() {
 export function CheckoutSkeleton() {
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
+      <header className="bg-surface border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Skeleton className="h-5 w-24" />
           <Skeleton className="h-5 w-16" />
@@ -185,7 +185,7 @@ export function CheckoutSkeleton() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Skeleton className="h-6 w-full mb-8" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white rounded-sm shadow-sm p-6 space-y-5">
+          <div className="lg:col-span-2 bg-surface rounded-sm shadow-sm p-6 space-y-5">
             <Skeleton className="h-5 w-40" />
             {Array.from({ length: 2 }, (_, i) => (
               <div key={i} className="flex items-start justify-between gap-4 pt-4 border-t border-slate-100 first:border-t-0 first:pt-0">
@@ -197,7 +197,7 @@ export function CheckoutSkeleton() {
               </div>
             ))}
           </div>
-          <div className="bg-white rounded-sm shadow-sm p-6 space-y-3 h-fit">
+          <div className="bg-surface rounded-sm shadow-sm p-6 space-y-3 h-fit">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-full" />

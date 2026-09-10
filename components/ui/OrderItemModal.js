@@ -26,12 +26,12 @@ export function OrderItemModal({ item, productHref, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-sm shadow-xl w-full max-w-sm overflow-hidden my-auto">
+      <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-sm overflow-hidden my-auto">
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-white/90 text-slate-500 hover:text-slate-700 flex items-center justify-center cursor-pointer"
+          className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-surface/90 text-slate-500 hover:text-slate-700 flex items-center justify-center cursor-pointer"
         >
           <X size={16} />
         </button>

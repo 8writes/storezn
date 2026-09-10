@@ -306,7 +306,7 @@ export default function VendorProductEditPage({ params }) {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+      <form onSubmit={handleSave} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
           <Input label="URL slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />
@@ -410,7 +410,7 @@ export default function VendorProductEditPage({ params }) {
               >
                 <img src={url} alt="" className="w-full h-full object-cover" />
                 {index === 0 && (
-                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-sm bg-slate-900/80 text-white text-[10px] font-medium">
+                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-sm bg-neutral-900/80 text-white text-[10px] font-medium">
                     Cover
                   </span>
                 )}
@@ -760,7 +760,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+    <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-slate-700">Variants</p>
         <p className="text-xs text-slate-500">
@@ -793,7 +793,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
             }`}
           >
             <span
-              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
                 standardEnabled ? "translate-x-5" : "translate-x-0"
               }`}
             />

@@ -107,7 +107,7 @@ export default function VendorOrdersPage() {
         {loading ? (
           <CardListSkeleton count={5} />
         ) : orders.length === 0 ? (
-          <p className="bg-white border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
+          <p className="bg-surface border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
             {q ? "No orders match your search" : "No orders yet"}
           </p>
         ) : (
@@ -120,7 +120,7 @@ export default function VendorOrdersPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") router.push(`/vendor/orders/${o.id}?storeId=${storeId}`);
               }}
-              className="bg-white border border-slate-200 rounded-sm p-4 space-y-2 cursor-pointer hover:bg-slate-50 transition-colors"
+              className="bg-surface border border-slate-200 rounded-sm p-4 space-y-2 cursor-pointer hover:bg-slate-50 transition-colors"
             >
               <div className="flex items-start justify-between gap-3">
                 <span className="inline-flex items-center gap-2 font-medium text-slate-900">
@@ -143,7 +143,7 @@ export default function VendorOrdersPage() {
       </div>
 
       {/* Desktop: table */}
-      <div className="hidden sm:block bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      <div className="hidden sm:block bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>

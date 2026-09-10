@@ -170,7 +170,7 @@ export default function VendorOrderDetailPage({ params }) {
       </div>
 
       {(order.buyerName || order.buyerPhone) && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
           <p className="font-semibold text-slate-700 mb-1">Customer</p>
           {order.buyerName && <p>{order.buyerName}</p>}
           {order.buyerPhone && (
@@ -184,13 +184,13 @@ export default function VendorOrderDetailPage({ params }) {
       )}
 
       {order.note && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
           <p className="font-semibold text-slate-700 mb-1">Note</p>
           <p>{order.note}</p>
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
         {items.map((item) => (
           <button
             key={item.id}
@@ -230,7 +230,7 @@ export default function VendorOrderDetailPage({ params }) {
       </div>
 
       {data.tenders?.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-1.5">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-1.5">
           <p className="text-sm font-semibold text-slate-700 mb-1">Payment</p>
           {data.tenders.map((t) => {
             const base = t.method === "card" ? "POS" : t.method.replace("_", " ");
@@ -251,7 +251,7 @@ export default function VendorOrderDetailPage({ params }) {
       )}
 
       {order.shippingAddress && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 text-sm text-slate-700">
           <p className="font-semibold text-slate-700 mb-1">Ship to</p>
           <p>{order.shippingAddress.fullName}</p>
           <p>{order.shippingAddress.line1}{order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}</p>
@@ -264,7 +264,7 @@ export default function VendorOrderDetailPage({ params }) {
       )}
 
       {order.shippingAddress && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
           <p className="font-semibold text-slate-700 text-sm">Delivery fee</p>
           {!order.shippingFeeTBD ? (
             <p className="text-sm text-slate-700">{formatCurrency(order.shippingFee)}</p>
@@ -289,7 +289,7 @@ export default function VendorOrderDetailPage({ params }) {
       )}
 
       {refundRequest?.status === "pending" && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
           <p className="text-sm font-semibold text-slate-700">Refund requested</p>
           <p className="text-sm text-slate-700">{refundRequest.reason}</p>
           <div className="flex justify-end gap-3">

@@ -9,6 +9,9 @@ import { MobileNavDrawer } from "@/components/ui/MobileNavDrawer.js";
 import { StoreSwitcher } from "@/components/ui/StoreSwitcher.js";
 import { VendorStoreProvider } from "@/components/VendorStoreContext.js";
 import { Skeleton } from "@/components/ui/Skeleton.js";
+import { ThemeToggle } from "@/components/ui/ThemeToggle.js";
+import { PlatformThemeSync } from "@/components/PlatformThemeSync.js";
+import { readTheme, THEME_EVENT } from "@/lib/theme.js";
 import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
 import {
   Menu,
@@ -319,6 +322,15 @@ export default function DashboardLayout({ children }) {
     });
   };
 
+  // Follow the platform theme so toasts match the shell.
+  const [uiTheme, setUiTheme] = useState("dark");
+  useEffect(() => {
+    setUiTheme(readTheme());
+    const on = () => setUiTheme(readTheme());
+    window.addEventListener(THEME_EVENT, on);
+    return () => window.removeEventListener(THEME_EVENT, on);
+  }, []);
+
   // Drives the sidebar going inert (see NavLinks' `offline` prop) so a
   // click never starts a navigation that can only fail. Uses the shared
   // connectivity signal (lib/connectivity.js) - it flips the moment a
@@ -372,18 +384,19 @@ export default function DashboardLayout({ children }) {
     // the 100vh math wrong across embedded webviews/mobile browser chrome
     // and end up dragging the sidebar away as the page scroll.
     <div className="font-ui min-h-screen flex">
+      <PlatformThemeSync />
       {/* offset clears the sticky mobile header (h-16 = 64px) plus a
           small gap - top-right on desktop sits below nothing (the
           sidebar has no top bar), but the fixed offset doesn't hurt
           there either. */}
-      <Toaster position="top-right" offset="80px" mobileOffset="80px" closeButton={true} />
+      <Toaster theme={uiTheme} position="top-right" offset="80px" mobileOffset="80px" closeButton={true} />
       <UpdatePrompt />
       {isVendor && <OfflineNavGuard />}
 
       <aside
         className={`hidden sm:flex shrink-0 flex-col h-dvh sticky top-0 transition-[width] duration-150 ${
           navCollapsed ? "sm:w-16" : "sm:w-60"
-        } ${isVendor ? "bg-white border-r border-slate-200" : "bg-brand-900"}`}
+        } ${isVendor ? "bg-surface border-r border-slate-200" : "bg-brand-900"}`}
       >
         <div className={`flex items-center h-16 border-b shrink-0 ${navCollapsed ? "justify-center px-0" : "px-4"} ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
           {navCollapsed ? (
@@ -398,6 +411,7 @@ export default function DashboardLayout({ children }) {
           <NavLinks groups={groups} pathname={pathname} muted={isVendor} offline={navOffline} collapsed={navCollapsed} />
         </nav>
         <div className={`border-t shrink-0 ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
+          <ThemeToggle collapsed={navCollapsed} tone={isVendor ? "auto" : "light"} />
           <button
             type="button"
             onClick={toggleNav}
@@ -428,7 +442,7 @@ export default function DashboardLayout({ children }) {
         <header
           onClick={() => setDrawerOpen(true)}
           className={`sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 shrink-0 cursor-pointer ${
-            isVendor ? "bg-white border-b border-slate-200 text-slate-900" : "bg-brand-900 text-white"
+            isVendor ? "bg-surface border-b border-slate-200 text-slate-900" : "bg-brand-900 text-white"
           }`}
         >
           <span className="w-5.5 shrink-0" />
@@ -447,24 +461,27 @@ export default function DashboardLayout({ children }) {
           onClose={() => setDrawerOpen(false)}
           title="Menu"
           footer={
-            <button
-              type="button"
-              onClick={logout}
-              disabled={navOffline}
-              title={navOffline ? "Unavailable while offline" : undefined}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white hover:bg-white/10 ${
-                navOffline ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-              }`}
-            >
-              <LogOut size={18} />
-              Sign out
-            </button>
+            <>
+              <ThemeToggle tone="light" />
+              <button
+                type="button"
+                onClick={logout}
+                disabled={navOffline}
+                title={navOffline ? "Unavailable while offline" : undefined}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white hover:bg-white/10 ${
+                  navOffline ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                }`}
+              >
+                <LogOut size={18} />
+                Sign out
+              </button>
+            </>
           }
         >
           <NavLinks groups={groups} pathname={pathname} onNavigate={() => setDrawerOpen(false)} offline={navOffline} />
         </MobileNavDrawer>
 
-        <main className="flex-1 bg-slate-100">
+        <main className="flex-1 bg-canvas">
           <PullToRefresh>
             <div className="p-4 sm:p-8">{children}</div>
           </PullToRefresh>

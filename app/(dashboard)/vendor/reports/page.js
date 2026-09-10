@@ -172,7 +172,7 @@ export default function VendorReportsPage() {
       {loading && !report && <div className="h-64 bg-slate-100 rounded-sm animate-pulse" />}
 
       {report && (
-        <div className="report-sheet bg-white border border-slate-200 rounded-sm p-6 space-y-6">
+        <div className="report-sheet bg-surface border border-slate-200 rounded-sm p-6 space-y-6">
           <div className="border-b border-slate-100 pb-4">
             <p className="text-lg font-bold text-slate-900">{report.storeName}</p>
             <p className="text-sm text-slate-600">Monthly report &mdash; {report.label}</p>

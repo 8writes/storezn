@@ -58,7 +58,7 @@ export function CopyableUrl({ url, shareTitle, extra }) {
           <button
             type="button"
             onClick={handleShare}
-            className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold bg-white border border-slate-200 text-slate-700 px-3 py-2 rounded-sm hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-1.5 text-sm font-semibold bg-surface border border-slate-200 text-slate-700 px-3 py-2 rounded-sm hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap"
           >
             <Share2 size={16} />
             Share

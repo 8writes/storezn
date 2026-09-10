@@ -46,7 +46,7 @@ export function InfoTip({ children }) {
           ref={tooltipRef}
           role="tooltip"
           style={{ transform: `translateX(calc(-50% + ${shiftX}px))` }}
-          className="absolute z-20 bottom-full left-1/2 mb-2 w-56 max-w-[80vw] rounded-sm bg-slate-800 text-white text-xs leading-relaxed px-3 py-2 shadow-lg"
+          className="absolute z-20 bottom-full left-1/2 mb-2 w-56 max-w-[80vw] rounded-sm bg-neutral-800 text-white text-xs leading-relaxed px-3 py-2 shadow-lg"
         >
           {children}
         </span>

@@ -25,7 +25,7 @@ export function StorageLimitDialog({ open, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-sm shadow-xl w-full max-w-sm p-6 space-y-4 my-auto">
+      <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-sm p-6 space-y-4 my-auto">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-red-100 text-red-600">
             <HardDrive size={18} />

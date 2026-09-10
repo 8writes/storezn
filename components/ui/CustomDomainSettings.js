@@ -30,7 +30,7 @@ export function CustomDomainSettings({ store, isPlus, apiFetch, storeId, onUpdat
   // below - only the "link a new domain" form is what's actually gated.
   if (!isPlus && !store.customDomain) {
     return (
-      <div className="bg-white border border-dashed border-slate-300 rounded-sm p-5 max-w-md space-y-2">
+      <div className="bg-surface border border-dashed border-slate-300 rounded-sm p-5 max-w-md space-y-2">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-slate-700">Custom domain</p>
           <Badge color="slate">Storezn+</Badge>
@@ -76,7 +76,7 @@ export function CustomDomainSettings({ store, isPlus, apiFetch, storeId, onUpdat
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
+    <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-700">Custom domain</p>
@@ -102,7 +102,7 @@ export function CustomDomainSettings({ store, isPlus, apiFetch, storeId, onUpdat
             <Globe size={13} />
             At your domain registrar, add an A record:
           </p>
-          <p className="font-mono bg-white border border-slate-200 rounded px-2 py-1.5">
+          <p className="font-mono bg-surface border border-slate-200 rounded px-2 py-1.5">
             {store.customDomain}  →  A  →  {SERVER_IP}
           </p>
           <p>DNS changes can take a few minutes to a day to take effect.</p>

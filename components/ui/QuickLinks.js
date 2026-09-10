@@ -9,7 +9,7 @@ export function QuickLinks({ links }) {
         <Link
           key={href}
           href={href}
-          className="flex items-center gap-3 bg-white border border-slate-200 rounded-sm p-4 hover:border-brand-300 hover:bg-brand-50 transition-colors"
+          className="flex items-center gap-3 bg-surface border border-slate-200 rounded-sm p-4 hover:border-brand-300 hover:bg-brand-50 transition-colors"
         >
           <Icon size={18} className="text-brand-600 shrink-0" />
           <span className="text-sm font-medium text-slate-700">{label}</span>

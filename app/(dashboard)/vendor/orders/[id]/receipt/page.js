@@ -68,7 +68,7 @@ export default function ReceiptPage({ params }) {
         </div>
       </div>
 
-      <div className="receipt bg-white border border-slate-200 rounded-sm p-5 font-mono text-[13px] text-slate-900 leading-relaxed">
+      <div className="receipt bg-surface border border-slate-200 rounded-sm p-5 font-mono text-[13px] text-slate-900 leading-relaxed">
         <div className="text-center">
           <p className="font-bold text-sm uppercase">{storeName}</p>
           <p className="text-slate-500 text-[11px]">{formatDateTime(order.paidAt || order.createdAt)}</p>

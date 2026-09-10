@@ -26,7 +26,7 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, opening }) {
 
   if (registers.length === 0) {
     return (
-      <div className="max-w-md mx-auto bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
+      <div className="max-w-md mx-auto bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
         <Calculator size={28} className="mx-auto text-slate-300" />
         <h2 className="text-lg font-bold text-slate-900">No register set up</h2>
         <p className="text-sm text-slate-500">
@@ -50,7 +50,7 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, opening }) {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white border border-slate-200 rounded-sm p-6 space-y-4">
+    <div className="max-w-md mx-auto bg-surface border border-slate-200 rounded-sm p-6 space-y-4">
       <div className="text-center space-y-1">
         <Calculator size={26} className="mx-auto text-brand-600" />
         <h2 className="text-lg font-bold text-slate-900">Open a register</h2>

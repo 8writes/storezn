@@ -173,7 +173,7 @@ export default function SellPage() {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <BackLink href="/vendor/orders" label="Back to orders" />
-        <div className="bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
+        <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h1 className="text-lg font-bold text-slate-900">In-person selling is a Storezn Enterprise feature</h1>
           <p className="text-sm text-slate-500 max-w-sm mx-auto">
             Run a register to take sales in person - item-by-item ring-up, cash drawer, POS-machine and transfer payments,
@@ -195,7 +195,7 @@ export default function SellPage() {
       {loading || registers === null ? (
         <PosSkeleton />
       ) : regError ? (
-        <div className="max-w-md mx-auto bg-white border border-slate-200 rounded-sm p-8 text-center space-y-3">
+        <div className="max-w-md mx-auto bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h2 className="text-base font-bold text-slate-900">Couldn&apos;t load the register</h2>
           <p className="text-sm text-slate-500">Check your connection and try again.</p>
           <Button type="button" onClick={loadRegisters}>
@@ -666,7 +666,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         <ProductPicker storeId={storeId} token={token} onAdd={addToCart} cartCountByProduct={countByProduct} />
 
         <div className="space-y-3 lg:sticky lg:top-4">
-          <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+          <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
               <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <ShoppingCart size={15} className="text-slate-400" /> Current sale
@@ -818,7 +818,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-3 space-y-2">
+          <div className="bg-surface border border-slate-200 rounded-sm p-3 space-y-2">
             <Input label="Customer name (optional)" value={buyer.name} onChange={(e) => setBuyer((b) => ({ ...b, name: e.target.value }))} />
             <Input label="Phone (optional)" value={buyer.phone} onChange={(e) => setBuyer((b) => ({ ...b, phone: e.target.value }))} />
           </div>
@@ -874,7 +874,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       {xOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="fixed inset-0 bg-black/50" onClick={() => setXOpen(false)} />
-          <div className="relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92vh] flex flex-col">
+          <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <p className="text-sm font-bold text-slate-900">Register status</p>
               <button type="button" onClick={() => setXOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
@@ -896,7 +896,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       {holdPromptOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="fixed inset-0 bg-black/50" onClick={() => setHoldPromptOpen(false)} />
-          <div className="relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-xs p-4 space-y-3">
+          <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-xs p-4 space-y-3">
             <p className="text-sm font-bold text-slate-900">Hold this sale</p>
             <p className="text-xs text-slate-500">Give it a name so you can find it again for the customer.</p>
             <input
@@ -923,7 +923,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       {heldOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="fixed inset-0 bg-black/50" onClick={() => setHeldOpen(false)} />
-          <div className="relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[80vh] flex flex-col">
+          <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <p className="text-sm font-bold text-slate-900">Held sales</p>
               <button type="button" onClick={() => setHeldOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">

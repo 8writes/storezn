@@ -46,7 +46,7 @@ export default function VendorCustomerDetailPage({ params }) {
         <p className="text-sm text-slate-500">Customer since {formatDate(customer.createdAt)}</p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
           <p className="text-slate-700">Email</p>
           <p className="text-slate-900 font-medium">{customer.email}</p>
@@ -67,7 +67,7 @@ export default function VendorCustomerDetailPage({ params }) {
 
       <div>
         <h2 className="text-sm font-semibold text-slate-700 mb-2">Order history</h2>
-        <div className="bg-white border border-slate-200 rounded-sm divide-y divide-slate-100">
+        <div className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-100">
           {orders.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-700">No orders yet</p>
           ) : (

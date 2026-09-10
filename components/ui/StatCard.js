@@ -13,7 +13,7 @@ const COLOR_CLASSES = {
 export function StatCard({ icon: Icon, label, value, sub, color = "brand", href }) {
   // A plain card unless `href` is given, in which case the whole card is a
   // link into the page that stat summarises.
-  const base = "bg-white border border-slate-200 rounded-sm p-3 flex items-start gap-3";
+  const base = "bg-surface border border-slate-200 rounded-sm p-3 flex items-start gap-3";
   const inner = (
     <>
       {/* Hidden below sm - on a 2-up mobile grid the icon just eats space

@@ -173,7 +173,7 @@ export default function VendorPlusPage() {
       ) : (
         <>
           {/* -------- Storezn+ -------- */}
-          <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+          <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
             <div className="bg-gradient-to-br from-brand-700 to-brand-900 px-6 py-8 text-white relative overflow-hidden">
               <div
                 className="absolute inset-0 opacity-20"
@@ -237,8 +237,8 @@ export default function VendorPlusPage() {
           </div>
 
           {/* -------- Storezn Enterprise -------- */}
-          <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-950 px-6 py-8 text-white relative overflow-hidden">
+          <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
+            <div className="bg-gradient-to-br from-neutral-800 to-neutral-950 px-6 py-8 text-white relative overflow-hidden">
               <div
                 className="absolute inset-0 opacity-20"
                 style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
@@ -299,7 +299,7 @@ export default function VendorPlusPage() {
       )}
 
       {transactions && transactions.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+        <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
           <p className="text-sm font-semibold text-slate-700 px-5 py-4 border-b border-slate-100 flex items-center gap-2">
             <Receipt size={16} className="text-slate-400" />
             Billing history
@@ -328,7 +328,7 @@ export default function VendorPlusPage() {
       {confirmOpen && (
         <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
           <div className="fixed inset-0 bg-black/50" onClick={() => setConfirmOpen(false)} />
-          <div className="relative bg-white rounded-sm shadow-xl w-full max-w-sm p-6 space-y-5 my-auto">
+          <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-sm p-6 space-y-5 my-auto">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Confirm subscription</p>

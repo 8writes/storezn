@@ -35,7 +35,7 @@ export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={submitting ? undefined : onClose} />
-      <div className="relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm">
+      <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <p className="text-sm font-bold text-slate-900">Cash drawer</p>
           <button type="button" onClick={onClose} disabled={submitting} className="text-slate-400 hover:text-slate-700 cursor-pointer disabled:opacity-50">

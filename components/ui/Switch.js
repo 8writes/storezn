@@ -11,7 +11,7 @@ export function Switch({ checked, onChange, label, description }) {
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between gap-4 bg-white border border-slate-200 rounded-sm p-4 cursor-pointer text-left hover:border-brand-300 transition-colors"
+      className="w-full flex items-center justify-between gap-4 bg-surface border border-slate-200 rounded-sm p-4 cursor-pointer text-left hover:border-brand-300 transition-colors"
     >
       <div className="min-w-0">
         {label && <p className="text-sm font-medium text-slate-900">{label}</p>}
@@ -19,7 +19,7 @@ export function Switch({ checked, onChange, label, description }) {
       </div>
       <span className={`shrink-0 relative w-11 h-6 rounded-full transition-colors ${checked ? "bg-brand-600" : "bg-slate-200"}`}>
         <span
-          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
+          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-surface rounded-full shadow-sm transition-transform ${
             checked ? "translate-x-5" : "translate-x-0"
           }`}
         />

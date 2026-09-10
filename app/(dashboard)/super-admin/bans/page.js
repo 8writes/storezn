@@ -83,7 +83,7 @@ export default function BansPage() {
       </div>
 
       {/* Manual ban */}
-      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
         <p className="text-sm font-semibold text-slate-700">Ban a device by id</p>
         <p className="text-xs text-slate-500">Paste a device id from the watch-list or abuse stream below.</p>
         <Input label="Device id" value={manualDevice} onChange={(e) => setManualDevice(e.target.value)} />
@@ -101,7 +101,7 @@ export default function BansPage() {
       {data.rollup?.length > 0 && (
         <div>
           <p className="text-sm font-semibold text-slate-700 mb-2">Watch list — abuse events, last 24h</p>
-          <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+          <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-left">
                 <tr>
@@ -147,7 +147,7 @@ export default function BansPage() {
         {active.length === 0 ? (
           <p className="text-sm text-slate-500">None.</p>
         ) : (
-          <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+          <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-left">
                 <tr>
@@ -189,7 +189,7 @@ export default function BansPage() {
       {data.events?.length > 0 && (
         <div>
           <p className="text-sm font-semibold text-slate-700 mb-2">Recent abuse events</p>
-          <div className="bg-white border border-slate-200 rounded-sm divide-y divide-slate-100 max-h-96 overflow-y-auto">
+          <div className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-100 max-h-96 overflow-y-auto">
             {data.events.map((e) => (
               <div key={e.id} className="flex items-start justify-between gap-4 px-3 py-2 text-sm">
                 <span>

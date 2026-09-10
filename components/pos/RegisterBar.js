@@ -32,7 +32,7 @@ export function RegisterBar({
 }) {
   const expected = summary?.drawer?.expectedCash ?? session?.openingFloat ?? 0;
   return (
-    <div className="bg-white border border-slate-200 rounded-sm px-4 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+    <div className="bg-surface border border-slate-200 rounded-sm px-4 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
       <span className="flex items-center gap-1.5 font-semibold text-slate-900">
         <Calculator size={15} className="text-brand-600" />
         {registerName}

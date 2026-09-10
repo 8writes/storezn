@@ -67,7 +67,7 @@ export default function SuperAdminOrdersPage() {
         <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="max-w-xs" />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>

@@ -130,7 +130,7 @@ export default function VendorAnalyticsPage() {
       <h1 className="text-xl font-bold text-slate-900">Analytics</h1>
 
       {/* ---- Filters ---- */}
-      <div className="bg-white border border-slate-200 rounded-sm p-4 space-y-3">
+      <div className="bg-surface border border-slate-200 rounded-sm p-4 space-y-3">
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
             <button
@@ -138,7 +138,7 @@ export default function VendorAnalyticsPage() {
               type="button"
               onClick={() => applyPreset(p)}
               className={`px-3 py-1.5 text-xs font-medium rounded-sm border cursor-pointer transition-colors ${
-                activePreset === p.key ? "bg-brand-600 border-brand-600 text-white" : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
+                activePreset === p.key ? "bg-brand-600 border-brand-600 text-white" : "bg-surface border-slate-300 text-slate-700 hover:bg-slate-50"
               }`}
             >
               {p.label}
@@ -216,7 +216,7 @@ export default function VendorAnalyticsPage() {
           </div>
 
           {/* ---- Revenue trend ---- */}
-          <div className="bg-white border border-slate-200 rounded-sm p-5">
+          <div className="bg-surface border border-slate-200 rounded-sm p-5">
             <p className="text-sm font-semibold text-slate-700 mb-4">Revenue over time</p>
             {data.daily.every((d) => d.revenue === 0) ? (
               <p className="text-sm text-slate-400 py-16 text-center">No sales in this period.</p>
@@ -243,7 +243,7 @@ export default function VendorAnalyticsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* ---- Orders per day ---- */}
-            <div className="bg-white border border-slate-200 rounded-sm p-5">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5">
               <p className="text-sm font-semibold text-slate-700 mb-4">Orders per day</p>
               <Chart
                 type="bar"
@@ -257,7 +257,7 @@ export default function VendorAnalyticsPage() {
             </div>
 
             {/* ---- Order status breakdown ---- */}
-            <div className="bg-white border border-slate-200 rounded-sm p-5">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5">
               <p className="text-sm font-semibold text-slate-700 mb-4">Orders by status</p>
               {data.statusBreakdown.length === 0 ? (
                 <p className="text-sm text-slate-400 py-16 text-center">No orders in this period.</p>
@@ -278,7 +278,7 @@ export default function VendorAnalyticsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* ---- Top products ---- */}
-            <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+            <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
               <p className="text-sm font-semibold text-slate-700 px-5 py-4 border-b border-slate-100">Top products</p>
               {data.topProducts.length === 0 ? (
                 <p className="text-sm text-slate-400 py-10 text-center">No sales in this period.</p>
@@ -305,7 +305,7 @@ export default function VendorAnalyticsPage() {
             </div>
 
             {/* ---- Category breakdown ---- */}
-            <div className="bg-white border border-slate-200 rounded-sm p-5">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5">
               <p className="text-sm font-semibold text-slate-700 mb-4">Revenue by category</p>
               {data.categoryBreakdown.length === 0 ? (
                 <p className="text-sm text-slate-400 py-16 text-center">No sales in this period.</p>
@@ -326,7 +326,7 @@ export default function VendorAnalyticsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* ---- Top customers ---- */}
-            <div className="bg-white border border-slate-200 rounded-sm overflow-hidden">
+            <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
               <p className="text-sm font-semibold text-slate-700 px-5 py-4 border-b border-slate-100">Top customers</p>
               {data.topCustomers.length === 0 ? (
                 <p className="text-sm text-slate-400 py-10 text-center">No registered-customer sales in this period.</p>
@@ -350,7 +350,7 @@ export default function VendorAnalyticsPage() {
 
             <div className="space-y-6">
               {/* ---- Channel breakdown ---- */}
-              <div className="bg-white border border-slate-200 rounded-sm p-5">
+              <div className="bg-surface border border-slate-200 rounded-sm p-5">
                 <p className="text-sm font-semibold text-slate-700 mb-3">Online vs. offline</p>
                 <div className="grid grid-cols-2 gap-3">
                   {["online", "offline"].map((ch) => {
@@ -368,7 +368,7 @@ export default function VendorAnalyticsPage() {
 
               {/* ---- Branch breakdown (multi-branch stores only) ---- */}
               {data.branchBreakdown.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-sm p-5">
+                <div className="bg-surface border border-slate-200 rounded-sm p-5">
                   <p className="text-sm font-semibold text-slate-700 mb-3">Revenue by branch</p>
                   <ul className="space-y-2">
                     {data.branchBreakdown.map((b) => (
@@ -382,7 +382,7 @@ export default function VendorAnalyticsPage() {
               )}
 
               {/* ---- Store health ---- */}
-              <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+              <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
                 <p className="text-sm font-semibold text-slate-700">Store health</p>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1.5 text-slate-700"><Package size={14} /> Live products</span>

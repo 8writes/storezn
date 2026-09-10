@@ -312,7 +312,7 @@ export default function VendorNewProductPage() {
       <h1 className="text-xl font-bold text-slate-900">Add product</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <form onSubmit={handleCreate} className="lg:col-span-2 bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+        <form onSubmit={handleCreate} className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
           {stores.length > 1 && (
             <div className="max-w-xs">
               <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
@@ -486,7 +486,7 @@ export default function VendorNewProductPage() {
                 >
                   <img src={url} alt="" className="w-full h-full object-cover" />
                   {index === 0 && (
-                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-sm bg-slate-900/80 text-white text-[10px] font-medium">
+                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-sm bg-neutral-900/80 text-white text-[10px] font-medium">
                       Cover
                     </span>
                   )}
@@ -563,7 +563,7 @@ export default function VendorNewProductPage() {
           <Button type="submit" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>Create product</Button>
         </form>
 
-        <form onSubmit={handleAddCategory} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+        <form onSubmit={handleAddCategory} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
           <p className="text-sm font-semibold text-slate-700">Add a category</p>
           <Input
             label="Name"

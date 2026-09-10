@@ -105,7 +105,7 @@ export default function VendorVerificationPage() {
       )}
 
       {status.approvalStatus !== "approved" && (!status.nin || status.approvalStatus === "rejected") && (
-        <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <label className="text-sm font-medium text-slate-700">NIN (National Identification Number)</label>

@@ -104,7 +104,7 @@ export default function SuperAdminSettingsPage() {
         <FormSkeleton fields={2} />
       ) : (
         <>
-          <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-slate-700">Maintenance mode</p>
@@ -125,7 +125,7 @@ export default function SuperAdminSettingsPage() {
                 }`}
               >
                 <span
-                  className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
                     maintenanceMode ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
@@ -139,7 +139,7 @@ export default function SuperAdminSettingsPage() {
             )}
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
           <div>
             <p className="text-sm font-semibold text-slate-700">Commission</p>
             <p className="text-xs text-slate-500 mt-1">
@@ -163,7 +163,7 @@ export default function SuperAdminSettingsPage() {
           <Button onClick={save} loading={saving}>Save</Button>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-4">
             <div>
               <p className="text-sm font-semibold text-slate-700">Storezn+</p>
               <p className="text-xs text-slate-500 mt-1">
@@ -237,7 +237,7 @@ function BlockedEmails({ token }) {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
+    <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
       <div>
         <p className="text-sm font-semibold text-slate-700">Blocked signup emails</p>
         <p className="text-xs text-slate-500 mt-1">

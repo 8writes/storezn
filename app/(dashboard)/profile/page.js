@@ -128,7 +128,7 @@ export default function ProfilePage() {
       {confirmDialog}
       <h1 className="text-xl font-bold text-slate-900">Profile</h1>
 
-      <form onSubmit={handleSaveProfile} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+      <form onSubmit={handleSaveProfile} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
         <p className="text-sm font-semibold text-slate-700">Your details</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="First name" value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} required />
@@ -139,7 +139,7 @@ export default function ProfilePage() {
         <Button type="submit" loading={saving}>Save</Button>
       </form>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
         <p className="text-sm font-semibold text-slate-700">Notifications</p>
         <label className="flex items-center justify-between gap-4 text-sm text-slate-700 cursor-pointer">
           <span>Email me about order updates</span>
@@ -152,7 +152,7 @@ export default function ProfilePage() {
         </label>
       </div>
 
-      <form onSubmit={handleChangePassword} className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+      <form onSubmit={handleChangePassword} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
         <p className="text-sm font-semibold text-slate-700">Change password</p>
         <PasswordInput
           label="Current password"
@@ -173,7 +173,7 @@ export default function ProfilePage() {
       </form>
 
       {user.role === "staff" && (
-        <div className="bg-white border border-red-200 rounded-sm p-5 space-y-3">
+        <div className="bg-surface border border-red-200 rounded-sm p-5 space-y-3">
           <div>
             <p className="text-sm font-semibold text-slate-700">Leave this store</p>
             <p className="text-xs text-slate-500 mt-1">You&apos;ll lose access to this store&apos;s dashboard immediately.</p>
@@ -183,7 +183,7 @@ export default function ProfilePage() {
       )}
 
       {user.role === "vendor" && (
-        <div className="bg-white border border-red-200 rounded-sm p-5 space-y-3">
+        <div className="bg-surface border border-red-200 rounded-sm p-5 space-y-3">
           <div>
             <p className="text-sm font-semibold text-slate-700">Disable account</p>
             <p className="text-xs text-slate-500 mt-1">
@@ -208,7 +208,7 @@ export default function ProfilePage() {
       {deleteOpen && (
         <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
           <div className="fixed inset-0 bg-black/50" onClick={() => !deleting && setDeleteOpen(false)} />
-          <div className="relative bg-white rounded-sm shadow-xl w-full max-w-md p-6 space-y-4 my-auto">
+          <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-md p-6 space-y-4 my-auto">
             <p className="text-sm font-semibold text-slate-900">Disable your account?</p>
             <p className="text-sm text-slate-600">
               Your account is suspended and every store you own goes offline immediately. Nothing is deleted - Storezn

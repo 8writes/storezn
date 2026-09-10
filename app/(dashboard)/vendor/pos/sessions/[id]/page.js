@@ -196,7 +196,7 @@ export default function SessionDetailPage({ params }) {
                 value={reviewNote}
                 onChange={(e) => setReviewNote(e.target.value)}
                 placeholder="Note (optional) — what you found / did"
-                className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500 bg-white"
+                className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500 bg-surface"
               />
               <Button type="button" size="sm" loading={reviewing} onClick={approveClose}>
                 Approve this close
@@ -209,7 +209,7 @@ export default function SessionDetailPage({ params }) {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-sm p-4">
+      <div className="bg-surface border border-slate-200 rounded-sm p-4">
         <ZReport summary={report} title={session.status === "open" ? "X report" : "Z report"} />
         {session.countBreakdown && Object.keys(session.countBreakdown).length > 0 && (
           <div className="mt-3 border-t border-slate-100 pt-2">
@@ -227,7 +227,7 @@ export default function SessionDetailPage({ params }) {
         )}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-hidden print:break-inside-avoid">
+      <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden print:break-inside-avoid">
         <div className="px-4 py-2.5 border-b border-slate-100">
           <p className="text-sm font-semibold text-slate-700">Cash movements ({movesTotal})</p>
           <p className="text-xs text-slate-400">Every entry in and out of this drawer, newest first &mdash; who did it, when, and why.</p>
@@ -277,7 +277,7 @@ export default function SessionDetailPage({ params }) {
         )}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-hidden print:break-inside-avoid">
+      <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden print:break-inside-avoid">
         <p className="text-sm font-semibold text-slate-700 px-4 py-2.5 border-b border-slate-100">
           Sales ({ordsTotal})
         </p>

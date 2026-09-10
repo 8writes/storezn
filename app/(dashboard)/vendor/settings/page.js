@@ -232,7 +232,7 @@ export default function VendorSettingsPage() {
 
       {!loading && store && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <div className="bg-white border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-slate-900">Store status</p>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -250,14 +250,14 @@ export default function VendorSettingsPage() {
             }`}
           >
             <span
-              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
                 store.isOpen ? "translate-x-5" : "translate-x-0"
               }`}
             />
           </button>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-semibold text-slate-900">Marketplace listing</p>
@@ -280,7 +280,7 @@ export default function VendorSettingsPage() {
             }`}
           >
             <span
-              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
                 store.listOnMarketplace ? "translate-x-5" : "translate-x-0"
               }`}
             />
@@ -306,7 +306,7 @@ export default function VendorSettingsPage() {
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           {storageLimitBytes > 0 && (
-            <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <SectionLabel>Storage</SectionLabel>
                 <Link href="/vendor/plus" className="text-xs font-semibold text-brand-600 hover:text-brand-700">
@@ -331,7 +331,7 @@ export default function VendorSettingsPage() {
           )}
 
           {isPlus ? (
-            <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <Palette size={16} className="text-slate-400" />
                 <SectionLabel>Storefront theme</SectionLabel>
@@ -368,7 +368,7 @@ export default function VendorSettingsPage() {
               )}
             </div>
           ) : (
-            <div className="bg-white border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
+            <div className="bg-surface border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Palette size={16} className="text-slate-400" />
@@ -385,7 +385,7 @@ export default function VendorSettingsPage() {
             </div>
           )}
 
-          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+          <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
             <SectionLabel>Branding</SectionLabel>
 
             <div className="space-y-1.5">
@@ -436,7 +436,7 @@ export default function VendorSettingsPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+          <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
             <SectionLabel>Contact &amp; socials</SectionLabel>
 
             <div className="flex items-center gap-1.5">
@@ -470,7 +470,7 @@ export default function VendorSettingsPage() {
                 }`}
               >
                 <span
-                  className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
                     form.showShipsFrom ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
@@ -521,7 +521,7 @@ export default function VendorSettingsPage() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-4">
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
             <SectionLabel>Fees &amp; refunds</SectionLabel>
 
             <div>
@@ -581,7 +581,7 @@ export default function VendorSettingsPage() {
           </div>
           </div>
 
-          <div className="sticky bottom-0 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 bg-white/95 backdrop-blur-sm border-t border-slate-200">
+          <div className="sticky bottom-0 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 bg-surface/95 backdrop-blur-sm border-t border-slate-200">
             <Button type="submit" loading={saving} fullWidth>Save settings</Button>
           </div>
         </form>

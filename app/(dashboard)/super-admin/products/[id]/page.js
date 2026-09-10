@@ -106,7 +106,7 @@ export default function SuperAdminProductDetailPage({ params }) {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
           <p className="text-slate-700">Price</p>
           <p className="text-slate-900 font-medium">{formatCurrency(product.price)}</p>
@@ -138,7 +138,7 @@ export default function SuperAdminProductDetailPage({ params }) {
       </div>
 
       {product.description && (
-        <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm text-slate-700 whitespace-pre-line">
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 text-sm text-slate-700 whitespace-pre-line">
           {product.description}
         </div>
       )}
@@ -146,7 +146,7 @@ export default function SuperAdminProductDetailPage({ params }) {
       {variants.length > 0 && (
         <div>
           <p className="text-sm font-semibold text-slate-700 mb-2">Variants</p>
-          <div className="bg-white border border-slate-200 rounded-sm divide-y divide-slate-100">
+          <div className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-100">
             {variants.map((v) => (
               <div key={v.id} className="flex items-center justify-between p-3 text-sm">
                 <p className="text-slate-900">{Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}</p>

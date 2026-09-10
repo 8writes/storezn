@@ -161,7 +161,7 @@ export default function SuperAdminTransactionsPage() {
       )}
 
       {tab === "orders" ? (
-        <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+        <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-left">
               <tr>
@@ -201,7 +201,7 @@ export default function SuperAdminTransactionsPage() {
           <Pagination pagination={pagination} onPageChange={setPage} />
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+        <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-left">
               <tr>

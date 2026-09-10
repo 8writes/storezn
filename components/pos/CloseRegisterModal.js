@@ -64,7 +64,7 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={submitting ? undefined : onClose} />
-      <div className="relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92vh] flex flex-col">
+      <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <p className="text-sm font-bold text-slate-900">{zReport ? "Register closed" : "Close register"}</p>
           <button

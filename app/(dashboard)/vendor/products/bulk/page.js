@@ -430,7 +430,7 @@ export default function BulkProductsPage() {
 }
 
 function GridRow({ r, isNew, catOptions, baseStock, touched, highlight, onChange, onRemove }) {
-  const inputCls = "w-full px-1.5 py-1 border border-slate-200 rounded-sm text-sm outline-none focus:border-brand-500 bg-white";
+  const inputCls = "w-full px-1.5 py-1 border border-slate-200 rounded-sm text-sm outline-none focus:border-brand-500 bg-surface";
   const rowCls = isNew ? "bg-emerald-50/40" : highlight ? "bg-amber-50 ring-1 ring-amber-300" : touched ? "bg-blue-50/40" : "";
 
   return (
@@ -467,10 +467,10 @@ function GridRow({ r, isNew, catOptions, baseStock, touched, highlight, onChange
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-slate-500 tabular-nums w-14 shrink-0">now {baseStock ?? 0}</span>
             <div className="flex rounded-sm border border-slate-200 overflow-hidden text-[11px] shrink-0">
-              <button type="button" onClick={() => onChange({ stockMode: "add" })} className={`px-1.5 py-1 ${r.stockMode === "add" ? "bg-brand-600 text-white" : "bg-white text-slate-500"}`}>
+              <button type="button" onClick={() => onChange({ stockMode: "add" })} className={`px-1.5 py-1 ${r.stockMode === "add" ? "bg-brand-600 text-white" : "bg-surface text-slate-500"}`}>
                 +Add
               </button>
-              <button type="button" onClick={() => onChange({ stockMode: "set" })} className={`px-1.5 py-1 ${r.stockMode === "set" ? "bg-brand-600 text-white" : "bg-white text-slate-500"}`}>
+              <button type="button" onClick={() => onChange({ stockMode: "set" })} className={`px-1.5 py-1 ${r.stockMode === "set" ? "bg-brand-600 text-white" : "bg-surface text-slate-500"}`}>
                 Set
               </button>
             </div>

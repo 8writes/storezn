@@ -176,7 +176,7 @@ export default function SuperAdminVendorsPage() {
         <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="max-w-sm" />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>

@@ -58,7 +58,7 @@ export default function SessionsPage() {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-sm overflow-x-auto">
+      <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-100">

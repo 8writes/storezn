@@ -177,7 +177,7 @@ export default function VendorProductViewPage({ params }) {
         </div>
 
         <div className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
             <p className="text-2xl font-bold text-slate-900">{formatCurrency(product.price)}</p>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <dt className="text-slate-700">Type</dt>
@@ -226,21 +226,21 @@ export default function VendorProductViewPage({ params }) {
           </div>
 
           {product.description && (
-            <div className="bg-white border border-slate-200 rounded-sm p-5">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5">
               <p className="text-sm font-medium text-slate-700 mb-1.5">Description</p>
               <p className="text-sm text-slate-700 whitespace-pre-line">{product.description}</p>
             </div>
           )}
 
           {product.sizeGuide?.columns?.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-sm p-5">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5">
               <p className="text-sm font-medium text-slate-700 mb-3">Size guide</p>
               <SizeGuideTable guide={product.sizeGuide} />
             </div>
           )}
 
           {variants.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-2">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-2">
               <p className="text-sm font-medium text-slate-700">Variants ({variants.length})</p>
               <div className="divide-y divide-slate-100">
                 {variants.slice(0, visibleVariants).map((v) => (
@@ -267,7 +267,7 @@ export default function VendorProductViewPage({ params }) {
           )}
 
           {branchStock && branchStock.totalBranches > 1 && (
-            <div className="bg-white border border-slate-200 rounded-sm p-5 space-y-3">
+            <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
               <p className="text-sm font-medium text-slate-700">Stock by branch</p>
               <BranchStockList label={null} rows={branchStock.productStock} />
               {variants.slice(0, visibleVariants).map((v) => (

@@ -74,7 +74,7 @@ export default function SuperAdminNotificationsPage() {
         <p className="text-sm text-slate-500 mt-1">Send a custom push notification and/or email to one vendor or every vendor.</p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-lg space-y-4">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-lg space-y-4">
         <Select label="Send to" options={TARGET_OPTIONS} value={target} onChange={setTarget} searchable={false} />
         {target === "single" && (
           <Select label="Vendor" options={vendorOptions} value={userId} onChange={setUserId} placeholder="Choose a vendor" />
