@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button.js";
 import { deviceHeaders } from "@/lib/clientDevice.js";
 import { BannedNotice } from "@/components/BannedNotice.js";
 
-const EMPTY_FORM = { firstName: "", lastName: "", email: "", password: "" };
+const EMPTY_FORM = { firstName: "", lastName: "", email: "", password: "", acceptMarketing: false };
 
 export default function StorefrontSignupPage() {
   const [form, setForm] = useState(EMPTY_FORM);
@@ -74,6 +74,15 @@ export default function StorefrontSignupPage() {
         </div>
         <Input label="Email" type="email" value={form.email} onChange={setField("email")} required autoComplete="email" />
         <PasswordInput label="Password" value={form.password} onChange={setField("password")} required minLength={8} autoComplete="new-password" />
+        <label className="flex items-start gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={form.acceptMarketing}
+            onChange={(e) => setForm((f) => ({ ...f, acceptMarketing: e.target.checked }))}
+            className="mt-0.5"
+          />
+          <span>I agree to receive occasional marketing emails from Storezn. You can unsubscribe at any time.</span>
+        </label>
         <Button type="submit" fullWidth size="lg" loading={loading}>Create account</Button>
       </form>
       <p className="text-center text-sm text-slate-500">

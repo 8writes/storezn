@@ -6,7 +6,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { StatCard } from "@/components/ui/StatCard.js";
 import { StatGridSkeleton, Skeleton } from "@/components/ui/Skeleton.js";
 import { Chart } from "@/components/ui/Chart.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, compactCurrency } from "@/lib/format.js";
 import { Store, Wallet, TrendingUp, ShoppingBag, Sparkles } from "lucide-react";
 
 // Matches the brand-* ramp in globals.css - Chart.js needs real hex/rgba
@@ -45,14 +45,14 @@ export default function SuperAdminAnalyticsPage() {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <StatCard icon={Store} label="Stores" value={data.stores.total} sub={`${data.stores.active} active`} />
-            <StatCard icon={Wallet} label="Total GMV" value={formatCurrency(data.revenue.totalGMV)} color="green" />
-            <StatCard icon={TrendingUp} label="Commission earned" value={formatCurrency(data.revenue.totalCommission)} color="brand" />
+            <StatCard icon={Wallet} label="Total GMV" value={compactCurrency(data.revenue.totalGMV)} title={formatCurrency(data.revenue.totalGMV)} color="green" />
+            <StatCard icon={TrendingUp} label="Commission earned" value={compactCurrency(data.revenue.totalCommission)} title={formatCurrency(data.revenue.totalCommission)} color="brand" />
             <StatCard
               icon={ShoppingBag}
               label="Paid orders (30d)"
               value={data.daily.reduce((sum, d) => sum + d.orderCount, 0)}
             />
-            <StatCard icon={Sparkles} label="Storezn+ revenue" value={formatCurrency(data.subscriptions.totalRevenue)} color="brand" />
+            <StatCard icon={Sparkles} label="Storezn+ revenue" value={compactCurrency(data.subscriptions.totalRevenue)} title={formatCurrency(data.subscriptions.totalRevenue)} color="brand" />
             <StatCard icon={Sparkles} label="Storezn+ stores" value={data.subscriptions.plusStores} />
           </div>
 

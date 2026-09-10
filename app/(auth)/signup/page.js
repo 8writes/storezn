@@ -19,6 +19,7 @@ const EMPTY_FORM = {
   state: "",
   vendor: { firstName: "", lastName: "", email: "", password: "" },
   acceptTerms: false,
+  acceptMarketing: false,
 };
 
 function VendorSignupForm() {
@@ -157,6 +158,23 @@ function VendorSignupForm() {
           <Link href="/terms" target="_blank" className="text-brand-600 hover:underline">
             Terms of Service
           </Link>
+          {" "}and{" "}
+          <Link href="/privacy" target="_blank" className="text-brand-600 hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </span>
+      </label>
+
+      <label className="flex items-start gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={form.acceptMarketing}
+          onChange={(e) => setForm((f) => ({ ...f, acceptMarketing: e.target.checked }))}
+          className="mt-0.5"
+        />
+        <span>
+          I agree to receive occasional marketing emails from Storezn. You can unsubscribe at any time.
         </span>
       </label>
 

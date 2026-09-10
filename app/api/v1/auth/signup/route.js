@@ -108,6 +108,7 @@ export async function POST(req) {
         normalizedEmail: normalized,
         passwordHash,
         emailVerified: false,
+        marketingOptIn: !!result.data.acceptMarketing,
         signupDeviceId: device.deviceId,
         signupIp: device.ip,
         termsAcceptedAt: new Date(),

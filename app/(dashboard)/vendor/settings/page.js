@@ -287,24 +287,18 @@ export default function VendorSettingsPage() {
           </button>
         </div>
 
-        <CustomDomainSettings
-          store={store}
-          isPlus={isPlus}
-          apiFetch={apiFetch}
-          storeId={storeId}
-          onUpdated={(updated) => {
-            setStore(updated);
-            updateStore(updated);
-          }}
-        />
-        </div>
-      )}
-
-      {loading || !form ? (
-        <FormSkeleton fields={4} />
-      ) : (
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Custom domain full-width on mobile; Storage rides beside it on desktop. */}
+        <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <CustomDomainSettings
+            store={store}
+            isPlus={isPlus}
+            apiFetch={apiFetch}
+            storeId={storeId}
+            onUpdated={(updated) => {
+              setStore(updated);
+              updateStore(updated);
+            }}
+          />
           {storageLimitBytes > 0 && (
             <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
               <div className="flex items-center justify-between gap-3">
@@ -329,9 +323,17 @@ export default function VendorSettingsPage() {
               </div>
             </div>
           )}
+        </div>
+        </div>
+      )}
 
+      {loading || !form ? (
+        <FormSkeleton fields={4} />
+      ) : (
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           {isPlus ? (
-            <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
+            <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <Palette size={16} className="text-slate-400" />
                 <SectionLabel>Storefront theme</SectionLabel>
@@ -368,7 +370,7 @@ export default function VendorSettingsPage() {
               )}
             </div>
           ) : (
-            <div className="bg-surface border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
+            <div className="lg:col-span-2 bg-surface border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Palette size={16} className="text-slate-400" />
@@ -521,7 +523,7 @@ export default function VendorSettingsPage() {
             </div>
           </div>
 
-          <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+          <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
             <SectionLabel>Fees &amp; refunds</SectionLabel>
 
             <div>

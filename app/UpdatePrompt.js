@@ -54,7 +54,7 @@ export default function UpdatePrompt() {
 
   return (
     <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 pointer-events-none">
-      <div className="pointer-events-auto flex items-center gap-3 rounded-sm border border-slate-200 bg-white px-4 py-3 shadow-lg max-w-md w-full sm:w-auto">
+      <div className="pointer-events-auto flex items-center gap-3 rounded-sm border border-slate-200 bg-surface px-4 py-3 shadow-lg max-w-md w-full sm:w-auto">
         <div className="min-w-0 flex-1 text-sm">
           <p className="font-semibold text-slate-900">A new version is ready</p>
           <p className="text-xs text-slate-500">Reload to get the latest updates.</p>

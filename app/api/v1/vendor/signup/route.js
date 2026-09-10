@@ -34,7 +34,7 @@ export async function POST(req) {
 
   const result = validate(vendorSignupSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  const { vendor, acceptTerms, ...storeData } = result.data;
+  const { vendor, acceptTerms, acceptMarketing, ...storeData } = result.data;
 
   const [existingStore] = await db.select({ id: stores.id }).from(stores).where(eq(stores.slug, storeData.slug)).limit(1);
   if (existingStore) {
@@ -71,6 +71,7 @@ export async function POST(req) {
         passwordHash,
         role: "vendor",
         emailVerified: false,
+        marketingOptIn: !!acceptMarketing,
         signupDeviceId: device.deviceId,
         signupIp: device.ip,
         termsAcceptedAt: new Date(),

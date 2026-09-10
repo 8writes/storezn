@@ -94,7 +94,7 @@ export default function InstallPrompt() {
   if (!ready || standaloneOrDismissed || (!deferredPrompt && !isIos)) return null;
 
   return (
-    <div className="fixed bottom-4 inset-x-4 sm:left-auto sm:right-4 sm:w-96 z-50 bg-white border border-slate-200 rounded-sm shadow-lg p-4 flex items-start gap-3 animate-fade-in">
+    <div className="fixed bottom-4 inset-x-4 sm:left-auto sm:right-4 sm:w-96 z-50 bg-surface border border-slate-200 rounded-sm shadow-lg p-4 flex items-start gap-3 animate-fade-in">
       <Image src="/icon-192.png" alt="" width={40} height={40} className="rounded-sm shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-slate-900">Install Storezn</p>

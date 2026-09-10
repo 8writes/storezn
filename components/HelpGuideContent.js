@@ -95,7 +95,7 @@ const SECTIONS = [
     render: (steps) => (
       <div className="space-y-3">
         {steps.map((step) => (
-          <div key={step.title} className="bg-white border border-slate-200 rounded-sm p-5 flex gap-4">
+          <div key={step.title} className="bg-surface border border-slate-200 rounded-sm p-5 flex gap-4">
             <div className="shrink-0 w-8 h-8 rounded-sm bg-brand-100 text-brand-700 font-bold text-sm flex items-center justify-center">
               {STEPS.indexOf(step) + 1}
             </div>
@@ -296,7 +296,7 @@ function SectionBody({ section, query }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {cards.map(({ q, a }) => (
-        <div key={q} className="bg-white border border-slate-200 rounded-sm p-4">
+        <div key={q} className="bg-surface border border-slate-200 rounded-sm p-4">
           <p className="text-sm font-semibold text-slate-900">{q}</p>
           <p className="text-sm text-slate-500 mt-1 leading-relaxed">{a}</p>
         </div>
@@ -363,7 +363,7 @@ export function HelpGuideContent() {
             className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer whitespace-nowrap ${
               activeId === id
                 ? "bg-brand-600 border-brand-600 text-white"
-                : "border-slate-200 bg-white text-slate-700 hover:border-brand-300 hover:text-brand-700"
+                : "border-slate-200 bg-surface text-slate-700 hover:border-brand-300 hover:text-brand-700"
             }`}
           >
             {label}
@@ -391,7 +391,7 @@ export function HelpGuideContent() {
         </section>
       ))}
 
-      <section className="bg-white border border-slate-200 rounded-sm p-6 space-y-4">
+      <section className="bg-surface border border-slate-200 rounded-sm p-6 space-y-4">
         <div>
           <h2 className="font-bold text-slate-900">Still stuck?</h2>
           <p className="text-sm text-slate-500 mt-1">A real person will read your message - no bots, no ticket numbers to remember.</p>
