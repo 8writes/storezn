@@ -4,6 +4,7 @@ import { bannedDevices, customers } from "../../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
 import { logActivity } from "../../../../../../lib/activityLog.js";
+import { clearBanCache } from "../../../../../../lib/deviceBan.js";
 
 // Lift a device ban, and the one customer account it was placed
 // alongside (by id). Older rows recorded only an email - for those we
@@ -21,6 +22,7 @@ export async function DELETE(req, { params }) {
     .update(bannedDevices)
     .set({ unbannedAt: new Date(), unbannedBy: user.id })
     .where(eq(bannedDevices.id, id));
+  clearBanCache();
 
   const clear = { isBanned: false, bannedReason: null, bannedBy: null, bannedAt: null };
   if (row.customerId) {

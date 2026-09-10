@@ -4,6 +4,8 @@ import { db } from "../../../../../lib/db/index.js";
 import { users, staff, customers } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
+import { readDevice } from "../../../../../lib/device.js";
+import { isDeviceBanned } from "../../../../../lib/deviceBan.js";
 import { validate, updateProfileAndNotificationsSchema, changePasswordSchema } from "../../../../../lib/validate.js";
 
 // Shared across every account kind (vendor, staff, customer, super_admin) -
@@ -16,7 +18,17 @@ function tableForRole(role) {
   return users;
 }
 
+// The client re-validates its stored session against this on load, on
+// tab refocus, and on a slow interval - so a ban / suspension / device
+// ban boots an already-open session, not just the next login. A device
+// ban answers 403 {banned:true} so the client can route to /banned;
+// getUser() returning null (account banned/deleted, disabled store,
+// dead token) answers 401 and the client logs out to /login.
 export async function GET(req) {
+  const ban = await isDeviceBanned(readDevice(req));
+  if (ban) {
+    return NextResponse.json({ error: "Access from this device has been restricted.", banned: true, reason: ban.reason || null }, { status: 403 });
+  }
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { passwordHash, ...safeUser } = user;

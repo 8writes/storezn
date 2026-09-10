@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { networkErrorMessage, serverErrorMessage } from "@/lib/fetchError.js";
 import { markOffline, markOnline } from "@/lib/connectivity.js";
 import { deviceHeaders } from "@/lib/clientDevice.js";
+import { killSession } from "@/lib/session.js";
 
 export function useApi(token) {
   const apiFetch = useCallback(
@@ -39,6 +40,12 @@ export function useApi(token) {
         const e = new Error(data?.error || serverErrorMessage(res.status));
         e.status = res.status;
         if (data?.banned) e.banned = true;
+        // A dead session (401) or a device/account ban (403 + banned)
+        // ends the session right now, mid-page - clear the stored token
+        // and hard-redirect. Plain 403s ("you can't do that") don't.
+        if (token && (res.status === 401 || (res.status === 403 && data?.banned))) {
+          killSession(data?.banned ? "/banned" : "/login", data?.reason);
+        }
         throw e;
       }
 
