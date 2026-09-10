@@ -21,9 +21,13 @@ const MOVE_LABEL = {
 // sales - what the owner needs to see itemised.
 const ITEMISED_KINDS = ["paid_in", "paid_out", "drop", "cash_refund", "change_out"];
 
-function Row({ label, value, strong, tone }) {
+function Row({ label, value, strong, tone, rule }) {
   return (
-    <div className={`flex justify-between gap-4 py-1.5 text-sm ${strong ? "font-semibold text-slate-900" : "text-slate-700"}`}>
+    <div
+      className={`flex justify-between gap-4 py-1.5 text-sm ${strong ? "font-semibold text-slate-900" : "text-slate-700"} ${
+        rule ? "border-t border-slate-300 mt-0.5 pt-1.5" : ""
+      }`}
+    >
       <span>{label}</span>
       <span
         className={`tabular-nums ${
@@ -34,6 +38,12 @@ function Row({ label, value, strong, tone }) {
       </span>
     </div>
   );
+}
+
+// A signed drawer line: positive gets a leading "+", negative keeps the
+// "-" formatKobo already renders, so the column visibly sums to Expected.
+function signed(kobo) {
+  return kobo > 0 ? `+ ${formatKobo(kobo)}` : formatKobo(kobo);
 }
 
 // Renders an X-report summary (live) or a stored z_report snapshot - the
@@ -106,16 +116,16 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
 
         <div className="px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Cash drawer</p>
-          <Row label="Opening float" value={formatKobo(d.openingFloat)} />
-          <Row label="Cash sales" value={formatKobo(d.cashSales)} tone="pos" />
-          {d.cashRefunds !== 0 && <Row label="Cash refunds" value={formatKobo(d.cashRefunds)} tone="neg" />}
-          {d.paidIn !== 0 && <Row label="Paid in" value={formatKobo(d.paidIn)} tone="pos" />}
-          {d.paidOut !== 0 && <Row label="Paid out" value={formatKobo(d.paidOut)} tone="neg" />}
-          {d.drops !== 0 && <Row label="Cash drops" value={formatKobo(d.drops)} tone="neg" />}
+          <Row label="Opening float" value={signed(d.openingFloat)} />
+          <Row label="Cash sales (cash in)" value={signed(d.cashSales)} tone="pos" />
+          {d.cashRefunds !== 0 && <Row label="Cash refunds" value={signed(d.cashRefunds)} tone="neg" />}
+          {d.paidIn !== 0 && <Row label="Paid in" value={signed(d.paidIn)} tone="pos" />}
+          {d.paidOut !== 0 && <Row label="Paid out (cash removed)" value={signed(d.paidOut)} tone="neg" />}
+          {d.drops !== 0 && <Row label="Cash drops (to safe)" value={signed(d.drops)} tone="neg" />}
           {(d.changeOut || 0) !== 0 && (
-            <Row label="Change given (POS / transfer overpayment)" value={formatKobo(d.changeOut)} tone="neg" />
+            <Row label="Change given (POS / transfer overpayment)" value={signed(d.changeOut)} tone="neg" />
           )}
-          <Row label="Expected in drawer" value={formatKobo(isZ ? summary.expectedCash : d.expectedCash)} strong />
+          <Row label="Expected in drawer" value={formatKobo(isZ ? summary.expectedCash : d.expectedCash)} strong rule />
           {/* Older shifts (before the change_out split) folded that change
               into a negative cash-sale figure - keep the note for them. */}
           {!(d.changeOut || 0) && nonCashChangeOut > 0 && (
@@ -125,10 +135,10 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
           )}
           {isZ && (
             <>
-              <Row label="Counted" value={formatKobo(summary.countedCash)} strong />
+              <Row label="Counted (physically)" value={formatKobo(summary.countedCash)} strong rule />
               <Row
-                label={summary.overShort === 0 ? "Balanced" : summary.overShort > 0 ? "Over" : "Short"}
-                value={formatKobo(summary.overShort)}
+                label={summary.overShort === 0 ? "Balanced" : summary.overShort > 0 ? "Over (counted − expected)" : "Short (counted − expected)"}
+                value={signed(summary.overShort)}
                 strong
                 tone={summary.overShort === 0 ? undefined : "neg"}
               />
