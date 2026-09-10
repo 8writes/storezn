@@ -460,17 +460,18 @@ export default function DashboardLayout({ children }) {
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           title="Menu"
+          muted={isVendor}
           footer={
             <>
-              <ThemeToggle tone="light" />
+              <ThemeToggle tone={isVendor ? "auto" : "light"} />
               <button
                 type="button"
                 onClick={logout}
                 disabled={navOffline}
                 title={navOffline ? "Unavailable while offline" : undefined}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white hover:bg-white/10 ${
-                  navOffline ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium ${
+                  isVendor ? "text-slate-600 hover:bg-slate-50 hover:text-red-600" : "text-white hover:bg-white/10"
+                } ${navOffline ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <LogOut size={18} />
                 Sign out
@@ -478,7 +479,7 @@ export default function DashboardLayout({ children }) {
             </>
           }
         >
-          <NavLinks groups={groups} pathname={pathname} onNavigate={() => setDrawerOpen(false)} offline={navOffline} />
+          <NavLinks groups={groups} pathname={pathname} onNavigate={() => setDrawerOpen(false)} offline={navOffline} muted={isVendor} />
         </MobileNavDrawer>
 
         <main className="flex-1 bg-canvas">

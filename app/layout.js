@@ -43,11 +43,12 @@ export const viewport = {
 };
 
 // Runs synchronously while the browser parses <head>, before first
-// paint: on a platform route (dashboard / admin / auth) it sets the
-// saved theme (default dark); everywhere else it leaves the light
-// default. Keep the path list in sync with lib/theme.js PLATFORM_RE.
+// paint: on the signed-in vendor / admin dashboard it sets the saved
+// theme (default dark); auth pages, the storefront and every marketing
+// page stay light. Keep the path list in sync with lib/theme.js
+// PLATFORM_RE.
 const THEME_BOOTSTRAP = `(function(){try{
-if(!/^\\/(vendor|super-admin|dashboard|profile|login|signup|forgot-password|reset-password|verify-email)(\\/|$)/.test(location.pathname))return;
+if(!/^\\/(vendor|super-admin|dashboard|profile)(\\/|$)/.test(location.pathname))return;
 var t;try{t=localStorage.getItem("storezn_theme")}catch(e){}
 document.documentElement.setAttribute("data-theme",t==="light"?"light":"dark");
 }catch(e){}})()`;

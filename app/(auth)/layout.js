@@ -1,13 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Toaster } from "sonner";
-import { ThemeToggle } from "@/components/ui/ThemeToggle.js";
-import { PlatformThemeSync } from "@/components/PlatformThemeSync.js";
+import { ForceLightTheme } from "@/components/PlatformThemeSync.js";
 
 export default function AuthLayout({ children }) {
   return (
     <div className="font-ui min-h-screen flex">
-      <PlatformThemeSync />
+      {/* Auth pages are always light, even if the dashboard was left dark. */}
+      <ForceLightTheme />
       <Toaster position="top-right" offset="10vh" closeButton={true} />
 
       <div className="hidden md:flex md:w-1/2 lg:w-2/5 flex-col justify-between bg-linear-to-br from-neutral-900 to-brand-900 text-white p-10">
@@ -29,13 +29,7 @@ export default function AuthLayout({ children }) {
           <Image src="/storezn-logo.png" alt="Storezn" width={120} height={29} priority unoptimized />
         </div>
 
-        <div className="flex justify-end px-4 pt-3">
-          <div className="w-40">
-            <ThemeToggle />
-          </div>
-        </div>
-
-        <div className="flex-1 flex items-center justify-center p-4 pt-6 pb-10 bg-surface">
+        <div className="flex-1 flex items-center justify-center p-4 py-10 bg-white">
           <div className="w-full max-w-md">{children}</div>
         </div>
       </div>

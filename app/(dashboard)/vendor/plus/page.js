@@ -180,7 +180,7 @@ export default function VendorPlusPage() {
                 style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
               />
               <div className="relative flex items-start justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-2 text-brand-100 text-sm font-medium">
+                <div className="flex items-center gap-2 text-white/80 text-sm font-medium">
                   <Sparkles size={16} />
                   Storezn+
                 </div>
@@ -194,9 +194,9 @@ export default function VendorPlusPage() {
               </div>
               <p className="relative mt-2 text-4xl font-extrabold tracking-tight">
                 {formatCurrency(plusMonthlyPrice)}
-                <span className="text-lg font-medium text-brand-200">/month</span>
+                <span className="text-lg font-medium text-white/70">/month</span>
               </p>
-              <p className="relative mt-1 text-sm text-brand-100">Billed every month, cancel anytime.</p>
+              <p className="relative mt-1 text-sm text-white/70">Billed every month, cancel anytime.</p>
             </div>
 
             <div className="p-6 space-y-6">
@@ -244,7 +244,7 @@ export default function VendorPlusPage() {
                 style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
               />
               <div className="relative flex items-start justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                <div className="flex items-center gap-2 text-white/70 text-sm font-medium">
                   <Building2 size={16} />
                   Storezn Enterprise
                 </div>
@@ -257,7 +257,7 @@ export default function VendorPlusPage() {
               <p className="relative mt-2 text-2xl font-extrabold tracking-tight">
                 Everything in Storezn+, plus a full point-of-sale system
               </p>
-              <p className="relative mt-1 text-sm text-slate-300">
+              <p className="relative mt-1 text-sm text-white/70">
                 Set up with you by the Storezn team. Pricing depends on your branches and tills.
               </p>
             </div>
@@ -342,7 +342,7 @@ export default function VendorPlusPage() {
               </button>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-sm p-3 text-xs text-amber-800">
+            <div className="bg-amber-100 border border-current/10 rounded-sm p-3 text-xs text-amber-800">
               This is a recurring monthly charge. {formatCurrency(plusMonthlyPrice)} will be deducted from your card
               automatically every month, starting today, until you cancel from this page.
             </div>

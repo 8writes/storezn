@@ -101,7 +101,10 @@
   --color-hairline: #2b313a;
   --foreground: #eef1f5;
 
-  --color-white: #181b21; /* stray `bg-white` still lands on a surface */
+  /* `--color-white` is deliberately NOT remapped: `text-white` always
+     sits on a colour (buttons, chips, tooltips) and must stay #fff.
+     `bg-white` was swept to `bg-surface` across the platform, so there's
+     nothing left relying on white as a surface here. */
 
   --color-slate-50: #15181d;
   --color-slate-100: #1e222a;
@@ -124,24 +127,25 @@
   /* Tint pairs (`bg-X-100 text-X-700` badges / alerts). Panels are the
      hue mixed into the canvas; the text step is the hue lifted toward
      white so it stays legible on that panel. */
-  --color-brand-50:  color-mix(in oklab, var(--color-brand-500) 10%, var(--color-canvas));
-  --color-brand-100: color-mix(in oklab, var(--color-brand-500) 20%, var(--color-canvas));
+  --color-brand-50:  color-mix(in oklab, var(--color-brand-500) 14%, var(--color-canvas));
+  --color-brand-100: color-mix(in oklab, var(--color-brand-500) 28%, var(--color-canvas));
   --color-brand-700: color-mix(in oklab, var(--color-brand-400) 82%, white);
-  --color-brand-800: color-mix(in oklab, var(--color-brand-400) 88%, white);
-  --color-green-100: color-mix(in oklab, oklch(0.72 0.19 149) 20%, var(--color-canvas));
+  --color-brand-800: color-mix(in oklab, var(--color-brand-400) 90%, white);
+  --color-green-100: color-mix(in oklab, oklch(0.72 0.19 149) 28%, var(--color-canvas));
   --color-green-700: color-mix(in oklab, oklch(0.72 0.19 149) 82%, white);
-  --color-accent-50:  color-mix(in oklab, var(--color-accent-500) 10%, var(--color-canvas));
-  --color-accent-100: color-mix(in oklab, var(--color-accent-500) 20%, var(--color-canvas));
+  --color-accent-50:  color-mix(in oklab, var(--color-accent-500) 14%, var(--color-canvas));
+  --color-accent-100: color-mix(in oklab, var(--color-accent-500) 28%, var(--color-canvas));
   --color-accent-700: color-mix(in oklab, var(--color-accent-400) 85%, white);
-  --color-info-50:  color-mix(in oklab, var(--color-info-600) 12%, var(--color-canvas));
-  --color-info-100: color-mix(in oklab, var(--color-info-600) 22%, var(--color-canvas));
-  --color-info-700: color-mix(in oklab, #3b82f6 88%, white);
-  --color-red-50:  color-mix(in oklab, #ef4444 10%, var(--color-canvas));
-  --color-red-100: color-mix(in oklab, #ef4444 20%, var(--color-canvas));
-  --color-red-700: color-mix(in oklab, #f87171 90%, white);
-  --color-amber-100: color-mix(in oklab, #f59e0b 22%, var(--color-canvas));
-  --color-amber-700: color-mix(in oklab, #fbbf24 90%, white);
-  --color-amber-800: color-mix(in oklab, #fbbf24 92%, white);
+  --color-info-50:  color-mix(in oklab, var(--color-info-600) 16%, var(--color-canvas));
+  --color-info-100: color-mix(in oklab, var(--color-info-600) 30%, var(--color-canvas));
+  --color-info-700: color-mix(in oklab, #60a5fa 92%, white);
+  --color-red-50:  color-mix(in oklab, #ef4444 14%, var(--color-canvas));
+  --color-red-100: color-mix(in oklab, #ef4444 28%, var(--color-canvas));
+  --color-red-700: color-mix(in oklab, #f87171 92%, white);
+  --color-amber-100: color-mix(in oklab, #f59e0b 30%, var(--color-canvas));
+  --color-amber-200: color-mix(in oklab, #f59e0b 40%, var(--color-canvas));
+  --color-amber-700: color-mix(in oklab, #fbbf24 92%, white);
+  --color-amber-800: color-mix(in oklab, #fcd34d 94%, white);
 
   /* Elevation on dark = a faint light ring + a soft deep blur. */
   --shadow-xs: 0 0 0 1px rgb(255 255 255 / 0.04);

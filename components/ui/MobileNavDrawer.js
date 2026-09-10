@@ -7,7 +7,9 @@ import { X } from "lucide-react";
 // Always mounted (not conditionally rendered) so both the open AND close
 // transitions can animate, sm:hidden keeps it inert and invisible on
 // desktop regardless of `open`.
-export function MobileNavDrawer({ open, onClose, title, children, footer }) {
+// `muted` = the calm light shell (vendor dashboard, follows the theme);
+// default is the solid dark-green panel used by the public + admin headers.
+export function MobileNavDrawer({ open, onClose, title, children, footer, muted = false }) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e) => e.key === "Escape" && onClose();
@@ -29,17 +31,19 @@ export function MobileNavDrawer({ open, onClose, title, children, footer }) {
     >
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div
-        className={`absolute inset-y-0 left-0 w-72 max-w-[80%] bg-brand-900 shadow-xl flex flex-col transition-transform duration-200 ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`absolute inset-y-0 left-0 w-72 max-w-[80%] shadow-xl flex flex-col transition-transform duration-200 ${
+          muted ? "bg-surface" : "bg-brand-900"
+        } ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <div className="flex items-center justify-between px-4 h-16 border-b border-slate-800 shrink-0">
-          <span className="text-white font-semibold">{title}</span>
+        <div className={`flex items-center justify-between px-4 h-16 border-b shrink-0 ${muted ? "border-slate-200" : "border-slate-800"}`}>
+          <span className={`font-semibold ${muted ? "text-slate-900" : "text-white"}`}>{title}</span>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close menu"
-            className="w-9 h-9 -mr-2 rounded-full flex items-center justify-center text-slate-700 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className={`w-9 h-9 -mr-2 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+              muted ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100" : "text-white/70 hover:text-white hover:bg-white/10"
+            }`}
           >
             <X size={20} />
           </button>
@@ -50,7 +54,7 @@ export function MobileNavDrawer({ open, onClose, title, children, footer }) {
           // list above (own border-top section, not just another item in
           // the same flow) - specifically so a quick scroll/tap through
           // the menu can't land on Sign out by accident.
-          <div className="border-t border-slate-800 shrink-0 pt-1">{footer}</div>
+          <div className={`border-t shrink-0 pt-1 ${muted ? "border-slate-200" : "border-slate-800"}`}>{footer}</div>
         )}
       </div>
     </div>
