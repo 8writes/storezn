@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { bannedDevices, signupAbuseEvents, customers } from "../../../../../lib/db/schema.js";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, createBanSchema } from "../../../../../lib/validate.js";
 import { banDevice } from "../../../../../lib/deviceBan.js";
+import { logActivity } from "../../../../../lib/activityLog.js";
 
 // Device-ban review: the list of barred devices (auto + manual) and the
 // recent abuse-event stream. super_admin + admin.
@@ -44,20 +45,32 @@ export async function POST(req) {
   const { customerId, deviceId, fingerprint, banSignupDevice, reason } = result.data;
 
   let subjectEmail = null;
+  let subjectCustomerId = null;
   let devIdToBan = deviceId || null;
 
   if (customerId) {
     const [c] = await db.select().from(customers).where(eq(customers.id, customerId)).limit(1);
     if (!c) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     subjectEmail = c.email;
-    await db.update(customers).set({ isBanned: true, bannedReason: reason }).where(eq(customers.id, customerId));
+    subjectCustomerId = c.id;
+    await db.update(customers).set({ isBanned: true, bannedReason: reason, bannedBy: user.id, bannedAt: new Date() }).where(eq(customers.id, customerId));
     if (banSignupDevice && c.signupDeviceId) devIdToBan = c.signupDeviceId;
   }
 
   let device = null;
   if (devIdToBan || fingerprint) {
-    device = await banDevice({ deviceId: devIdToBan, fingerprint: fingerprint || null, reason, autoFlagged: false, bannedBy: user.id, subjectEmail });
+    device = await banDevice({ deviceId: devIdToBan, fingerprint: fingerprint || null, reason, autoFlagged: false, bannedBy: user.id, subjectEmail, customerId: subjectCustomerId });
   }
+
+  after(() =>
+    logActivity({
+      user,
+      action: "ban.create",
+      targetType: subjectCustomerId ? "customer" : "device",
+      targetId: subjectCustomerId || device?.id || devIdToBan || fingerprint,
+      metadata: { reason, customerId: subjectCustomerId, deviceId: devIdToBan, fingerprint: fingerprint || null, subjectEmail },
+    }),
+  );
 
   return NextResponse.json({ ok: true, device }, { status: 201 });
 }

@@ -57,16 +57,33 @@ export async function POST(req) {
     return NextResponse.json({ error: "This email address can't be used to sign up." }, { status: 403 });
   }
 
-  // 3. Signup flood from one device.
+  const win = sql`now() - interval '${sql.raw(String(AUTO_BAN.WINDOW_HOURS))} hours'`;
+
+  // 3. Signup flood from one device -> auto-ban that device.
   if (device.deviceId) {
     const [{ n }] = await db
       .select({ n: sql`count(*)`.mapWith(Number) })
       .from(customers)
-      .where(and(eq(customers.signupDeviceId, device.deviceId), gt(customers.createdAt, sql`now() - interval '${sql.raw(String(AUTO_BAN.WINDOW_HOURS))} hours'`)));
+      .where(and(eq(customers.signupDeviceId, device.deviceId), gt(customers.createdAt, win)));
     if (n >= AUTO_BAN.AUTO_BAN_SIGNUPS - 1) {
       await logAbuseEvent({ ...device, normalizedEmail: normalized, kind: "signup_flood" });
       await banDevice({ ...device, reason: `Auto: ${n + 1} accounts from one device in ${AUTO_BAN.WINDOW_HOURS}h`, autoFlagged: true, subjectEmail: email });
       return BANNED();
+    }
+  }
+
+  // 4. Signup flood from one network. A script rotating x-device-id per
+  //    request slips past the per-device check above; this catches it.
+  //    A soft cap (no auto device ban - the device id can't be trusted
+  //    here) sized to survive shared / CGNAT mobile IPs.
+  if (device.ip && device.ip !== "unknown") {
+    const [{ n }] = await db
+      .select({ n: sql`count(*)`.mapWith(Number) })
+      .from(customers)
+      .where(and(eq(customers.signupIp, device.ip), gt(customers.createdAt, win)));
+    if (n >= 8) {
+      await logAbuseEvent({ ...device, normalizedEmail: normalized, kind: "ip_flood" });
+      return NextResponse.json({ error: "Too many accounts have been created from this network recently. Please try again later." }, { status: 429 });
     }
   }
 

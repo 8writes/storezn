@@ -22,7 +22,7 @@ export async function PATCH(req, { params }) {
   const body = await req.json().catch(() => ({}));
   // Lifting a ban (the ban itself goes on via /super-admin/bans).
   if (body && body.isBanned === false) {
-    const [u] = await db.update(customers).set({ isBanned: false, bannedReason: null }).where(eq(customers.id, id)).returning();
+    const [u] = await db.update(customers).set({ isBanned: false, bannedReason: null, bannedBy: null, bannedAt: null }).where(eq(customers.id, id)).returning();
     await logActivity({ user, action: "customer.unban", targetType: "customer", targetId: id });
     const { passwordHash: _p, ...safe } = u;
     return NextResponse.json({ customer: safe });
