@@ -1,11 +1,12 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { products, stores, productVariants, cartItems, reviews, orderItems, orders, branches, productBranchStock } from "../../../../../../../../lib/db/schema.js";
+import { products, stores, orderItems, orders, branches } from "../../../../../../../../lib/db/schema.js";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, updateProductSchema } from "../../../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../../../lib/storage/index.js";
 import { removeStoreUpload } from "../../../../../../../../lib/storeUploads.js";
+import { deleteStoreProducts, purgeProductAssets } from "../../../../../../../../lib/productDelete.js";
 import { setBranchStock } from "../../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
@@ -146,33 +147,20 @@ export async function DELETE(req, { params }) {
   // would corrupt past order history (orderItems snapshots the product
   // name/image/price at purchase time, but still points back at this
   // row). Suspend/deactivate it instead (isActive via PATCH above) so it
-  // just stops being sold.
-  const [existingOrderItem] = await db.select({ id: orderItems.id }).from(orderItems).where(eq(orderItems.productId, id)).limit(1);
-  if (existingOrderItem) {
+  // just stops being sold. deleteStoreProducts reports it under `blocked`
+  // rather than deleting it; translate that back to the 409 this route
+  // has always returned.
+  const { deleted, blocked, assetUrls } = await deleteStoreProducts({ storeId, productIds: [id] });
+  if (blocked.length > 0) {
     return NextResponse.json({ error: "This product has been ordered before and can't be deleted - deactivate it instead" }, { status: 409 });
   }
-
-  // Variants, cart items, and reviews have no order history to protect -
-  // clear them out first so the FK constraints on products don't block
-  // the delete.
-  await db.transaction(async (tx) => {
-    // Every cart_items row for this product (variant or not) already
-    // carries productId, so this alone clears both.
-    await tx.delete(cartItems).where(eq(cartItems.productId, id));
-    await tx.delete(reviews).where(eq(reviews.productId, id));
-    // Every branch's stock row for this product (and its variants) too -
-    // same FK-blocks-the-delete reasoning as the rest of this list.
-    await tx.delete(productBranchStock).where(eq(productBranchStock.productId, id));
-    await tx.delete(productVariants).where(eq(productVariants.productId, id));
-    await tx.delete(products).where(eq(products.id, id));
-  });
-
-  // Best-effort, after the DB delete has committed - a storage hiccup
-  // here shouldn't undo (or block reporting) the actual product delete.
-  Promise.all((product.images || []).map((url) => Promise.all([deletePublicFile(url), removeStoreUpload(url)]))).catch(() => {});
-  if (product.videoUrl) {
-    Promise.all([deletePublicFile(product.videoUrl), removeStoreUpload(product.videoUrl)]).catch(() => {});
+  if (deleted.length === 0) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
+
+  // Storage teardown after the response is sent - an un-awaited promise
+  // would be cut off when the function returns, leaving orphaned files.
+  if (assetUrls.length > 0) after(() => purgeProductAssets(assetUrls));
 
   after(() =>
     logStoreActivity({

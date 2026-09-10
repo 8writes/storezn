@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Upload, ImageOff, ChevronDown, FileSpreadsheet, CheckCircle2, XCircle, SlidersHorizontal, X, Star } from "lucide-react";
+import { Plus, Upload, ImageOff, ChevronDown, FileSpreadsheet, CheckCircle2, XCircle, SlidersHorizontal, X, Star, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { Select } from "@/components/ui/Select.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
+import { ConfirmModal } from "@/components/ui/ConfirmModal.js";
 import { TableRowSkeleton, CardListSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { parseCsv, downloadCsv } from "@/lib/csv.js";
@@ -117,6 +118,59 @@ export default function VendorProductsPage() {
     }
   };
 
+  // --- Multi-select + bulk delete ---
+  const [selected, setSelected] = useState(() => new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const pageIds = products.map((p) => p.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+  const clearSelection = () => setSelected(new Set());
+
+  const handleBulkDelete = async () => {
+    setDeleting(true);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/bulk-delete`, {
+        method: "POST",
+        body: JSON.stringify({ productIds: [...selected] }),
+      });
+      const blocked = data.blocked || [];
+      if (data.deleted > 0 && blocked.length === 0) {
+        toast.success(`Deleted ${data.deleted} product${data.deleted === 1 ? "" : "s"}`);
+      } else if (data.deleted > 0) {
+        toast.success(`Deleted ${data.deleted}. Kept ${blocked.length} with order history — archive those instead.`);
+      } else {
+        toast.error(`Nothing deleted — ${blocked.length === 1 ? "that product has" : "those products have"} order history. Archive instead.`);
+      }
+      setConfirmDelete(false);
+      clearSelection();
+      // Whole page gone -> step back so we're not stranded on an empty page.
+      if (data.deleted >= products.length && page > 1) setPage((p) => p - 1);
+      else loadProducts();
+    } catch (err) {
+      toast.error(err.message || "Bulk delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkRows, setBulkRows] = useState([]);
   const [bulkFileName, setBulkFileName] = useState("");
@@ -170,6 +224,12 @@ export default function VendorProductsPage() {
   useEffect(() => {
     setPage(1);
   }, [q, categoryId, sort, stockLevel, expiry, storeId]);
+
+  // Selection is by id against the currently visible page - drop it
+  // whenever the visible set changes so no stale/off-screen id lingers.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [q, categoryId, sort, stockLevel, expiry, storeId, page]);
 
   const storeFiltersInit = useRef(false);
   useEffect(() => {
@@ -467,6 +527,33 @@ export default function VendorProductsPage() {
         />
       )}
 
+      {selected.size > 0 && (
+        <div className="sticky top-2 z-20 flex items-center justify-between gap-3 bg-brand-50 border border-brand-200 rounded-sm px-4 py-2.5 shadow-sm">
+          <span className="text-sm font-medium text-brand-800">
+            {selected.size} selected
+          </span>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={clearSelection} className="text-sm text-slate-600 hover:text-slate-900 cursor-pointer">
+              Clear
+            </button>
+            <Button type="button" size="sm" variant="danger" onClick={() => setConfirmDelete(true)}>
+              <Trash2 size={14} /> Delete
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        open={confirmDelete}
+        title={`Delete ${selected.size} product${selected.size === 1 ? "" : "s"}?`}
+        description="Their images and videos are deleted too. Any product that's already been ordered is kept (archive those instead). This can't be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleBulkDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
+
       {/* Mobile: stacked cards - the desktop table has too many columns to
           fit a phone without horizontal scrolling that hides half of it. */}
       <div className="space-y-3 sm:hidden">
@@ -489,8 +576,19 @@ export default function VendorProductsPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") router.push(`/vendor/products/${p.id}?storeId=${storeId}`);
                 }}
-                className="flex gap-3 bg-surface border border-slate-200 rounded-sm p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                className={`flex gap-3 bg-surface border rounded-sm p-4 cursor-pointer transition-colors ${
+                  selected.has(p.id) ? "border-brand-400 bg-brand-50/60" : "border-slate-200 hover:bg-slate-50"
+                }`}
               >
+                <label className="flex items-start shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(p.id)}
+                    onChange={() => toggleSelect(p.id)}
+                    aria-label={`Select ${p.name}`}
+                    className="w-4 h-4 accent-brand-600 cursor-pointer"
+                  />
+                </label>
                 {p.images?.[0] ? (
                   <img src={p.images[0]} alt="" className="w-16 h-16 rounded-sm object-cover bg-slate-100 shrink-0" />
                 ) : (
@@ -554,6 +652,15 @@ export default function VendorProductsPage() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-left">
             <tr>
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={allOnPageSelected}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all on this page"
+                  className="w-4 h-4 accent-brand-600 cursor-pointer align-middle"
+                />
+              </th>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Category</th>
               <th className="px-4 py-3 font-medium">Price</th>
@@ -566,18 +673,27 @@ export default function VendorProductsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <TableRowSkeleton cols={8} />
+              <TableRowSkeleton cols={9} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-slate-700">{q || categoryId || stockLevel ? "No products match your filters" : "No products yet"}</td>
+                <td colSpan={9} className="px-4 py-6 text-center text-slate-700">{q || categoryId || stockLevel ? "No products match your filters" : "No products yet"}</td>
               </tr>
             ) : (
               products.map((p) => (
                 <tr
                   key={p.id}
                   onClick={() => router.push(`/vendor/products/${p.id}?storeId=${storeId}`)}
-                  className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
+                  className={`border-t border-slate-100 cursor-pointer ${selected.has(p.id) ? "bg-brand-50" : "hover:bg-slate-50"}`}
                 >
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(p.id)}
+                      onChange={() => toggleSelect(p.id)}
+                      aria-label={`Select ${p.name}`}
+                      className="w-4 h-4 accent-brand-600 cursor-pointer align-middle"
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {p.images?.[0] ? (
