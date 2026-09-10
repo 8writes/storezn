@@ -132,7 +132,8 @@ export default function VendorDashboardPage() {
   const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const router = useRouter();
-  const { stores, storeId, loading } = useVendorStore();
+  const { stores, storeId, loading, updateStore } = useVendorStore();
+  const [togglingOpen, setTogglingOpen] = useState(false);
 
   // The dashboard is the store owner's home - staff get sent to their
   // own landing (Products) if they navigate here directly.
@@ -167,6 +168,24 @@ export default function VendorDashboardPage() {
     await subscribeToPush(token);
     setPushSubscribed(true);
     toast.success("Notifications enabled");
+  };
+
+  // Quick "your store is closed - reopen it" toggle. The full status
+  // control (and the reverse, closing the store) lives on /vendor/settings.
+  const handleGoOnline = async () => {
+    setTogglingOpen(true);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isOpen: true }),
+      });
+      updateStore(data.store);
+      toast.success("Your store is now online");
+    } catch (err) {
+      toast.error(err.message || "Couldn't update store status");
+    } finally {
+      setTogglingOpen(false);
+    }
   };
 
   useEffect(() => {
@@ -238,23 +257,52 @@ export default function VendorDashboardPage() {
         <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />
       )}
 
-      {/* Utility row: setup guide + help, pinned right, above the greeting. */}
-      <div className="flex items-center justify-end gap-2 -mb-2">
-        {isOwner && steps.length > 0 && !allStepsDone && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setGuideForceOpen(true)}
-          >
-            <ListChecks size={15} /> Setup guide
-          </Button>
-        )}
-        <Link href="/vendor/help">
-          <Button type="button" size="sm" variant="ghost">
-            <HelpCircle size={15} /> Help
-          </Button>
-        </Link>
+      {/* Utility row: store status on the left, setup guide + help right. */}
+      <div className="flex items-center justify-between gap-2 -mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {isOwner && store && (
+            <>
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                  store.isActive === false
+                    ? "text-red-600"
+                    : store.isOpen
+                      ? "text-brand-700"
+                      : "text-slate-500"
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    store.isActive === false ? "bg-red-500" : store.isOpen ? "bg-brand-500" : "bg-slate-400"
+                  }`}
+                />
+                {store.isActive === false ? "Store disabled" : store.isOpen ? "Store online" : "Store offline"}
+              </span>
+              {store.isActive !== false && !store.isOpen && (
+                <Button type="button" size="sm" variant="outline" onClick={handleGoOnline} loading={togglingOpen}>
+                  Go online
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {isOwner && steps.length > 0 && !allStepsDone && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setGuideForceOpen(true)}
+            >
+              <ListChecks size={15} /> Setup guide
+            </Button>
+          )}
+          <Link href="/vendor/help">
+            <Button type="button" size="sm" variant="ghost">
+              <HelpCircle size={15} /> Help
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <PageHeader

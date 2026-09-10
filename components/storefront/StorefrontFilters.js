@@ -105,10 +105,8 @@ export function StorefrontFilters({ categories, themed = false }) {
         <button
           type="button"
           onClick={() => setModalOpen(true)}
-          className={`relative inline-flex items-center gap-1.5 shrink-0 px-3 py-2 border rounded-sm text-sm font-medium cursor-pointer transition-colors ${
-            activeCount > 0
-              ? "border-brand-600 text-brand-700 bg-brand-50"
-              : "border-slate-300 text-slate-700 hover:bg-slate-50"
+          className={`relative inline-flex items-center gap-1.5 shrink-0 px-3 py-2 border rounded-sm text-sm font-medium cursor-pointer transition-colors text-brand-700 hover:bg-brand-50 ${
+            activeCount > 0 ? "border-brand-600 bg-brand-50" : "border-brand-300"
           }`}
         >
           <SlidersHorizontal size={15} />

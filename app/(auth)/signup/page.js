@@ -174,7 +174,7 @@ function VendorSignupForm() {
           className="mt-0.5"
         />
         <span>
-          I agree to receive occasional marketing emails from Storezn. You can unsubscribe at any time.
+          I want to receive occasional marketing emails from Storezn. You can unsubscribe at any time.
         </span>
       </label>
 

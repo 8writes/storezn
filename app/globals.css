@@ -163,10 +163,14 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* One consistent, accessible focus ring for every interactive element
-   (there were none). Mouse clicks don't trigger :focus-visible, so this
-   only shows on keyboard nav. */
-:where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+/* One consistent, accessible focus ring for interactive elements that
+   don't style their own focus. Text fields (input/select/textarea) are
+   deliberately excluded - Input/Textarea/Select and the storefront
+   search already draw their own focus border + ring, and the extra
+   outline on top read as heavy/doubled, including on a plain mouse click
+   (text fields match :focus-visible even then). Mouse clicks don't
+   trigger :focus-visible on the rest, so those only show on keyboard nav. */
+:where(a, button, [role="button"], [tabindex]):focus-visible {
   outline: 2px solid var(--color-brand-500);
   outline-offset: 2px;
   border-radius: var(--radius-sm);

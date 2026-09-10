@@ -77,8 +77,8 @@ export default async function StorefrontLayout({ children, params }) {
       <header
         className={
           themed
-            ? "bg-brand-600 sticky top-0 z-10"
-            : "bg-white/90 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-10"
+            ? "bg-brand-600 sticky top-0 z-40"
+            : "bg-white/90 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-40"
         }
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-3">

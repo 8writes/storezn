@@ -23,7 +23,9 @@ import { isColorTooLight } from "@/lib/colorShades.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", storefrontAccentColor: "" };
+const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "" };
+
+const DESCRIPTION_MAX = 160;
 const DEFAULT_ACCENT = "#14915b";
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -86,6 +88,7 @@ export default function VendorSettingsPage() {
           state: data.store.state || "",
           showShipsFrom: data.store.showShipsFrom !== false,
           description: data.store.description || "",
+          showDescription: data.store.showDescription !== false,
           storefrontAccentColor: data.store.storefrontAccentColor || "",
         });
         setCommissionRate(data.effectiveCommissionRatePercent);
@@ -425,16 +428,42 @@ export default function VendorSettingsPage() {
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <label className="text-sm font-medium text-slate-700">Store description</label>
-                <InfoTip>Used as your storefront&apos;s preview text when a link to it is shared, e.g. on WhatsApp or Twitter/X.</InfoTip>
+                <InfoTip>Used as your storefront&apos;s preview text when a link to it is shared (e.g. on WhatsApp or Twitter/X), and &mdash; if the toggle below is on &mdash; as the tagline under your store name on your storefront.</InfoTip>
               </div>
               <Textarea
                 rows={3}
-                maxLength={240}
+                maxLength={DESCRIPTION_MAX}
                 placeholder="A short line about what you sell and what makes your store worth a visit."
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               />
-              <p className="text-xs text-slate-400 text-right">{form.description.length}/240</p>
+              <p className="text-xs text-slate-400 text-right">{form.description.length}/{DESCRIPTION_MAX}</p>
+
+              <div className="flex items-center justify-between gap-4 pt-1">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Show description on storefront</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {form.showDescription
+                      ? "Shown as the tagline under your store name."
+                      : "Hidden - your storefront shows “All products” instead."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.showDescription}
+                  onClick={() => setForm((f) => ({ ...f, showDescription: !f.showDescription }))}
+                  className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer ${
+                    form.showDescription ? "bg-brand-600" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
+                      form.showDescription ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
 

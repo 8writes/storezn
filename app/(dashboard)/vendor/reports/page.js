@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -151,7 +152,7 @@ export default function VendorReportsPage() {
           Enterprise adds a full month-end business &amp; forensic audit report &mdash; sales, tenders, cash reconciliation
           per shift, and who did what. It&apos;s set up by the Storezn team.
         </p>
-        <a href="/pricing" className="inline-block text-sm font-semibold text-brand-600 hover:text-brand-700">See Enterprise</a>
+        <Link href="/vendor/plus" className="inline-block text-sm font-semibold text-brand-600 hover:text-brand-700">See Enterprise</Link>
       </div>
     );
   }
