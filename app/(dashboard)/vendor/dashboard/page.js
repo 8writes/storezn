@@ -257,58 +257,53 @@ export default function VendorDashboardPage() {
         <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />
       )}
 
-      {/* Utility row: store status on the left, setup guide + help right. */}
-      <div className="flex items-center justify-between gap-2 -mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {isOwner && store && (
-            <>
-              <span
-                className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                  store.isActive === false
-                    ? "text-red-600"
-                    : store.isOpen
-                      ? "text-brand-700"
-                      : "text-slate-500"
-                }`}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    store.isActive === false ? "bg-red-500" : store.isOpen ? "bg-brand-500" : "bg-slate-400"
-                  }`}
-                />
-                {store.isActive === false ? "Store disabled" : store.isOpen ? "Store online" : "Store offline"}
-              </span>
-              {store.isActive !== false && !store.isOpen && (
-                <Button type="button" size="sm" variant="outline" onClick={handleGoOnline} loading={togglingOpen}>
-                  Go online
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {isOwner && steps.length > 0 && !allStepsDone && (
-            <Button
+      {isOwner && store && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+              store.isActive === false
+                ? "text-red-600"
+                : store.isOpen
+                  ? "text-brand-700"
+                  : "text-slate-500"
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                store.isActive === false ? "bg-red-500" : store.isOpen ? "bg-brand-500" : "bg-slate-400"
+              }`}
+            />
+            {store.isActive === false ? "Store disabled" : store.isOpen ? "Store online" : "Store offline"}
+          </span>
+          {store.isActive !== false && !store.isOpen && (
+            <button
               type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setGuideForceOpen(true)}
+              onClick={handleGoOnline}
+              disabled={togglingOpen}
+              className="text-xs font-semibold text-brand-700 hover:text-brand-800 underline underline-offset-2 disabled:opacity-50 cursor-pointer"
             >
-              <ListChecks size={15} /> Setup guide
-            </Button>
+              {togglingOpen ? "Updating…" : "Go online"}
+            </button>
           )}
-          <Link href="/vendor/help">
-            <Button type="button" size="sm" variant="ghost">
-              <HelpCircle size={15} /> Help
-            </Button>
-          </Link>
         </div>
-      </div>
+      )}
 
       <PageHeader
         title={`Welcome, ${user?.firstName || ""}`.trim()}
-        description={
-          store ? "Here's how your store is doing today." : undefined
+        description={store ? "Here's how your store is doing today." : undefined}
+        actions={
+          <>
+            {isOwner && steps.length > 0 && !allStepsDone && (
+              <Button type="button" size="sm" variant="outline" onClick={() => setGuideForceOpen(true)}>
+                <ListChecks size={15} /> Setup guide
+              </Button>
+            )}
+            <Link href="/vendor/help">
+              <Button type="button" size="sm" variant="ghost">
+                <HelpCircle size={15} /> Help
+              </Button>
+            </Link>
+          </>
         }
       />
 
