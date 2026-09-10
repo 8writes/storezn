@@ -34,6 +34,7 @@ import {
   History,
   Tags,
   Calculator,
+  MonitorSmartphone,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -60,6 +61,7 @@ const NAV_BY_ROLE = {
         { href: "/super-admin/transactions", label: "Transactions", icon: Receipt },
         { href: "/super-admin/customers", label: "Customers", icon: Users },
         { href: "/super-admin/bans", label: "Bans", icon: ShieldCheck },
+        { href: "/super-admin/devices", label: "Devices", icon: MonitorSmartphone },
       ],
     },
     {
@@ -99,6 +101,7 @@ const NAV_BY_ROLE = {
         { href: "/super-admin/transactions", label: "Transactions", icon: Receipt },
         { href: "/super-admin/customers", label: "Customers", icon: Users },
         { href: "/super-admin/bans", label: "Bans", icon: ShieldCheck },
+        { href: "/super-admin/devices", label: "Devices", icon: MonitorSmartphone },
       ],
     },
     {

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { db } from "../../../../../lib/db/index.js";
@@ -10,6 +10,7 @@ import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveSt
 import { GUEST_CART_COOKIE, findCartItem } from "../../../../../lib/cart.js";
 import { readDevice } from "../../../../../lib/device.js";
 import { isDeviceBanned } from "../../../../../lib/deviceBan.js";
+import { recordDeviceUse } from "../../../../../lib/deviceLog.js";
 
 // A fresh Response per call - a module-level NextResponse would be a
 // single-use body stream shared across concurrent requests, so the
@@ -53,7 +54,8 @@ async function handleLogin(req) {
 
   // A barred device can't sign in from anywhere - the account may be
   // fine, the device isn't (see lib/deviceBan.js + the /banned page).
-  if (await isDeviceBanned(readDevice(req))) {
+  const device = readDevice(req);
+  if (await isDeviceBanned(device)) {
     return NextResponse.json({ error: "Access from this device has been restricted.", banned: true }, { status: 403 });
   }
 
@@ -121,6 +123,7 @@ async function handleLogin(req) {
 
     const token = jwt.sign({ id: account.id, kind }, process.env.JWT_SECRET, { expiresIn: "30d" });
     const { passwordHash, ...safeAccount } = account;
+    after(() => recordDeviceUse({ req, device, accountType: kind === "staff" ? "staff" : "user", accountId: account.id, email: account.email }));
     return NextResponse.json({ token, user: { ...safeAccount, role: kind === "staff" ? "staff" : safeAccount.role } });
   }
 
@@ -145,6 +148,7 @@ async function handleLogin(req) {
 
   const token = jwt.sign({ id: account.id, kind: "customer" }, process.env.JWT_SECRET, { expiresIn: "30d" });
   const { passwordHash, ...safeAccount } = account;
+  after(() => recordDeviceUse({ req, device, accountType: "customer", accountId: account.id, email: account.email }));
 
   // Guest -> user cart handoff (see carts.userId's comment in
   // lib/db/schema.js) - a guest who added items before logging in

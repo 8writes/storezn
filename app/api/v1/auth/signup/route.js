@@ -11,6 +11,7 @@ import { normalizeEmail, emailDomain, isEmailBlocked } from "../../../../../lib/
 import { sendPushToRole } from "../../../../../lib/push.js";
 import { readDevice } from "../../../../../lib/device.js";
 import { isDeviceBanned, banDevice, logAbuseEvent, maybeAutoBanFromAbuse, AUTO_BAN } from "../../../../../lib/deviceBan.js";
+import { recordDeviceUse } from "../../../../../lib/deviceLog.js";
 
 const BANNED = (extra) => NextResponse.json({ error: "Access from this device has been restricted.", banned: true, ...extra }, { status: 403 });
 
@@ -120,6 +121,7 @@ export async function POST(req) {
   }
 
   after(() => {
+    recordDeviceUse({ req, device, accountType: "customer", accountId: created.id, email: created.email });
     sendVerificationEmail({ user: created, req, kind: "customer" }).catch((e) => console.error("sendVerificationEmail failed (signup):", e));
     const notice = {
       title: "New customer signup",

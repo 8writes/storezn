@@ -10,6 +10,7 @@ import { sendPushToRole } from "../../../../../lib/push.js";
 import { normalizeEmail, emailDomain, isEmailBlocked } from "../../../../../lib/emailNormalize.js";
 import { readDevice } from "../../../../../lib/device.js";
 import { isDeviceBanned, logAbuseEvent } from "../../../../../lib/deviceBan.js";
+import { recordDeviceUse } from "../../../../../lib/deviceLog.js";
 
 // Public self-signup for vendors: anyone can create their own store and
 // vendor account, no super_admin involved. Same store+vendor transaction
@@ -93,6 +94,7 @@ export async function POST(req) {
   // Wrapped in after() rather than left as a bare fire-and-forget promise
   // - see the identical comment in forgot-password/route.js.
   after(() => {
+    recordDeviceUse({ req, device, accountType: "user", accountId: created.vendorUser.id, email: created.vendorUser.email });
     sendVerificationEmail({ user: created.vendorUser, req }).catch((err) => console.error("sendVerificationEmail failed (vendor signup):", err));
     sendPushToRole("super_admin", {
       title: "New vendor signup",
