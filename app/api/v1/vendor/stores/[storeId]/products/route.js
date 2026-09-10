@@ -52,6 +52,12 @@ export async function GET(req, { params }) {
     conditions.push(lte(products.stock, 0));
   }
 
+  // Status filter - the vendor's own Live/Archived toggle (products.isActive),
+  // not the admin suspension. "" / anything else = both.
+  const statusFilter = searchParams.get("status")?.trim();
+  if (statusFilter === "active") conditions.push(eq(products.isActive, true));
+  else if (statusFilter === "archived") conditions.push(eq(products.isActive, false));
+
   // Expiry filter. "soon" = a use-by date within the next 30 days (and
   // not already past); "expired" = a use-by date that's passed.
   const expiryFilter = searchParams.get("expiry")?.trim();

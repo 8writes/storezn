@@ -104,7 +104,7 @@ export function ProductRail({ title, products }) {
       </div>
       <div
         ref={scrollerRef}
-        className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-1 -mx-4 px-4 scroll-pl-4 sm:-mx-6 sm:px-6 sm:scroll-pl-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {products.map((p) => (
           <RailCard key={p.id} p={p} />

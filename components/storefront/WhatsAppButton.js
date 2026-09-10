@@ -27,7 +27,7 @@ export function WhatsAppButton({ store }) {
       target="_blank"
       rel="noreferrer"
       aria-label={`Chat with ${store.name} on WhatsApp`}
-      className="fixed bottom-24 sm:bottom-5 right-5 z-20 flex items-center justify-center h-14 w-14 rounded-full bg-[#25D366] text-white shadow-lg hover:brightness-95 transition-[filter]"
+      className="fixed bottom-22 sm:bottom-4 right-5 z-20 flex items-center justify-center h-14 w-14 rounded-full bg-[#25D366] text-white shadow-lg hover:brightness-95 transition-[filter]"
     >
       <MessageCircle size={26} />
     </a>
