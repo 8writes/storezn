@@ -124,7 +124,7 @@ export default function ProfilePage() {
   if (!form) return null;
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6 max-w-xl mx-auto w-full">
       {confirmDialog}
       <h1 className="text-xl font-bold text-slate-900">Profile</h1>
 

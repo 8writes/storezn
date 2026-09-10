@@ -189,7 +189,7 @@ export default function SellPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <BackLink href="/vendor/pos/sessions" label="Back to history" />
+      <BackLink href="/vendor/pos/sessions" label="Back" />
       {header}
 
       {loading || registers === null ? (

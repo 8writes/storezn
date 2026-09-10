@@ -203,6 +203,8 @@ export async function GET(req, { params }) {
       live: sql`count(*) filter (where ${products.isActive})`.mapWith(Number),
       lowStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} is not null and ${products.stock} > 0 and ${products.stock} <= ${LOW_STOCK_THRESHOLD})`.mapWith(Number),
       outOfStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} = 0)`.mapWith(Number),
+      expiringSoon: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} >= current_date and ${products.expiryDate} < current_date + 30)`.mapWith(Number),
+      expired: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} < current_date)`.mapWith(Number),
     })
     .from(products)
     .where(eq(products.storeId, storeId));
@@ -233,6 +235,6 @@ export async function GET(req, { params }) {
     branchBreakdown: branchBreakdown.length > 1 ? branchBreakdown : [],
     topCustomers,
     refunds: { pending: refundRow?.pending || 0, approved: refundRow?.approved || 0, rejected: refundRow?.rejected || 0 },
-    products: { total: productStats?.total || 0, live: productStats?.live || 0, lowStock: productStats?.lowStock || 0, outOfStock: productStats?.outOfStock || 0, lowStockThreshold: LOW_STOCK_THRESHOLD },
+    products: { total: productStats?.total || 0, live: productStats?.live || 0, lowStock: productStats?.lowStock || 0, outOfStock: productStats?.outOfStock || 0, expiringSoon: productStats?.expiringSoon || 0, expired: productStats?.expired || 0, lowStockThreshold: LOW_STOCK_THRESHOLD },
   });
 }

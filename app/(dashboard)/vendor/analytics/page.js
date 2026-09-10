@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { StatCard } from "@/components/ui/StatCard.js";
 import { Chart } from "@/components/ui/Chart.js";
 import { StatGridSkeleton, Skeleton } from "@/components/ui/Skeleton.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, compactCurrency } from "@/lib/format.js";
 import {
   Wallet,
   ShoppingBag,
@@ -21,6 +21,7 @@ import {
   ImageOff,
   AlertTriangle,
   RotateCcw,
+  CalendarClock,
 } from "lucide-react";
 
 const BRAND = "#14915b";
@@ -200,7 +201,8 @@ export default function VendorAnalyticsPage() {
             <StatCard
               icon={Wallet}
               label="Revenue"
-              value={formatCurrency(data.summary.revenue)}
+              value={compactCurrency(data.summary.revenue)}
+              title={formatCurrency(data.summary.revenue)}
               color="green"
               sub={<ChangeBadge percent={data.summary.revenueChangePercent} />}
             />
@@ -210,7 +212,7 @@ export default function VendorAnalyticsPage() {
               value={data.summary.orderCount}
               sub={<ChangeBadge percent={data.summary.orderCountChangePercent} />}
             />
-            <StatCard icon={Receipt} label="Avg. order value" value={formatCurrency(data.summary.averageOrderValue)} />
+            <StatCard icon={Receipt} label="Avg. order value" value={compactCurrency(data.summary.averageOrderValue)} title={formatCurrency(data.summary.averageOrderValue)} />
             <StatCard icon={Package} label="Units sold" value={data.summary.unitsSold} />
             <StatCard icon={Users} label="New customers" value={data.summary.newCustomers} color="brand" />
           </div>
@@ -396,6 +398,17 @@ export default function VendorAnalyticsPage() {
                   <span className="flex items-center gap-1.5 text-slate-700"><AlertTriangle size={14} className={data.products.outOfStock > 0 ? "text-red-500" : ""} /> Out of stock</span>
                   <span className={`font-medium ${data.products.outOfStock > 0 ? "text-red-600" : "text-slate-900"}`}>{data.products.outOfStock}</span>
                 </div>
+                {(data.products.expiringSoon > 0 || data.products.expired > 0) && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-slate-700">
+                      <CalendarClock size={14} className={data.products.expired > 0 ? "text-red-500" : "text-amber-500"} /> Expiring soon
+                    </span>
+                    <span className={`font-medium ${data.products.expired > 0 ? "text-red-600" : "text-amber-600"}`}>
+                      {data.products.expiringSoon}
+                      {data.products.expired > 0 && <span className="text-xs font-normal text-slate-500"> ({data.products.expired} expired)</span>}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-100">
                   <span className="flex items-center gap-1.5 text-slate-700"><RotateCcw size={14} /> Refund requests (period)</span>
                   <span className="font-medium text-slate-900">{data.refunds.pending} pending, {data.refunds.approved} approved</span>

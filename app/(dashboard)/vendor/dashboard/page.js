@@ -31,7 +31,7 @@ import { CopyableUrl } from "@/components/ui/CopyableUrl.js";
 import { StoreQrCodeButton } from "@/components/ui/StoreQrCodeButton.js";
 import { SetupGuideModal } from "@/components/ui/SetupGuideModal.js";
 import { StatGridSkeleton, VendorDashboardSkeleton } from "@/components/ui/Skeleton.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, compactCurrency } from "@/lib/format.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { pushSupported, getPushSubscription, subscribeToPush } from "@/lib/pushClient.js";
 
@@ -282,7 +282,7 @@ export default function VendorDashboardPage() {
               const showExpiry = (stats.products.expiringSoon || 0) + (stats.products.expired || 0) > 0;
               return (
                 <div className={`grid grid-cols-2 gap-3 ${showExpiry ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-4"}`}>
-                  <StatCard icon={Wallet} label="Revenue (your payout)" value={formatCurrency(stats.revenue)} color="green" href="/vendor/payouts" />
+                  <StatCard icon={Wallet} label="Revenue (your payout)" value={compactCurrency(stats.revenue)} title={formatCurrency(stats.revenue)} color="green" href="/vendor/payouts" />
                   <StatCard icon={ShoppingBag} label="Orders" value={stats.orders.total} sub={`${stats.orders.pending} in progress`} href="/vendor/orders" />
                   <StatCard icon={Package} label="Products" value={stats.products.total} sub={`${stats.products.live} live`} href="/vendor/products" />
                   <StatCard
