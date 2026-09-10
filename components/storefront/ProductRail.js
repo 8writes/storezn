@@ -80,14 +80,14 @@ export function ProductRail({ title, products }) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500">{title}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-brand-700">{title}</h2>
         <div className="hidden sm:flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => nudge(-1)}
             disabled={atStart}
             aria-label={`Scroll ${title} left`}
-            className="w-8 h-8 inline-flex items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="w-8 h-8 inline-flex items-center justify-center rounded-full border border-brand-300 text-brand-700 hover:bg-brand-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
@@ -96,7 +96,7 @@ export function ProductRail({ title, products }) {
             onClick={() => nudge(1)}
             disabled={atEnd}
             aria-label={`Scroll ${title} right`}
-            className="w-8 h-8 inline-flex items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="w-8 h-8 inline-flex items-center justify-center rounded-full border border-brand-300 text-brand-700 hover:bg-brand-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             <ChevronRight size={16} />
           </button>
