@@ -112,6 +112,7 @@ export default function VendorReportsPage() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [locked, setLocked] = useState(false);
 
   const generate = () => {
     if (!storeId) return;
@@ -121,9 +122,11 @@ export default function VendorReportsPage() {
       .then((data) => {
         setReport(data);
         setDenied(false);
+        setLocked(false);
       })
       .catch((err) => {
-        if (/owner/i.test(err.message || "")) setDenied(true);
+        if (err?.status === 402) setLocked(true);
+        else if (/owner/i.test(err.message || "")) setDenied(true);
         else toast.error(err.message || "Failed to generate report");
       })
       .finally(() => setLoading(false));
@@ -139,6 +142,18 @@ export default function VendorReportsPage() {
   }
   if (denied) {
     return <p className="text-sm text-slate-500">Reports are only available to the store owner.</p>;
+  }
+  if (locked) {
+    return (
+      <div className="max-w-md mx-auto text-center bg-surface border border-slate-200 rounded-sm p-8 space-y-3 mt-6">
+        <h1 className="text-lg font-bold text-slate-900">The monthly report is a Storezn Enterprise feature</h1>
+        <p className="text-sm text-slate-500">
+          Enterprise adds a full month-end business &amp; forensic audit report &mdash; sales, tenders, cash reconciliation
+          per shift, and who did what. It&apos;s set up by the Storezn team.
+        </p>
+        <a href="/pricing" className="inline-block text-sm font-semibold text-brand-600 hover:text-brand-700">See Enterprise</a>
+      </div>
+    );
   }
 
   const s = report?.summary;

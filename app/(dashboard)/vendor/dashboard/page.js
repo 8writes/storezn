@@ -79,7 +79,7 @@ function buildSetupSteps({ store, verification, stats, pushSubscribed, onEnableP
   return steps;
 }
 
-function SHORTCUTS(storeId, onOpenGuide, isOwner) {
+function SHORTCUTS(storeId, isOwner) {
   const shortcuts = [
     { label: "Add product", icon: Plus, href: `/vendor/products/new?storeId=${storeId}` },
     { label: "Products", icon: Package, href: "/vendor/products" },
@@ -101,7 +101,6 @@ function SHORTCUTS(storeId, onOpenGuide, isOwner) {
       { label: "Store settings", icon: Settings, href: "/vendor/settings" },
       { label: "Verification", icon: ShieldCheck, href: "/vendor/verification" },
     );
-    shortcuts.push({ label: "Setup guide", icon: ListChecks, onClick: onOpenGuide });
   }
   return shortcuts;
 }
@@ -199,12 +198,26 @@ export default function VendorDashboardPage() {
     <div className="space-y-6">
       {isOwner && <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />}
 
+      {/* Utility row: setup guide + help, pinned right, above the greeting. */}
+      <div className="flex items-center justify-end gap-2 -mb-2">
+        {isOwner && steps.length > 0 && !allStepsDone && (
+          <Button type="button" size="sm" variant="outline" onClick={() => setGuideForceOpen(true)}>
+            <ListChecks size={15} /> Setup guide
+          </Button>
+        )}
+        <Link href="/vendor/help">
+          <Button type="button" size="sm" variant="ghost">
+            <HelpCircle size={15} /> Help
+          </Button>
+        </Link>
+      </div>
+
       <PageHeader
         title={`Welcome, ${user?.firstName || ""}`.trim()}
         description={store ? "Here's how your store is doing today." : undefined}
         actions={
           isOwner && store ? (
-            <Link href={`/vendor/products/new?storeId=${storeId}`}>
+            <Link href={`/vendor/products/new?storeId=${storeId}`} className="hidden sm:block">
               <Button size="sm">
                 <Plus size={15} /> Add product
               </Button>
@@ -294,6 +307,7 @@ export default function VendorDashboardPage() {
                   />
                   {showExpiry && (
                     <StatCard
+                      className="col-span-2 sm:col-span-1"
                       icon={CalendarClock}
                       label={stats.products.expired > 0 ? "Expired / expiring" : "Expiring soon"}
                       value={stats.products.expired > 0 ? stats.products.expired : stats.products.expiringSoon}
@@ -314,7 +328,7 @@ export default function VendorDashboardPage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2.5">Quick actions</p>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
-              {SHORTCUTS(storeId, () => setGuideForceOpen(true), isOwner).map(({ label, icon: Icon, href, onClick }) => {
+              {SHORTCUTS(storeId, isOwner).map(({ label, icon: Icon, href, onClick }) => {
                 const content = (
                   <>
                     <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-brand-100 text-brand-700 transition-colors group-hover:bg-brand-600 group-hover:text-white">

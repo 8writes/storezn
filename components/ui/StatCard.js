@@ -15,14 +15,14 @@ const CHIP = {
 // `value` a number is auto-abbreviated (1.2K / 3.4M) and the full figure
 // is put on `title`. `value` a string (a pre-formatted currency, say) is
 // shown as-is; pass `title` for its exact form.
-export function StatCard({ icon: Icon, label, value, sub, color = "brand", href, title }) {
+export function StatCard({ icon: Icon, label, value, sub, color = "brand", href, title, className = "" }) {
   const isNum = typeof value === "number";
   const display = isNum ? compactNumber(value) : value;
   const tip = title || (isNum ? Number(value).toLocaleString("en-NG") : undefined);
 
   const base =
-    "group bg-surface border border-slate-200 rounded-sm shadow-xs p-3.5 sm:p-4 flex items-start gap-3 " +
-    "transition-[box-shadow,border-color] duration-150";
+    `group bg-surface border border-slate-200 rounded-sm shadow-xs p-3.5 sm:p-4 flex items-start gap-3 ` +
+    `transition-[box-shadow,border-color] duration-150 ${className}`;
   const inner = (
     <>
       {Icon && (

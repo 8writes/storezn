@@ -81,7 +81,7 @@ export default function StorefrontSignupPage() {
             onChange={(e) => setForm((f) => ({ ...f, acceptMarketing: e.target.checked }))}
             className="mt-0.5"
           />
-          <span>I agree to receive occasional marketing emails from Storezn. You can unsubscribe at any time.</span>
+          <span>I agree to receive occasional marketing emails. You can unsubscribe at any time.</span>
         </label>
         <Button type="submit" fullWidth size="lg" loading={loading}>Create account</Button>
       </form>

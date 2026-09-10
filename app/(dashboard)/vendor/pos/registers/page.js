@@ -54,7 +54,11 @@ export default function RegistersPage() {
         // main branch), and the submit button already blocks on !branchId.
         setBranchId((cur) => cur || (b.branches.length === 1 ? b.branches[0]?.id || "" : ""));
       })
-      .catch((err) => toast.error(err.message))
+      // A 402 just means the store isn't on Enterprise - the page already
+      // renders the upsell for that, no toast needed.
+      .catch((err) => {
+        if (err?.status !== 402) toast.error(err.message);
+      })
       .finally(() => setLoading(false));
   };
   useEffect(() => {

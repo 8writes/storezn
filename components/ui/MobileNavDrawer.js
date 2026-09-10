@@ -14,11 +14,18 @@ export function MobileNavDrawer({ open, onClose, title, children, footer, muted 
     if (!open) return;
     const onKeyDown = (e) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKeyDown);
-    // Prevent the page behind the drawer from scrolling while it's open.
+    // Lock the page behind the drawer. Both <html> and <body> - depending
+    // on layout either one can be the actual scroll container, and
+    // `overflow: hidden` on just body doesn't always take.
+    const html = document.documentElement;
+    const prevHtml = html.style.overflow;
+    const prevBody = document.body.style.overflow;
+    html.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
+      html.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
     };
   }, [open, onClose]);
 

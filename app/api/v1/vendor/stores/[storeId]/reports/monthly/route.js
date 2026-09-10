@@ -18,6 +18,7 @@ import {
   storeActivityLogs,
 } from "../../../../../../../../lib/db/schema.js";
 import { getUser, isStoreOwner } from "../../../../../../../../lib/auth.js";
+import { isEnterpriseStore } from "../../../../../../../../lib/storePlan.js";
 import { toNaira } from "../../../../../../../../lib/money.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
 
@@ -34,6 +35,9 @@ export async function GET(req, { params }) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!isStoreOwner(user, store)) {
     return NextResponse.json({ error: "Only the store owner can generate reports" }, { status: 403 });
+  }
+  if (!isEnterpriseStore(store)) {
+    return NextResponse.json({ error: "The monthly report is a Storezn Enterprise feature." }, { status: 402 });
   }
 
   const monthParam = new URL(req.url).searchParams.get("month") || "";
