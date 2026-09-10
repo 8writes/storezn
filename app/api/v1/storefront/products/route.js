@@ -19,7 +19,8 @@ export async function GET(req) {
   const minPrice = searchParams.get("min") ? Number(searchParams.get("min")) : null;
   const maxPrice = searchParams.get("max") ? Number(searchParams.get("max")) : null;
   const sort = searchParams.get("sort") || "newest";
+  const discountedOnly = searchParams.get("discounted") === "1";
 
-  const { list, total } = await getStorefrontProducts({ storeId: store.id, page, pageSize: PAGE_SIZE, q, categoryId, minPrice, maxPrice, sort });
+  const { list, total } = await getStorefrontProducts({ storeId: store.id, page, pageSize: PAGE_SIZE, q, categoryId, minPrice, maxPrice, sort, discountedOnly });
   return NextResponse.json({ products: list, total });
 }

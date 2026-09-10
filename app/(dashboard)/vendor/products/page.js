@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Upload, ImageOff, ChevronDown, FileSpreadsheet, CheckCircle2, XCircle, SlidersHorizontal, X } from "lucide-react";
+import { Plus, Upload, ImageOff, ChevronDown, FileSpreadsheet, CheckCircle2, XCircle, SlidersHorizontal, X, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -91,6 +91,31 @@ export default function VendorProductsPage() {
   const [loading, setLoading] = useState(true);
 
   const activeFilterCount = (categoryId ? 1 : 0) + (sort !== "newest" ? 1 : 0) + (stockLevel ? 1 : 0) + (expiry ? 1 : 0);
+
+  const MAX_FEATURED = 10;
+  const [featuring, setFeaturing] = useState(null); // productId mid-request
+  const featuredCount = products.filter((p) => p.featuredOrder != null).length;
+
+  const toggleFeature = async (p) => {
+    const next = p.featuredOrder == null;
+    if (next && featuredCount >= MAX_FEATURED) {
+      toast.error(`You can feature up to ${MAX_FEATURED} products. Remove one first.`);
+      return;
+    }
+    setFeaturing(p.id);
+    try {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${p.id}/feature`, {
+        method: "PATCH",
+        body: JSON.stringify({ featured: next }),
+      });
+      setProducts((list) => list.map((x) => (x.id === p.id ? { ...x, featuredOrder: next ? 999 : null } : x)));
+      toast.success(next ? "Added to Featured" : "Removed from Featured");
+    } catch (err) {
+      toast.error(err.message || "Couldn't update Featured");
+    } finally {
+      setFeaturing(null);
+    }
+  };
 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkRows, setBulkRows] = useState([]);
@@ -221,7 +246,13 @@ export default function VendorProductsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-900">Products</h1>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Products</h1>
+          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+            <Star size={12} className={featuredCount > 0 ? "fill-amber-400 text-amber-400" : "text-slate-300"} />
+            {featuredCount}/{MAX_FEATURED} featured on your storefront
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           {/* The full add / edit grid - unusable on a phone, so laptop up. */}
           <Link href="/vendor/products/bulk" className="hidden lg:inline-flex">
@@ -485,10 +516,27 @@ export default function VendorProductsPage() {
                       <Badge color={p.stock === 0 ? "red" : "amber"}>{p.stock === 0 ? "Out of stock" : "Low stock"}</Badge>
                     )}
                     {exp && exp.tone !== "slate" && <Badge color={exp.tone}>{exp.text}</Badge>}
+                    {p.featuredOrder != null && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                        <Star size={11} className="fill-amber-400 text-amber-400" /> Featured
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFeature(p);
+                      }}
+                      disabled={featuring === p.id}
+                      className="ml-auto text-slate-300 disabled:opacity-50 cursor-pointer"
+                      aria-label={p.featuredOrder != null ? "Remove from Featured" : "Feature on storefront"}
+                    >
+                      <Star size={16} className={p.featuredOrder != null ? "fill-amber-400 text-amber-400" : ""} />
+                    </button>
                     <Link
                       href={`/vendor/products/${p.id}/edit?storeId=${storeId}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="ml-auto text-sm font-medium text-brand-600 hover:underline"
+                      className="text-sm font-medium text-brand-600 hover:underline"
                     >
                       Edit
                     </Link>
@@ -573,8 +621,18 @@ export default function VendorProductsPage() {
                       })()}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                    <Link href={`/vendor/products/${p.id}/edit?storeId=${storeId}`} className="text-brand-600 hover:underline">Edit</Link>
+                  <td className="px-4 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => toggleFeature(p)}
+                      disabled={featuring === p.id}
+                      aria-pressed={p.featuredOrder != null}
+                      title={p.featuredOrder != null ? "Featured on storefront" : "Feature on storefront"}
+                      className="mr-3 align-middle text-slate-300 hover:text-amber-400 disabled:opacity-50 cursor-pointer transition-colors"
+                    >
+                      <Star size={16} className={p.featuredOrder != null ? "fill-amber-400 text-amber-400" : ""} />
+                    </button>
+                    <Link href={`/vendor/products/${p.id}/edit?storeId=${storeId}`} className="text-brand-600 hover:underline align-middle">Edit</Link>
                   </td>
                 </tr>
               ))

@@ -41,6 +41,22 @@ export function Select({
     if (!el) return;
     const r = el.getBoundingClientRect();
     const below = window.innerHeight - r.bottom;
+    // The panel is portalled to <body>, outside any ancestor that set the
+    // storefront's --color-brand-* accent vars (see colorShades.js) - so
+    // copy the resolved ramp off the trigger and re-apply it on the panel,
+    // otherwise brand-tinted classes inside it fall back to the platform
+    // green even on a themed storefront.
+    const brandVars = {};
+    try {
+      const cs = getComputedStyle(el);
+      for (const shade of [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]) {
+        const v = cs.getPropertyValue(`--color-brand-${shade}`).trim();
+        if (v) brandVars[`--color-brand-${shade}`] = v;
+      }
+    } catch {
+      // getComputedStyle can throw in exotic contexts - fine, panel just
+      // renders with the inherited (platform) ramp.
+    }
     setPos({
       left: r.left,
       top: r.bottom + 4,
@@ -48,6 +64,7 @@ export function Select({
       width: r.width,
       up: below < 300 && r.top > below,
       uiFont: !!el.closest?.(".font-ui"),
+      brandVars,
     });
   };
 
@@ -96,6 +113,7 @@ export function Select({
               left: pos.left,
               [pos.up ? "bottom" : "top"]: pos.up ? pos.bottom : pos.top,
               minWidth: pos.width,
+              ...pos.brandVars,
             }}
             className={`z-100 w-max max-w-[min(28rem,90vw)] max-h-72 flex flex-col bg-surface border border-slate-200 rounded-sm shadow-lg overflow-hidden ${pos.uiFont ? "font-ui" : ""}`}
           >

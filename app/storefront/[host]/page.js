@@ -3,9 +3,11 @@ import { db } from "@/lib/db/index.js";
 import { categories } from "@/lib/db/schema.js";
 import { resolveStoreByHost } from "@/lib/resolveStore.js";
 import { isPlusStore } from "@/lib/storePlan.js";
-import { getStorefrontProducts } from "@/lib/storefrontProducts.js";
+import { getStorefrontProducts, getStorefrontRails } from "@/lib/storefrontProducts.js";
 import { StorefrontFilters } from "@/components/storefront/StorefrontFilters.js";
 import { StorefrontProductGrid } from "@/components/storefront/StorefrontProductGrid.js";
+import { ProductRail } from "@/components/storefront/ProductRail.js";
+import { StickyStoreSearch } from "@/components/storefront/StickyStoreSearch.js";
 
 const PAGE_SIZE = 24;
 
@@ -25,39 +27,58 @@ export default async function StorefrontHomePage({ params, searchParams }) {
   const minPrice = sp.min ? Number(sp.min) : null;
   const maxPrice = sp.max ? Number(sp.max) : null;
   const sort = sp.sort || "newest";
+  const discountedOnly = sp.discounted === "1";
 
-  const [{ list, total }, categoryList] = await Promise.all([
-    getStorefrontProducts({ storeId: store.id, page: 1, pageSize: PAGE_SIZE, q, categoryId, minPrice, maxPrice, sort }),
+  // The featured / on-sale rails are a landing-page flourish - hidden the
+  // moment the shopper is actually searching or filtering, when they want
+  // the plain result grid, nothing else.
+  const filtering = !!(q || categoryId || minPrice || maxPrice || discountedOnly);
+
+  const [{ list, total }, categoryList, rails] = await Promise.all([
+    getStorefrontProducts({ storeId: store.id, page: 1, pageSize: PAGE_SIZE, q, categoryId, minPrice, maxPrice, sort, discountedOnly }),
     db.select().from(categories).where(eq(categories.storeId, store.id)).orderBy(categories.name),
+    filtering ? Promise.resolve({ featured: [], discounted: [] }) : getStorefrontRails({ storeId: store.id }),
   ]);
 
+  const storeState = store.showShipsFrom === false ? null : store.state;
+
   return (
-    <div className="space-y-10">
-      <div className="text-center max-w-xl mx-auto space-y-2">
-        <h1 className={`text-3xl sm:text-4xl font-semibold tracking-tight ${themed ? "text-brand-700" : "text-slate-900"}`}>{store.name}</h1>
-        <p className="text-sm text-slate-500 uppercase tracking-widest">All products</p>
+    <>
+      <StickyStoreSearch />
+      <div className="space-y-10">
+        <div className="text-center max-w-xl mx-auto space-y-2">
+          <h1 className={`text-3xl sm:text-4xl font-semibold tracking-tight ${themed ? "text-brand-700" : "text-slate-900"}`}>{store.name}</h1>
+          <p className="text-sm text-slate-500 uppercase tracking-widest">All products</p>
+        </div>
+
+        {!filtering && rails.featured.length > 0 && (
+          <ProductRail title="Featured" products={rails.featured} />
+        )}
+        {!filtering && rails.discounted.length > 0 && (
+          <ProductRail title="On sale" products={rails.discounted} />
+        )}
+
+        <StorefrontFilters categories={categoryList} themed={themed} />
+
+        {q && (
+          <p className="text-sm text-slate-500">
+            Showing {total} {total === 1 ? "result" : "results"} for{" "}
+            <span className={`font-medium ${themed ? "text-brand-700" : "text-slate-900"}`}>&ldquo;{q}&rdquo;</span>
+          </p>
+        )}
+
+        {list.length === 0 ? (
+          <p className="text-center text-slate-700 py-24">{filtering ? "No products match your filters." : "No products yet, check back soon."}</p>
+        ) : (
+          <StorefrontProductGrid
+            key={`${q || ""}-${categoryId || ""}-${sort}-${minPrice || ""}-${maxPrice || ""}-${discountedOnly ? "d" : ""}`}
+            initialProducts={list}
+            total={total}
+            filters={{ q: q || "", category: categoryId || "", sort, min: minPrice || "", max: maxPrice || "", discounted: discountedOnly ? "1" : "" }}
+            storeState={storeState}
+          />
+        )}
       </div>
-
-      <StorefrontFilters categories={categoryList} themed={themed} />
-
-      {q && (
-        <p className="text-sm text-slate-500">
-          Showing {total} {total === 1 ? "result" : "results"} for{" "}
-          <span className={`font-medium ${themed ? "text-brand-700" : "text-slate-900"}`}>&ldquo;{q}&rdquo;</span>
-        </p>
-      )}
-
-      {list.length === 0 ? (
-        <p className="text-center text-slate-700 py-24">{q || categoryId || minPrice || maxPrice ? "No products match your filters." : "No products yet, check back soon."}</p>
-      ) : (
-        <StorefrontProductGrid
-          key={`${q || ""}-${categoryId || ""}-${sort}-${minPrice || ""}-${maxPrice || ""}`}
-          initialProducts={list}
-          total={total}
-          filters={{ q: q || "", category: categoryId || "", sort, min: minPrice || "", max: maxPrice || "" }}
-          storeState={store.showShipsFrom === false ? null : store.state}
-        />
-      )}
-    </div>
+    </>
   );
 }

@@ -4,6 +4,7 @@ import { reviews, orders, orderItems, customers } from "../../../../../../../lib
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getUser } from "../../../../../../../lib/auth.js";
 import { validate, createReviewSchema } from "../../../../../../../lib/validate.js";
+import { isOwnedUploadUrl } from "../../../../../../../lib/storage/index.js";
 
 export async function GET(req, { params }) {
   const { productId } = await params;
@@ -13,6 +14,7 @@ export async function GET(req, { params }) {
       id: reviews.id,
       rating: reviews.rating,
       comment: reviews.comment,
+      imageUrl: reviews.imageUrl,
       createdAt: reviews.createdAt,
       firstName: customers.firstName,
     })
@@ -70,9 +72,17 @@ export async function POST(req, { params }) {
   const result = validate(createReviewSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
+  // An attached photo must be one this customer uploaded through
+  // /api/v1/storefront/reviews/upload (keyed under review-image/<id>/) -
+  // never an arbitrary URL passed straight into the review row.
+  const { imageUrl, ...reviewData } = result.data;
+  if (imageUrl && !isOwnedUploadUrl(imageUrl, user.id)) {
+    return NextResponse.json({ error: "That image couldn't be attached" }, { status: 400 });
+  }
+
   const [created] = await db
     .insert(reviews)
-    .values({ productId, userId: user.id, orderId: purchase.orderId, ...result.data })
+    .values({ productId, userId: user.id, orderId: purchase.orderId, ...reviewData, imageUrl: imageUrl || null })
     .returning();
 
   return NextResponse.json({ review: created }, { status: 201 });

@@ -45,8 +45,7 @@ export default function TermsPage() {
           <section className="space-y-2">
             <h2 className="text-base font-semibold text-slate-900">3. Fees and payouts</h2>
             <p>
-              Storezn charges a commission on each sale, calculated as a percentage of the order subtotal. The default
-              rate applies platform-wide, but an administrator may set a custom rate for an individual store.
+              Storezn charges a commission on each sale, calculated as a percentage of the order subtotal.
             </p>
             <p>
               Each vendor chooses, for their own store, who pays this commission: by default the vendor absorbs it (it
@@ -56,8 +55,8 @@ export default function TermsPage() {
               settings and applies to every order placed after the change.
             </p>
             <p>
-              Payouts are not held or disbursed manually by Storezn. Every paid order is split automatically at the
-              point of payment, with the vendor&apos;s share routed directly to the bank account they&apos;ve linked. A vendor
+              Payouts are not held or disbursed manually by Storezn. Every paid order is settled automatically at the
+              point of payment, directly to the bank account they&apos;ve linked. A vendor
               cannot receive payouts until a payout account has been linked and verified.
             </p>
           </section>

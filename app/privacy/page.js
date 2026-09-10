@@ -46,11 +46,8 @@ export default function PrivacyPage() {
               <li>
                 <span className="font-medium">Browser characteristics</span> — a small, non-identifying set of signals
                 (such as user-agent string, language, time zone, screen size and platform), combined into a single hash.
-                This lets us recognise a device that has cleared its stored identifier, so that a ban can&apos;t be trivially
-                evaded.
               </li>
-              <li><span className="font-medium">Activity logs</span> — a record of significant actions taken on an account or a store (sign-ins, sign-ups, sales, cash movements, stock and price changes, staff changes).</li>
-              <li><span className="font-medium">Abuse events</span> — when a signup is rejected (for example because the email is on a block-list or the device is banned), we log the attempt, keyed to the device identifier and IP.</li>
+              <li><span className="font-medium">Activity logs</span> — a record of significant actions taken on an account or a store.</li>
             </ul>
           </section>
 
