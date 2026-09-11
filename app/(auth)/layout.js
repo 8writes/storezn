@@ -12,7 +12,14 @@ export default function AuthLayout({ children }) {
 
       <div className="hidden md:flex md:w-1/2 lg:w-2/5 flex-col justify-between bg-linear-to-br from-neutral-900 to-brand-900 text-white p-10">
         <Link href="/" className="flex items-center">
-          <Image src="/storezn-logo.png" alt="Storezn" width={140} height={34} priority unoptimized />
+          <Image
+            src="/storezn-logo.png"
+            alt="Storezn"
+            width={140}
+            height={34}
+            priority
+            unoptimized
+          />
         </Link>
 
         <div className="space-y-3 max-w-sm">
@@ -21,12 +28,23 @@ export default function AuthLayout({ children }) {
           </h1>
         </div>
 
-        <p className="text-xs text-white/60">&copy; {new Date().getFullYear()} Storezn.</p>
+        <p className="text-xs text-white/60">
+          &copy; {new Date().getFullYear()} Storezn.
+        </p>
       </div>
 
       <div className="flex-1 flex flex-col">
         <div className="md:hidden flex items-center px-4 h-16 bg-brand-900 text-white">
-          <Image src="/storezn-logo.png" alt="Storezn" width={120} height={29} priority unoptimized />
+          <Link href="/">
+            <Image
+              src="/storezn-logo.png"
+              alt="Storezn"
+              width={120}
+              height={29}
+              priority
+              unoptimized
+            />
+          </Link>
         </div>
 
         <div className="flex-1 flex items-center justify-center p-4 py-10 bg-white">

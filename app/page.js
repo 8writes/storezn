@@ -44,12 +44,6 @@ const CHANNELS = [
   { icon: MessageCircle, title: "Phone & WhatsApp", text: "Log an order taken off-platform so stock and takings still line up." },
 ];
 
-const STEPS = [
-  { n: "01", title: "Create your store", text: "Pick a name, add your first products. Minutes, not days." },
-  { n: "02", title: "Verify your identity", text: "Confirm who you are with your NIN so customers know there's a real business behind the store." },
-  { n: "03", title: "Share and get paid", text: "Send your link, take orders online and in person, money lands in your bank." },
-];
-
 export const revalidate = 300;
 
 export default async function Home() {
@@ -79,7 +73,7 @@ export default async function Home() {
                 href="/signup"
                 className="group inline-flex items-center justify-center gap-2 text-sm font-semibold bg-brand-600 text-white px-6 py-3.5 rounded-sm hover:bg-brand-700 transition-colors cursor-pointer shadow-lg shadow-brand-600/25"
               >
-                Create your free store
+                Get started for free
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
@@ -94,7 +88,10 @@ export default async function Home() {
           {/* Real product screenshots (public/storezn-dashboard.png,
               public/storezn-mobile-dashboard.png) - a browser frame around
               the desktop dashboard, the mobile view floating over its
-              corner like a phone. */}
+              corner like a phone. unoptimized: this deploy is self-hosted
+              (git pull && next build, no Vercel/sharp), and next/image's
+              built-in optimizer 400s without sharp installed - same reason
+              MarketingHeader/Footer's logo <Image> already use it. */}
           <Reveal delay={120} className="relative mx-auto w-full max-w-md lg:max-w-none">
             <div className="rounded-md border border-slate-200 bg-neutral-950 shadow-2xl shadow-slate-900/15 overflow-hidden">
               <div className="flex items-center gap-2 border-b border-white/10 bg-neutral-900 px-3.5 py-2.5">
@@ -111,6 +108,7 @@ export default async function Home() {
                   alt="Storezn vendor dashboard"
                   fill
                   priority
+                  unoptimized
                   sizes="(min-width: 1024px) 640px, 100vw"
                   className="object-cover object-top"
                 />
@@ -122,6 +120,7 @@ export default async function Home() {
                   src="/storezn-mobile-dashboard.png"
                   alt="Storezn dashboard on mobile"
                   fill
+                  unoptimized
                   sizes="150px"
                   className="object-cover object-top"
                 />
@@ -152,7 +151,7 @@ export default async function Home() {
       {/* -------------------------------------------------------------- Feature grid */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
         <Reveal className="text-center max-w-xl mx-auto mb-12">
-          <h2 className="font-display text-2xl sm:text-4xl font-bold text-slate-900">Everything to run a real store</h2>
+          <h2 className="font-display text-2xl sm:text-4xl font-bold text-slate-900">Everything to run a real business</h2>
           <p className="mt-3 text-slate-500">Not a page builder with a shop bolted on. The whole operation.</p>
         </Reveal>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -207,26 +206,6 @@ export default async function Home() {
               </Reveal>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* --------------------------------------------------------------- How it works */}
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
-        <Reveal className="text-center max-w-lg mx-auto mb-12">
-          <h2 className="font-display text-2xl sm:text-4xl font-bold text-slate-900">Three steps to your first sale</h2>
-        </Reveal>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {STEPS.map(({ n, title, text }, i) => (
-            <Reveal
-              key={n}
-              delay={i * 90}
-              className="relative bg-white border border-slate-100 rounded-sm p-6 shadow-sm"
-            >
-              <span className="font-display text-3xl font-extrabold text-brand-200">{n}</span>
-              <p className="mt-2 font-semibold text-slate-900">{title}</p>
-              <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{text}</p>
-            </Reveal>
-          ))}
         </div>
       </section>
 
@@ -305,7 +284,7 @@ export default async function Home() {
               href="/signup"
               className="mt-8 inline-flex items-center justify-center gap-2 text-sm font-semibold bg-white text-brand-900 px-6 py-3.5 rounded-sm hover:bg-brand-50 transition-colors cursor-pointer"
             >
-              Create your free store
+              Get started for free
               <ArrowRight size={16} />
             </Link>
           </Reveal>

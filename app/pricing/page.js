@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, ArrowRight, ShieldCheck, Landmark, Lock } from "lucide-react";
+import { Check, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
 import { db } from "@/lib/db/index.js";
@@ -30,12 +30,6 @@ const ENTERPRISE_FEATURES = [
   "Record phone, WhatsApp and past sales into your order history",
   "Payment-account tracking (Moniepoint, Opay, transfers)",
   "Month-end forensic report: who did what, and where money went",
-];
-
-const TRUST = [
-  { icon: Lock, text: "Card payments handled entirely by Paystack - card details never touch Storezn." },
-  { icon: Landmark, text: "Every paid order settles straight to your own bank account. We never hold your money." },
-  { icon: ShieldCheck, text: "Every vendor is identity-verified with their NIN before their store goes live." },
 ];
 
 export default async function PricingPage() {
@@ -151,22 +145,6 @@ export default async function PricingPage() {
             <p className="mt-2 text-xs text-white/40 text-center">
               We set it up on your store. Email {SUPPORT_EMAIL}
             </p>
-          </div>
-        </section>
-
-        {/* Trust band */}
-        <section className="bg-slate-50/70 border-y border-slate-100">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {TRUST.map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-brand-100 text-brand-700">
-                    <Icon size={17} />
-                  </span>
-                  <p className="text-sm text-slate-600">{text}</p>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
