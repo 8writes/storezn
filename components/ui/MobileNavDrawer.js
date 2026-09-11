@@ -22,10 +22,16 @@ export function MobileNavDrawer({ open, onClose, title, children, footer, muted 
     const prevBody = document.body.style.overflow;
     html.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    // Flag PullToRefresh off while the drawer is open - it listens on
+    // window and would otherwise read a downward swipe over the drawer
+    // (or its backdrop) as a pull-to-refresh gesture, since the page
+    // behind it is locked at scrollY 0 the whole time.
+    document.body.dataset.navDrawerOpen = "true";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       html.style.overflow = prevHtml;
       document.body.style.overflow = prevBody;
+      delete document.body.dataset.navDrawerOpen;
     };
   }, [open, onClose]);
 

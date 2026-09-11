@@ -18,7 +18,10 @@ export function PullToRefresh({ children }) {
 
   useEffect(() => {
     const onTouchStart = (e) => {
-      if (window.scrollY > 0 || refreshing) return;
+      // MobileNavDrawer sets this while open - the page behind it is
+      // scroll-locked at 0 the whole time, so without this a downward
+      // swipe on the drawer/backdrop would otherwise read as a pull.
+      if (window.scrollY > 0 || refreshing || document.body.dataset.navDrawerOpen) return;
       startY.current = e.touches[0].clientY;
       setDragging(true);
     };

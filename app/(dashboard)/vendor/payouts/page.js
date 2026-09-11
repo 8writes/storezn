@@ -3,7 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Wallet, Calendar, Landmark, Info, RefreshCw, Loader2 } from "lucide-react";
+import {
+  Wallet,
+  Calendar,
+  Landmark,
+  Info,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -15,8 +22,12 @@ import { InfoTip } from "@/components/ui/InfoTip.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { StatCard } from "@/components/ui/StatCard.js";
-import { Skeleton, StatGridSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton.js";
-import { formatCurrency, formatDate } from "@/lib/format.js";
+import {
+  Skeleton,
+  StatGridSkeleton,
+  TableRowSkeleton,
+} from "@/components/ui/Skeleton.js";
+import { formatCurrency, formatDate, compactCurrency } from "@/lib/format.js";
 import { estimatedSettlementDate } from "@/lib/settlement.js";
 
 const CHANNEL_OPTIONS = [
@@ -32,7 +43,12 @@ export default function VendorPayoutsPage() {
   const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
-  const { stores, storeId, loading: storesLoading, updateStore } = useVendorStore();
+  const {
+    stores,
+    storeId,
+    loading: storesLoading,
+    updateStore,
+  } = useVendorStore();
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [channel, setChannel] = useState("");
@@ -100,10 +116,16 @@ export default function VendorPayoutsPage() {
     resolveDebounceRef.current = setTimeout(async () => {
       setResolving(true);
       try {
-        const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account/resolve`, {
-          method: "POST",
-          body: JSON.stringify({ bankCode: payoutForm.bankCode, accountNumber: payoutForm.accountNumber }),
-        });
+        const data = await apiFetch(
+          `/api/v1/vendor/stores/${storeId}/payout-account/resolve`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              bankCode: payoutForm.bankCode,
+              accountNumber: payoutForm.accountNumber,
+            }),
+          },
+        );
         setPayoutForm((f) => ({ ...f, accountName: data.accountName }));
       } catch (err) {
         setPayoutForm((f) => ({ ...f, accountName: "" }));
@@ -121,10 +143,16 @@ export default function VendorPayoutsPage() {
     e.preventDefault();
     setLinkingAccount(true);
     try {
-      const result = await apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account`, {
-        method: "POST",
-        body: JSON.stringify({ bankCode: payoutForm.bankCode, accountNumber: payoutForm.accountNumber }),
-      });
+      const result = await apiFetch(
+        `/api/v1/vendor/stores/${storeId}/payout-account`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            bankCode: payoutForm.bankCode,
+            accountNumber: payoutForm.accountNumber,
+          }),
+        },
+      );
       updateStore(result.store);
       setPayoutForm(EMPTY_PAYOUT_FORM);
       toast.success(`Verified, payouts go to ${result.store.accountName}`);
@@ -139,10 +167,15 @@ export default function VendorPayoutsPage() {
   const handleCheckSettlements = async () => {
     setCheckingSettlements(true);
     try {
-      const result = await apiFetch(`/api/v1/vendor/stores/${storeId}/payouts/refresh`, { method: "POST" });
+      const result = await apiFetch(
+        `/api/v1/vendor/stores/${storeId}/payouts/refresh`,
+        { method: "POST" },
+      );
       await loadPayouts();
       toast[result.updated > 0 ? "success" : "message"](
-        result.updated > 0 ? `${result.updated} order${result.updated === 1 ? "" : "s"} confirmed settled` : "No new settlements yet",
+        result.updated > 0
+          ? `${result.updated} order${result.updated === 1 ? "" : "s"} confirmed settled`
+          : "No new settlements yet",
       );
     } catch (err) {
       toast.error(err.message || "Could not check settlements");
@@ -158,7 +191,11 @@ export default function VendorPayoutsPage() {
   // Payout account/bank details are owner-only (see isStoreOwner in
   // lib/auth.js) - staff never see them, even read-only.
   if (user && user.role !== "vendor") {
-    return <p className="text-sm text-slate-500">This page is only available to the store owner.</p>;
+    return (
+      <p className="text-sm text-slate-500">
+        This page is only available to the store owner.
+      </p>
+    );
   }
 
   if (loading || !data) {
@@ -187,12 +224,17 @@ export default function VendorPayoutsPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-slate-700">Payout account</label>
+          <label className="text-sm font-medium text-slate-700">
+            Payout account
+          </label>
           <Badge color={data?.payoutAccount ? "green" : "amber"}>
             {data?.payoutAccount ? "Verified" : "Not linked"}
           </Badge>
           {!data?.payoutAccount && (
-            <InfoTip>We verify it and set up automatic payouts through Paystack. Customers can&apos;t check out until this is done.</InfoTip>
+            <InfoTip>
+              We verify it and set up automatic payouts through Paystack.
+              Customers can&apos;t check out until this is done.
+            </InfoTip>
           )}
         </div>
 
@@ -202,14 +244,23 @@ export default function VendorPayoutsPage() {
             <div>
               <p className="font-medium flex items-center gap-1.5">
                 {data.payoutAccount.accountName}
-                <InfoTip>Locked once set, for security. Contact support to change your payout account.</InfoTip>
+                <InfoTip>
+                  Locked once set, for security. Contact support to change your
+                  payout account.
+                </InfoTip>
               </p>
-              <p>{data.payoutAccount.bankName} · {data.payoutAccount.accountNumber}</p>
+              <p>
+                {data.payoutAccount.bankName} ·{" "}
+                {data.payoutAccount.accountNumber}
+              </p>
             </div>
           </div>
         ) : (
           <>
-            <form onSubmit={handleLinkAccount} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form
+              onSubmit={handleLinkAccount}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+            >
               <Select
                 label="Bank"
                 options={banks.map((b) => ({ value: b.code, label: b.name }))}
@@ -224,26 +275,47 @@ export default function VendorPayoutsPage() {
                 placeholder="0123456789"
                 maxLength={10}
                 value={payoutForm.accountNumber}
-                onChange={(e) => setPayoutForm((f) => ({ ...f, accountNumber: e.target.value.replace(/\D/g, "") }))}
+                onChange={(e) =>
+                  setPayoutForm((f) => ({
+                    ...f,
+                    accountNumber: e.target.value.replace(/\D/g, ""),
+                  }))
+                }
                 required
               />
               <div className="sm:col-span-2 flex flex-col gap-1">
-                <label className="text-sm font-medium text-slate-700">Account name</label>
+                <label className="text-sm font-medium text-slate-700">
+                  Account name
+                </label>
                 <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-sm bg-slate-50 text-base min-h-[42px]">
                   {resolving ? (
                     <>
-                      <Loader2 size={15} className="animate-spin text-slate-700" />
+                      <Loader2
+                        size={15}
+                        className="animate-spin text-slate-700"
+                      />
                       <span className="text-slate-700">Resolving…</span>
                     </>
                   ) : payoutForm.accountName ? (
-                    <span className="text-slate-900">{payoutForm.accountName}</span>
+                    <span className="text-slate-900">
+                      {payoutForm.accountName}
+                    </span>
                   ) : (
-                    <span className="text-slate-700">Enter your bank and account number above</span>
+                    <span className="text-slate-700">
+                      Enter your bank and account number above
+                    </span>
                   )}
                 </div>
-                {resolveError && <p className="text-xs text-red-500">{resolveError}</p>}
+                {resolveError && (
+                  <p className="text-xs text-red-500">{resolveError}</p>
+                )}
               </div>
-              <Button type="submit" loading={linkingAccount} disabled={!payoutForm.accountName || resolving} className="sm:col-span-2 w-fit">
+              <Button
+                type="submit"
+                loading={linkingAccount}
+                disabled={!payoutForm.accountName || resolving}
+                className="sm:col-span-2 w-fit"
+              >
                 Verify &amp; link account
               </Button>
             </form>
@@ -251,15 +323,15 @@ export default function VendorPayoutsPage() {
         )}
       </div>
 
-      <div className="flex items-start gap-3 bg-brand-50 border border-brand-100 rounded-sm p-4">
-        <Info
-          size={18}
-          className="text-brand-600 hidden md:block shrink-0 mt-0.5"
-        />
+      <div className="flex items-start gap-3 bg-brand-50 border border-brand-100 items-center rounded-sm p-4">
+        <InfoTip>
+          Weekends push it to the following Monday. Offline sales are already
+          yours since you collected them in person.
+        </InfoTip>
         <div className="flex-1 text-sm text-brand-800">
           <p>
-            Paystack settles online orders <strong>the next business day</strong>.{" "}
-            <InfoTip>Weekends push it to the following Monday. Offline sales are already yours since you collected them in person.</InfoTip>
+            Paystack settles online orders{" "}
+            <strong>the next business day</strong>.{" "}
           </p>
           <Button
             type="button"
@@ -282,24 +354,28 @@ export default function VendorPayoutsPage() {
           <StatCard
             icon={Wallet}
             label="Lifetime payouts"
-            value={formatCurrency(data.stats.lifetimeTotal)}
+            value={compactCurrency(data.stats.lifetimeTotal)}
+            title={formatCurrency(data.stats.lifetimeTotal)}
             color="green"
           />
           <StatCard
             icon={Calendar}
             label="This month"
-            value={formatCurrency(data.stats.thisMonthTotal)}
+            value={compactCurrency(data.stats.thisMonthTotal)}
+            title={formatCurrency(data.stats.thisMonthTotal)}
           />
           <StatCard
             icon={Landmark}
             label="Via Paystack"
-            value={formatCurrency(data.stats.onlineTotal)}
+            value={compactCurrency(data.stats.onlineTotal)}
+            title={formatCurrency(data.stats.onlineTotal)}
             sub={`${data.stats.ordersCount} paid · ${data.stats.pendingSettlementCount} pending`}
           />
           <StatCard
             icon={Wallet}
             label="Recorded offline"
-            value={formatCurrency(data.stats.offlineTotal)}
+            value={compactCurrency(data.stats.offlineTotal)}
+            title={formatCurrency(data.stats.offlineTotal)}
             color="amber"
           />
         </div>
@@ -314,7 +390,12 @@ export default function VendorPayoutsPage() {
             onChange={setChannel}
           />
         </div>
-        <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="max-w-xs" />
+        <SearchInput
+          value={q}
+          onSearch={setQ}
+          placeholder="Search by order number..."
+          className="max-w-xs"
+        />
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -348,7 +429,9 @@ export default function VendorPayoutsPage() {
                 return (
                   <tr
                     key={t.id}
-                    onClick={() => router.push(`/vendor/orders/${t.id}?storeId=${storeId}`)}
+                    onClick={() =>
+                      router.push(`/vendor/orders/${t.id}?storeId=${storeId}`)
+                    }
                     className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">
@@ -367,8 +450,14 @@ export default function VendorPayoutsPage() {
                       {formatCurrency(t.totalAmount)}
                     </td>
                     <td className="px-4 py-3 text-slate-500">
-                      {formatCurrency(t.commissionAmount + (t.flatFeeAmount || 0))} (
-                      {t.commissionRatePercent}%{t.flatFeeAmount > 0 ? ` + ${formatCurrency(t.flatFeeAmount)} flat` : ""})
+                      {formatCurrency(
+                        t.commissionAmount + (t.flatFeeAmount || 0),
+                      )}{" "}
+                      ({t.commissionRatePercent}%
+                      {t.flatFeeAmount > 0
+                        ? ` + ${formatCurrency(t.flatFeeAmount)} flat`
+                        : ""}
+                      )
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-900">
                       {formatCurrency(t.vendorPayoutAmount)}

@@ -30,6 +30,56 @@ export function ProductGallery({ images = [], videoUrl, name }) {
     stripRef.current?.scrollTo({ left: next * stripRef.current.clientWidth, behavior: "smooth" });
   };
 
+  // Manual, direction-locked drag instead of leaning on touch-action alone
+  // to keep the strip from eating vertical scroll. The strip's own
+  // touch-action is `pan-y` - the browser is free to scroll the page the
+  // instant a touch starts, guaranteed, no JS in the loop for that case.
+  // A horizontal drag is instead driven by hand: direction is decided from
+  // the first ~6px of movement and locked in for the rest of the gesture;
+  // only once it's confirmed horizontal do we preventDefault and move
+  // scrollLeft ourselves, then snap to the nearest slide on release.
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el || count < 2) return;
+    let drag = null;
+
+    const onTouchStart = (e) => {
+      const t = e.touches[0];
+      drag = { startX: t.clientX, startY: t.clientY, startScrollLeft: el.scrollLeft, horizontal: null };
+    };
+    const onTouchMove = (e) => {
+      if (!drag) return;
+      const t = e.touches[0];
+      const dx = t.clientX - drag.startX;
+      const dy = t.clientY - drag.startY;
+      if (drag.horizontal == null) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        drag.horizontal = Math.abs(dx) > Math.abs(dy);
+      }
+      if (!drag.horizontal) return; // vertical - let the page scroll, untouched
+      e.preventDefault();
+      el.scrollLeft = drag.startScrollLeft - dx;
+    };
+    const onTouchEnd = () => {
+      const wasHorizontal = drag?.horizontal;
+      drag = null;
+      if (!wasHorizontal) return;
+      const i = Math.max(0, Math.min(count - 1, Math.round(el.scrollLeft / el.clientWidth)));
+      el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [count]);
+
   if (count === 0) {
     return <div className="aspect-4/5 bg-slate-100 flex items-center justify-center text-slate-300 text-sm">No image</div>;
   }
@@ -41,10 +91,11 @@ export function ProductGallery({ images = [], videoUrl, name }) {
           ref={stripRef}
           onScroll={(e) => onStripScroll(e.currentTarget)}
           className="flex aspect-4/5 bg-slate-100 overflow-x-auto snap-x snap-mandatory scrollbar-none"
-          // Only claim horizontal drags - a vertical/diagonal swipe on the
-          // (tall, full-width) image passes straight through to page
-          // scroll instead of getting locked into the carousel.
-          style={{ touchAction: "pan-x pinch-zoom" }}
+          // pan-y: the browser only ever treats a touch here as page
+          // scroll, guaranteed, never a horizontal drag it has to disambiguate
+          // itself. Horizontal swipe-to-change-image is handled by hand,
+          // see the touch listeners above.
+          style={{ touchAction: "pan-y" }}
         >
           {slides.map((slide, i) => (
             <div key={slide.src} className="w-full h-full shrink-0 snap-center">

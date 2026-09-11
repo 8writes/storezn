@@ -2,14 +2,16 @@ import Link from "next/link";
 import { compactNumber } from "@/lib/format.js";
 
 // Full static class strings - Tailwind's scanner can't see interpolated
-// ones. Icon chip: quiet tint in light, holds up on the dark surface.
-const CHIP = {
-  brand: "bg-brand-100 text-brand-700",
-  green: "bg-green-100 text-green-700",
-  amber: "bg-amber-100 text-amber-800",
-  red: "bg-red-100 text-red-700",
-  accent: "bg-accent-100 text-accent-700",
-  slate: "bg-slate-100 text-slate-600",
+// ones. The icon is a big, low-opacity watermark sitting behind the
+// text over on the right, not a chip beside it - brightens a touch on
+// hover, same treatment as the landing page's feature cards.
+const ICON_FADE = {
+  brand: "text-brand-600/8 group-hover:text-brand-600/14",
+  green: "text-green-600/8 group-hover:text-green-600/14",
+  amber: "text-amber-600/8 group-hover:text-amber-600/14",
+  red: "text-red-600/8 group-hover:text-red-600/14",
+  accent: "text-accent-600/8 group-hover:text-accent-600/14",
+  slate: "text-slate-600/8 group-hover:text-slate-600/14",
 };
 
 // `value` a number is auto-abbreviated (1.2K / 3.4M) and the full figure
@@ -21,16 +23,19 @@ export function StatCard({ icon: Icon, label, value, sub, color = "brand", href,
   const tip = title || (isNum ? Number(value).toLocaleString("en-NG") : undefined);
 
   const base =
-    `group bg-surface border border-slate-200 rounded-sm shadow-xs p-3.5 sm:p-4 flex items-start gap-3 ` +
+    `group relative overflow-hidden bg-surface border border-slate-200 rounded-sm shadow-xs p-3.5 sm:p-4 ` +
     `transition-[box-shadow,border-color] duration-150 ${className}`;
   const inner = (
     <>
       {Icon && (
-        <div className={`hidden sm:flex w-9 h-9 rounded-sm items-center justify-center shrink-0 ${CHIP[color] || CHIP.brand}`}>
-          <Icon size={17} />
-        </div>
+        <Icon
+          size={68}
+          strokeWidth={1.25}
+          aria-hidden="true"
+          className={`pointer-events-none absolute -right-3 -bottom-4 transition-colors duration-300 ${ICON_FADE[color] || ICON_FADE.brand}`}
+        />
       )}
-      <div className="min-w-0 w-full">
+      <div className="relative min-w-0 w-full">
         <p title={tip} className={`text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-tight truncate ${tip ? "cursor-help" : ""}`}>
           {display}
         </p>
