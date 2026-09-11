@@ -134,8 +134,8 @@ export async function PATCH(req, { params }) {
       action: "stock.adjust",
       summary:
         named.length === 1
-          ? `${named[0].addStock != null ? "Added stock" : "Set stock"} — ${setLabel(named[0])} at ${target.name}`
-          : `Stock at ${target.name} on ${named.length} products — ${named
+          ? `${named[0].addStock != null ? "Added stock" : "Set stock"}: ${setLabel(named[0])} at ${target.name}`
+          : `Stock at ${target.name} on ${named.length} products: ${named
               .slice(0, 4)
               .map(setLabel)
               .join(", ")}${named.length > 4 ? `, +${named.length - 4} more` : ""}`,

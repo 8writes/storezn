@@ -373,7 +373,7 @@ export default function VendorNewProductPage() {
                 {form.productType === "physical" &&
                   (myBranch ? (
                     <div>
-                      <label className="text-sm font-medium text-slate-700">Opening stock — {myBranch.name}</label>
+                      <label className="text-sm font-medium text-slate-700">Opening stock, {myBranch.name}</label>
                       <input
                         type="number"
                         min="0"
@@ -442,7 +442,7 @@ export default function VendorNewProductPage() {
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <label className="text-sm font-medium text-slate-700">Cost price</label>
-                    <InfoTip>What you paid for it. Only you see this &mdash; it&apos;s used for profit/margin figures, never shown to customers.</InfoTip>
+                    <InfoTip>What you paid for it. Only you see this, it&apos;s used for profit/margin figures, never shown to customers.</InfoTip>
                   </div>
                   <Input
                     type="number"

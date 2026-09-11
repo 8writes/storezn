@@ -179,7 +179,7 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
           {change > 0 && !isCash && (
             <p className="text-xs text-slate-500">
               Customer overpaid by {method === "transfer" ? "transfer" : "POS"}
-              {provider ? ` (${provider})` : ""} &mdash; {formatCurrency(change)} change to hand back in cash from the drawer.
+              {provider ? ` (${provider})` : ""}: {formatCurrency(change)} change to hand back in cash from the drawer.
             </p>
           )}
         </div>

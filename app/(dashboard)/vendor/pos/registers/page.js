@@ -189,7 +189,7 @@ export default function RegistersPage() {
                   </button>
                 )}
                 <p className="text-[11px] text-slate-500">
-                  {r.branchName || "—"}
+                  {r.branchName || "N/A"}
                   {r.openSession && <span className="text-emerald-600 font-medium"> · shift open</span>}
                   {!r.isActive && <span className="text-slate-400"> · retired</span>}
                 </p>

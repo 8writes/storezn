@@ -9,7 +9,7 @@ import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { formatDateTime } from "@/lib/format.js";
 
-const shortId = (s) => (s && s.length > 14 ? `${s.slice(0, 8)}…${s.slice(-4)}` : s || "—");
+const shortId = (s) => (s && s.length > 14 ? `${s.slice(0, 8)}…${s.slice(-4)}` : s || "N/A");
 
 export default function SuperAdminDevicesPage() {
   const { token } = useAuth(true);
@@ -130,7 +130,7 @@ export default function SuperAdminDevicesPage() {
                   </td>
                   <td className="px-3 py-2 align-top">
                     {d.accounts.length === 0 ? (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-slate-400">N/A</span>
                     ) : (
                       <ul className="space-y-0.5">
                         {d.accounts.map((a) => (
@@ -143,7 +143,7 @@ export default function SuperAdminDevicesPage() {
                     )}
                   </td>
                   <td className="px-3 py-2 align-top text-slate-500 whitespace-nowrap">{formatDateTime(d.lastSeenAt)}</td>
-                  <td className="px-3 py-2 align-top font-mono text-xs text-slate-500">{d.lastIp || "—"}</td>
+                  <td className="px-3 py-2 align-top font-mono text-xs text-slate-500">{d.lastIp || "N/A"}</td>
                   <td className="px-3 py-2 align-top">
                     <div className="flex flex-wrap gap-1">
                       {d.banned && (

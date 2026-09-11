@@ -177,7 +177,7 @@ export default function VendorOrdersPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(o.createdAt)}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(o.totalAmount)}</td>
-                  <td className="px-4 py-3 text-slate-500">{paidByLabel(o.paymentMethods) || "—"}</td>
+                  <td className="px-4 py-3 text-slate-500">{paidByLabel(o.paymentMethods) || "N/A"}</td>
                   <td className="px-4 py-3">
                     <Badge color={STATUS_COLOR[o.status] || "slate"}>{o.status.replace("_", " ")}</Badge>
                   </td>

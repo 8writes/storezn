@@ -110,7 +110,7 @@ export default function SessionsPage() {
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">
                     {s.overShort == null ? (
-                      "—"
+                      "N/A"
                     ) : (
                       <span className={s.overShort === 0 ? "text-slate-500" : "text-red-600"}>{formatKobo(s.overShort)}</span>
                     )}

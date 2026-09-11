@@ -16,6 +16,7 @@ import {
   ScanLine,
   Globe,
   MessageCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
@@ -35,6 +36,12 @@ const PERKS = [
   { icon: Percent, title: "You choose who pays the fee", text: "Absorb the platform fee yourself, or pass it to the customer at checkout. Your call, per store." },
   { icon: ShoppingBag, title: "Bulk catalogue upload", text: "Import your whole range at once from a CSV template instead of adding items one by one." },
   { icon: LayoutDashboard, title: "One calm dashboard", text: "Orders, customers, products, payouts and staff - in one place, without the clutter." },
+];
+
+const TRUST_ITEMS = [
+  { icon: Lock, text: "Card payments handled by Paystack" },
+  { icon: ShieldCheck, text: "Your data stays safe and private" },
+  { icon: Landmark, text: "Payouts settle to your own bank" },
 ];
 
 const CHANNELS = [
@@ -62,11 +69,11 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-10 items-center">
           <Reveal className="text-center lg:text-left">
             <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.4rem] font-extrabold leading-[1.05] text-slate-900">
-              Everything you need to sell online and in person
+              Everything you need to manage your business
             </h1>
             <p className="mt-5 text-base sm:text-lg text-slate-500 max-w-xl mx-auto lg:mx-0">
-              Your own store, a shared marketplace, a point-of-sale for the counter, and automatic payouts to your
-              bank, all run from one clean dashboard.
+              Your own store, a shared marketplace, a point-of-sale for the counter, automatic payouts to your bank,
+              and the business tools to run it, all from one clean dashboard.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3">
               <Link
@@ -85,23 +92,15 @@ export default async function Home() {
             </div>
           </Reveal>
 
-          {/* Real product screenshots (public/storezn-dashboard.png,
-              public/storezn-mobile-dashboard.png) - a browser frame around
-              the desktop dashboard, the mobile view floating over its
-              corner like a phone. unoptimized: this deploy is self-hosted
-              (git pull && next build, no Vercel/sharp), and next/image's
-              built-in optimizer 400s without sharp installed - same reason
-              MarketingHeader/Footer's logo <Image> already use it. */}
+          {/* Real product screenshot (public/storezn-dashboard.png), with a
+              few floating status chips around it standing in for the
+              things that just happened on the dashboard underneath.
+              unoptimized: this deploy is self-hosted (git pull && next
+              build, no Vercel/sharp), and next/image's built-in optimizer
+              400s without sharp installed - same reason MarketingHeader/
+              Footer's logo <Image> already use it. */}
           <Reveal delay={120} className="relative mx-auto w-full max-w-md lg:max-w-none">
-            <div className="rounded-md border border-slate-200 bg-neutral-950 shadow-2xl shadow-slate-900/15 overflow-hidden">
-              <div className="flex items-center gap-2 border-b border-white/10 bg-neutral-900 px-3.5 py-2.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-                <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-                <span className="h-2.5 w-2.5 rounded-full bg-white/15" />
-                <span className="ml-2 flex-1 truncate rounded-sm bg-white/5 border border-white/10 px-2.5 py-1 text-[11px] text-white/40">
-                  yourstore.storezn.com
-                </span>
-              </div>
+            <div className="relative rounded-md border border-slate-200 shadow-2xl shadow-slate-900/15 overflow-hidden">
               <div className="relative aspect-[1900/1015]">
                 <Image
                   src="/storezn-dashboard.png"
@@ -114,16 +113,32 @@ export default async function Home() {
                 />
               </div>
             </div>
-            <div className="hidden sm:block absolute -bottom-8 -left-8 w-32 lg:w-36 rounded-[1.25rem] border-[6px] border-white shadow-2xl shadow-slate-900/20 overflow-hidden">
-              <div className="relative aspect-[597/945]">
-                <Image
-                  src="/storezn-mobile-dashboard.png"
-                  alt="Storezn dashboard on mobile"
-                  fill
-                  unoptimized
-                  sizes="150px"
-                  className="object-cover object-top"
-                />
+
+            <div className="hidden sm:flex absolute -top-5 -left-5 items-center gap-2.5 rounded-sm border border-slate-100 bg-white px-3.5 py-3 shadow-xl shadow-slate-900/10">
+              <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand-100 text-brand-700">
+                <ShoppingBag size={16} />
+              </span>
+              <div>
+                <p className="text-xs font-semibold text-slate-900">New order</p>
+                <p className="text-[11px] text-slate-400">Just now</p>
+              </div>
+            </div>
+            <div className="hidden sm:flex absolute top-1/3 -right-6 items-center gap-2.5 rounded-sm border border-slate-100 bg-white px-3.5 py-3 shadow-xl shadow-slate-900/10">
+              <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand-100 text-brand-700">
+                <CheckCircle2 size={16} />
+              </span>
+              <div>
+                <p className="text-xs font-semibold text-slate-900">Payment made</p>
+                <p className="text-[11px] text-slate-400">Card &middot; Paystack</p>
+              </div>
+            </div>
+            <div className="hidden sm:flex absolute -bottom-5 left-10 items-center gap-2.5 rounded-sm border border-slate-100 bg-white px-3.5 py-3 shadow-xl shadow-slate-900/10">
+              <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand-100 text-brand-700">
+                <Landmark size={16} />
+              </span>
+              <div>
+                <p className="text-xs font-semibold text-slate-900">Received in bank</p>
+                <p className="text-[11px] text-slate-400">Payout settled</p>
               </div>
             </div>
           </Reveal>
@@ -131,20 +146,26 @@ export default async function Home() {
       </section>
 
       {/* --------------------------------------------------------------- Trust strip */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      {/* Mobile: loops sideways forever, no wrapping to fight with. */}
+      <div className="sm:hidden border-y border-slate-100 bg-slate-50/70 py-3 overflow-hidden">
+        <div className="flex w-max animate-marquee gap-8 pr-8">
+          {[...TRUST_ITEMS, ...TRUST_ITEMS].map(({ icon: Icon, text }, i) => (
+            <span key={i} className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
+              <Icon size={14} className="text-slate-400 shrink-0" />
+              {text}
+            </span>
+          ))}
+        </div>
+      </div>
+      {/* Desktop: plenty of room, centred and static. */}
+      <div className="hidden sm:block max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-slate-500">
-          <span className="inline-flex items-center gap-2">
-            <Lock size={14} className="text-slate-400" />
-            Card payments handled by Paystack
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <ShieldCheck size={14} className="text-slate-400" />
-            Your data stays safe and private
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <Landmark size={14} className="text-slate-400" />
-            Payouts settle to your own bank
-          </span>
+          {TRUST_ITEMS.map(({ icon: Icon, text }) => (
+            <span key={text} className="inline-flex items-center gap-2">
+              <Icon size={14} className="text-slate-400" />
+              {text}
+            </span>
+          ))}
         </div>
       </div>
 

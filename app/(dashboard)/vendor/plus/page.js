@@ -16,7 +16,7 @@ const SUPPORT_EMAIL = "support@ozmictech.com";
 const PLUS_FEATURES = [
   {
     title: "Your own web address",
-    text: "Run the store on a domain you own (yourstore.com) instead of a storezn.com subdomain. We provision and renew the SSL certificate for you — you point your DNS once and it stays working.",
+    text: "Run the store on a domain you own (yourstore.com) instead of a storezn.com subdomain. We provision and renew the SSL certificate for you. You point your DNS once and it stays working.",
   },
   {
     title: "More than one branch",
@@ -24,7 +24,7 @@ const PLUS_FEATURES = [
   },
   {
     title: "A bigger team",
-    text: "Add more staff logins beyond the free limit, each with their own password and only the access they need — a cashier sees their till, a manager sees the store.",
+    text: "Add more staff logins beyond the free limit, each with their own password and only the access they need: a cashier sees their till, a manager sees the store.",
   },
   {
     title: "More media storage",
@@ -32,13 +32,13 @@ const PLUS_FEATURES = [
   },
   {
     title: "Storefront theme colour",
-    text: "Set your brand's accent colour across the storefront — buttons, links and highlights all pick it up.",
+    text: "Set your brand's accent colour across the storefront: buttons, links and highlights all pick it up.",
   },
 ];
 
 // Storezn Enterprise is a superset of Plus. It's only ever switched on by
 // the Storezn team (an off-platform arrangement, see the super-admin
-// store page) — there is no self-checkout for it on this page.
+// store page). There is no self-checkout for it on this page.
 const ENTERPRISE_FEATURES = [
   {
     title: "In-person registers (POS)",
@@ -50,11 +50,11 @@ const ENTERPRISE_FEATURES = [
   },
   {
     title: "Keeps working offline",
-    text: "When the internet drops, selling carries on. Sales, stock counts and price changes are saved on the device and sync automatically the moment the connection is back — nothing is lost.",
+    text: "When the internet drops, selling carries on. Sales, stock counts and price changes are saved on the device and sync automatically the moment the connection is back. Nothing is lost.",
   },
   {
     title: "Record past & phone sales",
-    text: "Log a sale that happened away from the storefront — a phone order, a WhatsApp order, a cash sale — so it lands in your order history and pulls stock down like any other order.",
+    text: "Log a sale that happened away from the storefront (a phone order, a WhatsApp order, a cash sale) so it lands in your order history and pulls stock down like any other order.",
   },
   {
     title: "Cash-drawer movements",
@@ -62,7 +62,7 @@ const ENTERPRISE_FEATURES = [
   },
   {
     title: "Payment-account tracking",
-    text: "Record which POS machine or transfer account each payment landed in — Moniepoint, Opay, and so on — and trace every naira of change back to where it was given from.",
+    text: "Record which POS machine or transfer account each payment landed in (Moniepoint, Opay, and so on) and trace every naira of change back to where it was given from.",
   },
   {
     title: "Month-end forensic report",
@@ -78,7 +78,7 @@ function FeatureList({ features }) {
           <Check size={16} className="text-brand-600 shrink-0 mt-0.5" />
           <span>
             <span className="font-medium text-slate-900">{title}</span>
-            <span className="text-slate-500"> &mdash; {text}</span>
+            <span className="text-slate-500">: {text}</span>
           </span>
         </li>
       ))}

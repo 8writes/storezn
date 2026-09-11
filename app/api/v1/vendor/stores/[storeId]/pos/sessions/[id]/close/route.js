@@ -126,7 +126,7 @@ export async function POST(req, { params }) {
       summary:
         `Closed ${row.register.name} · ` +
         (forced
-          ? `NOT COUNTED — used the system figure ${formatKobo(expectedCash)} (${forcedReason})`
+          ? `NOT COUNTED, used the system figure ${formatKobo(expectedCash)} (${forcedReason})`
           : `counted ${formatKobo(countedCash)} vs expected ${formatKobo(expectedCash)}` +
             (overShort === 0 ? " (balanced)" : ` (${overShort > 0 ? "over" : "short"} ${formatKobo(Math.abs(overShort))})`)) +
         (provisional ? ` · PROVISIONAL, ${pendingSyncCount} sale(s) not synced` : ""),

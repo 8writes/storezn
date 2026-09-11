@@ -342,7 +342,7 @@ export default function VendorProductEditPage({ params }) {
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <label className="text-sm font-medium text-slate-700">Cost price</label>
-              <InfoTip>What you paid for it. Only you see this &mdash; it&apos;s used for profit/margin figures, never shown to customers.</InfoTip>
+              <InfoTip>What you paid for it. Only you see this, it&apos;s used for profit/margin figures, never shown to customers.</InfoTip>
             </div>
             <Input
               type="number"

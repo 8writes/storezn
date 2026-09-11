@@ -202,7 +202,7 @@ export async function GET(req, { params }) {
 
   const cashReconciliation = sessionRows.map((s) => ({
     register: s.registerName,
-    cashier: nameById[s.closedBy] || "—",
+    cashier: nameById[s.closedBy] || "N/A",
     closedAt: s.closedAt,
     expected: toNaira(s.expected || 0),
     counted: toNaira(s.counted || 0),
@@ -214,7 +214,7 @@ export async function GET(req, { params }) {
   }));
   const perPerson = {};
   for (const s of sessionRows) {
-    const k = nameById[s.closedBy] || "—";
+    const k = nameById[s.closedBy] || "N/A";
     perPerson[k] = perPerson[k] || { sessions: 0, kobo: 0 };
     perPerson[k].sessions += 1;
     perPerson[k].kobo += s.overShort || 0;
@@ -395,7 +395,7 @@ export async function GET(req, { params }) {
   const notCounted = cashReconciliation.filter((r) => r.notCounted);
   if (notCounted.length) {
     flags.push(
-      `${notCounted.length} shift${notCounted.length === 1 ? " was" : "s were"} closed WITHOUT counting the drawer (system figure used) — no real cash check happened.`,
+      `${notCounted.length} shift${notCounted.length === 1 ? " was" : "s were"} closed WITHOUT counting the drawer (system figure used), no real cash check happened.`,
     );
   }
   const awaitingReview = cashReconciliation.filter((r) => r.needsReview);
@@ -404,12 +404,12 @@ export async function GET(req, { params }) {
   }
   const provisionalShifts = cashReconciliation.filter((r) => r.provisional);
   if (provisionalShifts.length) {
-    flags.push(`${provisionalShifts.length} shift${provisionalShifts.length === 1 ? "" : "s"} closed with sales still unsynced — figures provisional.`);
+    flags.push(`${provisionalShifts.length} shift${provisionalShifts.length === 1 ? "" : "s"} closed with sales still unsynced, figures provisional.`);
   }
   const shortSessions = cashReconciliation.filter((r) => r.overShort < 0);
   if (shortSessions.length) {
     const t = shortSessions.reduce((s, r) => s + r.overShort, 0);
-    flags.push(`${shortSessions.length} shift${shortSessions.length === 1 ? "" : "s"} came up short — ${money(Math.abs(t))} in total.`);
+    flags.push(`${shortSessions.length} shift${shortSessions.length === 1 ? "" : "s"} came up short: ${money(Math.abs(t))} in total.`);
   }
   for (const p of overShortByCashier) {
     if (p.overShort < 0) flags.push(`${p.name}: ${money(Math.abs(p.overShort))} short across ${p.sessions} shift${p.sessions === 1 ? "" : "s"}.`);
@@ -487,7 +487,7 @@ export async function GET(req, { params }) {
       })),
       returns: refundRows.map((r) => ({ orderNumber: r.orderNumber, at: r.at, by: r.by, amount: Math.abs(r.amount), note: r.against || null })),
       cashMovements: cashOutRows.map((r) => ({
-        at: r.at, by: nameById[r.by] || "—", kind: r.kind,
+        at: r.at, by: nameById[r.by] || "N/A", kind: r.kind,
         amount: toNaira(Math.abs(r.amountKobo)), reason: r.reason || null,
       })),
     },

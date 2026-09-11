@@ -20,7 +20,7 @@ export default function BannedPage({ searchParams }) {
         <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
           <p>
             This account or device has been suspended for activity that breaks the{" "}
-            <Link href="/terms" className="text-brand-600 hover:underline">Terms of Service</Link> &mdash; for example
+            <Link href="/terms" className="text-brand-600 hover:underline">Terms of Service</Link>, for example
             creating accounts in bulk, scraping or bulk-downloading data, sharing access, attempting to reverse-engineer
             or copy the platform, or other abuse.
           </p>

@@ -253,7 +253,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
                 <span
                   key={href}
                   aria-disabled="true"
-                  title={collapsed ? `${label} — unavailable while offline` : "Unavailable while offline"}
+                  title={collapsed ? `${label}, unavailable while offline` : "Unavailable while offline"}
                   className={`${base} ${muted ? "border-l-2 border-transparent text-slate-600" : "text-white"} opacity-40 cursor-not-allowed select-none`}
                 >
                   <Icon size={18} />

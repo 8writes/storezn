@@ -108,7 +108,7 @@ export function SizeGuideEditor({ value, onChange }) {
           <input
             value={altLabel || ""}
             onChange={(e) => set({ altLabel: e.target.value })}
-            placeholder="e.g. EUR — shown as UK7.5 (EUR41)"
+            placeholder="e.g. EUR, shown as UK7.5 (EUR41)"
             className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
           />
         </label>
@@ -233,7 +233,7 @@ export function SizeGuideEditor({ value, onChange }) {
         onChange={(e) => set({ note: e.target.value })}
         rows={2}
         maxLength={500}
-        placeholder="Fit tip, e.g. “Runs large — go one size down.”"
+        placeholder="Fit tip, e.g. “Runs large, go one size down.”"
         className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
       />
     </div>

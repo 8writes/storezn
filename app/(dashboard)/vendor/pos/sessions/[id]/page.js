@@ -172,7 +172,7 @@ export default function SessionDetailPage({ params }) {
 
           {forced && (
             <p className="text-amber-900">
-              The drawer wasn&apos;t counted &mdash; the system&apos;s expected figure ({formatKobo(report.expectedCash)}) was recorded.
+              The drawer wasn&apos;t counted, the system&apos;s expected figure ({formatKobo(report.expectedCash)}) was recorded.
               {session.forcedReason ? ` Reason: “${session.forcedReason}”.` : ""}
             </p>
           )}
@@ -195,7 +195,7 @@ export default function SessionDetailPage({ params }) {
                 type="text"
                 value={reviewNote}
                 onChange={(e) => setReviewNote(e.target.value)}
-                placeholder="Note (optional) — what you found / did"
+                placeholder="Note (optional), what you found / did"
                 className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500 bg-surface"
               />
               <Button type="button" size="sm" loading={reviewing} onClick={approveClose}>
@@ -230,7 +230,7 @@ export default function SessionDetailPage({ params }) {
       <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden print:break-inside-avoid">
         <div className="px-4 py-2.5 border-b border-slate-100">
           <p className="text-sm font-semibold text-slate-700">Cash movements ({movesTotal})</p>
-          <p className="text-xs text-slate-400">Every entry in and out of this drawer, newest first &mdash; who did it, when, and why.</p>
+          <p className="text-xs text-slate-400">Every entry in and out of this drawer, newest first, who did it, when, and why.</p>
         </div>
         {moves.length === 0 ? (
           <p className="text-sm text-slate-500 px-4 py-4">None</p>
@@ -261,7 +261,7 @@ export default function SessionDetailPage({ params }) {
                     </p>
                   )}
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {m.by || "—"} · {formatDateTime(m.createdAt)}
+                    {m.by || "N/A"} · {formatDateTime(m.createdAt)}
                   </p>
                 </li>
               ))}

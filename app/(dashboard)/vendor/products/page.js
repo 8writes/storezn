@@ -170,9 +170,9 @@ export default function VendorProductsPage() {
       if (data.deleted > 0 && blocked.length === 0) {
         toast.success(`Deleted ${data.deleted} product${data.deleted === 1 ? "" : "s"}`);
       } else if (data.deleted > 0) {
-        toast.success(`Deleted ${data.deleted}. Kept ${blocked.length} with order history — archive those instead.`);
+        toast.success(`Deleted ${data.deleted}. Kept ${blocked.length} with order history, archive those instead.`);
       } else {
-        toast.error(`Nothing deleted — ${blocked.length === 1 ? "that product has" : "those products have"} order history. Archive instead.`);
+        toast.error(`Nothing deleted, ${blocked.length === 1 ? "that product has" : "those products have"} order history. Archive instead.`);
       }
       setConfirmDelete(false);
       clearSelection();
@@ -416,7 +416,7 @@ export default function VendorProductsPage() {
                           <td className="px-3 py-2 text-slate-400">{i + 1}</td>
                           {BULK_HEADERS.map((h) => (
                             <td key={h} className="px-3 py-2 text-slate-700 whitespace-nowrap max-w-[16rem] truncate">
-                              {r[h] || <span className="text-slate-300">—</span>}
+                              {r[h] || <span className="text-slate-300">N/A</span>}
                             </td>
                           ))}
                         </tr>
@@ -739,7 +739,7 @@ export default function VendorProductsPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-500">{p.categoryName || "-"}</td>
                   <td className="px-4 py-3 text-slate-500">{formatCurrency(p.price)}</td>
-                  <td className="px-4 py-3 text-slate-500">{p.costPrice != null ? formatCurrency(p.costPrice) : "—"}</td>
+                  <td className="px-4 py-3 text-slate-500">{p.costPrice != null ? formatCurrency(p.costPrice) : "N/A"}</td>
                   <td className="px-4 py-3 text-slate-500 capitalize">
                     {p.productType}
                     {p.productType === "physical" && p.condition !== "new" && (

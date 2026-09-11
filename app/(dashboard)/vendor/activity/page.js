@@ -87,7 +87,7 @@ export default function VendorActivityPage() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">Activity log</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Every important action on your store &mdash; who rang up which sale, cash-drawer moves, returns, price and stock changes, staff changes.
+          Every important action on your store: who rang up which sale, cash-drawer moves, returns, price and stock changes, staff changes.
         </p>
       </div>
 

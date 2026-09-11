@@ -18,7 +18,7 @@ export function WholesaleTierEditor({ value, onChange }) {
         <label className="text-sm font-medium text-slate-700">Wholesale / bundle pricing</label>
         <InfoTip>
           Sell in bundles at a lower price per unit. e.g. a bundle of 10 at &#8358;900 each: a customer buying 11 pays 10 at
-          &#8358;900 and the last 1 at the normal price &mdash; it works out automatically at checkout and on the register.
+          &#8358;900 and the last 1 at the normal price. It works out automatically at checkout and on the register.
           Add more bundle sizes (10, 50, 100) for deeper breaks. Leave empty for one flat price.
         </InfoTip>
       </div>

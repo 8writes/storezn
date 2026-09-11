@@ -319,7 +319,7 @@ export default function VendorDashboardPage() {
                 This is your store&apos;s link
               </p>
               <p className="text-xs text-slate-500">
-                Anyone who opens it can browse and buy from you &mdash; copy it
+                Anyone who opens it can browse and buy from you, copy it
                 and share it on WhatsApp, Instagram, anywhere.
               </p>
               <div className="pt-1">
@@ -380,7 +380,7 @@ export default function VendorDashboardPage() {
                   </p>
                 ) : verification.nin ? (
                   <p>
-                    Your NIN is under review &mdash; your store stays hidden
+                    Your NIN is under review, your store stays hidden
                     from customers until it&apos;s approved.
                   </p>
                 ) : (

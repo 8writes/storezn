@@ -62,19 +62,19 @@ export function Footer() {
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-16 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-10">
         <div className="col-span-2 sm:col-span-1 sm:pr-6">
           <Image src="/storezn-logo.png" alt="Storezn" width={120} height={29} unoptimized className="h-6 w-auto" />
-          <p className="mt-3 text-sm text-white/50 max-w-55 leading-relaxed">
+          <p className="mt-3 text-sm text-white max-w-55 leading-relaxed">
             Your storefront, your till, and your payouts, all from one dashboard.
           </p>
         </div>
         <FooterColumn title="Product" links={PRODUCT_LINKS} />
         <FooterColumn title="Company" links={COMPANY_LINKS} />
-        <div>
+        <div className="col-span-2 sm:col-span-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Get started</p>
           <div className="mt-4 rounded-sm border border-white/10 bg-white/5 p-4">
             <p className="text-sm text-white/70 leading-relaxed">Free to start, no card required.</p>
             <Link
               href="/signup"
-              className="mt-3 inline-flex items-center justify-center text-sm font-semibold bg-white text-brand-900 px-4 py-2 rounded-sm hover:bg-brand-50 transition-colors"
+              className="mt-3 flex w-full items-center justify-center whitespace-nowrap text-sm font-semibold bg-white text-brand-900 px-4 py-2 rounded-sm hover:bg-brand-50 transition-colors"
             >
               Get started for free
             </Link>

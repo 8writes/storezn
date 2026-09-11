@@ -90,7 +90,7 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
                 <div className="text-sm bg-amber-50 border border-amber-200 rounded-sm p-3 space-y-2">
                   <p className="text-amber-800">
                     {pendingSync} sale{pendingSync === 1 ? "" : "s"} on this device {pendingSync === 1 ? "hasn't" : "haven't"} synced.
-                    You can still close &mdash; the Z will be marked <strong>provisional</strong> and will update when they sync.
+                    You can still close, the Z will be marked <strong>provisional</strong> and will update when they sync.
                   </p>
                   <Button type="button" size="sm" variant="outline" onClick={onSync} loading={syncing}>
                     {syncing ? "Syncing…" : `Try sync again`}

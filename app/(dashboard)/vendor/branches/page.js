@@ -119,7 +119,7 @@ export default function VendorBranchesPage() {
                         {branch.isDefault && <Badge color="slate">Default</Badge>}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{branch.address || "—"}</td>
+                    <td className="px-4 py-3 text-slate-500">{branch.address || "N/A"}</td>
                     <td className="px-4 py-3 text-right">
                       {!branch.isDefault && (
                         <button

@@ -162,7 +162,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
                   </div>
                   <p className="text-[11px] text-slate-500">
                     {m.reason || (m.orderNumber ? `Order ${m.orderNumber}` : "No reason given")}
-                    {m.by ? ` — ${m.by}` : ""}
+                    {m.by ? ` (${m.by})` : ""}
                     {m.createdAt ? ` · ${formatDateTime(m.createdAt)}` : ""}
                   </p>
                 </li>

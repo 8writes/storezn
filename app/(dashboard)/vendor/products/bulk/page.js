@@ -144,7 +144,7 @@ export default function BulkProductsPage() {
   };
 
   const catOptions = useMemo(
-    () => [{ value: "", label: "— none —" }, ...categories.map((c) => ({ value: c.id, label: c.name }))],
+    () => [{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name }))],
     [categories],
   );
 
@@ -460,7 +460,7 @@ function GridRow({ r, isNew, catOptions, baseStock, touched, highlight, onChange
         {isNew ? (
           <input type="number" min="0" className={`${inputCls} tabular-nums`} placeholder="opening stock" value={r.stock} onChange={(e) => onChange({ stock: e.target.value })} />
         ) : r.hasVariants ? (
-          <span className="text-xs text-slate-400">has variants — edit per variant</span>
+          <span className="text-xs text-slate-400">has variants, edit per variant</span>
         ) : r.productType !== "physical" ? (
           <span className="text-xs text-slate-400">not stocked</span>
         ) : (

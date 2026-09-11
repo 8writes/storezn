@@ -8,7 +8,7 @@ export function BannedNotice({ reason }) {
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Your access has been restricted</h1>
       <div className="space-y-3 text-sm text-slate-700 leading-relaxed">
         <p>
-          This account or device has been suspended for activity that breaks the Storezn Terms of Service &mdash; such as
+          This account or device has been suspended for activity that breaks the Storezn Terms of Service, such as
           creating accounts in bulk, scraping data, sharing access, or attempting to copy or reverse-engineer the
           platform.
         </p>

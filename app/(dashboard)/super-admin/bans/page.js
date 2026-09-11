@@ -100,7 +100,7 @@ export default function BansPage() {
       {/* Watch list */}
       {data.rollup?.length > 0 && (
         <div>
-          <p className="text-sm font-semibold text-slate-700 mb-2">Watch list — abuse events, last 24h</p>
+          <p className="text-sm font-semibold text-slate-700 mb-2">Watch list, abuse events, last 24h</p>
           <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-left">
@@ -163,11 +163,11 @@ export default function BansPage() {
                 {active.map((d) => (
                   <tr key={d.id} className="border-t border-slate-100 align-top">
                     <td className="px-3 py-2 font-mono text-[11px] break-all">
-                      {d.deviceId || "—"}
+                      {d.deviceId || "N/A"}
                       {d.fingerprint && <div className="text-slate-400">fp {d.fingerprint}</div>}
                     </td>
-                    <td className="px-3 py-2 text-slate-700">{d.reason || "—"}</td>
-                    <td className="px-3 py-2 text-slate-500 break-all">{d.subjectEmail || "—"}</td>
+                    <td className="px-3 py-2 text-slate-700">{d.reason || "N/A"}</td>
+                    <td className="px-3 py-2 text-slate-500 break-all">{d.subjectEmail || "N/A"}</td>
                     <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(d.bannedAt)}</td>
                     <td className="px-3 py-2">
                       <Badge color={d.autoFlagged ? "amber" : "slate"}>{d.autoFlagged ? "auto" : "manual"}</Badge>

@@ -432,7 +432,7 @@ export default function VendorSettingsPage() {
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <label className="text-sm font-medium text-slate-700">Store description</label>
-                <InfoTip>Used as your storefront&apos;s preview text when a link to it is shared (e.g. on WhatsApp or Twitter/X), and &mdash; if the toggle below is on &mdash; as the tagline under your store name on your storefront.</InfoTip>
+                <InfoTip>Used as your storefront&apos;s preview text when a link to it is shared (e.g. on WhatsApp or Twitter/X), and, if the toggle below is on, as the tagline under your store name on your storefront.</InfoTip>
               </div>
               <Textarea
                 rows={3}

@@ -290,6 +290,20 @@ body {
   font-feature-settings: "ss01";
 }
 
+/* Seamless horizontal drift for the landing's mobile trust strip - the
+   content is duplicated by the caller, this just slides one copy-width
+   left forever. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 18s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
+}
+
 /* Respect a user's reduced-motion setting - drop the decorative stuff,
    keep functional feedback (spinners) short. */
 @media (prefers-reduced-motion: reduce) {

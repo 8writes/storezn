@@ -11,7 +11,7 @@ import { setBranchStock } from "../../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
 
-const money = (v) => (v == null ? "—" : formatCurrency(v));
+const money = (v) => (v == null ? "N/A" : formatCurrency(v));
 
 async function loadStoreAndProduct(storeId, productId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);

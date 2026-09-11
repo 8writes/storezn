@@ -445,7 +445,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
       <div>
         <p className="text-sm font-semibold text-slate-700 mb-1">Store activity</p>
         <p className="text-xs text-slate-500 mb-3">
-          The store&apos;s own audit trail &mdash; what the owner and staff have been doing. Latest 25.
+          The store&apos;s own audit trail: what the owner and staff have been doing. Latest 25.
         </p>
         {storeActivity.length === 0 ? (
           <p className="text-sm text-slate-700">Nothing logged yet.</p>

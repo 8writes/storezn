@@ -149,7 +149,7 @@ export default function VendorReportsPage() {
       <div className="max-w-md mx-auto text-center bg-surface border border-slate-200 rounded-sm p-8 space-y-3 mt-6">
         <h1 className="text-lg font-bold text-slate-900">The monthly report is a Storezn Enterprise feature</h1>
         <p className="text-sm text-slate-500">
-          Enterprise adds a full month-end business &amp; forensic audit report &mdash; sales, tenders, cash reconciliation
+          Enterprise adds a full month-end business &amp; forensic audit report: sales, tenders, cash reconciliation
           per shift, and who did what. It&apos;s set up by the Storezn team.
         </p>
         <Link href="/vendor/plus" className="inline-block text-sm font-semibold text-brand-600 hover:text-brand-700">See Enterprise</Link>
@@ -191,7 +191,7 @@ export default function VendorReportsPage() {
         <div className="report-sheet bg-surface border border-slate-200 rounded-sm p-6 space-y-6">
           <div className="border-b border-slate-100 pb-4">
             <p className="text-lg font-bold text-slate-900">{report.storeName}</p>
-            <p className="text-sm text-slate-600">Monthly report &mdash; {report.label}</p>
+            <p className="text-sm text-slate-600">Monthly report, {report.label}</p>
             <p className="text-xs text-slate-400">Generated {formatDateTime(report.generatedAt)}</p>
           </div>
 
@@ -226,7 +226,7 @@ export default function VendorReportsPage() {
                 <Recon label="Gross sales" value={report.reconciliation.grossSales} />
                 <Recon label="Refunds paid out" value={-report.reconciliation.refundsTotal} />
                 <Recon label="Discounts given (order + line)" value={-report.reconciliation.discountsTotal} />
-                <Recon label="Price overrides — value off catalogue" value={-report.reconciliation.overridesGivenTotal} />
+                <Recon label="Price overrides, value off catalogue" value={-report.reconciliation.overridesGivenTotal} />
                 <Recon label="Cash paid out / drops" value={-report.reconciliation.paidOutTotal} />
                 <Recon label="Cash paid in" value={report.reconciliation.paidInTotal} />
                 <Recon label="Drawer over / short (all shifts)" value={report.reconciliation.drawerVarianceTotal} flag />
@@ -366,17 +366,17 @@ export default function VendorReportsPage() {
                             {p.overrideLines || 0} · {formatCurrency(p.overridesValue || 0)}
                           </td>
                           <td className={`px-3 py-2 text-right tabular-nums font-medium ${givenAway > 0 ? "text-amber-600" : "text-slate-400"}`}>
-                            {givenAway > 0 ? formatCurrency(givenAway) : "—"}
+                            {givenAway > 0 ? formatCurrency(givenAway) : "N/A"}
                           </td>
                           <td className={`px-3 py-2 text-right tabular-nums ${p.returnsValue > 0 ? "text-red-600" : "text-slate-400"}`}>
-                            {p.returnsCount ? `${p.returnsCount} · ${formatCurrency(p.returnsValue)}` : "—"}
+                            {p.returnsCount ? `${p.returnsCount} · ${formatCurrency(p.returnsValue)}` : "N/A"}
                           </td>
                           <td className={`px-3 py-2 text-right tabular-nums ${p.cashOutValue > 0 ? "text-red-600" : "text-slate-400"}`}>
-                            {p.cashOutCount ? `${p.cashOutCount} · ${formatCurrency(p.cashOutValue)}` : "—"}
+                            {p.cashOutCount ? `${p.cashOutCount} · ${formatCurrency(p.cashOutValue)}` : "N/A"}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums text-slate-500">{p.shifts || 0}</td>
                           <td className={`px-3 py-2 text-right tabular-nums font-medium ${p.overShort < 0 ? "text-red-600" : p.overShort > 0 ? "text-amber-600" : "text-slate-400"}`}>
-                            {p.shifts ? (p.overShort === 0 ? "balanced" : formatCurrency(p.overShort)) : "—"}
+                            {p.shifts ? (p.overShort === 0 ? "balanced" : formatCurrency(p.overShort)) : "N/A"}
                           </td>
                         </tr>
                       );
@@ -389,7 +389,7 @@ export default function VendorReportsPage() {
 
           {report.cashReconciliation?.length > 0 && (
             <div className="border-t border-slate-100 pt-4 space-y-3">
-              <p className="text-sm font-semibold text-slate-700">Cash reconciliation &mdash; every shift closed this month</p>
+              <p className="text-sm font-semibold text-slate-700">Cash reconciliation: every shift closed this month</p>
               {report.overShortByCashier?.length > 0 && (
                 <div className="border border-slate-200 rounded-sm divide-y divide-slate-100">
                   {report.overShortByCashier.map((c) => (
@@ -426,7 +426,7 @@ export default function VendorReportsPage() {
                         <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.expected)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.counted)}</td>
                         <td className={`px-3 py-2 text-right tabular-nums font-medium ${r.overShort < 0 ? "text-red-600" : r.overShort > 0 ? "text-amber-600" : "text-slate-400"}`}>
-                          {r.overShort === 0 ? "—" : formatCurrency(r.overShort)}
+                          {r.overShort === 0 ? "N/A" : formatCurrency(r.overShort)}
                         </td>
                         <td className="px-3 py-2 text-xs whitespace-nowrap">
                           {r.notCounted ? (
@@ -471,8 +471,8 @@ export default function VendorReportsPage() {
                 <>
                   <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
                   <td className="px-3 py-2 text-slate-700">{r.orderNumber}</td>
-                  <td className="px-3 py-2 text-slate-700">{r.by || "—"}</td>
-                  <td className="px-3 py-2 text-slate-500">{r.reason || "—"}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.by || "N/A"}</td>
+                  <td className="px-3 py-2 text-slate-500">{r.reason || "N/A"}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-amber-600 font-medium">{formatCurrency(r.amount)}</td>
                 </>
               )}
@@ -488,7 +488,7 @@ export default function VendorReportsPage() {
                 <>
                   <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
                   <td className="px-3 py-2 text-slate-700">{r.orderNumber}</td>
-                  <td className="px-3 py-2 text-slate-700">{r.by || "—"}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.by || "N/A"}</td>
                   <td className="px-3 py-2 text-slate-700">{r.product}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{r.qty}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-slate-500">{formatCurrency(r.catalogue)}</td>
@@ -510,8 +510,8 @@ export default function VendorReportsPage() {
                 <>
                   <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
                   <td className="px-3 py-2 text-slate-700">{r.orderNumber}</td>
-                  <td className="px-3 py-2 text-slate-700">{r.by || "—"}</td>
-                  <td className="px-3 py-2 text-slate-500">{r.note || "—"}</td>
+                  <td className="px-3 py-2 text-slate-700">{r.by || "N/A"}</td>
+                  <td className="px-3 py-2 text-slate-500">{r.note || "N/A"}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-red-600 font-medium">{formatCurrency(r.amount)}</td>
                 </>
               )}
@@ -528,7 +528,7 @@ export default function VendorReportsPage() {
                   <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
                   <td className="px-3 py-2 text-slate-700">{r.by}</td>
                   <td className="px-3 py-2 text-slate-700">{CASH_KIND[r.kind] || r.kind}</td>
-                  <td className="px-3 py-2 text-slate-500">{r.reason || "—"}</td>
+                  <td className="px-3 py-2 text-slate-500">{r.reason || "N/A"}</td>
                   <td className={`px-3 py-2 text-right tabular-nums font-medium ${r.kind === "paid_in" ? "text-green-700" : "text-red-600"}`}>
                     {r.kind === "paid_in" ? "" : "−"}{formatCurrency(r.amount)}
                   </td>

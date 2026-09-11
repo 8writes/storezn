@@ -105,7 +105,7 @@ export default function TermsPage() {
             <p>
               To keep the platform safe and to detect abuse (bulk account creation, scraping, fraud, and the conduct in
               section 6), we collect and process limited technical information about the connections and devices used to
-              access Storezn &mdash; including an IP address, a randomly-generated device identifier, and a small set of
+              access Storezn, including an IP address, a randomly-generated device identifier, and a small set of
               non-identifying browser characteristics. This is described in full in our{" "}
               <a href="/privacy" className="text-brand-600 hover:underline">Privacy Policy</a>.
             </p>
