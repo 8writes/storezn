@@ -44,6 +44,12 @@ const STATUS_OPTIONS = [
   { value: "archived", label: "Archived" },
 ];
 const STATUS_LABEL = Object.fromEntries(STATUS_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label]));
+const FEATURED_OPTIONS = [
+  { value: "", label: "Any" },
+  { value: "yes", label: "Featured" },
+  { value: "no", label: "Not featured" },
+];
+const FEATURED_LABEL = { yes: "Featured", no: "Not featured" };
 
 // -> { text, tone } for the expiry chip, or null. tone: red = past, amber
 // = within 30 days, slate = further out.
@@ -95,11 +101,12 @@ export default function VendorProductsPage() {
   const [stockLevel, setStockLevel] = useState(["in", "low", "out"].includes(initialStock) ? initialStock : ""); // "" | in | low | out
   const [expiry, setExpiry] = useState(["soon", "expired"].includes(initialExpiry) ? initialExpiry : ""); // "" | soon | expired
   const [status, setStatus] = useState(""); // "" | active | archived
+  const [featured, setFeatured] = useState(""); // "" | yes | no
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const activeFilterCount =
-    (categoryId ? 1 : 0) + (sort !== "newest" ? 1 : 0) + (stockLevel ? 1 : 0) + (expiry ? 1 : 0) + (status ? 1 : 0);
+    (categoryId ? 1 : 0) + (sort !== "newest" ? 1 : 0) + (stockLevel ? 1 : 0) + (expiry ? 1 : 0) + (status ? 1 : 0) + (featured ? 1 : 0);
 
   const MAX_FEATURED = 10;
   const [featuring, setFeaturing] = useState(null); // productId mid-request
@@ -202,6 +209,7 @@ export default function VendorProductsPage() {
     if (stockLevel) params.set("stock", stockLevel);
     if (expiry) params.set("expiry", expiry);
     if (status) params.set("status", status);
+    if (featured) params.set("featured", featured);
     apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params.toString()}`)
       .then((data) => {
         // Drop a stale response so a slow search for an earlier term
@@ -228,17 +236,17 @@ export default function VendorProductsPage() {
     if (!token || !storeId) return;
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, page, q, categoryId, sort, stockLevel, expiry, status]);
+  }, [token, storeId, page, q, categoryId, sort, stockLevel, expiry, status, featured]);
 
   useEffect(() => {
     setPage(1);
-  }, [q, categoryId, sort, stockLevel, expiry, status, storeId]);
+  }, [q, categoryId, sort, stockLevel, expiry, status, featured, storeId]);
 
   // Selection is by id against the currently visible page - drop it
   // whenever the visible set changes so no stale/off-screen id lingers.
   useEffect(() => {
     setSelected(new Set());
-  }, [q, categoryId, sort, stockLevel, expiry, status, storeId, page]);
+  }, [q, categoryId, sort, stockLevel, expiry, status, featured, storeId, page]);
 
   const storeFiltersInit = useRef(false);
   useEffect(() => {
@@ -254,6 +262,7 @@ export default function VendorProductsPage() {
       setStockLevel("");
       setExpiry("");
       setStatus("");
+      setFeatured("");
     }
     storeFiltersInit.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -495,6 +504,9 @@ export default function VendorProductsPage() {
           {status && (
             <FilterChip label={STATUS_LABEL[status]} onClear={() => setStatus("")} />
           )}
+          {featured && (
+            <FilterChip label={FEATURED_LABEL[featured]} onClear={() => setFeatured("")} />
+          )}
           {stockLevel && (
             <FilterChip label={STOCK_LABEL[stockLevel]} onClear={() => setStockLevel("")} />
           )}
@@ -518,6 +530,7 @@ export default function VendorProductsPage() {
               setStockLevel("");
               setExpiry("");
               setStatus("");
+              setFeatured("");
             }}
             className="text-slate-500 hover:text-slate-800 underline cursor-pointer"
           >
@@ -539,6 +552,8 @@ export default function VendorProductsPage() {
           setExpiry={setExpiry}
           status={status}
           setStatus={setStatus}
+          featured={featured}
+          setFeatured={setFeatured}
           onClose={() => setFiltersOpen(false)}
         />
       )}
@@ -577,7 +592,7 @@ export default function VendorProductsPage() {
           <CardListSkeleton count={5} />
         ) : products.length === 0 ? (
           <p className="bg-surface border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
-            {q || categoryId || stockLevel || expiry || status ? "No products match your filters" : "No products yet"}
+            {q || categoryId || stockLevel || expiry || status || featured ? "No products match your filters" : "No products yet"}
           </p>
         ) : (
           products.map((p) => {
@@ -692,7 +707,7 @@ export default function VendorProductsPage() {
               <TableRowSkeleton cols={9} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-6 text-center text-slate-700">{q || categoryId || stockLevel || expiry || status ? "No products match your filters" : "No products yet"}</td>
+                <td colSpan={9} className="px-4 py-6 text-center text-slate-700">{q || categoryId || stockLevel || expiry || status || featured ? "No products match your filters" : "No products yet"}</td>
               </tr>
             ) : (
               products.map((p) => (
@@ -791,8 +806,8 @@ function FilterChip({ label, onClear }) {
 // Filter picker as a screen-safe sheet: a bottom sheet on phones, a
 // centred card on desktop, capped at 85vh with its own scrolling body so
 // it never runs off the viewport. Filters apply live as they're changed.
-function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setSort, stockLevel, setStockLevel, expiry, setExpiry, status, setStatus, onClose }) {
-  const anyActive = categoryId || sort !== "newest" || stockLevel || expiry || status;
+function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setSort, stockLevel, setStockLevel, expiry, setExpiry, status, setStatus, featured, setFeatured, onClose }) {
+  const anyActive = categoryId || sort !== "newest" || stockLevel || expiry || status || featured;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
@@ -816,6 +831,24 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
                   onClick={() => setStatus(o.value)}
                   className={`px-3 py-2 rounded-sm border text-sm font-medium cursor-pointer transition-colors ${
                     status === o.value ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Featured</p>
+            <div className="grid grid-cols-3 gap-2">
+              {FEATURED_OPTIONS.map((o) => (
+                <button
+                  key={o.value || "any"}
+                  type="button"
+                  onClick={() => setFeatured(o.value)}
+                  className={`px-3 py-2 rounded-sm border text-sm font-medium cursor-pointer transition-colors ${
+                    featured === o.value ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
                   }`}
                 >
                   {o.label}
@@ -887,6 +920,7 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
               setStockLevel("");
               setExpiry("");
               setStatus("");
+              setFeatured("");
             }}
             className="text-sm font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >

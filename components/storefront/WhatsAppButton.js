@@ -1,3 +1,5 @@
+"use client";
+import { usePathname } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 
 // wa.me needs the full international number (country code, no leading
@@ -18,8 +20,15 @@ function toWhatsAppDigits(number) {
 // set a WhatsApp number in store settings, see stores.socialLinks in
 // lib/db/schema.js.
 export function WhatsAppButton({ store }) {
+  const pathname = usePathname() || "";
   const number = store?.socialLinks?.whatsapp;
   if (!number) return null;
+
+  // The product detail page carries a fixed add-to-cart bar along the
+  // bottom edge on mobile - the button has to clear it there. Every other
+  // storefront page has nothing down there, so it sits near the corner.
+  const onProductPage = /\/products\/[^/]+\/?$/.test(pathname);
+  const mobileBottom = onProductPage ? "bottom-24" : "bottom-5";
 
   return (
     <a
@@ -27,7 +36,7 @@ export function WhatsAppButton({ store }) {
       target="_blank"
       rel="noreferrer"
       aria-label={`Chat with ${store.name} on WhatsApp`}
-      className="fixed bottom-22 sm:bottom-4 right-5 z-20 flex items-center justify-center h-14 w-14 rounded-full bg-[#25D366] text-white shadow-lg hover:brightness-95 transition-[filter]"
+      className={`fixed ${mobileBottom} sm:bottom-4 right-5 z-20 flex items-center justify-center h-14 w-14 rounded-full bg-[#25D366] text-white shadow-lg hover:brightness-95 transition-[filter]`}
     >
       <MessageCircle size={26} />
     </a>

@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { products, productVariants, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
-import { and, asc, count, desc, eq, gt, ilike, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, ilike, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
@@ -57,6 +57,12 @@ export async function GET(req, { params }) {
   const statusFilter = searchParams.get("status")?.trim();
   if (statusFilter === "active") conditions.push(eq(products.isActive, true));
   else if (statusFilter === "archived") conditions.push(eq(products.isActive, false));
+
+  // Featured filter - on/off the storefront's Featured rail
+  // (products.featuredOrder is null vs set).
+  const featuredFilter = searchParams.get("featured")?.trim();
+  if (featuredFilter === "yes") conditions.push(isNotNull(products.featuredOrder));
+  else if (featuredFilter === "no") conditions.push(isNull(products.featuredOrder));
 
   // Expiry filter. "soon" = a use-by date within the next 30 days (and
   // not already past); "expired" = a use-by date that's passed.
