@@ -98,8 +98,8 @@ function VendorSignupForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">Start selling</h2>
-        <p className="text-sm text-slate-500 mt-1">Create your store in a couple of minutes.</p>
+        <h2 className="text-xl font-bold text-slate-900">Getting started</h2>
+        <p className="text-sm text-slate-500 mt-1">Create your business in a couple of minutes.</p>
       </div>
 
       <Input
@@ -179,7 +179,7 @@ function VendorSignupForm() {
       </label>
 
       <Button type="submit" loading={loading} fullWidth size="lg">
-        Create my store
+        Create my business
       </Button>
 
       <p className="text-center text-sm text-slate-500">

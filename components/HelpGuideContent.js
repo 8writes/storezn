@@ -11,76 +11,97 @@ const SUPPORT_WHATSAPP = "09153374542".replace(/^0/, "234");
 
 const STEPS = [
   {
-    title: "Create your store",
-    keywords: "create store sign up start selling store url slug create my store verify email",
+    title: "Create your business",
+    keywords:
+      "create business store sign up start selling store url slug create my store verify email",
     body: (
       <>
         <p>
-          On the sign-up page tap <b>Start selling</b>. Type your store&apos;s name - the <b>Store URL</b> (your
-          <code> yourname.storezn.com</code> address) fills itself in. Add your name, email and a password, then tap
-          <b> Create my store</b>.
+          On the sign-up page. Type your store&apos;s
+          name - the <b>Store URL</b> (your
+          <code> yourname.storezn.com</code> address) fills itself in. Add your
+          name, email and a password, then tap
+          <b> Create my business</b>.
         </p>
-        <p>Open the email we send and tap the link to confirm your address. You can&apos;t sign in until this is done.</p>
+        <p>
+          Open the email we send and tap the link to confirm your address. You
+          can&apos;t sign in until this is done.
+        </p>
       </>
     ),
   },
   {
     title: "Verify your identity (NIN)",
-    keywords: "verify identity nin national identification number submit review approval store live hidden",
+    keywords:
+      "verify identity nin national identification number submit review approval store live hidden",
     body: (
       <>
         <p>
-          In the dashboard open <b>Verification</b>, enter your 11-digit <b>NIN</b> and tap <b>Submit for review</b>.
+          In the dashboard open <b>Verification</b>, enter your 11-digit{" "}
+          <b>NIN</b> and tap <b>Submit for review</b>.
         </p>
         <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-sm px-3 py-2 text-sm">
-          You can build your whole store while this is pending, but <b>customers can&apos;t see it or order</b> until
-          it&apos;s approved. You&apos;ll get a notification when it is.
+          You can build your whole store while this is pending, but{" "}
+          <b>customers can&apos;t see it or order</b> until it&apos;s approved.
+          You&apos;ll get a notification when it is.
         </p>
       </>
     ),
   },
   {
     title: "Brand your store",
-    keywords: "logo favicon store settings description whatsapp social links branding look ships from location",
+    keywords:
+      "logo favicon store settings description whatsapp social links branding look ships from location",
     body: (
       <p>
-        Open <b>Store settings</b>. Upload a <b>logo</b> (wide) and a <b>favicon</b> (small round tab icon), write a
-        short <b>description</b>, and add your <b>WhatsApp number</b> and social links - these show in your storefront
-        footer, and WhatsApp also powers the floating chat button. Set your <b>store location</b> (the state you ship
-        from); you can hide the &quot;Ships from&quot; line on product pages with the toggle right there.
+        Open <b>Store settings</b>. Upload a <b>logo</b> (wide) and a{" "}
+        <b>favicon</b> (small round tab icon), write a short <b>description</b>,
+        and add your <b>WhatsApp number</b> and social links - these show in
+        your storefront footer, and WhatsApp also powers the floating chat
+        button. Set your <b>store location</b> (the state you ship from); you
+        can hide the &quot;Ships from&quot; line on product pages with the
+        toggle right there.
       </p>
     ),
   },
   {
     title: "Link your bank account",
-    keywords: "bank account payout paystack subaccount link money paid checkout blocked",
+    keywords:
+      "bank account payout paystack subaccount link money paid checkout blocked",
     body: (
       <p>
-        Open <b>Payouts</b> and add your bank details. We verify them through Paystack and set up automatic payouts.
-        <b> Customers can&apos;t check out until this is linked</b>. It&apos;s locked afterwards for security - contact
-        support to change it.
+        Open <b>Payouts</b> and add your bank details. We verify them through
+        Paystack and set up automatic payouts.
+        <b> Customers can&apos;t check out until this is linked</b>. It&apos;s
+        locked afterwards for security - contact support to change it.
       </p>
     ),
   },
   {
     title: "Add your first product",
-    keywords: "add product name price photos video stock condition create product",
+    keywords:
+      "add product name price photos video stock condition create product",
     body: (
       <p>
-        Open <b>Products</b> &rarr; <b>Add product</b>. Name it (the URL slug fills in), set a <b>price</b>, add up to
-        <b> 10 photos and video combined</b> (photos under 3MB, one clip up to 20MB / 30s), and enter your <b>stock</b>.
-        Optional extras live under &quot;Show optional fields&quot;: SKU, discount %, category, and a size guide.
+        Open <b>Products</b> &rarr; <b>Add product</b>. Name it (the URL slug
+        fills in), set a <b>price</b>, add up to
+        <b> 10 photos and video combined</b> (photos under 3MB, one clip up to
+        20MB / 30s), and enter your <b>stock</b>. Optional extras live under
+        &quot;Show optional fields&quot;: SKU, discount %, category, and a size
+        guide.
       </p>
     ),
   },
   {
     title: "Share your link and sell",
-    keywords: "share store link qr code live storefront whatsapp instagram marketplace",
+    keywords:
+      "share store link qr code live storefront whatsapp instagram marketplace",
     body: (
       <p>
-        Once you&apos;re verified, your store link (and its <b>QR code</b>) is on your dashboard - share it on WhatsApp
-        status, your Instagram bio, anywhere. Your products also appear in the Storezn <b>marketplace</b> unless you
-        turn that off in Store settings.
+        Once you&apos;re verified, your store link (and its <b>QR code</b>) is
+        on your dashboard - share it on WhatsApp status, your Instagram bio,
+        anywhere. Your products also appear in the Storezn <b>marketplace</b>{" "}
+        unless you turn that off in Store settings.
       </p>
     ),
   },
