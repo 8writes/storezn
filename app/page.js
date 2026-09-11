@@ -83,12 +83,6 @@ export default async function Home() {
                 Get started for free
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
-              <Link
-                href="/pricing"
-                className="inline-flex items-center justify-center text-sm font-semibold text-slate-700 border border-slate-200 px-6 py-3.5 rounded-sm hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                See pricing
-              </Link>
             </div>
           </Reveal>
 
