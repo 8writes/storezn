@@ -7,7 +7,7 @@ import { StatCard } from "@/components/ui/StatCard.js";
 import { StatGridSkeleton, Skeleton } from "@/components/ui/Skeleton.js";
 import { Chart } from "@/components/ui/Chart.js";
 import { formatCurrency, compactCurrency } from "@/lib/format.js";
-import { Store, Wallet, TrendingUp, ShoppingBag, Sparkles } from "lucide-react";
+import { Store, Wallet, TrendingUp, ShoppingBag, Sparkles, Building2 } from "lucide-react";
 
 // Matches the brand-* ramp in globals.css - Chart.js needs real hex/rgba
 // strings, it can't read CSS custom properties itself.
@@ -43,7 +43,7 @@ export default function SuperAdminAnalyticsPage() {
         </>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <StatCard icon={Store} label="Stores" value={data.stores.total} sub={`${data.stores.active} active`} />
             <StatCard icon={Wallet} label="Total GMV" value={compactCurrency(data.revenue.totalGMV)} title={formatCurrency(data.revenue.totalGMV)} color="green" />
             <StatCard icon={TrendingUp} label="Commission earned" value={compactCurrency(data.revenue.totalCommission)} title={formatCurrency(data.revenue.totalCommission)} color="brand" />
@@ -54,6 +54,7 @@ export default function SuperAdminAnalyticsPage() {
             />
             <StatCard icon={Sparkles} label="Storezn+ revenue" value={compactCurrency(data.subscriptions.totalRevenue)} title={formatCurrency(data.subscriptions.totalRevenue)} color="brand" />
             <StatCard icon={Sparkles} label="Storezn+ stores" value={data.subscriptions.plusStores} />
+            <StatCard icon={Building2} label="Enterprise stores" value={data.subscriptions.enterpriseStores} color="accent" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

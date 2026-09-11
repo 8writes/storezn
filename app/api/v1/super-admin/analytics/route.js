@@ -68,6 +68,13 @@ export async function GET(req) {
     .select({ count: sql`count(*)`.mapWith(Number) })
     .from(stores)
     .where(sql`${stores.plan} = 'plus'`);
+  // Separate from plusStoreRow above - stores.plan is one of 'free' /
+  // 'plus' / 'enterprise' (see lib/storePlan.js), not cumulative, so an
+  // Enterprise store doesn't also count as Plus here.
+  const [enterpriseStoreRow] = await db
+    .select({ count: sql`count(*)`.mapWith(Number) })
+    .from(stores)
+    .where(sql`${stores.plan} = 'enterprise'`);
 
   // Top 5 stores by paid GMV, all-time - a quick "who's actually driving
   // the platform" glance next to the trend chart.
@@ -86,7 +93,7 @@ export async function GET(req) {
   return NextResponse.json({
     stores: { total: storeRow?.total || 0, active: storeRow?.active || 0, inactive: (storeRow?.total || 0) - (storeRow?.active || 0) },
     revenue: { totalGMV: revenueRow?.totalGMV || 0, totalCommission: revenueRow?.totalCommission || 0 },
-    subscriptions: { totalRevenue: subscriptionRow?.totalRevenue || 0, plusStores: plusStoreRow?.count || 0 },
+    subscriptions: { totalRevenue: subscriptionRow?.totalRevenue || 0, plusStores: plusStoreRow?.count || 0, enterpriseStores: enterpriseStoreRow?.count || 0 },
     daily: dailyRows.map((r) => ({ day: r.day, gmv: r.gmv, commission: r.commission, orderCount: r.order_count })),
     topStores: topStores.filter((s) => s.gmv > 0),
   });
