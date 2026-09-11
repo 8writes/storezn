@@ -281,6 +281,27 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Marketing display type (Sora). `.font-display` is opted into by the
+   public landing / pricing pages for headings only - the body on those
+   pages stays Jakarta. */
+.font-display {
+  font-family: var(--font-display), var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.021em;
+  font-feature-settings: "ss01";
+}
+
+/* Slow, seamless horizontal drift for the marketing "ways to sell" ticker. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 26s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
+}
+
 /* Respect a user's reduced-motion setting - drop the decorative stuff,
    keep functional feedback (spinners) short. */
 @media (prefers-reduced-motion: reduce) {

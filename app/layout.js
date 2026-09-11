@@ -1,4 +1,4 @@
-import { Plus_Jakarta_Sans, Inter } from "next/font/google";
+import { Plus_Jakarta_Sans, Inter, Sora } from "next/font/google";
 import "./globals.css";
 import RegisterServiceWorker from "./RegisterServiceWorker.js";
 import InstallPrompt from "./InstallPrompt.js";
@@ -17,6 +17,17 @@ const jakarta = Plus_Jakarta_Sans({
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+// Display face for the public marketing pages only (landing / pricing),
+// opted into with `.font-display` - a tight geometric grotesque that
+// reads as considered and official at large sizes. Not loaded on the
+// dashboard or storefront, which keep Inter / Jakarta.
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -55,7 +66,7 @@ document.documentElement.setAttribute("data-theme",t==="light"?"light":"dark");
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" data-theme="light" suppressHydrationWarning className={`h-full overflow-x-clip ${jakarta.variable} ${inter.variable}`}>
+    <html lang="en" data-theme="light" suppressHydrationWarning className={`h-full overflow-x-clip ${jakarta.variable} ${inter.variable} ${sora.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
