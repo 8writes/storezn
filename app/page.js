@@ -11,6 +11,10 @@ import {
   Package,
   ClipboardList,
   Check,
+  ShieldCheck,
+  Lock,
+  Landmark,
+  LifeBuoy,
 } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
@@ -43,6 +47,30 @@ const STEPS = [
   { n: "01", title: "Create your store", text: "Pick a name, add your first products, done in minutes." },
   { n: "02", title: "Get verified", text: "Confirm your identity with your NIN so customers can trust your store." },
   { n: "03", title: "Start sharing & selling", text: "Share your link, take orders, get paid straight to your bank." },
+];
+
+// Trust points - all verifiable, no invented numbers or testimonials.
+const TRUST = [
+  {
+    icon: Lock,
+    title: "Payments you can trust",
+    text: "Card payments run entirely through Paystack. Card details never touch Storezn, and every checkout is served over HTTPS.",
+  },
+  {
+    icon: Landmark,
+    title: "Your money is never held",
+    text: "Every paid order is split at the moment of payment and settled straight to your own bank account. Storezn never sits on your takings.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Verified sellers only",
+    text: "Every vendor confirms their identity with their NIN before their store can go live, so buyers know there's a real person behind it.",
+  },
+  {
+    icon: LifeBuoy,
+    title: "Real help, not a maze",
+    text: "A plain-language setup guide anyone can follow, and a real person on email when you need one.",
+  },
 ];
 
 export const revalidate = 300;
@@ -87,6 +115,9 @@ export default async function Home() {
               See pricing
             </Link>
           </div>
+          <p className="mt-5 text-xs text-slate-400">
+            Free forever plan &middot; No card required &middot; Payouts straight to your bank
+          </p>
         </div>
 
         {/* Floating cards - purely decorative depth cues, no fabricated
@@ -158,6 +189,27 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Trust - verifiable, no invented numbers or testimonials */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
+        <div className="text-center max-w-lg mx-auto mb-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Safe to sell on. Safe to buy from.</h2>
+          <p className="mt-3 text-slate-500">The parts that touch your money and your customers, done properly.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {TRUST.map(({ icon: Icon, title, text }) => (
+            <div key={title} className="flex items-start gap-4 bg-white border border-slate-100 rounded-sm p-6 shadow-sm">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-brand-100 text-brand-700">
+                <Icon size={19} />
+              </span>
+              <div>
+                <p className="font-semibold text-slate-900">{title}</p>
+                <p className="mt-1.5 text-sm text-slate-500">{text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* How it works - numbered, an actual sequence */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
         <div className="text-center max-w-lg mx-auto mb-12">
@@ -225,15 +277,17 @@ export default async function Home() {
       {/* Pricing teaser */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center w-full">
         <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Free to start. Upgrade when you outgrow it.</h2>
-        <p className="mt-3 text-slate-500 max-w-md mx-auto">
-          Every store gets the essentials for free. Storezn+ adds offline order recording, your own custom domain, a
-          custom storefront color, and more staff seats and storage.
+        <p className="mt-3 text-slate-500 max-w-lg mx-auto">
+          Every store gets the essentials for free. <span className="font-medium text-slate-700">Storezn+</span> adds
+          offline order recording, your own custom domain, a custom storefront color, and more staff seats and storage.{" "}
+          <span className="font-medium text-slate-700">Enterprise</span> adds a full point-of-sale system &mdash; set up
+          with you by our team.
         </p>
         <Link
           href="/pricing"
           className="mt-7 inline-flex items-center justify-center gap-2 text-sm font-semibold text-brand-700 border border-brand-200 bg-brand-50 px-6 py-3 rounded-sm hover:bg-brand-100 transition-colors cursor-pointer"
         >
-          Storezn Plus
+          Compare all plans
           <ArrowRight size={16} />
         </Link>
       </section>
