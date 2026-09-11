@@ -5,7 +5,6 @@ import { Video, X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 export function ProductGallery({ images = [], videoUrl, name }) {
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const stripRef = useRef(null);
 
   // Video always sits last - the first slide shown is always a photo, a
   // vendor's cover image stays the cover even once they add a clip.
@@ -16,69 +15,11 @@ export function ProductGallery({ images = [], videoUrl, name }) {
   const count = slides.length;
   const current = slides[active];
 
-  // The main viewer is a native scroll-snap strip: swiping moves between
-  // slides on touch, and on desktop the thumbnails scroll it here instead.
-  const onStripScroll = (el) => {
-    if (!el || !el.clientWidth) return;
-    const i = Math.max(0, Math.min(count - 1, Math.round(el.scrollLeft / el.clientWidth)));
-    setActive((prev) => (prev === i ? prev : i));
-  };
-
-  const goTo = (i) => {
-    const next = Math.max(0, Math.min(count - 1, i));
-    setActive(next);
-    stripRef.current?.scrollTo({ left: next * stripRef.current.clientWidth, behavior: "smooth" });
-  };
-
-  // Manual, direction-locked drag instead of leaning on touch-action alone
-  // to keep the strip from eating vertical scroll. The strip's own
-  // touch-action is `pan-y` - the browser is free to scroll the page the
-  // instant a touch starts, guaranteed, no JS in the loop for that case.
-  // A horizontal drag is instead driven by hand: direction is decided from
-  // the first ~6px of movement and locked in for the rest of the gesture;
-  // only once it's confirmed horizontal do we preventDefault and move
-  // scrollLeft ourselves, then snap to the nearest slide on release.
-  useEffect(() => {
-    const el = stripRef.current;
-    if (!el || count < 2) return;
-    let drag = null;
-
-    const onTouchStart = (e) => {
-      const t = e.touches[0];
-      drag = { startX: t.clientX, startY: t.clientY, startScrollLeft: el.scrollLeft, horizontal: null };
-    };
-    const onTouchMove = (e) => {
-      if (!drag) return;
-      const t = e.touches[0];
-      const dx = t.clientX - drag.startX;
-      const dy = t.clientY - drag.startY;
-      if (drag.horizontal == null) {
-        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-        drag.horizontal = Math.abs(dx) > Math.abs(dy);
-      }
-      if (!drag.horizontal) return; // vertical - let the page scroll, untouched
-      e.preventDefault();
-      el.scrollLeft = drag.startScrollLeft - dx;
-    };
-    const onTouchEnd = () => {
-      const wasHorizontal = drag?.horizontal;
-      drag = null;
-      if (!wasHorizontal) return;
-      const i = Math.max(0, Math.min(count - 1, Math.round(el.scrollLeft / el.clientWidth)));
-      el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
-    };
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
-    el.addEventListener("touchcancel", onTouchEnd);
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-      el.removeEventListener("touchcancel", onTouchEnd);
-    };
-  }, [count]);
+  // Tap/click only, no swipe - a horizontal-swipe carousel here kept
+  // fighting with the page's own vertical scroll on touch devices no
+  // matter how it was tuned, so it's gone. Previous/next arrows plus the
+  // thumbnail strip below cover the same job without that risk.
+  const goTo = (i) => setActive(Math.max(0, Math.min(count - 1, i)));
 
   if (count === 0) {
     return <div className="aspect-4/5 bg-slate-100 flex items-center justify-center text-slate-300 text-sm">No image</div>;
@@ -86,39 +27,44 @@ export function ProductGallery({ images = [], videoUrl, name }) {
 
   return (
     <div className="space-y-3">
-      <div className="relative">
-        <div
-          ref={stripRef}
-          onScroll={(e) => onStripScroll(e.currentTarget)}
-          className="flex aspect-4/5 bg-slate-100 overflow-x-auto snap-x snap-mandatory scrollbar-none"
-          // pan-y: the browser only ever treats a touch here as page
-          // scroll, guaranteed, never a horizontal drag it has to disambiguate
-          // itself. Horizontal swipe-to-change-image is handled by hand,
-          // see the touch listeners above.
-          style={{ touchAction: "pan-y" }}
-        >
-          {slides.map((slide, i) => (
-            <div key={slide.src} className="w-full h-full shrink-0 snap-center">
-              {slide.type === "video" ? (
-                <video src={slide.src} controls playsInline className="w-full h-full object-contain bg-black" />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setLightboxOpen(true)}
-                  aria-label="View photo larger"
-                  className="block w-full h-full cursor-zoom-in"
-                >
-                  <img src={slide.src} alt={name} draggable={false} className="w-full h-full object-cover" />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+      <div className="relative aspect-4/5 bg-slate-100 overflow-hidden">
+        {current.type === "video" ? (
+          <video src={current.src} controls playsInline className="w-full h-full object-contain bg-black" />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(true)}
+            aria-label="View photo larger"
+            className="block w-full h-full cursor-zoom-in"
+          >
+            <img src={current.src} alt={name} draggable={false} className="w-full h-full object-cover" />
+          </button>
+        )}
 
         {count > 1 && (
-          <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white tabular-nums">
-            {active + 1} / {count}
-          </span>
+          <>
+            <button
+              type="button"
+              onClick={() => goTo(active - 1)}
+              disabled={active === 0}
+              aria-label="Previous photo"
+              className="absolute left-2 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md hover:bg-white disabled:opacity-0 disabled:pointer-events-none transition-opacity cursor-pointer"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => goTo(active + 1)}
+              disabled={active === count - 1}
+              aria-label="Next photo"
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md hover:bg-white disabled:opacity-0 disabled:pointer-events-none transition-opacity cursor-pointer"
+            >
+              <ChevronRight size={18} />
+            </button>
+            <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white tabular-nums">
+              {active + 1} / {count}
+            </span>
+          </>
         )}
         {current?.type === "image" && (
           <span className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-medium text-white sm:hidden">
