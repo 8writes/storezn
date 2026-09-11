@@ -48,8 +48,12 @@ function SectionLabel({ children }) {
 }
 
 export default function VendorSettingsPage() {
-  const { token } = useAuth(true);
+  const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
+  // Staff can reach this page but every setting here is the owner's to
+  // change - all they get is the push-notification toggle for their own
+  // device.
+  const isOwner = user?.role === "vendor";
 
   const { stores, storeId, loading: storesLoading, updateStore } = useVendorStore();
   const [form, setForm] = useState(null);
@@ -74,7 +78,7 @@ export default function VendorSettingsPage() {
     // before this page's own token has resolved on a client-side
     // navigation, which would otherwise fire this fetch with no
     // Authorization header.
-    if (!token || !storeId) return;
+    if (!token || !storeId || !isOwner) return;
     setLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}`)
       .then((data) => {
@@ -102,7 +106,7 @@ export default function VendorSettingsPage() {
       .catch((err) => toast.error(err.message || "Failed to load store"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId]);
+  }, [token, storeId, isOwner]);
 
   const handleFileSelect = (target) => (e) => {
     const file = e.target.files?.[0];
@@ -226,14 +230,14 @@ export default function VendorSettingsPage() {
 
       <PushNotificationToggle token={token} />
 
-      {!loading && store && !store.isActive && (
+      {isOwner && !loading && store && !store.isActive && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
           <AlertTriangle size={18} className="shrink-0 mt-0.5" />
           <p>Your store has been disabled by Storezn and isn&apos;t visible to customers. Contact support for details.</p>
         </div>
       )}
 
-      {!loading && store && (
+      {isOwner && !loading && store && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
           <div>
