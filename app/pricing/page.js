@@ -149,7 +149,7 @@ export default async function PricingPage() {
               <ArrowRight size={16} />
             </a>
             <p className="mt-2 text-xs text-white/40 text-center">
-              We set it up on your store &mdash; {SUPPORT_EMAIL}
+              We set it up on your store. Email {SUPPORT_EMAIL}
             </p>
           </div>
         </section>
