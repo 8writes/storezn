@@ -387,6 +387,15 @@ export default function VendorAnalyticsPage() {
               <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
                 <p className="text-sm font-semibold text-slate-700">Store health</p>
                 <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1.5 text-slate-700"><Wallet size={14} /> Stock value</span>
+                  <span
+                    className="font-medium text-slate-900 cursor-help"
+                    title={`Retail ${formatCurrency(data.products.retailValue)} · Cost ${formatCurrency(data.products.costValue)}`}
+                  >
+                    {compactCurrency(data.products.retailValue)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1.5 text-slate-700"><Package size={14} /> Live products</span>
                   <span className="font-medium text-slate-900">{data.products.live} / {data.products.total}</span>
                 </div>
@@ -406,6 +415,17 @@ export default function VendorAnalyticsPage() {
                     <span className={`font-medium ${data.products.expired > 0 ? "text-red-600" : "text-amber-600"}`}>
                       {data.products.expiringSoon}
                       {data.products.expired > 0 && <span className="text-xs font-normal text-slate-500"> ({data.products.expired} expired)</span>}
+                    </span>
+                  </div>
+                )}
+                {data.products.negativeStock > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-red-600"><AlertTriangle size={14} className="text-red-500" /> Oversold</span>
+                    <span
+                      className="font-medium text-red-600 cursor-help"
+                      title="Stock has gone below zero - more was sold or adjusted out than was ever recorded as in stock. Worth a recount."
+                    >
+                      {data.products.negativeStock}
                     </span>
                   </div>
                 )}

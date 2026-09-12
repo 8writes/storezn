@@ -203,8 +203,18 @@ export async function GET(req, { params }) {
       live: sql`count(*) filter (where ${products.isActive})`.mapWith(Number),
       lowStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} is not null and ${products.stock} > 0 and ${products.stock} <= ${LOW_STOCK_THRESHOLD})`.mapWith(Number),
       outOfStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} = 0)`.mapWith(Number),
+      // Below zero means more was sold/adjusted out than was ever recorded
+      // as in stock - a real accounting problem, distinct from (and not
+      // counted by) outOfStock above, which only catches exactly 0.
+      negativeStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} < 0)`.mapWith(Number),
       expiringSoon: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} >= current_date and ${products.expiryDate} < current_date + 30)`.mapWith(Number),
       expired: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} < current_date)`.mapWith(Number),
+      // What's on the shelf is worth, at shelf price and at what it cost to
+      // stock it - only live products, and only counting stock that's
+      // actually >= 0 (a negative balance, see negativeStock, has no
+      // sensible value to add in).
+      retailValue: sql`coalesce(sum(${products.price} * ${products.stock}) filter (where ${products.isActive} and ${products.stock} is not null and ${products.stock} >= 0), 0)`.mapWith(Number),
+      costValue: sql`coalesce(sum(${products.costPrice} * ${products.stock}) filter (where ${products.isActive} and ${products.stock} is not null and ${products.stock} >= 0 and ${products.costPrice} is not null), 0)`.mapWith(Number),
     })
     .from(products)
     .where(eq(products.storeId, storeId));
@@ -235,6 +245,17 @@ export async function GET(req, { params }) {
     branchBreakdown: branchBreakdown.length > 1 ? branchBreakdown : [],
     topCustomers,
     refunds: { pending: refundRow?.pending || 0, approved: refundRow?.approved || 0, rejected: refundRow?.rejected || 0 },
-    products: { total: productStats?.total || 0, live: productStats?.live || 0, lowStock: productStats?.lowStock || 0, outOfStock: productStats?.outOfStock || 0, expiringSoon: productStats?.expiringSoon || 0, expired: productStats?.expired || 0, lowStockThreshold: LOW_STOCK_THRESHOLD },
+    products: {
+      total: productStats?.total || 0,
+      live: productStats?.live || 0,
+      lowStock: productStats?.lowStock || 0,
+      outOfStock: productStats?.outOfStock || 0,
+      negativeStock: productStats?.negativeStock || 0,
+      expiringSoon: productStats?.expiringSoon || 0,
+      expired: productStats?.expired || 0,
+      lowStockThreshold: LOW_STOCK_THRESHOLD,
+      retailValue: productStats?.retailValue || 0,
+      costValue: productStats?.costValue || 0,
+    },
   });
 }
