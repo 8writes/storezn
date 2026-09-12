@@ -62,6 +62,7 @@ export async function GET(req, { params }) {
     byTender,
     topByRevenue,
     topByQty,
+    allProductsSold,
     byCategory,
     byCashier,
     [newCust],
@@ -124,6 +125,28 @@ export async function GET(req, { params }) {
       .groupBy(orderItems.productId)
       .orderBy(sql`sum(${orderItems.quantity}) desc`)
       .limit(10),
+    // Every product sold this month, no cap - the full ledger, not just
+    // the top-10 glance above. minPrice/maxPrice differing is the tell
+    // that this product didn't sell at one price all month, whether from
+    // a cashier's per-sale override (see overrideLines/givenAway) or the
+    // catalogue price itself moving mid-month (cross-checked against
+    // priceChangedProductIds below).
+    db
+      .select({
+        productId: orderItems.productId,
+        name: sql`max(${orderItems.productName})`,
+        qty: sql`sum(${orderItems.quantity})`.mapWith(Number),
+        revenue: sql`sum(${orderItems.lineTotal})`.mapWith(Number),
+        minPrice: sql`min(${orderItems.unitPrice})`.mapWith(Number),
+        maxPrice: sql`max(${orderItems.unitPrice})`.mapWith(Number),
+        overrideLines: sql`count(*) filter (where ${orderItems.priceOverridden})`.mapWith(Number),
+        givenAway: sql`coalesce(sum((${orderItems.originalUnitPrice} - ${orderItems.unitPrice}) * ${orderItems.quantity}) filter (where ${orderItems.priceOverridden}), 0)`.mapWith(Number),
+      })
+      .from(orderItems)
+      .innerJoin(orders, eq(orders.id, orderItems.orderId))
+      .where(and(inMonth, isSale))
+      .groupBy(orderItems.productId)
+      .orderBy(sql`sum(${orderItems.lineTotal}) desc`),
     db
       .select({
         categoryId: products.categoryId,
@@ -236,6 +259,28 @@ export async function GET(req, { params }) {
     )
     .orderBy(desc(storeActivityLogs.createdAt))
     .limit(100);
+
+  // Which products had their catalogue price itself edited this month
+  // (product.update, not a per-sale override) - flagged on the full
+  // products-sold ledger below, next to that product's own price range.
+  // A separate, lighter query from stockAdjustments above (just enough to
+  // build the id set) so its own 100-row display cap can't hide a price
+  // change from this check.
+  const priceChangeLogRows = await db
+    .select({ targetId: storeActivityLogs.targetId, summary: storeActivityLogs.summary })
+    .from(storeActivityLogs)
+    .where(
+      and(
+        eq(storeActivityLogs.storeId, storeId),
+        eq(storeActivityLogs.action, "product.update"),
+        gte(storeActivityLogs.createdAt, start),
+        lt(storeActivityLogs.createdAt, end),
+      ),
+    )
+    .limit(5000);
+  const priceChangedProductIds = new Set(
+    priceChangeLogRows.filter((r) => /\bprice /.test(r.summary || "")).map((r) => r.targetId),
+  );
 
   // ---------- forensic detail: every money-touching action, line-level ----------
   const inMonthCreated = and(gte(orders.createdAt, start), lt(orders.createdAt, end), eq(orders.storeId, storeId));
@@ -454,6 +499,21 @@ export async function GET(req, { params }) {
       .sort((a, b) => b.amount - a.amount),
     topProductsByRevenue: topByRevenue.map((r) => ({ name: r.name, qty: r.qty, revenue: r.revenue })),
     topProductsByQty: topByQty.map((r) => ({ name: r.name, qty: r.qty })),
+    // Every product sold this month, no cap - qty, revenue, the price
+    // range it actually sold at, and whether that range comes from
+    // per-sale overrides, a catalogue price edit, or both.
+    allProductsSold: allProductsSold.map((r) => ({
+      productId: r.productId,
+      name: r.name,
+      qty: r.qty,
+      revenue: r.revenue,
+      minPrice: r.minPrice,
+      maxPrice: r.maxPrice,
+      priceVaried: r.minPrice !== r.maxPrice,
+      overrideLines: r.overrideLines,
+      givenAway: r.givenAway,
+      catalogueChanged: priceChangedProductIds.has(r.productId),
+    })),
     byCategory: byCategory.map((r) => ({ name: r.name || "Uncategorised", qty: r.qty, revenue: r.revenue })),
     byCashier: byCashier.map((r) => ({ name: r.soldByName, count: r.count, revenue: r.revenue })),
     activity: {

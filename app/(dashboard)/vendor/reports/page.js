@@ -462,6 +462,41 @@ export default function VendorReportsPage() {
             </div>
           )}
 
+          {report.allProductsSold?.length > 0 && (
+            <DetailTable
+              title={`Every product sold this month (${report.allProductsSold.length})`}
+              head={["Product", "Qty", "Price sold at", "Revenue", "Notes"]}
+              rows={report.allProductsSold}
+              render={(r) => (
+                <>
+                  <td className="px-3 py-2 text-slate-700">{r.name}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{r.qty}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                    {r.priceVaried ? `${formatCurrency(r.minPrice)} – ${formatCurrency(r.maxPrice)}` : formatCurrency(r.minPrice)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums font-medium">{formatCurrency(r.revenue)}</td>
+                  <td className="px-3 py-2 text-xs whitespace-nowrap">
+                    {r.overrideLines > 0 && (
+                      <span
+                        className="text-amber-600 font-medium"
+                        title={`${r.overrideLines} line${r.overrideLines === 1 ? "" : "s"} sold off-catalogue · ${formatCurrency(r.givenAway)} given away`}
+                      >
+                        {r.overrideLines} override{r.overrideLines === 1 ? "" : "s"}
+                      </span>
+                    )}
+                    {r.overrideLines > 0 && r.catalogueChanged && " · "}
+                    {r.catalogueChanged && (
+                      <span className="text-blue-600 font-medium" title="This product's catalogue price was edited this month - see Stock & price changes below.">
+                        price edited
+                      </span>
+                    )}
+                    {!r.overrideLines && !r.catalogueChanged && <span className="text-slate-300">&mdash;</span>}
+                  </td>
+                </>
+              )}
+            />
+          )}
+
           {report.detail?.discounts?.length > 0 && (
             <DetailTable
               title={`Every discount given (${report.detail.discounts.length})`}
