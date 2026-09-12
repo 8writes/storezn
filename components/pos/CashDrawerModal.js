@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
+import { useConfirm } from "@/hooks/useConfirm.js";
+import { formatCurrency } from "@/lib/format.js";
 
 // A fresh id each time the modal mounts (it unmounts on close), reused
 // for every retry of THIS action so the server dedupes a flaky-network
@@ -27,10 +29,24 @@ export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [clientRef] = useState(newRef);
+  const { confirm, confirmDialog } = useConfirm();
 
   if (!open) return null;
   const active = KINDS.find((k) => k.value === kind);
   const valid = Number(amount) > 0 && reason.trim().length > 0;
+
+  // This can't be edited or undone afterward (see the movements route),
+  // so the one guard against a wrong tap - paid in vs paid out is an easy
+  // mix-up - is catching it here, before it's sent.
+  const handleSubmit = async () => {
+    const ok = await confirm({
+      title: `Record ${formatCurrency(Number(amount))} as ${active.label}?`,
+      description: reason.trim(),
+      confirmLabel: `Record ${active.label.toLowerCase()}`,
+      variant: kind === "paid_in" ? "brand" : "danger",
+    });
+    if (ok) onSubmit({ kind, amount: Number(amount), reason: reason.trim(), clientRef });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -73,17 +89,12 @@ export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
             placeholder="Reason (required)"
             className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
           />
-          <Button
-            type="button"
-            fullWidth
-            loading={submitting}
-            disabled={!valid || submitting}
-            onClick={() => onSubmit({ kind, amount: Number(amount), reason: reason.trim(), clientRef })}
-          >
+          <Button type="button" fullWidth loading={submitting} disabled={!valid || submitting} onClick={handleSubmit}>
             Record {active.label.toLowerCase()}
           </Button>
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 }
