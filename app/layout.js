@@ -3,6 +3,7 @@ import "./globals.css";
 import RegisterServiceWorker from "./RegisterServiceWorker.js";
 import InstallPrompt from "./InstallPrompt.js";
 import ScrollToTop from "./ScrollToTop.js";
+import { getPlatformUrl } from "@/lib/storeUrl.js";
 
 // Jakarta stays the default (storefront / marketing pages - warmer,
 // display-ish). The platform (dashboard, admin, auth) opts into Inter
@@ -31,9 +32,16 @@ const sora = Sora({
   display: "swap",
 });
 
+const title = "Storezn | Business management & e-commerce platform";
+const description = "E-commerce platform, get your own dedicated store and easily manage your inventory, sales and business operations.";
+// Absolute URL, same convention as app/storefront/[host]/layout.js - og:image
+// needs one either way, and getPlatformUrl already resolves against
+// NEXT_PUBLIC_ROOT_DOMAIN so this stays correct across local/prod.
+const shareImage = getPlatformUrl("/landing-page.png");
+
 export const metadata = {
-  title: "Storezn | Business management & e-commerce platform",
-  description: "E-commerce platform, get your own dedicated store and easily manage your inventory, sales and business operations.",
+  title,
+  description,
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -43,6 +51,20 @@ export const metadata = {
   icons: {
     icon: "/icon-192.png",
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title,
+    description,
+    url: getPlatformUrl("/"),
+    siteName: "Storezn",
+    images: [{ url: shareImage, width: 1499, height: 906 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [shareImage],
   },
 };
 
