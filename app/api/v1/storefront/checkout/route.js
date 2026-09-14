@@ -11,6 +11,7 @@ import { resolveShippingFee } from "../../../../../lib/shipping.js";
 import { initializeTransaction } from "../../../../../lib/paystack.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { reserveStock, restockItems, resolveFulfillingBranch, OutOfStockError } from "../../../../../lib/inventory.js";
+import { buildRequestUrl } from "../../../../../lib/requestUrl.js";
 
 // Postgres' unique_violation code - thrown when the insert below collides
 // with uq_orders_cart_pending (see lib/db/schema.js), i.e. this cart
@@ -111,6 +112,10 @@ export async function POST(req) {
   const paymentReference = `STOREZN-${orderNumber}`;
   const email = user?.email || guestEmail;
   const customerName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || email : (shippingAddress?.fullName || email);
+  const redirectUrl = buildRequestUrl(req, `/orders/${orderNumber}`);
+  if (!redirectUrl) {
+    return NextResponse.json({ error: "Could not build payment return URL" }, { status: 500 });
+  }
 
   let order;
   let branchId;
@@ -186,7 +191,6 @@ export async function POST(req) {
     throw err;
   }
 
-  const protocol = req.headers.get("x-forwarded-proto") || "http";
   try {
     // The vendor's share (vendorPayoutAmount, subtotal + shipping minus
     // commission) is routed straight to their bank account via a Paystack
@@ -199,7 +203,7 @@ export async function POST(req) {
       email,
       name: customerName,
       reference: paymentReference,
-      redirectUrl: `${protocol}://${host}/orders/${orderNumber}`,
+      redirectUrl,
       split: { subAccountCode: store.subAccountCode, amount: vendorPayoutAmount },
     });
 
