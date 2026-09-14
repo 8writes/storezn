@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lock } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ export default function CheckoutPage() {
   const [manualAddress, setManualAddress] = useState(EMPTY_ADDRESS);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const submitLockRef = useRef(false);
 
   useEffect(() => {
     fetch("/api/v1/storefront/cart")
@@ -104,10 +105,12 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitLockRef.current) return;
     if (!validateCheckout()) {
       toast.error("Please complete the highlighted checkout details");
       return;
     }
+    submitLockRef.current = true;
     setSubmitting(true);
     try {
       const payload = {};
@@ -126,6 +129,7 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify(payload),
       });
+
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Checkout failed");
 
@@ -137,6 +141,7 @@ export default function CheckoutPage() {
       window.location.href = data.authorizationUrl;
     } catch (err) {
       toast.error(err.message || "Checkout failed");
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   };

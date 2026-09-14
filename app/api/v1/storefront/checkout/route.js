@@ -18,6 +18,22 @@ import { buildRequestUrl } from "../../../../../lib/requestUrl.js";
 // already has a pending order from an earlier, still-unresolved request.
 const UNIQUE_VIOLATION = "23505";
 
+function isPendingCartConflict(err) {
+  for (let current = err; current; current = current.cause) {
+    if (
+      current.code === UNIQUE_VIOLATION
+      && (
+        current.constraint_name === "uq_orders_cart_pending"
+        || current.constraint === "uq_orders_cart_pending"
+        || current.detail?.includes("Key (cart_id)=")
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function resolveCheckoutSubAccount(store) {
   if (isValidSubAccountCode(store.subAccountCode)) return store.subAccountCode;
 
@@ -215,7 +231,7 @@ export async function POST(req) {
     if (err instanceof OutOfStockError) {
       return NextResponse.json({ error: err.message }, { status: 409 });
     }
-    if (err?.code === UNIQUE_VIOLATION) {
+    if (isPendingCartConflict(err)) {
       return NextResponse.json({ error: "This order is already being processed" }, { status: 409 });
     }
     throw err;
