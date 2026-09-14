@@ -24,6 +24,7 @@ export default function CheckoutPage() {
   const [addressId, setAddressId] = useState("");
   const [manualAddress, setManualAddress] = useState(EMPTY_ADDRESS);
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     fetch("/api/v1/storefront/cart")
@@ -49,6 +50,43 @@ export default function CheckoutPage() {
   const selectedAddress = user ? addresses.find((a) => a.id === addressId) : null;
   const effectiveState = needsShipping ? (selectedAddress?.state || manualAddress.state) : "";
   const effectiveCity = needsShipping ? (selectedAddress?.city || manualAddress.city) : "";
+  const usesSavedAddress = !!user && addresses.length > 0;
+
+  const cleanManualAddress = () => ({
+    ...manualAddress,
+    fullName: manualAddress.fullName.trim(),
+    phone: manualAddress.phone.trim(),
+    line1: manualAddress.line1.trim(),
+    line2: manualAddress.line2.trim(),
+    city: manualAddress.city.trim(),
+    state: manualAddress.state.trim(),
+    country: manualAddress.country || "Nigeria",
+  });
+
+  const validateCheckout = () => {
+    const errors = {};
+    if (!user) {
+      const email = guestEmail.trim();
+      if (!email) errors.guestEmail = "Email is required";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.guestEmail = "Enter a valid email address";
+    }
+
+    if (needsShipping) {
+      if (usesSavedAddress) {
+        if (!addressId) errors.addressId = "Select a delivery address";
+      } else {
+        const address = cleanManualAddress();
+        if (!address.fullName) errors.fullName = "Full name is required";
+        if (!address.phone) errors.phone = "Phone number is required";
+        if (!address.line1) errors.line1 = "Address line is required";
+        if (!address.state) errors.state = "State is required";
+        if (!address.city) errors.city = "City/LGA is required";
+      }
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   // Refetches the cart's totals with the currently selected/entered
   // delivery address, so the shipping fee (and dependent Total) update
@@ -66,14 +104,18 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateCheckout()) {
+      toast.error("Please complete the highlighted checkout details");
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {};
-      if (!user) payload.guestEmail = guestEmail;
+      if (!user) payload.guestEmail = guestEmail.trim();
       if (note.trim()) payload.note = note.trim();
       if (needsShipping) {
-        if (user && addressId) payload.addressId = addressId;
-        else if (!user) payload.shippingAddress = manualAddress;
+        if (usesSavedAddress && addressId) payload.addressId = addressId;
+        else payload.shippingAddress = cleanManualAddress();
       }
 
       const res = await fetch("/api/v1/storefront/checkout", {
@@ -84,9 +126,14 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Checkout failed");
 
+      try {
+        new URL(data.authorizationUrl);
+      } catch {
+        throw new Error("The payment link returned by Paystack was invalid. Please try again.");
+      }
       window.location.href = data.authorizationUrl;
     } catch (err) {
       toast.error(err.message || "Checkout failed");
@@ -109,11 +156,11 @@ export default function CheckoutPage() {
     <div className="max-w-2xl mx-auto space-y-8">
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Checkout</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-8" noValidate>
         {!user && (
           <div className="space-y-3">
             <p className="text-xs font-medium text-slate-700 uppercase tracking-wide">Contact</p>
-            <Input label="Email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} required />
+            <Input label="Email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} error={fieldErrors.guestEmail} required />
             <p className="text-xs text-slate-700">
               Have an account?{" "}
               <Link href="/login?next=checkout" className="text-slate-900 underline underline-offset-2">Sign in</Link> for faster checkout.
@@ -131,19 +178,21 @@ export default function CheckoutPage() {
                 options={addresses.map((a) => ({ value: a.id, label: `${a.fullName}, ${a.line1}, ${a.city}` }))}
                 value={addressId}
                 onChange={setAddressId}
+                error={fieldErrors.addressId}
                 required
               />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input label="Full name" value={manualAddress.fullName} onChange={(e) => setManualAddress((a) => ({ ...a, fullName: e.target.value }))} required />
-                <Input label="Phone" value={manualAddress.phone} onChange={(e) => setManualAddress((a) => ({ ...a, phone: e.target.value }))} required />
-                <Input label="Address line 1" className="sm:col-span-2" value={manualAddress.line1} onChange={(e) => setManualAddress((a) => ({ ...a, line1: e.target.value }))} required />
+                <Input label="Full name" value={manualAddress.fullName} onChange={(e) => setManualAddress((a) => ({ ...a, fullName: e.target.value }))} error={fieldErrors.fullName} required />
+                <Input label="Phone" value={manualAddress.phone} onChange={(e) => setManualAddress((a) => ({ ...a, phone: e.target.value }))} error={fieldErrors.phone} required />
+                <Input label="Address line 1" className="sm:col-span-2" value={manualAddress.line1} onChange={(e) => setManualAddress((a) => ({ ...a, line1: e.target.value }))} error={fieldErrors.line1} required />
                 <Input label="Address line 2 (optional)" className="sm:col-span-2" value={manualAddress.line2} onChange={(e) => setManualAddress((a) => ({ ...a, line2: e.target.value }))} />
                 <Select
                   label="State"
                   options={NIGERIA_STATE_OPTIONS}
                   value={manualAddress.state}
                   onChange={(v) => setManualAddress((a) => ({ ...a, state: v, city: "" }))}
+                  error={fieldErrors.state}
                   required
                 />
                 <Select
@@ -152,6 +201,7 @@ export default function CheckoutPage() {
                   value={manualAddress.city}
                   onChange={(v) => setManualAddress((a) => ({ ...a, city: v }))}
                   disabled={!manualAddress.state}
+                  error={fieldErrors.city}
                   required
                 />
               </div>

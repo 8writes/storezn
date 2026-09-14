@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { addresses, orders, orderItems, platformSettings } from "../../../../../lib/db/schema.js";
+import { addresses, orders, orderItems, platformSettings, stores } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { resolveStoreByHost, isStoreLive } from "../../../../../lib/resolveStore.js";
@@ -8,7 +8,7 @@ import { validate, checkoutSchema } from "../../../../../lib/validate.js";
 import { resolveCart, getCartWithItems, computeCartTotals, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
 import { generateOrderNumber, computeOrderTotals } from "../../../../../lib/orders.js";
 import { resolveShippingFee } from "../../../../../lib/shipping.js";
-import { initializeTransaction } from "../../../../../lib/paystack.js";
+import { getSubAccount, initializeTransaction, isValidSubAccountCode } from "../../../../../lib/paystack.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { reserveStock, restockItems, resolveFulfillingBranch, OutOfStockError } from "../../../../../lib/inventory.js";
 import { buildRequestUrl } from "../../../../../lib/requestUrl.js";
@@ -17,6 +17,32 @@ import { buildRequestUrl } from "../../../../../lib/requestUrl.js";
 // with uq_orders_cart_pending (see lib/db/schema.js), i.e. this cart
 // already has a pending order from an earlier, still-unresolved request.
 const UNIQUE_VIOLATION = "23505";
+
+async function resolveCheckoutSubAccount(store) {
+  if (isValidSubAccountCode(store.subAccountCode)) return store.subAccountCode;
+
+  const lookupKey = store.subAccountId || store.subAccountCode;
+  if (!lookupKey) return null;
+
+  try {
+    const subAccount = await getSubAccount(lookupKey);
+    if (!isValidSubAccountCode(subAccount?.subaccount_code)) return null;
+
+    await db
+      .update(stores)
+      .set({ subAccountCode: subAccount.subaccount_code, subAccountId: subAccount.id, updatedAt: new Date() })
+      .where(eq(stores.id, store.id));
+    return subAccount.subaccount_code;
+  } catch (err) {
+    console.error("checkout: failed to repair Paystack sub-account", {
+      storeId: store.id,
+      subAccountId: store.subAccountId || null,
+      subAccountCode: store.subAccountCode || null,
+      error: err.message,
+    });
+    return null;
+  }
+}
 
 export async function POST(req) {
   const limit = checkRateLimit(req, "checkout", { max: 10, windowMs: 60_000 });
@@ -29,6 +55,10 @@ export async function POST(req) {
   if (!store || !isStoreLive(store)) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!store.subAccountCode) {
     return NextResponse.json({ error: "This store hasn't finished payment setup yet" }, { status: 400 });
+  }
+  const subAccountCode = await resolveCheckoutSubAccount(store);
+  if (!subAccountCode) {
+    return NextResponse.json({ error: "This store's payment setup needs attention. Please contact the seller to relink their payout account." }, { status: 400 });
   }
 
   const user = await getUser(req);
@@ -204,7 +234,7 @@ export async function POST(req) {
       name: customerName,
       reference: paymentReference,
       redirectUrl,
-      split: { subAccountCode: store.subAccountCode, amount: vendorPayoutAmount },
+      split: { subAccountCode, amount: vendorPayoutAmount },
     });
 
     return NextResponse.json({ authorizationUrl: paystackData.authorizationUrl, orderNumber });
