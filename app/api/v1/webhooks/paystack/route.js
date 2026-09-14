@@ -117,6 +117,10 @@ async function handleSubscriptionDisable(event) {
   await db.update(stores).set({ planCancelled: true }).where(eq(stores.paystackSubscriptionCode, code));
 }
 
+function orderNumberFromPaymentReference(reference) {
+  return reference?.match(/^STOREZN-(ORD-[0-9A-Z]+)(?:-[0-9A-Z]+)?$/)?.[1] || null;
+}
+
 // This is registered directly on Paystack only in local/single-product
 // dev. In production, website-ozmictech's shared webhook router receives
 // every Paystack event for the shared account (Paystack allows exactly
@@ -177,7 +181,13 @@ export async function POST(req) {
     return NextResponse.json({ received: true });
   }
 
-  const [order] = await db.select().from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+  let [order] = await db.select().from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+  if (!order) {
+    const orderNumber = orderNumberFromPaymentReference(paymentReference);
+    if (orderNumber) {
+      [order] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
+    }
+  }
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.paymentStatus === "paid") return NextResponse.json({ received: true });
 
@@ -225,7 +235,7 @@ export async function POST(req) {
     // firing a second "new order" push.
     const claimed = await tx
       .update(orders)
-      .set({ paymentStatus: "paid", status: "processing", paidAt: new Date(), updatedAt: new Date() })
+      .set({ paymentReference, paymentStatus: "paid", status: "processing", paidAt: new Date(), updatedAt: new Date() })
       .where(and(eq(orders.id, order.id), ne(orders.paymentStatus, "paid")))
       .returning({ id: orders.id });
     if (claimed.length === 0) return;
