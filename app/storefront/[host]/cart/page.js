@@ -1,26 +1,34 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Trash2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { formatCurrency } from "@/lib/format.js";
+import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 
 export default function CartPage() {
+  const { token, loading: authLoading } = useCustomerAuth();
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
-    fetch("/api/v1/storefront/cart")
+    fetch("/api/v1/storefront/cart", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then((res) => res.json())
       .then(setCart)
       .catch(() => toast.error("Could not load your cart"))
       .finally(() => setLoading(false));
-  };
+  }, [token]);
 
-  useEffect(load, []);
+  useEffect(() => {
+    if (authLoading) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load();
+  }, [authLoading, load]);
 
   const updateQuantity = async (itemId, quantity) => {
     if (quantity < 1) return;
@@ -28,7 +36,10 @@ export default function CartPage() {
     try {
       const res = await fetch(`/api/v1/storefront/cart/items/${itemId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ quantity }),
       });
       const data = await res.json();
@@ -45,7 +56,10 @@ export default function CartPage() {
   const removeItem = async (itemId) => {
     setBusyId(itemId);
     try {
-      const res = await fetch(`/api/v1/storefront/cart/items/${itemId}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/storefront/cart/items/${itemId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setCart(data);
@@ -57,7 +71,7 @@ export default function CartPage() {
     }
   };
 
-  if (loading) return <p className="text-center text-slate-700 py-20">Loading your cart…</p>;
+  if (loading || authLoading) return <p className="text-center text-slate-700 py-20">Loading your cart…</p>;
 
   if (!cart || cart.items.length === 0) {
     return (

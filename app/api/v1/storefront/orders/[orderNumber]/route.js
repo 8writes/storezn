@@ -8,8 +8,7 @@ import { verifyTransaction } from "../../../../../../lib/paystack.js";
 import { restockItems } from "../../../../../../lib/inventory.js";
 
 function paymentReferenceMatches(order, reference) {
-  if (!reference) return false;
-  return reference === order.paymentReference || reference.match(/^STOREZN-(ORD-[0-9A-Z]+)(?:-[0-9A-Z]+)?$/)?.[1] === order.orderNumber;
+  return !!reference && reference === order.paymentReference;
 }
 
 async function failAbandonedPayment(order) {
@@ -52,8 +51,10 @@ async function syncPendingPaymentStatus(order, reference) {
   };
 }
 
-// Guests prove ownership with the order number + the email they checked
-// out with; logged-in customers just need to own the order.
+// Guests prove ownership with the order number + checkout email, or the
+// exact Paystack reference returned to the browser. Do not accept a
+// reconstructable reference-shaped value from the order number alone.
+// Logged-in customers just need to own the order.
 export async function GET(req, { params }) {
   const { orderNumber } = await params;
   const host = req.headers.get("host") || "";

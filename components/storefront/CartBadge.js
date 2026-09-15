@@ -2,13 +2,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
+import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 
 export function CartBadge() {
+  const { token, loading } = useCustomerAuth();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    if (loading) return;
     const load = () => {
-      fetch("/api/v1/storefront/cart")
+      fetch("/api/v1/storefront/cart", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
         .then((res) => res.json())
         .then((data) => setCount(data.itemCount || 0))
         .catch(() => {});
@@ -16,7 +21,7 @@ export function CartBadge() {
     load();
     window.addEventListener("cart:updated", load);
     return () => window.removeEventListener("cart:updated", load);
-  }, []);
+  }, [loading, token]);
 
   return (
     <Link href="/cart" className="relative flex items-center">

@@ -7,7 +7,7 @@ import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../lib/format.js";
 import { sendPushToStore } from "../../../../../lib/push.js";
-import { LOW_STOCK_THRESHOLD, reserveStock, OutOfStockError } from "../../../../../lib/inventory.js";
+import { LOW_STOCK_THRESHOLD, reserveStock, restockItems, OutOfStockError } from "../../../../../lib/inventory.js";
 
 // Storezn+ subscription lifecycle - separate from the order-payment flow
 // below, see lib/storePlan.js's getEffectivePlan for how these fields
@@ -121,6 +121,23 @@ function orderNumberFromPaymentReference(reference) {
   return reference?.match(/^STOREZN-(ORD-[0-9A-Z]+)(?:-[0-9A-Z]+)?$/)?.[1] || null;
 }
 
+async function failPendingOrderAndReleaseStock(order) {
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+  await db.transaction(async (tx) => {
+    const failed = await tx
+      .update(orders)
+      .set({ paymentStatus: "failed", status: "abandoned", updatedAt: new Date() })
+      .where(and(eq(orders.id, order.id), eq(orders.paymentStatus, "pending")))
+      .returning({ id: orders.id });
+    if (failed.length === 0 || !order.branchId) return;
+
+    await restockItems(
+      tx,
+      items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, branchId: order.branchId })),
+    );
+  });
+}
+
 // This is registered directly on Paystack only in local/single-product
 // dev. In production, website-ozmictech's shared webhook router receives
 // every Paystack event for the shared account (Paystack allows exactly
@@ -203,7 +220,7 @@ export async function POST(req) {
     // Marking "failed" (not left "pending") also frees uq_orders_cart_
     // pending (lib/db/schema.js), so the same cart can be checked out
     // again right away instead of being stuck behind this dead order.
-    await db.update(orders).set({ paymentStatus: "failed", updatedAt: new Date() }).where(eq(orders.id, order.id));
+    await failPendingOrderAndReleaseStock(order);
     return NextResponse.json({ received: true });
   }
 
@@ -216,7 +233,7 @@ export async function POST(req) {
   // rounding, not a real underpayment.
   if (transaction.amountPaid < order.totalAmount - 0.5) {
     console.error(`Paystack webhook: amount mismatch on ${paymentReference} - paid ${transaction.amountPaid}, expected ${order.totalAmount}`);
-    await db.update(orders).set({ paymentStatus: "failed", updatedAt: new Date() }).where(eq(orders.id, order.id));
+    await failPendingOrderAndReleaseStock(order);
     return NextResponse.json({ received: true });
   }
 

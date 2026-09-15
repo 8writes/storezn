@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button.js";
 import { SizeGuideButton } from "@/components/storefront/SizeGuideButton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
+import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 
 const LOW_STOCK = 10;
 const norm = (v) => String(v ?? "").trim().toLowerCase();
@@ -30,6 +31,7 @@ export function AddToCartButton({
   allowStandardVariant = true,
   sizeGuide = null,
 }) {
+  const { token, loading: authLoading } = useCustomerAuth();
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState({});
   const [useBase, setUseBase] = useState(false);
@@ -113,13 +115,17 @@ export function AddToCartButton({
   const pickedSizeRow = sizeGroupName && selected[sizeGroupName] ? sizeRow(selected[sizeGroupName]) : null;
 
   const handleClick = async () => {
+    if (authLoading) return;
     setLoading(true);
     try {
       const body = { productId, quantity: 1 };
       if (matchedVariant) body.variantId = matchedVariant.id;
       const res = await fetch("/api/v1/storefront/cart", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => null);
@@ -144,7 +150,7 @@ export function AddToCartButton({
     ) : !inStock ? (
       <Button disabled fullWidth size="lg" variant="secondary">Out of stock</Button>
     ) : (
-      <Button onClick={handleClick} loading={loading} fullWidth size="lg">Add to cart</Button>
+      <Button onClick={handleClick} loading={loading || authLoading} fullWidth size="lg">Add to cart</Button>
     );
 
   return (

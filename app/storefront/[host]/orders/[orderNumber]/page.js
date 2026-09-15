@@ -27,6 +27,8 @@ export default function OrderConfirmationPage() {
     try {
       const params = new URLSearchParams();
       if (lookupEmail) params.set("email", lookupEmail);
+      const reference = searchParams.get("reference") || searchParams.get("trxref");
+      if (reference) params.set("reference", reference);
       const res = await fetch(`/api/v1/storefront/orders/${orderNumber}?${params}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -42,6 +44,7 @@ export default function OrderConfirmationPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (token || searchParams.get("email")) load(searchParams.get("email"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);

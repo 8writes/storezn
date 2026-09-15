@@ -33,19 +33,22 @@ export default function CheckoutPage() {
     if (state) params.set("state", state);
     if (city) params.set("city", city);
     const url = params.toString() ? `/api/v1/storefront/cart?${params}` : "/api/v1/storefront/cart";
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.error || "Could not load your cart");
     setCart(data);
     return data;
-  }, []);
+  }, [token]);
 
   useEffect(() => {
+    if (authLoading) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCart()
       .catch(() => toast.error("Could not load your cart"))
       .finally(() => setLoading(false));
-  }, [loadCart]);
+  }, [authLoading, loadCart]);
 
   useEffect(() => {
     if (!token) return;

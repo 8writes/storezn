@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import crypto from "node:crypto";
 import { db } from "../../../../../lib/db/index.js";
 import { addresses, orders, orderItems, platformSettings, stores } from "../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { resolveStoreByHost, isStoreLive } from "../../../../../lib/resolveStore.js";
 import { validate, checkoutSchema } from "../../../../../lib/validate.js";
-import { resolveCart, getCartWithItems, computeCartTotals, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
+import { resolveCart, getCartWithItems, computeCartTotals, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
 import { generateOrderNumber, computeOrderTotals } from "../../../../../lib/orders.js";
 import { resolveShippingFee } from "../../../../../lib/shipping.js";
 import { getSubAccount, initializeTransaction, isValidSubAccountCode } from "../../../../../lib/paystack.js";
@@ -14,13 +13,14 @@ import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { reserveStock, restockItems, resolveFulfillingBranch, OutOfStockError } from "../../../../../lib/inventory.js";
 import { buildRequestUrl } from "../../../../../lib/requestUrl.js";
 
-// Postgres' unique_violation code - thrown when the insert below collides
-// with uq_orders_cart_pending (see lib/db/schema.js), i.e. this cart
-// already has a pending order from an earlier, still-unresolved request.
+// Postgres' unique_violation code - thrown when two simultaneous checkout
+// POSTs race on uq_orders_cart_pending (see lib/db/schema.js). We no
+// longer resume/reuse old pending orders for payment; a fresh checkout
+// submit should price the current cart and create a fresh Paystack
+// session. A real race gets a retryable 409 instead of a reused link.
 const UNIQUE_VIOLATION = "23505";
 const CHECKOUT_LINK_TTL_MS = Number(process.env.PAYSTACK_CHECKOUT_LINK_TTL_MINUTES || 30) * 60 * 1000;
-const IN_FLIGHT_CHECKOUT_GRACE_MS = 15_000;
-const IN_FLIGHT_CHECKOUT_WAIT_MS = 5_000;
+const IN_FLIGHT_CHECKOUT_GRACE_MS = 30_000;
 
 function isPendingCartConflict(err) {
   for (let current = err; current; current = current.cause) {
@@ -68,50 +68,22 @@ function checkoutLinkExpiresAt() {
   return new Date(Date.now() + CHECKOUT_LINK_TTL_MS);
 }
 
-function hasFreshCheckoutLink(order) {
-  return !!order?.paymentAuthorizationUrl
-    && !!order?.paymentAuthorizationExpiresAt
-    && new Date(order.paymentAuthorizationExpiresAt).getTime() > Date.now();
-}
-
-function retryPaymentReference(orderNumber) {
-  return `STOREZN-${orderNumber}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-}
-
-async function findPendingOrderForCart(storeId, cartId) {
-  const [existing] = await db
-    .select()
+async function hasInFlightCheckout(cartId) {
+  const [pending] = await db
+    .select({
+      createdAt: orders.createdAt,
+      paymentAuthorizationUrl: orders.paymentAuthorizationUrl,
+    })
     .from(orders)
-    .where(and(eq(orders.storeId, storeId), eq(orders.cartId, cartId), eq(orders.paymentStatus, "pending")))
+    .where(and(eq(orders.cartId, cartId), eq(orders.paymentStatus, "pending")))
     .limit(1);
-  return existing || null;
+  if (!pending?.createdAt || pending.paymentAuthorizationUrl) return false;
+  return Date.now() - new Date(pending.createdAt).getTime() < IN_FLIGHT_CHECKOUT_GRACE_MS;
 }
 
-async function waitForCheckoutLink(orderId) {
-  const deadline = Date.now() + IN_FLIGHT_CHECKOUT_WAIT_MS;
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const [latest] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (hasFreshCheckoutLink(latest)) return latest;
-  }
-  return null;
-}
-
-async function startCheckoutPayment({ order, email, customerName, redirectUrl, subAccountCode, refreshReference = false }) {
-  const paymentReference = refreshReference ? retryPaymentReference(order.orderNumber) : order.paymentReference;
+async function startCheckoutPayment({ order, email, customerName, redirectUrl, subAccountCode }) {
+  const paymentReference = order.paymentReference;
   const expiresAt = checkoutLinkExpiresAt();
-
-  if (refreshReference) {
-    await db
-      .update(orders)
-      .set({
-        paymentReference,
-        paymentAuthorizationUrl: null,
-        paymentAuthorizationExpiresAt: null,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(orders.id, order.id), eq(orders.paymentStatus, "pending")));
-  }
 
   const paystackData = await initializeTransaction({
     amount: order.totalAmount,
@@ -134,40 +106,6 @@ async function startCheckoutPayment({ order, email, customerName, redirectUrl, s
     .where(and(eq(orders.id, order.id), eq(orders.paymentStatus, "pending")));
 
   return { authorizationUrl: paystackData.authorizationUrl, orderNumber: order.orderNumber };
-}
-
-async function resumePendingCheckout({ req, storeId, cartId, email, customerName, redirectUrl, subAccountCode }) {
-  const existing = await findPendingOrderForCart(storeId, cartId);
-  if (!existing) {
-    return NextResponse.json({ error: "This order is already being processed" }, { status: 409 });
-  }
-
-  if (hasFreshCheckoutLink(existing)) {
-    return NextResponse.json({ authorizationUrl: existing.paymentAuthorizationUrl, orderNumber: existing.orderNumber });
-  }
-
-  const ageMs = Date.now() - new Date(existing.createdAt).getTime();
-  if (!existing.paymentAuthorizationUrl && ageMs < IN_FLIGHT_CHECKOUT_GRACE_MS) {
-    const latest = await waitForCheckoutLink(existing.id);
-    if (latest) {
-      return NextResponse.json({ authorizationUrl: latest.paymentAuthorizationUrl, orderNumber: latest.orderNumber });
-    }
-    return NextResponse.json({ error: "Your payment link is still being prepared. Please try again in a moment." }, { status: 409 });
-  }
-
-  try {
-    const session = await startCheckoutPayment({
-      order: existing,
-      email: existing.guestEmail || email,
-      customerName: existing.shippingAddress?.fullName || customerName,
-      redirectUrl: buildRequestUrl(req, `/orders/${existing.orderNumber}`) || redirectUrl,
-      subAccountCode,
-      refreshReference: true,
-    });
-    return NextResponse.json(session);
-  } catch (err) {
-    return NextResponse.json({ error: err.message || "Could not refresh payment link" }, { status: 502 });
-  }
 }
 
 export async function POST(req) {
@@ -200,6 +138,11 @@ export async function POST(req) {
   }
 
   const cart = await resolveCart({ storeId: store.id, userId: user?.id, guestToken });
+  if (await hasInFlightCheckout(cart.id)) {
+    return NextResponse.json({ error: "Checkout is already being prepared. Please try again in a moment." }, { status: 409 });
+  }
+  await abandonPendingCheckoutForCart(cart.id);
+
   const items = await getCartWithItems(cart.id);
   if (items.length === 0) return NextResponse.json({ error: "Your cart is empty" }, { status: 400 });
 
@@ -339,7 +282,7 @@ export async function POST(req) {
       return NextResponse.json({ error: err.message }, { status: 409 });
     }
     if (isPendingCartConflict(err)) {
-      return resumePendingCheckout({ req, storeId: store.id, cartId: cart.id, email, customerName, redirectUrl, subAccountCode });
+      return NextResponse.json({ error: "Checkout is already being prepared. Please try again in a moment." }, { status: 409 });
     }
     throw err;
   }
