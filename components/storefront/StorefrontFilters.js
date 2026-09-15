@@ -215,7 +215,7 @@ function FilterModal({ categories, themed, initial, onApply, onClose }) {
 
           {categories.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Category</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Category</p>
               <Select
                 options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
                 value={category}
@@ -226,7 +226,7 @@ function FilterModal({ categories, themed, initial, onApply, onClose }) {
           )}
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Price range (₦)</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Price range (₦)</p>
             <div className="flex items-center gap-2">
               <PriceInput value={min} onChange={setMin} placeholder="Min" />
               <span className="text-slate-400">–</span>
@@ -235,7 +235,7 @@ function FilterModal({ categories, themed, initial, onApply, onClose }) {
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Sort by</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Sort by</p>
             <div className="grid grid-cols-1 gap-2">
               {SORT_OPTIONS.map((o) => (
                 <button
