@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { addresses, orders, orderItems, platformSettings, stores } from "../../../../../lib/db/schema.js";
+import { addresses, checkoutAttempts, platformSettings, stores } from "../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { resolveStoreByHost, isStoreLive } from "../../../../../lib/resolveStore.js";
@@ -14,7 +14,7 @@ import { reserveStock, restockItems, resolveFulfillingBranch, OutOfStockError } 
 import { buildRequestUrl } from "../../../../../lib/requestUrl.js";
 
 // Postgres' unique_violation code - thrown when two simultaneous checkout
-// POSTs race on uq_orders_cart_pending (see lib/db/schema.js). We no
+// POSTs race on uq_checkout_attempts_cart_pending (see lib/db/schema.js). We no
 // longer resume/reuse old pending orders for payment; a fresh checkout
 // submit should price the current cart and create a fresh Paystack
 // session. A real race gets a retryable 409 instead of a reused link.
@@ -29,6 +29,8 @@ function isPendingCartConflict(err) {
       && (
         current.constraint_name === "uq_orders_cart_pending"
         || current.constraint === "uq_orders_cart_pending"
+        || current.constraint_name === "uq_checkout_attempts_cart_pending"
+        || current.constraint === "uq_checkout_attempts_cart_pending"
         || current.detail?.includes("Key (cart_id)=")
       )
     ) {
@@ -71,41 +73,41 @@ function checkoutLinkExpiresAt() {
 async function hasInFlightCheckout(cartId) {
   const [pending] = await db
     .select({
-      createdAt: orders.createdAt,
-      paymentAuthorizationUrl: orders.paymentAuthorizationUrl,
+      createdAt: checkoutAttempts.createdAt,
+      paymentAuthorizationUrl: checkoutAttempts.paymentAuthorizationUrl,
     })
-    .from(orders)
-    .where(and(eq(orders.cartId, cartId), eq(orders.paymentStatus, "pending")))
+    .from(checkoutAttempts)
+    .where(and(eq(checkoutAttempts.cartId, cartId), eq(checkoutAttempts.paymentStatus, "pending")))
     .limit(1);
   if (!pending?.createdAt || pending.paymentAuthorizationUrl) return false;
   return Date.now() - new Date(pending.createdAt).getTime() < IN_FLIGHT_CHECKOUT_GRACE_MS;
 }
 
-async function startCheckoutPayment({ order, email, customerName, redirectUrl, subAccountCode }) {
-  const paymentReference = order.paymentReference;
+async function startCheckoutPayment({ attempt, email, customerName, redirectUrl, subAccountCode }) {
+  const paymentReference = attempt.paymentReference;
   const expiresAt = checkoutLinkExpiresAt();
 
   const paystackData = await initializeTransaction({
-    amount: order.totalAmount,
+    amount: attempt.totalAmount,
     email,
     name: customerName,
     reference: paymentReference,
     redirectUrl,
-    split: { subAccountCode, amount: order.vendorPayoutAmount },
+    split: { subAccountCode, amount: attempt.vendorPayoutAmount },
   });
   const confirmedReference = paystackData.reference || paymentReference;
 
   await db
-    .update(orders)
+    .update(checkoutAttempts)
     .set({
       paymentReference: confirmedReference,
       paymentAuthorizationUrl: paystackData.authorizationUrl,
       paymentAuthorizationExpiresAt: expiresAt,
       updatedAt: new Date(),
     })
-    .where(and(eq(orders.id, order.id), eq(orders.paymentStatus, "pending")));
+    .where(and(eq(checkoutAttempts.id, attempt.id), eq(checkoutAttempts.paymentStatus, "pending")));
 
-  return { authorizationUrl: paystackData.authorizationUrl, orderNumber: order.orderNumber };
+  return { authorizationUrl: paystackData.authorizationUrl, orderNumber: attempt.orderNumber };
 }
 
 export async function POST(req) {
@@ -213,10 +215,21 @@ export async function POST(req) {
     return NextResponse.json({ error: "Could not build payment return URL" }, { status: 500 });
   }
 
-  let order;
+  const attemptItems = items.map((i) => ({
+    productId: i.product.id,
+    variantId: i.variant?.id || null,
+    productName: i.product.name,
+    productImage: i.product.images?.[0] || null,
+    variantLabel: i.variant ? Object.entries(i.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ") : null,
+    unitPrice: i.unitPrice,
+    quantity: i.quantity,
+    lineTotal: i.lineTotal,
+  }));
+
+  let attempt;
   let branchId;
   try {
-    order = await db.transaction(async (tx) => {
+    attempt = await db.transaction(async (tx) => {
       // Buyers never pick a branch - resolve the first one that can
       // fulfill the whole cart (see resolveFulfillingBranch in
       // lib/inventory.js), then reserve against exactly that branch.
@@ -232,13 +245,12 @@ export async function POST(req) {
         items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, productName: i.product.name, branchId })),
       );
 
-      // uq_orders_cart_pending (lib/db/schema.js) is the actual
-      // idempotency guard - a double-click or client retry racing this
-      // same cart has its second insert collide with the first request's
-      // still-"pending" order and throw, instead of two orders getting
-      // created (and possibly two Paystack sessions paid) for one cart.
-      const [createdOrder] = await tx
-        .insert(orders)
+      // uq_checkout_attempts_cart_pending (lib/db/schema.js) is the
+      // idempotency guard for checkout creation. This is not an order yet:
+      // it is a reserved, priced payment attempt that can be abandoned
+      // without polluting order history.
+      const [createdAttempt] = await tx
+        .insert(checkoutAttempts)
         .values({
           storeId: store.id,
           branchId,
@@ -257,25 +269,12 @@ export async function POST(req) {
           feeChargedToCustomer,
           shippingAddress,
           note: note || null,
+          items: attemptItems,
           paymentReference,
         })
         .returning();
 
-      await tx.insert(orderItems).values(
-        items.map((i) => ({
-          orderId: createdOrder.id,
-          productId: i.product.id,
-          variantId: i.variant?.id || null,
-          productName: i.product.name,
-          productImage: i.product.images?.[0] || null,
-          variantLabel: i.variant ? Object.entries(i.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ") : null,
-          unitPrice: i.unitPrice,
-          quantity: i.quantity,
-          lineTotal: i.lineTotal,
-        })),
-      );
-
-      return createdOrder;
+      return createdAttempt;
     });
   } catch (err) {
     if (err instanceof OutOfStockError) {
@@ -295,7 +294,7 @@ export async function POST(req) {
     // main account as commission - we never hold or move the money
     // ourselves.
     const paymentSession = await startCheckoutPayment({
-      order,
+      attempt,
       email,
       customerName,
       redirectUrl,
@@ -304,21 +303,18 @@ export async function POST(req) {
 
     return NextResponse.json(paymentSession);
   } catch (err) {
-    // Order was already created with stock reserved for it (see the
-    // transaction above) - unlike before, there IS something to roll
-    // back now that Paystack init failed, so release the reservation
-    // immediately instead of leaving it locked up until the 1-hour stale
-    // sweep (lib/failStaleTransactions.js) eventually gets to it.
-    // Marking the order "failed" (not just restocking) also frees
-    // uq_orders_cart_pending, so the same cart can be checked out again
-    // immediately instead of being stuck behind this dead order for up
-    // to an hour.
+    // The attempt reserved stock before Paystack initialization. If
+    // Paystack fails before handing us a usable link, release that stock
+    // immediately and fail the attempt so the cart can retry.
     await db.transaction(async (tx) => {
       await restockItems(
         tx,
         items.map((i) => ({ productId: i.product.id, variantId: i.variant?.id || null, quantity: i.quantity, branchId })),
       );
-      await tx.update(orders).set({ paymentStatus: "failed", updatedAt: new Date() }).where(eq(orders.id, order.id));
+      await tx
+        .update(checkoutAttempts)
+        .set({ paymentStatus: "failed", updatedAt: new Date() })
+        .where(eq(checkoutAttempts.id, attempt.id));
     });
     return NextResponse.json({ error: err.message || "Could not start payment" }, { status: 502 });
   }

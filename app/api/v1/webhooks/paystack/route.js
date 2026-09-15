@@ -8,6 +8,7 @@ import { escapeHtml } from "../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../lib/format.js";
 import { sendPushToStore } from "../../../../../lib/push.js";
 import { LOW_STOCK_THRESHOLD, reserveStock, restockItems, OutOfStockError } from "../../../../../lib/inventory.js";
+import { findCheckoutAttemptByReference, finalizePaidCheckoutAttempt, failCheckoutAttemptAndReleaseStock } from "../../../../../lib/checkoutAttempts.js";
 
 // Storezn+ subscription lifecycle - separate from the order-payment flow
 // below, see lib/storePlan.js's getEffectivePlan for how these fields
@@ -195,6 +196,69 @@ export async function POST(req) {
   // charges, never a regular storefront order).
   if (event.data?.plan) {
     await handleSubscriptionRenewal(event);
+    return NextResponse.json({ received: true });
+  }
+
+  const attempt = await findCheckoutAttemptByReference(paymentReference);
+  if (attempt) {
+    if (attempt.paymentStatus === "paid" && attempt.orderId) return NextResponse.json({ received: true });
+
+    const transaction = await verifyTransaction(paymentReference);
+    if (transaction.paymentStatus !== "PAID") {
+      await failCheckoutAttemptAndReleaseStock(attempt);
+      return NextResponse.json({ received: true });
+    }
+    if (transaction.amountPaid < attempt.totalAmount - 0.5) {
+      console.error(`Paystack webhook: amount mismatch on ${paymentReference} - paid ${transaction.amountPaid}, expected ${attempt.totalAmount}`);
+      await failCheckoutAttemptAndReleaseStock(attempt);
+      return NextResponse.json({ received: true });
+    }
+
+    const finalized = await finalizePaidCheckoutAttempt({
+      attempt,
+      paymentReference,
+      paidAt: event.data?.paid_at ? new Date(event.data.paid_at) : new Date(),
+    });
+    if (!finalized?.created || !finalized.order) return NextResponse.json({ received: true });
+
+    const order = finalized.order;
+    const items = finalized.items;
+    const [store] = await db
+      .select({ name: stores.name, ownerId: stores.ownerId })
+      .from(stores)
+      .where(eq(stores.id, order.storeId))
+      .limit(1);
+
+    if (store?.ownerId) {
+      sendPushToStore(order.storeId, {
+        title: "New order",
+        body: `Order ${order.orderNumber} for ${formatCurrency(order.totalAmount)} just came in.`,
+        url: "/vendor/orders",
+      }).catch((err) => console.error("sendPushToStore failed (new order):", err));
+    }
+
+    let recipient = { email: order.guestEmail, notify: true };
+    if (order.userId) {
+      const [customer] = await db
+        .select({ email: customers.email, notify: customers.emailNotificationsEnabled })
+        .from(customers)
+        .where(eq(customers.id, order.userId))
+        .limit(1);
+      if (customer) recipient = { email: customer.email, notify: customer.notify };
+    }
+
+    if (recipient.email && recipient.notify) {
+      const itemsHtml = items
+        .map((i) => `<tr><td>${escapeHtml(i.productName)}${i.variantLabel ? ` (${escapeHtml(i.variantLabel)})` : ""}</td><td>${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`)
+        .join("");
+      await sendMail({
+        to: recipient.email,
+        subject: `Order confirmation - ${order.orderNumber}`,
+        html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${escapeHtml(store?.name) || "the store"} has been received.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
+        fromName: store?.name,
+      }).catch((err) => console.error("sendMail failed (order confirmation):", err));
+    }
+
     return NextResponse.json({ received: true });
   }
 
