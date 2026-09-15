@@ -7,10 +7,12 @@ import { and, desc, eq } from "drizzle-orm";
 import { validate, loginSchema } from "../../../../../lib/validate.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveStore.js";
-import { GUEST_CART_COOKIE, findCartItem } from "../../../../../lib/cart.js";
+import { GUEST_CART_COOKIE, abandonPendingCheckoutForCart, findCartItem } from "../../../../../lib/cart.js";
 import { readDevice } from "../../../../../lib/device.js";
 import { isDeviceBanned } from "../../../../../lib/deviceBan.js";
 import { recordDeviceUse } from "../../../../../lib/deviceLog.js";
+import { logAppError } from "../../../../../lib/appErrorLog.js";
+import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 
 // A fresh Response per call - a module-level NextResponse would be a
 // single-use body stream shared across concurrent requests, so the
@@ -32,7 +34,7 @@ const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 10);
 // with everything else (see lib/db/schema.js's users/staff/customers
 // split). Vendor signup issues its own tokens directly; this is the only
 // place staff/customer tokens get minted.
-export async function POST(req) {
+async function handlePost(req) {
   try {
     return await handleLogin(req);
   } catch (err) {
@@ -41,12 +43,15 @@ export async function POST(req) {
     // "try again" instead of choking on an HTML 500 and showing
     // "something went wrong".
     console.error("login failed:", err);
+    await logAppError(err, { req, source: "auth.login", statusCode: 503 });
     return NextResponse.json(
       { error: "We couldn't sign you in right now. Please try again in a moment." },
       { status: 503 },
     );
   }
 }
+
+export const POST = withApiMonitoring(handlePost, { source: "auth.login" });
 
 async function handleLogin(req) {
   const body = await req.json().catch(() => null);
@@ -174,8 +179,10 @@ async function handleLogin(req) {
           .where(and(eq(carts.storeId, store.id), eq(carts.userId, account.id), eq(carts.status, "active")))
           .limit(1);
         if (!userCart) {
+          await abandonPendingCheckoutForCart(guestCart.id);
           await db.update(carts).set({ userId: account.id, guestToken: null, updatedAt: new Date() }).where(eq(carts.id, guestCart.id));
         } else {
+          await Promise.all([abandonPendingCheckoutForCart(guestCart.id), abandonPendingCheckoutForCart(userCart.id)]);
           const guestItems = await db.select().from(cartItems).where(eq(cartItems.cartId, guestCart.id));
           for (const item of guestItems) {
             const existing = await findCartItem(userCart.id, item.productId, item.variantId);
@@ -192,6 +199,13 @@ async function handleLogin(req) {
     }
   } catch (err) {
     console.error("Guest cart handoff failed (login):", err);
+    await logAppError(err, {
+      req,
+      user: { id: account.id, role: "customer", storeId: store.id },
+      source: "auth.login_cart_handoff",
+      storeId: store.id,
+      metadata: { customerId: account.id },
+    });
   }
 
   const res = NextResponse.json({ token, user: { ...safeAccount, role: "customer" } });

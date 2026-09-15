@@ -8,6 +8,7 @@ import { validate, addCartItemSchema } from "../../../../../lib/validate.js";
 import { resolveCart, getCartWithItems, computeCartTotals, findCartItem, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
 import { computeOrderTotals } from "../../../../../lib/orders.js";
 import { resolveShippingFee } from "../../../../../lib/shipping.js";
+import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 
 function withGuestTokenCookie(res, guestToken, isNewToken) {
   if (isNewToken) {
@@ -26,7 +27,7 @@ async function loadStoreForRequest(req) {
   return resolveStoreByHost(host);
 }
 
-export async function GET(req) {
+async function handleGet(req) {
   const store = await loadStoreForRequest(req);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
@@ -78,7 +79,7 @@ async function computeDisplayFees(store, subtotal, shippingFee) {
   return { feeChargedToCustomer, platformFee: feeChargedToCustomer ? commissionAmount + flatFeeAmount : 0, total: totalAmount };
 }
 
-export async function POST(req) {
+async function handlePost(req) {
   const store = await loadStoreForRequest(req);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
@@ -149,3 +150,6 @@ export async function POST(req) {
   const res = NextResponse.json({ cartId: cart.id, items, ...totals }, { status: 201 });
   return withGuestTokenCookie(res, guestToken, !user && !existingToken);
 }
+
+export const GET = withApiMonitoring(handleGet, { source: "storefront.cart.get" });
+export const POST = withApiMonitoring(handlePost, { source: "storefront.cart.add" });

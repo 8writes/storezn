@@ -12,6 +12,8 @@ import { getSubAccount, initializeTransaction, isValidSubAccountCode } from "../
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { reserveStock, restockItems, resolveFulfillingBranch, OutOfStockError } from "../../../../../lib/inventory.js";
 import { buildRequestUrl } from "../../../../../lib/requestUrl.js";
+import { logAppError } from "../../../../../lib/appErrorLog.js";
+import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 
 // Postgres' unique_violation code - thrown when two simultaneous checkout
 // POSTs race on uq_checkout_attempts_cart_pending (see lib/db/schema.js). We no
@@ -62,6 +64,11 @@ async function resolveCheckoutSubAccount(store) {
       subAccountCode: store.subAccountCode || null,
       error: err.message,
     });
+    await logAppError(err, {
+      source: "checkout.subaccount_repair",
+      storeId: store.id,
+      metadata: { subAccountId: store.subAccountId || null, hasSubAccountCode: !!store.subAccountCode },
+    });
     return null;
   }
 }
@@ -110,7 +117,7 @@ async function startCheckoutPayment({ attempt, email, customerName, redirectUrl,
   return { authorizationUrl: paystackData.authorizationUrl, orderNumber: attempt.orderNumber };
 }
 
-export async function POST(req) {
+async function handlePost(req) {
   const limit = checkRateLimit(req, "checkout", { max: 10, windowMs: 60_000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
@@ -283,6 +290,13 @@ export async function POST(req) {
     if (isPendingCartConflict(err)) {
       return NextResponse.json({ error: "Checkout is already being prepared. Please try again in a moment." }, { status: 409 });
     }
+    await logAppError(err, {
+      req,
+      user,
+      source: "checkout.create_attempt",
+      storeId: store.id,
+      metadata: { cartId: cart.id, orderNumber, itemCount: items.length },
+    });
     throw err;
   }
 
@@ -316,6 +330,16 @@ export async function POST(req) {
         .set({ paymentStatus: "failed", updatedAt: new Date() })
         .where(eq(checkoutAttempts.id, attempt.id));
     });
+    await logAppError(err, {
+      req,
+      user,
+      source: "checkout.initialize_payment",
+      statusCode: 502,
+      storeId: store.id,
+      metadata: { checkoutAttemptId: attempt.id, cartId: cart.id, orderNumber, totalAmount },
+    });
     return NextResponse.json({ error: err.message || "Could not start payment" }, { status: 502 });
   }
 }
+
+export const POST = withApiMonitoring(handlePost, { source: "storefront.checkout" });

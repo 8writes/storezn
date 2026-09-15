@@ -6,6 +6,9 @@ import { eq } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { initializeTransaction } from "../../../../../../../lib/paystack.js";
 import { isPlusStore, isEnterpriseStore } from "../../../../../../../lib/storePlan.js";
+import { buildRequestUrl, getRequestOrigin } from "../../../../../../../lib/requestUrl.js";
+import { logAppError } from "../../../../../../../lib/appErrorLog.js";
+import { withApiMonitoring } from "../../../../../../../lib/apiMonitoring.js";
 
 const nanoid = customAlphabet("0123456789ABCDEFGHJKLMNPQRSTUVWXYZ", 12);
 
@@ -14,12 +17,28 @@ async function loadStore(storeId) {
   return store;
 }
 
+function resolveSubscriptionRedirectUrl(req, requestedUrl) {
+  const fallbackUrl = buildRequestUrl(req, "/vendor/plus");
+  if (!fallbackUrl || !requestedUrl) return fallbackUrl;
+
+  const requestOrigin = getRequestOrigin(req);
+  if (!requestOrigin) return fallbackUrl;
+
+  try {
+    const resolvedUrl = new URL(requestedUrl, requestOrigin);
+    if (resolvedUrl.origin !== requestOrigin) return fallbackUrl;
+    return resolvedUrl.toString();
+  } catch {
+    return fallbackUrl;
+  }
+}
+
 // Starts (or restarts, if planCancelled) a Storezn+ subscription -
 // owner-only, same as the payout account (isStoreOwner, not
 // canManageStore). The subscription itself doesn't get created until
 // Paystack confirms the first charge (see the "STOREZNSUB-" branch of
 // POST /api/v1/webhooks/paystack) - this just kicks off that payment.
-export async function POST(req, { params }) {
+async function handlePost(req, { params }) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -52,18 +71,29 @@ export async function POST(req, { params }) {
   // together so they always match.
   const amount = store.subscriptionPriceOverride ?? settings.plusMonthlyPrice;
   const planCode = store.paystackPlanCodeOverride ?? settings.paystackPlanCode;
+  const redirectUrl = resolveSubscriptionRedirectUrl(req, body.redirectUrl);
 
   try {
     const { authorizationUrl } = await initializeTransaction({
       amount,
       email: owner.email,
       reference,
-      redirectUrl: body.redirectUrl,
+      redirectUrl,
       plan: planCode,
       metadata: { storeId },
     });
     return NextResponse.json({ authorizationUrl });
   } catch (err) {
+    await logAppError(err, {
+      req,
+      user,
+      source: "subscription.initialize_payment",
+      statusCode: 502,
+      storeId,
+      metadata: { reference, amount, planCode },
+    });
     return NextResponse.json({ error: err.message || "Failed to start subscription" }, { status: 502 });
   }
 }
+
+export const POST = withApiMonitoring(handlePost, { source: "vendor.subscription.start" });

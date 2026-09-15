@@ -6,8 +6,10 @@ import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, linkPayoutAccountSchema } from "../../../../../../../lib/validate.js";
 import { getBanks, ensureSubAccount } from "../../../../../../../lib/paystack.js";
 import { sendPushToRole } from "../../../../../../../lib/push.js";
+import { logAppError } from "../../../../../../../lib/appErrorLog.js";
+import { withApiMonitoring } from "../../../../../../../lib/apiMonitoring.js";
 
-export async function GET(req, { params }) {
+async function handleGet(req, { params }) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -20,6 +22,7 @@ export async function GET(req, { params }) {
     const banks = await getBanks();
     return NextResponse.json({ banks });
   } catch (err) {
+    await logAppError(err, { req, user, source: "payout_account.banks", statusCode: 502, storeId });
     return NextResponse.json({ error: err.message || "Could not load bank list" }, { status: 502 });
   }
 }
@@ -31,7 +34,7 @@ export async function GET(req, { params }) {
 // checkout (see lib/paystack.js's initializeTransaction) sends the exact
 // vendorPayoutAmount computed per order, so a later commission rate
 // change never requires touching the sub-account itself.
-export async function POST(req, { params }) {
+async function handlePost(req, { params }) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -89,12 +92,23 @@ export async function POST(req, { params }) {
     // fail the vendor's request, so this is fire-and-forget.
     sendPushToRole("super_admin", {
       title: "New payout account linked",
-      body: `${updated.name} linked ${bankName || bankCode} •••${accountNumber.slice(-4)} (${subAccount.accountName})`,
+      body: `${updated.name} linked ***${accountNumber.slice(-4)} at ${bankName || bankCode} (${subAccount.accountName})`,
       url: `/super-admin/stores/${storeId}`,
     }).catch((err) => console.error("payout-account: admin push failed", err));
 
     return NextResponse.json({ store: updated });
   } catch (err) {
+    await logAppError(err, {
+      req,
+      user,
+      source: "payout_account.link",
+      statusCode: 502,
+      storeId,
+      metadata: { bankCode, accountLast4: accountNumber.slice(-4) },
+    });
     return NextResponse.json({ error: err.message || "Could not verify that account" }, { status: 502 });
   }
 }
+
+export const GET = withApiMonitoring(handleGet, { source: "vendor.payout_account.banks" });
+export const POST = withApiMonitoring(handlePost, { source: "vendor.payout_account.link" });

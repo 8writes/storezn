@@ -9,6 +9,8 @@ import { formatCurrency } from "../../../../../lib/format.js";
 import { sendPushToStore } from "../../../../../lib/push.js";
 import { LOW_STOCK_THRESHOLD, reserveStock, restockItems, OutOfStockError } from "../../../../../lib/inventory.js";
 import { findCheckoutAttemptByReference, finalizePaidCheckoutAttempt, failCheckoutAttemptAndReleaseStock } from "../../../../../lib/checkoutAttempts.js";
+import { logAppError } from "../../../../../lib/appErrorLog.js";
+import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 
 // Storezn+ subscription lifecycle - separate from the order-payment flow
 // below, see lib/storePlan.js's getEffectivePlan for how these fields
@@ -151,7 +153,7 @@ async function failPendingOrderAndReleaseStock(order) {
 // client-side redirect back to redirectUrl, which a user can hit without
 // having paid. Verifies both the webhook signature AND re-checks the
 // transaction status directly with Paystack before trusting it.
-export async function POST(req) {
+async function handlePost(req) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-paystack-signature");
 
@@ -169,6 +171,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  try {
   if (event.event === "subscription.create") {
     await handleSubscriptionCreate(event);
     return NextResponse.json({ received: true });
@@ -210,6 +213,13 @@ export async function POST(req) {
     }
     if (transaction.amountPaid < attempt.totalAmount - 0.5) {
       console.error(`Paystack webhook: amount mismatch on ${paymentReference} - paid ${transaction.amountPaid}, expected ${attempt.totalAmount}`);
+      await logAppError(new Error("Paystack amount mismatch for checkout attempt"), {
+        req,
+        source: "paystack.amount_mismatch",
+        level: "warn",
+        storeId: attempt.storeId,
+        metadata: { paymentReference, amountPaid: transaction.amountPaid, expectedAmount: attempt.totalAmount, checkoutAttemptId: attempt.id },
+      });
       await failCheckoutAttemptAndReleaseStock(attempt);
       return NextResponse.json({ received: true });
     }
@@ -297,6 +307,13 @@ export async function POST(req) {
   // rounding, not a real underpayment.
   if (transaction.amountPaid < order.totalAmount - 0.5) {
     console.error(`Paystack webhook: amount mismatch on ${paymentReference} - paid ${transaction.amountPaid}, expected ${order.totalAmount}`);
+    await logAppError(new Error("Paystack amount mismatch for legacy order"), {
+      req,
+      source: "paystack.amount_mismatch",
+      level: "warn",
+      storeId: order.storeId,
+      metadata: { paymentReference, amountPaid: transaction.amountPaid, expectedAmount: order.totalAmount, orderId: order.id },
+    });
     await failPendingOrderAndReleaseStock(order);
     return NextResponse.json({ received: true });
   }
@@ -392,6 +409,13 @@ export async function POST(req) {
 
   if (oversold) {
     console.error(`Paystack webhook: order ${order.orderNumber} confirmed paid but could not re-reserve stock - needs manual attention`);
+    await logAppError(new Error("Paid order could not re-reserve stock"), {
+      req,
+      source: "paystack.oversold_paid_order",
+      level: "warn",
+      storeId: order.storeId,
+      metadata: { orderId: order.id, orderNumber: order.orderNumber, paymentReference },
+    });
     sendPushToStore(order.storeId, {
       title: "Stock issue on a paid order",
       body: `Order ${order.orderNumber} was confirmed paid, but its stock is no longer available - check it before fulfilling.`,
@@ -450,4 +474,14 @@ export async function POST(req) {
   }
 
   return NextResponse.json({ received: true });
+  } catch (err) {
+    await logAppError(err, {
+      req,
+      source: "paystack.webhook",
+      metadata: { event: event?.event || null, reference: event?.data?.reference || null },
+    });
+    throw err;
+  }
 }
+
+export const POST = withApiMonitoring(handlePost, { source: "paystack.webhook" });

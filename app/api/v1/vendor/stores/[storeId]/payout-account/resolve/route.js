@@ -4,12 +4,14 @@ import { stores } from "../../../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../../lib/auth.js";
 import { resolveAccountName } from "../../../../../../../../lib/paystack.js";
+import { logAppError } from "../../../../../../../../lib/appErrorLog.js";
+import { withApiMonitoring } from "../../../../../../../../lib/apiMonitoring.js";
 
 // Name-only lookup, called live as the vendor types (see the payouts
 // page) so they can see who they're actually about to link before
 // committing - unlike POST /payout-account, this never creates or
 // touches a Paystack sub-account, it's read-only.
-export async function POST(req, { params }) {
+async function handlePost(req, { params }) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -29,6 +31,16 @@ export async function POST(req, { params }) {
     const { accountName } = await resolveAccountName({ accountNumber, bankCode });
     return NextResponse.json({ accountName });
   } catch (err) {
+    await logAppError(err, {
+      req,
+      user,
+      source: "payout_account.resolve",
+      statusCode: 400,
+      storeId,
+      metadata: { bankCode, accountLast4: String(accountNumber).slice(-4) },
+    });
     return NextResponse.json({ error: err.message || "Could not resolve account name" }, { status: 400 });
   }
 }
+
+export const POST = withApiMonitoring(handlePost, { source: "vendor.payout_account.resolve" });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { pushSubscriptions } from "../../../../../lib/db/schema.js";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { validate, pushSubscribeSchema } from "../../../../../lib/validate.js";
 
@@ -56,6 +56,7 @@ export async function DELETE(req) {
   const endpoint = body?.endpoint;
   if (!endpoint) return NextResponse.json({ error: "endpoint is required" }, { status: 400 });
 
-  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+  const column = pushSubscriptions[columnForRole(user.role)];
+  await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.endpoint, endpoint), eq(column, user.id)));
   return NextResponse.json({ ok: true });
 }

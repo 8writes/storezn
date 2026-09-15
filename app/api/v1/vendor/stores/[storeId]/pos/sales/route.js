@@ -10,6 +10,8 @@ import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
 import { validateTenders } from "@/lib/pos.js";
 import { posContext, loadSession, loadSessionAny, openSessionForRegister } from "@/lib/posAccess.js";
+import { logAppError } from "@/lib/appErrorLog.js";
+import { withApiMonitoring } from "@/lib/apiMonitoring.js";
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -17,7 +19,7 @@ const UNIQUE_VIOLATION = "23505";
 // register's branch, insert the order (channel "pos", paid + delivered
 // immediately), its lines, its tenders, and the cash-drawer movement for
 // the cash portion. Idempotent on `idempotencyKey` via paymentReference.
-export async function POST(req, { params }) {
+async function handlePost(req, { params }) {
   const { storeId } = await params;
   const ctx = await posContext(req, storeId);
   if (ctx.error) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
@@ -73,10 +75,14 @@ export async function POST(req, { params }) {
 
   // Idempotent replay - the sale already went through on an earlier
   // attempt with this key.
-  const [existing] = await db.select().from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+  const [existing] = await db.select().from(orders).where(and(eq(orders.paymentReference, paymentReference), eq(orders.storeId, storeId))).limit(1);
   if (existing) {
     const lines = await db.select().from(orderItems).where(eq(orderItems.orderId, existing.id));
     return NextResponse.json({ order: existing, items: lines, orderNumber: existing.orderNumber, replayed: true });
+  }
+  const [foreignReference] = await db.select({ id: orders.id }).from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+  if (foreignReference) {
+    return NextResponse.json({ error: "That sale reference has already been used" }, { status: 409 });
   }
 
   // Price overrides and any markdown are owner-only until the P2 manager
@@ -331,11 +337,11 @@ export async function POST(req, { params }) {
           branchId,
           action: anyOverride ? "pos.sale.adjusted" : "pos.sale",
           summary:
-            `Rang up ${formatKobo(totalKobo)} · ${itemCount} item${itemCount === 1 ? "" : "s"} · ${payLabel}` +
-            (changeKobo > 0 ? ` · ${formatKobo(changeKobo)} cash change from drawer` : "") +
-            (discountAmountKobo > 0 ? ` · ${formatKobo(discountAmountKobo)} off` : "") +
-            (resolved.some((r) => r.overridden) ? " · price overridden" : "") +
-            (settleSessionId !== data.sessionId ? " · synced to current shift" : ""),
+            `Rang up ${formatKobo(totalKobo)} - ${itemCount} item${itemCount === 1 ? "" : "s"} - ${payLabel}` +
+            (changeKobo > 0 ? ` - ${formatKobo(changeKobo)} cash change from drawer` : "") +
+            (discountAmountKobo > 0 ? ` - ${formatKobo(discountAmountKobo)} off` : "") +
+            (resolved.some((r) => r.overridden) ? " - price overridden" : "") +
+            (settleSessionId !== data.sessionId ? " - synced to current shift" : ""),
           targetType: "order",
           targetId: created.id,
           metadata: {
@@ -357,18 +363,31 @@ export async function POST(req, { params }) {
       }
       if (err?.code === UNIQUE_VIOLATION) {
         // Idempotent replay that raced this request in.
-        const [dupe] = await db.select().from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+        const [dupe] = await db.select().from(orders).where(and(eq(orders.paymentReference, paymentReference), eq(orders.storeId, storeId))).limit(1);
         if (dupe) {
           const lines = await db.select().from(orderItems).where(eq(orderItems.orderId, dupe.id));
           return NextResponse.json({ order: dupe, items: lines, orderNumber: dupe.orderNumber, replayed: true });
+        }
+        const [foreignDupe] = await db.select({ id: orders.id }).from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+        if (foreignDupe) {
+          return NextResponse.json({ error: "That sale reference has already been used" }, { status: 409 });
         }
         // Otherwise an orderNumber collision - regenerate and retry once.
         orderNumber = generateOrderNumber();
         continue;
       }
+      await logAppError(err, {
+        req,
+        user,
+        source: "pos.sale",
+        storeId,
+        metadata: { sessionId: data.sessionId, paymentReference, itemCount: data.items.length, totalKobo },
+      });
       throw err;
     }
   }
 
   return NextResponse.json({ error: "Could not complete the sale, try again" }, { status: 500 });
 }
+
+export const POST = withApiMonitoring(handlePost, { source: "vendor.pos.sale" });

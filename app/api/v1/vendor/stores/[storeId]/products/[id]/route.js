@@ -112,10 +112,10 @@ export async function PATCH(req, { params }) {
   // Audit the changes an owner cares about (price, cost, availability,
   // stock) - not every photo reorder.
   const bits = [];
-  if (result.data.price != null && Number(result.data.price) !== product.price) bits.push(`price ${money(product.price)} → ${money(result.data.price)}`);
-  if ("costPrice" in result.data && (result.data.costPrice ?? null) !== (product.costPrice ?? null)) bits.push(`cost ${money(product.costPrice)} → ${money(result.data.costPrice)}`);
+  if (result.data.price != null && Number(result.data.price) !== product.price) bits.push(`price ${money(product.price)} -> ${money(result.data.price)}`);
+  if ("costPrice" in result.data && (result.data.costPrice ?? null) !== (product.costPrice ?? null)) bits.push(`cost ${money(product.costPrice)} -> ${money(result.data.costPrice)}`);
   if (result.data.isActive != null && result.data.isActive !== product.isActive) bits.push(result.data.isActive ? "set live" : "archived");
-  if (stock !== undefined && stock !== product.stock) bits.push(`stock ${product.stock ?? "∞"} → ${stock}`);
+  if (stock !== undefined && stock !== product.stock) bits.push(`stock ${product.stock ?? "unlimited"} -> ${stock}`);
   if (bits.length) {
     after(() =>
       logStoreActivity({

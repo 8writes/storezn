@@ -123,8 +123,8 @@ export async function PATCH(req, { params }) {
   const named = toApply.map((c) => ({ ...c, name: nameById.get(c.productId) }));
   const setLabel = (c) =>
     c.addStock != null
-      ? `${c.name} +${c.addStock} → ${c.newStock}`
-      : `${c.name} → ${c.stock === null ? "not stocked" : c.stock}`;
+      ? `${c.name} +${c.addStock} -> ${c.newStock}`
+      : `${c.name} -> ${c.stock === null ? "not stocked" : c.stock}`;
 
   after(() =>
     logStoreActivity({

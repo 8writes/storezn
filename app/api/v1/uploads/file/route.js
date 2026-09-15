@@ -7,6 +7,8 @@ import { stores, platformSettings } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getStorageLimitBytes } from "../../../../../lib/storePlan.js";
 import { recordStoreUpload, getStoreStorageUsage, removeStoreUpload } from "../../../../../lib/storeUploads.js";
+import { logAppError } from "../../../../../lib/appErrorLog.js";
+import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 // A 30s cap is enforced client-side only (see the product forms' duration
@@ -25,7 +27,7 @@ const MAX_SIZE_BY_PURPOSE = {
   "store-favicon": 8 * 1024 * 1024,
 };
 
-export async function POST(req) {
+async function handlePost(req) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -96,6 +98,14 @@ export async function POST(req) {
     await recordStoreUpload({ storeId: storeIdForUser, url, sizeBytes: file.size, purpose });
     return NextResponse.json({ url });
   } catch (err) {
+    await logAppError(err, {
+      req,
+      user,
+      source: "uploads.file",
+      statusCode: 502,
+      storeId: storeIdForUser,
+      metadata: { purpose, fileType: file.type, fileSize: file.size },
+    });
     return NextResponse.json({ error: `Upload failed: ${err.message}` }, { status: 502 });
   }
 }
@@ -109,7 +119,7 @@ export async function POST(req) {
 // attaches its own cleanup to the save/delete that actually removes the
 // reference (store logo/favicon PATCH, product image PATCH/DELETE) - this
 // route only exists for the case where nothing ever referenced the file.
-export async function DELETE(req) {
+async function handleDelete(req) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -128,3 +138,6 @@ export async function DELETE(req) {
   await Promise.all([deletePublicFile(url), removeStoreUpload(url)]);
   return NextResponse.json({ ok: true });
 }
+
+export const POST = withApiMonitoring(handlePost, { source: "uploads.file.create" });
+export const DELETE = withApiMonitoring(handleDelete, { source: "uploads.file.delete" });
