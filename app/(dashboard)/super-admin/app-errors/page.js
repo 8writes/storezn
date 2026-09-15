@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, RefreshCw, RotateCcw, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle2, RefreshCw, RotateCcw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -32,6 +32,7 @@ export default function SuperAdminAppErrorsPage() {
   const [level, setLevel] = useState("all");
   const [resolved, setResolved] = useState("false");
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ page: String(page), pageSize: "20" });
@@ -79,6 +80,20 @@ export default function SuperAdminAppErrorsPage() {
     }
   };
 
+  const clearOld = async () => {
+    if (!window.confirm("Delete application error logs older than 1 hour?")) return;
+    setClearing(true);
+    try {
+      const data = await apiFetch("/api/v1/super-admin/app-errors", { method: "DELETE" });
+      toast.success(`Deleted ${data.deleted || 0} old error log${data.deleted === 1 ? "" : "s"}`);
+      await load();
+    } catch (err) {
+      toast.error(err.message || "Could not clear old errors");
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -86,15 +101,26 @@ export default function SuperAdminAppErrorsPage() {
           <h1 className="text-xl font-bold text-slate-900">Application errors</h1>
           <p className="text-sm text-slate-500 mt-1">Server-side failures captured from checkout, payments, auth, uploads, and admin flows.</p>
         </div>
-        <button
-          type="button"
-          onClick={load}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-sm border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={clearOld}
+            disabled={clearing}
+            className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-sm border border-red-200 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            <Trash2 size={16} />
+            Clear old
+          </button>
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-sm border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

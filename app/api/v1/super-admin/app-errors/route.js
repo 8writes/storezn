@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, lt, or, sql } from "drizzle-orm";
 import { db } from "../../../../../lib/db/index.js";
 import { appErrorLogs } from "../../../../../lib/db/schema.js";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
@@ -77,4 +77,17 @@ export async function PATCH(req) {
 
   if (!updated) return NextResponse.json({ error: "Error log not found" }, { status: 404 });
   return NextResponse.json({ error: updated });
+}
+
+export async function DELETE(req) {
+  const user = await getUser(req);
+  if (!requireRole(user, ["super_admin", "admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000);
+  const deleted = await db
+    .delete(appErrorLogs)
+    .where(lt(appErrorLogs.createdAt, cutoff))
+    .returning({ id: appErrorLogs.id });
+
+  return NextResponse.json({ deleted: deleted.length, cutoff });
 }

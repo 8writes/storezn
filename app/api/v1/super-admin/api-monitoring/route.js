@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, count, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lt, or, sql } from "drizzle-orm";
 import { db } from "../../../../../lib/db/index.js";
 import { apiRequestLogs } from "../../../../../lib/db/schema.js";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
@@ -75,4 +75,17 @@ export async function GET(req) {
     slowRoutes,
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });
+}
+
+export async function DELETE(req) {
+  const user = await getUser(req);
+  if (!requireRole(user, ["super_admin", "admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000);
+  const deleted = await db
+    .delete(apiRequestLogs)
+    .where(lt(apiRequestLogs.createdAt, cutoff))
+    .returning({ id: apiRequestLogs.id });
+
+  return NextResponse.json({ deleted: deleted.length, cutoff });
 }
