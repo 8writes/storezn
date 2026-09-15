@@ -121,11 +121,12 @@ async function startCheckoutPayment({ order, email, customerName, redirectUrl, s
     redirectUrl,
     split: { subAccountCode, amount: order.vendorPayoutAmount },
   });
+  const confirmedReference = paystackData.reference || paymentReference;
 
   await db
     .update(orders)
     .set({
-      paymentReference,
+      paymentReference: confirmedReference,
       paymentAuthorizationUrl: paystackData.authorizationUrl,
       paymentAuthorizationExpiresAt: expiresAt,
       updatedAt: new Date(),
@@ -178,9 +179,6 @@ export async function POST(req) {
   const host = req.headers.get("host") || "";
   const store = await resolveStoreByHost(host);
   if (!store || !isStoreLive(store)) return NextResponse.json({ error: "Store not found" }, { status: 404 });
-  if (!store.subAccountCode) {
-    return NextResponse.json({ error: "This store hasn't finished payment setup yet" }, { status: 400 });
-  }
   const subAccountCode = await resolveCheckoutSubAccount(store);
   if (!subAccountCode) {
     return NextResponse.json({ error: "This store's payment setup needs attention. Please contact the seller to relink their payout account." }, { status: 400 });

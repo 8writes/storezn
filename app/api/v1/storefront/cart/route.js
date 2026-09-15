@@ -5,7 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { validate, addCartItemSchema } from "../../../../../lib/validate.js";
-import { resolveCart, getCartWithItems, computeCartTotals, findCartItem, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
+import { resolveCart, getCartWithItems, computeCartTotals, findCartItem, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
 import { computeOrderTotals } from "../../../../../lib/orders.js";
 import { resolveShippingFee } from "../../../../../lib/shipping.js";
 
@@ -121,6 +121,7 @@ export async function POST(req) {
   const guestToken = user ? null : existingToken || crypto.randomUUID();
 
   const cart = await resolveCart({ storeId: store.id, userId: user?.id, guestToken });
+  await abandonPendingCheckoutForCart(cart.id);
 
   const existingItem = await findCartItem(cart.id, productId, variant?.id || null);
 

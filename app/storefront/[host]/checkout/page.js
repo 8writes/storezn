@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Lock } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/format.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
 
 const EMPTY_ADDRESS = { fullName: "", phone: "", line1: "", line2: "", city: "", state: "", country: "Nigeria" };
+const MANUAL_ADDRESS_ID = "__manual__";
 
 export default function CheckoutPage() {
   const { user, token, loading: authLoading } = useCustomerAuth();
@@ -27,13 +28,24 @@ export default function CheckoutPage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const submitLockRef = useRef(false);
 
+  const loadCart = useCallback(async ({ state = "", city = "" } = {}) => {
+    const params = new URLSearchParams();
+    if (state) params.set("state", state);
+    if (city) params.set("city", city);
+    const url = params.toString() ? `/api/v1/storefront/cart?${params}` : "/api/v1/storefront/cart";
+    const res = await fetch(url);
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || "Could not load your cart");
+    setCart(data);
+    return data;
+  }, []);
+
   useEffect(() => {
-    fetch("/api/v1/storefront/cart")
-      .then((res) => res.json())
-      .then(setCart)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadCart()
       .catch(() => toast.error("Could not load your cart"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [loadCart]);
 
   useEffect(() => {
     if (!token) return;
@@ -48,10 +60,10 @@ export default function CheckoutPage() {
   }, [token]);
 
   const needsShipping = cart?.items?.some((i) => i.product.productType === "physical");
-  const selectedAddress = user ? addresses.find((a) => a.id === addressId) : null;
+  const usesSavedAddress = !!user && addresses.length > 0 && addressId !== MANUAL_ADDRESS_ID;
+  const selectedAddress = usesSavedAddress ? addresses.find((a) => a.id === addressId) : null;
   const effectiveState = needsShipping ? (selectedAddress?.state || manualAddress.state) : "";
   const effectiveCity = needsShipping ? (selectedAddress?.city || manualAddress.city) : "";
-  const usesSavedAddress = !!user && addresses.length > 0;
 
   const cleanManualAddress = () => ({
     ...manualAddress,
@@ -95,13 +107,10 @@ export default function CheckoutPage() {
   // GET /api/v1/storefront/cart's ?state=&city= handling.
   useEffect(() => {
     if (!needsShipping || !effectiveState) return;
-    const params = new URLSearchParams({ state: effectiveState });
-    if (effectiveCity) params.set("city", effectiveCity);
-    fetch(`/api/v1/storefront/cart?${params}`)
-      .then((res) => res.json())
-      .then(setCart)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadCart({ state: effectiveState, city: effectiveCity })
       .catch(() => {});
-  }, [needsShipping, effectiveState, effectiveCity]);
+  }, [loadCart, needsShipping, effectiveState, effectiveCity]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -131,7 +140,12 @@ export default function CheckoutPage() {
       });
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Checkout failed");
+      if (!res.ok) {
+        if (res.status === 409) {
+          await loadCart({ state: effectiveState, city: effectiveCity }).catch(() => null);
+        }
+        throw new Error(data.error || "Checkout failed");
+      }
 
       try {
         new URL(data.authorizationUrl);
@@ -180,13 +194,18 @@ export default function CheckoutPage() {
             {user && addresses.length > 0 ? (
               <Select
                 label="Deliver to"
-                options={addresses.map((a) => ({ value: a.id, label: `${a.fullName}, ${a.line1}, ${a.city}` }))}
+                options={[
+                  ...addresses.map((a) => ({ value: a.id, label: `${a.fullName}, ${a.line1}, ${a.city}` })),
+                  { value: MANUAL_ADDRESS_ID, label: "Use a new address" },
+                ]}
                 value={addressId}
                 onChange={setAddressId}
                 error={fieldErrors.addressId}
                 required
               />
-            ) : (
+            ) : null}
+
+            {!usesSavedAddress && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Full name" value={manualAddress.fullName} onChange={(e) => setManualAddress((a) => ({ ...a, fullName: e.target.value }))} error={fieldErrors.fullName} required />
                 <Input label="Phone" value={manualAddress.phone} onChange={(e) => setManualAddress((a) => ({ ...a, phone: e.target.value }))} error={fieldErrors.phone} required />

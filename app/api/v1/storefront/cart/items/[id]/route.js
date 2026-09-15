@@ -4,7 +4,7 @@ import { cartItems, carts, products, productVariants } from "../../../../../../.
 import { and, eq } from "drizzle-orm";
 import { getUser } from "../../../../../../../lib/auth.js";
 import { validate, updateCartItemSchema } from "../../../../../../../lib/validate.js";
-import { getCartWithItems, computeCartTotals, GUEST_CART_COOKIE } from "../../../../../../../lib/cart.js";
+import { getCartWithItems, computeCartTotals, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../../../lib/cart.js";
 
 // Confirms the cart item belongs to the requester's own cart (by user id
 // or guest token) before allowing it to be touched - otherwise someone
@@ -22,7 +22,7 @@ async function loadOwnedItem(req, itemId) {
     .limit(1);
   if (!row) return null;
 
-  const owns = user ? row.cart.userId === user.id : row.cart.guestToken === guestToken;
+  const owns = row.cart.status === "active" && (user ? row.cart.userId === user.id : row.cart.guestToken === guestToken);
   return owns ? row : null;
 }
 
@@ -36,6 +36,8 @@ export async function PATCH(req, { params }) {
 
   const result = validate(updateCartItemSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+
+  await abandonPendingCheckoutForCart(owned.cart.id);
 
   // Friendly pre-check only (same reasoning as the add-to-cart route) -
   // the real, race-safe limit is enforced at checkout via reserveStock.
@@ -59,6 +61,7 @@ export async function DELETE(req, { params }) {
   const owned = await loadOwnedItem(req, id);
   if (!owned) return NextResponse.json({ error: "Cart item not found" }, { status: 404 });
 
+  await abandonPendingCheckoutForCart(owned.cart.id);
   await db.delete(cartItems).where(eq(cartItems.id, id));
 
   const items = await getCartWithItems(owned.cart.id);
