@@ -60,7 +60,7 @@ export default async function Home() {
     <div className="min-h-screen flex flex-col bg-white overflow-x-clip">
       <MarketingHeader />
 
-      {/* ---------------------------------------------------------------- Hero */}
+      {/* ------------ Hero */}
       <section className="relative px-4 sm:px-6 pt-16 sm:pt-24 pb-20 sm:pb-28">
         <div
           className="absolute inset-0 -z-10"
