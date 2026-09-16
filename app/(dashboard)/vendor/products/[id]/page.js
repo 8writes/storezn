@@ -119,7 +119,10 @@ export default function VendorProductViewPage({ params }) {
       {product.suspendedAt && (
         <div className="bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
           <p className="font-medium">Suspended by admin</p>
-          <p>{product.suspendedReason || "No reason given."} It won&apos;t show on your storefront until an admin lifts the suspension.</p>
+          <p>
+            {product.suspendedReason || "No reason given."} It won&apos;t show
+            on your storefront until an admin lifts the suspension.
+          </p>
         </div>
       )}
 
@@ -127,30 +130,50 @@ export default function VendorProductViewPage({ params }) {
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold text-slate-900">{product.name}</h1>
-            <Badge color={product.isActive ? "green" : "slate"}>{product.isActive ? "Live" : "Archived"}</Badge>
+            <Badge color={product.isActive ? "green" : "slate"}>
+              {product.isActive ? "Live" : "Archived"}
+            </Badge>
             {product.suspendedAt && <Badge color="red">Suspended</Badge>}
           </div>
-          {product.sku && <p className="text-xs text-slate-700 mt-1">SKU: {product.sku}</p>}
+          {product.sku && (
+            <p className="text-xs text-slate-700 mt-1">SKU: {product.sku}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 md:flex items-center justify-end gap-2 w-full sm:w-auto">
           <Link href={`/vendor/products/${id}/history?storeId=${storeId}`}>
-            <Button type="button" variant="outline" size="sm">
+            <Button type="button" variant="outline" size="sm" fullWidth={true}>
               <History size={14} />
               History
             </Button>
           </Link>
           <Link href={`/vendor/products/${id}/edit?storeId=${storeId}`}>
-            <Button type="button" variant="outline" size="sm">
+            <Button type="button" variant="outline" size="sm" fullWidth={true}>
               <Pencil size={14} />
               Edit
             </Button>
           </Link>
-          <Button type="button" variant="outline" size="sm" onClick={handleArchiveToggle} loading={archiving}>
-            {product.isActive ? <Archive size={14} /> : <ArchiveRestore size={14} />}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleArchiveToggle}
+            loading={archiving}
+          >
+            {product.isActive ? (
+              <Archive size={14} />
+            ) : (
+              <ArchiveRestore size={14} />
+            )}
             {product.isActive ? "Archive" : "Unarchive"}
           </Button>
-          <Button type="button" variant="danger" size="sm" onClick={handleDelete} loading={deleting}>
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            onClick={handleDelete}
+            loading={deleting}
+          >
             <Trash2 size={14} />
             Delete
           </Button>
@@ -161,9 +184,15 @@ export default function VendorProductViewPage({ params }) {
         <div className="space-y-3">
           <div className="aspect-square bg-slate-100 rounded-sm overflow-hidden border border-slate-200">
             {product.images?.[activeImage] ? (
-              <img src={product.images[activeImage]} alt={product.name} className="w-full h-full object-cover" />
+              <img
+                src={product.images[activeImage]}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-slate-300 text-sm">No photos</div>
+              <div className="w-full h-full flex items-center justify-center text-slate-300 text-sm">
+                No photos
+              </div>
             )}
           </div>
           {product.images?.length > 1 && (
@@ -175,7 +204,11 @@ export default function VendorProductViewPage({ params }) {
                   onClick={() => setActiveImage(i)}
                   className={`w-14 h-14 rounded-sm overflow-hidden border-2 cursor-pointer shrink-0 ${i === activeImage ? "border-brand-500" : "border-transparent"}`}
                 >
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -184,78 +217,112 @@ export default function VendorProductViewPage({ params }) {
 
         <div className="space-y-4">
           <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
-            <p className="text-2xl font-bold text-slate-900">{formatCurrency(product.price)}</p>
+            <p className="text-2xl font-bold text-slate-900">
+              {formatCurrency(product.price)}
+            </p>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <dt className="text-slate-700">Type</dt>
-              <dd className="text-slate-700 capitalize">{product.productType}</dd>
+              <dd className="text-slate-700 capitalize">
+                {product.productType}
+              </dd>
               {product.productType === "physical" && (
                 <>
                   <dt className="text-slate-700">Condition</dt>
-                  <dd className="text-slate-700">{formatCondition(product.condition)}</dd>
+                  <dd className="text-slate-700">
+                    {formatCondition(product.condition)}
+                  </dd>
                   <dt className="text-slate-700">Stock</dt>
-                  <dd className="text-slate-700">{product.stock ?? "Unlimited"}</dd>
+                  <dd className="text-slate-700">
+                    {product.stock ?? "Unlimited"}
+                  </dd>
                 </>
               )}
               <dt className="text-slate-700">Category</dt>
               <dd className="text-slate-700">{category?.name || "None"}</dd>
               <dt className="text-slate-700">Sold</dt>
-              <dd className="text-slate-700">{product.unitsSold} unit{product.unitsSold === 1 ? "" : "s"}</dd>
+              <dd className="text-slate-700">
+                {product.unitsSold} unit{product.unitsSold === 1 ? "" : "s"}
+              </dd>
               {product.costPrice != null && (
                 <>
                   <dt className="text-slate-700">Cost price</dt>
-                  <dd className="text-slate-700">{formatCurrency(product.costPrice)}</dd>
+                  <dd className="text-slate-700">
+                    {formatCurrency(product.costPrice)}
+                  </dd>
                   <dt className="text-slate-700">Margin</dt>
                   <dd className="text-slate-700">
                     {formatCurrency(product.price - product.costPrice)}
-                    {product.price > 0 && ` (${Math.round(((product.price - product.costPrice) / product.price) * 100)}%)`}
+                    {product.price > 0 &&
+                      ` (${Math.round(((product.price - product.costPrice) / product.price) * 100)}%)`}
                   </dd>
                 </>
               )}
             </dl>
-            {Array.isArray(product.priceTiers) && product.priceTiers.length > 0 && (
-              <div className="border-t border-slate-100 pt-3">
-                <p className="text-xs font-medium text-slate-700 mb-1.5">Wholesale / bundle pricing</p>
-                <ul className="space-y-1 text-sm text-slate-700">
-                  {[...product.priceTiers]
-                    .sort((a, b) => (a.bundleQty ?? 0) - (b.bundleQty ?? 0))
-                    .map((t, i) => (
-                      <li key={i}>
-                        Bundle of {t.bundleQty} → {formatCurrency(t.unitPrice)} each
-                      </li>
-                    ))}
-                </ul>
-                <p className="text-[11px] text-slate-800 mt-1.5">
-                  Whole bundles use the bundle price; any extra units are charged the normal price.
-                </p>
-              </div>
-            )}
+            {Array.isArray(product.priceTiers) &&
+              product.priceTiers.length > 0 && (
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="text-xs font-medium text-slate-700 mb-1.5">
+                    Wholesale / bundle pricing
+                  </p>
+                  <ul className="space-y-1 text-sm text-slate-700">
+                    {[...product.priceTiers]
+                      .sort((a, b) => (a.bundleQty ?? 0) - (b.bundleQty ?? 0))
+                      .map((t, i) => (
+                        <li key={i}>
+                          Bundle of {t.bundleQty} →{" "}
+                          {formatCurrency(t.unitPrice)} each
+                        </li>
+                      ))}
+                  </ul>
+                  <p className="text-[11px] text-slate-800 mt-1.5">
+                    Whole bundles use the bundle price; any extra units are
+                    charged the normal price.
+                  </p>
+                </div>
+              )}
           </div>
 
           {product.description && (
             <div className="bg-surface border border-slate-200 rounded-sm p-5">
-              <p className="text-sm font-medium text-slate-700 mb-1.5">Description</p>
-              <p className="text-sm text-slate-700 whitespace-pre-line">{product.description}</p>
+              <p className="text-sm font-medium text-slate-700 mb-1.5">
+                Description
+              </p>
+              <p className="text-sm text-slate-700 whitespace-pre-line">
+                {product.description}
+              </p>
             </div>
           )}
 
           {product.sizeGuide?.columns?.length > 0 && (
             <div className="bg-surface border border-slate-200 rounded-sm p-5">
-              <p className="text-sm font-medium text-slate-700 mb-3">Size guide</p>
+              <p className="text-sm font-medium text-slate-700 mb-3">
+                Size guide
+              </p>
               <SizeGuideTable guide={product.sizeGuide} />
             </div>
           )}
 
           {variants.length > 0 && (
             <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-2">
-              <p className="text-sm font-medium text-slate-700">Variants ({variants.length})</p>
+              <p className="text-sm font-medium text-slate-700">
+                Variants ({variants.length})
+              </p>
               <div className="divide-y divide-slate-100">
                 {variants.slice(0, visibleVariants).map((v) => (
-                  <div key={v.id} className="flex items-center justify-between py-2 text-sm">
+                  <div
+                    key={v.id}
+                    className="flex items-center justify-between py-2 text-sm"
+                  >
                     <span className="text-slate-700">
-                      {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
+                      {Object.entries(v.options)
+                        .map(([k, val]) => `${k}: ${val}`)
+                        .join(", ")}
                     </span>
                     <span className="text-slate-800">
-                      {v.price != null ? formatCurrency(v.price) : "uses product price"} · {v.stock != null ? `${v.stock} in stock` : "no limit"}
+                      {v.price != null
+                        ? formatCurrency(v.price)
+                        : "uses product price"}{" "}
+                      · {v.stock != null ? `${v.stock} in stock` : "no limit"}
                     </span>
                   </div>
                 ))}
@@ -266,7 +333,9 @@ export default function VendorProductViewPage({ params }) {
                   onClick={() => setVisibleVariants((n) => n + VARIANT_PAGE)}
                   className="text-xs font-medium text-brand-600 hover:underline cursor-pointer"
                 >
-                  Show {Math.min(VARIANT_PAGE, variants.length - visibleVariants)} more ({variants.length - visibleVariants} hidden)
+                  Show{" "}
+                  {Math.min(VARIANT_PAGE, variants.length - visibleVariants)}{" "}
+                  more ({variants.length - visibleVariants} hidden)
                 </button>
               )}
             </div>
@@ -274,14 +343,20 @@ export default function VendorProductViewPage({ params }) {
 
           {branchStock && branchStock.totalBranches > 1 && (
             <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
-              <p className="text-sm font-medium text-slate-700">Stock by branch</p>
+              <p className="text-sm font-medium text-slate-700">
+                Stock by branch
+              </p>
               <BranchStockList label={null} rows={branchStock.productStock} />
               {variants.slice(0, visibleVariants).map((v) => (
                 <div key={v.id} className="pt-3 border-t border-slate-100">
                   <p className="text-xs font-medium text-slate-800 uppercase tracking-wide mb-1.5">
-                    {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
+                    {Object.entries(v.options)
+                      .map(([k, val]) => `${k}: ${val}`)
+                      .join(", ")}
                   </p>
-                  <BranchStockList rows={branchStock.variantStock[v.id] || []} />
+                  <BranchStockList
+                    rows={branchStock.variantStock[v.id] || []}
+                  />
                 </div>
               ))}
               {variants.length > visibleVariants && (
@@ -290,7 +365,9 @@ export default function VendorProductViewPage({ params }) {
                   onClick={() => setVisibleVariants((n) => n + VARIANT_PAGE)}
                   className="text-xs font-medium text-brand-600 hover:underline cursor-pointer"
                 >
-                  Show {Math.min(VARIANT_PAGE, variants.length - visibleVariants)} more ({variants.length - visibleVariants} hidden)
+                  Show{" "}
+                  {Math.min(VARIANT_PAGE, variants.length - visibleVariants)}{" "}
+                  more ({variants.length - visibleVariants} hidden)
                 </button>
               )}
             </div>
