@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../../lib/db/index.js";
 import { products, productVariants, stores, branches, productBranchStock } from "../../../../../../../../../lib/db/schema.js";
 import { and, eq, isNull } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../../lib/auth.js";
 import { setBranchStock } from "../../../../../../../../../lib/inventory.js";
+import { logStoreActivity } from "../../../../../../../../../lib/storeActivity.js";
 
 async function loadOwnedProduct(user, storeId, productId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -80,7 +81,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [branch] = await db.select({ id: branches.id }).from(branches).where(and(eq(branches.id, branchId), eq(branches.storeId, storeId))).limit(1);
+  const [branch] = await db.select({ id: branches.id, name: branches.name }).from(branches).where(and(eq(branches.id, branchId), eq(branches.storeId, storeId))).limit(1);
   if (!branch) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
 
   if (variantId) {
@@ -88,7 +89,16 @@ export async function PATCH(req, { params }) {
     if (!variant) return NextResponse.json({ error: "Variant not found" }, { status: 404 });
   }
 
+  const [before] = await db.select({ stock: productBranchStock.stock }).from(productBranchStock)
+    .where(and(eq(productBranchStock.productId, id), eq(productBranchStock.branchId, branchId),
+      variantId ? eq(productBranchStock.variantId, variantId) : isNull(productBranchStock.variantId))).limit(1);
   await db.transaction((tx) => setBranchStock(tx, { productId: id, variantId: variantId || null, branchId, stock }));
+  after(() => logStoreActivity({
+    storeId, actor: user, branchId, action: "stock.adjust", targetType: "product", targetId: id,
+    summary: `${product.name}: ${branch.name} stock ${before?.stock ?? "unlimited"} -> ${stock ?? "unlimited"}`,
+    metadata: { productName: product.name, branchName: branch.name, variantId: variantId || null,
+      before: before?.stock ?? null, after: stock },
+  }));
 
   return NextResponse.json({ ok: true });
 }

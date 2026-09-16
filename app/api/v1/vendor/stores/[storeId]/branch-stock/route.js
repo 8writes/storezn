@@ -110,6 +110,11 @@ export async function PATCH(req, { params }) {
   const toApply = clean.filter((c) => nameById.has(c.productId));
   if (toApply.length === 0) return NextResponse.json({ error: "No matching products" }, { status: 404 });
 
+  const beforeRows = await db.select({ productId: productBranchStock.productId, stock: productBranchStock.stock })
+    .from(productBranchStock).where(and(eq(productBranchStock.branchId, target.id),
+      isNull(productBranchStock.variantId), inArray(productBranchStock.productId, toApply.map((item) => item.productId))));
+  const beforeById = new Map(beforeRows.map((row) => [row.productId, row.stock]));
+
   await db.transaction(async (tx) => {
     for (const c of toApply) {
       if (c.addStock != null) {
@@ -139,11 +144,18 @@ export async function PATCH(req, { params }) {
               .slice(0, 4)
               .map(setLabel)
               .join(", ")}${named.length > 4 ? `, +${named.length - 4} more` : ""}`,
-      targetType: named.length === 1 ? "product" : "branch",
-      targetId: named.length === 1 ? named[0].productId : target.id,
+      targetType: "branch",
+      targetId: target.id,
       metadata: { branchName: target.name, count: named.length, updates: named.slice(0, 50) },
     }),
   );
+  after(() => Promise.all(named.map((item) => logStoreActivity({
+    storeId, actor: user, branchId: target.id, action: "stock.adjust",
+    summary: `${item.name}: ${target.name} stock ${beforeById.get(item.productId) ?? "unlimited"} -> ${item.newStock ?? item.stock ?? "unlimited"}`,
+    targetType: "product", targetId: item.productId,
+    metadata: { branchName: target.name, before: beforeById.get(item.productId) ?? null,
+      after: item.newStock ?? item.stock ?? null, delta: item.addStock ?? null },
+  }))));
 
   return NextResponse.json({ updated: toApply.length, branchId: target.id });
 }

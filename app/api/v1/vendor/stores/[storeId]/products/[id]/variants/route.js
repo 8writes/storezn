@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../../lib/db/index.js";
 import { products, productVariants, stores, branches } from "../../../../../../../../../lib/db/schema.js";
 import { and, eq, inArray } from "drizzle-orm";
@@ -6,6 +6,7 @@ import { getUser, canManageStore } from "../../../../../../../../../lib/auth.js"
 import { validate, createVariantSchema } from "../../../../../../../../../lib/validate.js";
 import { seedBranchStockForNewItem } from "../../../../../../../../../lib/inventory.js";
 import { deleteVariants, VariantOrderedError } from "../../../../../../../../../lib/variants.js";
+import { logStoreActivity } from "@/lib/storeActivity.js";
 
 async function loadOwnedProduct(user, storeId, productId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -47,6 +48,11 @@ export async function POST(req, { params }) {
     }
     return variant;
   });
+  after(() => logStoreActivity({
+    storeId, actor: user, action: "product.variant.create", targetType: "product", targetId: id,
+    summary: `${product.name}: added variant ${Object.values(created.options || {}).join(" / ") || created.id}`,
+    metadata: { variantId: created.id, options: created.options, price: created.price, stock: created.stock },
+  }));
   return NextResponse.json({ variant: created }, { status: 201 });
 }
 
@@ -74,6 +80,11 @@ export async function DELETE(req, { params }) {
 
   try {
     const deleted = await deleteVariants(ownedIds);
+    after(() => logStoreActivity({
+      storeId, actor: user, action: "product.variant.delete", targetType: "product", targetId: id,
+      summary: `${product.name}: deleted ${deleted} variant${deleted === 1 ? "" : "s"}`,
+      metadata: { variantIds: ownedIds },
+    }));
     return NextResponse.json({ deleted });
   } catch (err) {
     if (err instanceof VariantOrderedError) return NextResponse.json({ error: err.message }, { status: 409 });

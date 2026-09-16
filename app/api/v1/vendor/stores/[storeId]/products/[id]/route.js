@@ -109,23 +109,33 @@ export async function PATCH(req, { params }) {
     Promise.all([deletePublicFile(product.videoUrl), removeStoreUpload(product.videoUrl)]).catch(() => {});
   }
 
-  // Audit the changes an owner cares about (price, cost, availability,
-  // stock) - not every photo reorder.
+  // Preserve a complete field-level audit. Large media arrays are recorded
+  // as changed fields without copying signed URLs into the activity log.
+  const changedFields = Object.keys(result.data).filter((key) => {
+    if (key === "stock") return stock !== product.stock;
+    return JSON.stringify(result.data[key] ?? null) !== JSON.stringify(product[key] ?? null);
+  });
   const bits = [];
   if (result.data.price != null && Number(result.data.price) !== product.price) bits.push(`price ${money(product.price)} -> ${money(result.data.price)}`);
   if ("costPrice" in result.data && (result.data.costPrice ?? null) !== (product.costPrice ?? null)) bits.push(`cost ${money(product.costPrice)} -> ${money(result.data.costPrice)}`);
   if (result.data.isActive != null && result.data.isActive !== product.isActive) bits.push(result.data.isActive ? "set live" : "archived");
   if (stock !== undefined && stock !== product.stock) bits.push(`stock ${product.stock ?? "unlimited"} -> ${stock}`);
-  if (bits.length) {
+  if (changedFields.length) {
     after(() =>
       logStoreActivity({
         storeId,
         actor: user,
         action: "product.update",
-        summary: `${product.name}: ${bits.join(", ")}`,
+        summary: bits.length ? `${product.name}: ${bits.join(", ")}` : `${product.name}: updated ${changedFields.join(", ")}`,
         targetType: "product",
         targetId: id,
-        metadata: { name: product.name, changes: bits },
+        metadata: {
+          name: product.name,
+          changes: bits,
+          changedFields,
+          before: Object.fromEntries(changedFields.filter((key) => !["images", "videoUrl"].includes(key)).map((key) => [key, product[key] ?? null])),
+          after: Object.fromEntries(changedFields.filter((key) => !["images", "videoUrl"].includes(key)).map((key) => [key, result.data[key] ?? null])),
+        },
       }),
     );
   }

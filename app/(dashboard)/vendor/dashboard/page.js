@@ -197,6 +197,7 @@ export default function VendorDashboardPage() {
     // this guard, the fetch fires with no Authorization header the instant
     // storeId is already truthy, before token catches up.
     if (!token || !storeId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStatsLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}/stats`)
       .then(setStats)
@@ -411,6 +412,18 @@ export default function VendorDashboardPage() {
             </Alert>
           )}
 
+          {!statsLoading && stats?.products?.oversold > 0 && (
+            <Alert tone="danger" icon={AlertTriangle} title={`${stats.products.oversold} oversold product${stats.products.oversold === 1 ? "" : "s"}`}>
+              <p>
+                These products have stock below zero and need reconciliation.{" "}
+                <Link href="/vendor/products?stock=oversold" className="underline font-medium">
+                  Review oversold products
+                </Link>
+                .
+              </p>
+            </Alert>
+          )}
+
           {statsLoading || !stats ? (
             <StatGridSkeleton count={4} />
           ) : (
@@ -425,7 +438,7 @@ export default function VendorDashboardPage() {
                 >
                   <StatCard
                     icon={Wallet}
-                    label="Revenue (your payout)"
+                    label="Revenue"
                     value={compactCurrency(stats.revenue)}
                     title={formatCurrency(stats.revenue)}
                     color="green"

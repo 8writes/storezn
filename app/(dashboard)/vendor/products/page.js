@@ -30,6 +30,7 @@ const STOCK_OPTIONS = [
   { value: "in", label: "In stock" },
   { value: "low", label: "Low stock" },
   { value: "out", label: "Out of stock" },
+  { value: "oversold", label: "Oversold" },
 ];
 const STOCK_LABEL = Object.fromEntries(STOCK_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label]));
 const EXPIRY_OPTIONS = [
@@ -85,6 +86,7 @@ export default function VendorProductsPage() {
   const sp = useSearchParams();
   const initialStock = sp.get("stock") || "";
   const initialExpiry = sp.get("expiry") || "";
+  const initialBranch = sp.get("branch") || "";
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
@@ -98,7 +100,10 @@ export default function VendorProductsPage() {
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [sort, setSort] = useState("newest");
-  const [stockLevel, setStockLevel] = useState(["in", "low", "out"].includes(initialStock) ? initialStock : ""); // "" | in | low | out
+  const [stockLevel, setStockLevel] = useState(["in", "low", "out", "oversold"].includes(initialStock) ? initialStock : "");
+  const [branches, setBranches] = useState([]);
+  const [branchId, setBranchId] = useState(initialBranch);
+  const [branchName, setBranchName] = useState("");
   const [expiry, setExpiry] = useState(["soon", "expired"].includes(initialExpiry) ? initialExpiry : ""); // "" | soon | expired
   const [status, setStatus] = useState(""); // "" | active | archived
   const [featured, setFeatured] = useState(""); // "" | yes | no
@@ -106,7 +111,7 @@ export default function VendorProductsPage() {
   const [loading, setLoading] = useState(true);
 
   const activeFilterCount =
-    (categoryId ? 1 : 0) + (sort !== "newest" ? 1 : 0) + (stockLevel ? 1 : 0) + (expiry ? 1 : 0) + (status ? 1 : 0) + (featured ? 1 : 0);
+    (categoryId ? 1 : 0) + (sort !== "newest" ? 1 : 0) + (stockLevel ? 1 : 0) + (expiry ? 1 : 0) + (status ? 1 : 0) + (featured ? 1 : 0) + (branchId ? 1 : 0);
 
   const MAX_FEATURED = 10;
   const [featuring, setFeaturing] = useState(null); // productId mid-request
@@ -207,6 +212,7 @@ export default function VendorProductsPage() {
     if (categoryId) params.set("category", categoryId);
     if (sort && sort !== "newest") params.set("sort", sort);
     if (stockLevel) params.set("stock", stockLevel);
+    if (branchId) params.set("branch", branchId);
     if (expiry) params.set("expiry", expiry);
     if (status) params.set("status", status);
     if (featured) params.set("featured", featured);
@@ -216,6 +222,10 @@ export default function VendorProductsPage() {
         // can't overwrite the current results.
         if (myReq !== loadSeq.current) return;
         setProducts(data.products);
+        setBranches(data.branches || []);
+        if (data.selectedBranch) {
+          setBranchName(data.selectedBranch.name);
+        } else setBranchName("All branches");
         if (data.lowStockThreshold != null) setLowStockThreshold(data.lowStockThreshold);
         setPagination(data.pagination);
       })
@@ -236,17 +246,19 @@ export default function VendorProductsPage() {
     if (!token || !storeId) return;
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, page, q, categoryId, sort, stockLevel, expiry, status, featured]);
+  }, [token, storeId, page, q, categoryId, sort, stockLevel, expiry, status, featured, branchId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
-  }, [q, categoryId, sort, stockLevel, expiry, status, featured, storeId]);
+  }, [q, categoryId, sort, stockLevel, expiry, status, featured, branchId, storeId]);
 
   // Selection is by id against the currently visible page - drop it
   // whenever the visible set changes so no stale/off-screen id lingers.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelected(new Set());
-  }, [q, categoryId, sort, stockLevel, expiry, status, featured, storeId, page]);
+  }, [q, categoryId, sort, stockLevel, expiry, status, featured, branchId, storeId, page]);
 
   const storeFiltersInit = useRef(false);
   useEffect(() => {
@@ -263,6 +275,7 @@ export default function VendorProductsPage() {
       setExpiry("");
       setStatus("");
       setFeatured("");
+      setBranchId("");
     }
     storeFiltersInit.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -497,6 +510,7 @@ export default function VendorProductsPage() {
         <Link href="/vendor/categories" className="text-sm text-brand-600 hover:underline">
           Manage categories
         </Link>
+        {branchName && <p className="text-xs text-slate-600 sm:ml-auto">Showing stock for <span className="font-medium text-slate-800">{branchName}</span></p>}
       </div>
 
       {activeFilterCount > 0 && (
@@ -554,6 +568,9 @@ export default function VendorProductsPage() {
           setStatus={setStatus}
           featured={featured}
           setFeatured={setFeatured}
+          branches={branches}
+          branchId={branchId}
+          setBranchId={setBranchId}
           onClose={() => setFiltersOpen(false)}
         />
       )}
@@ -596,7 +613,8 @@ export default function VendorProductsPage() {
           </p>
         ) : (
           products.map((p) => {
-            const lowStock = p.productType === "physical" && p.stock != null && p.stock <= lowStockThreshold;
+            const oversold = p.productType === "physical" && p.stock != null && p.stock < 0;
+            const lowStock = p.productType === "physical" && p.stock != null && p.stock >= 0 && p.stock <= lowStockThreshold;
             const exp = expiryChip(p.expiryDate);
             return (
               <div
@@ -641,6 +659,7 @@ export default function VendorProductsPage() {
                   <div className="flex flex-wrap items-center gap-2 pt-0.5">
                     <Badge color={p.isActive ? "green" : "slate"}>{p.isActive ? "Live" : "Archived"}</Badge>
                     {p.suspendedAt && <Badge color="red">Suspended</Badge>}
+                    {oversold && <Badge color="red">Oversold</Badge>}
                     {lowStock && (
                       <Badge color={p.stock === 0 ? "red" : "amber"}>{p.stock === 0 ? "Out of stock" : "Low stock"}</Badge>
                     )}
@@ -697,7 +716,7 @@ export default function VendorProductsPage() {
               <th className="px-4 py-3 font-medium">Price</th>
               <th className="px-4 py-3 font-medium">Cost</th>
               <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Stock</th>
+              <th className="px-4 py-3 font-medium">Stock{branchName ? ` (${branchName})` : ""}</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium"><span className="sr-only">Actions</span></th>
             </tr>
@@ -750,7 +769,8 @@ export default function VendorProductsPage() {
                     {p.productType === "physical" ? (
                       <span className="inline-flex items-center gap-2">
                         {p.stock ?? "-"}
-                        {p.stock != null && p.stock <= lowStockThreshold && (
+                        {p.stock != null && p.stock < 0 && <Badge color="red">Oversold</Badge>}
+                        {p.stock != null && p.stock >= 0 && p.stock <= lowStockThreshold && (
                           <Badge color={p.stock === 0 ? "red" : "amber"}>{p.stock === 0 ? "Out of stock" : "Low stock"}</Badge>
                         )}
                       </span>
@@ -806,13 +826,13 @@ function FilterChip({ label, onClear }) {
 // Filter picker as a screen-safe sheet: a bottom sheet on phones, a
 // centred card on desktop, capped at 85vh with its own scrolling body so
 // it never runs off the viewport. Filters apply live as they're changed.
-function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setSort, stockLevel, setStockLevel, expiry, setExpiry, status, setStatus, featured, setFeatured, onClose }) {
+function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setSort, stockLevel, setStockLevel, expiry, setExpiry, status, setStatus, featured, setFeatured, branches, branchId, setBranchId, onClose }) {
   const anyActive = categoryId || sort !== "newest" || stockLevel || expiry || status || featured;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-surface w-full sm:max-w-md rounded-t-sm sm:rounded-sm shadow-xl flex flex-col max-h-[85vh]">
+      <div className="relative bg-surface w-full sm:max-w-lg rounded-t-sm sm:rounded-sm shadow-xl flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
           <p className="text-sm font-bold text-slate-900">Filters</p>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700 cursor-pointer">
@@ -820,8 +840,14 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
           </button>
         </div>
 
-        <div className="overflow-y-auto p-4 space-y-5">
-          <div className="space-y-2">
+        <div className="overflow-y-auto p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {branches.length > 0 && (
+            <div className="space-y-1 sm:col-span-2">
+              <p className="text-xs font-semibold text-slate-700">Stock branch</p>
+              <Select options={[{ value: "", label: "All branches (store total)" }, ...branches.map((branch) => ({ value: branch.id, label: branch.name }))]} value={branchId} onChange={setBranchId} />
+            </div>
+          )}
+          <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
             <div className="grid grid-cols-3 gap-2">
               {STATUS_OPTIONS.map((o) => (
@@ -829,7 +855,7 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
                   key={o.value || "any"}
                   type="button"
                   onClick={() => setStatus(o.value)}
-                  className={`px-3 py-2 rounded-sm border text-sm font-medium cursor-pointer transition-colors ${
+                  className={`px-2 py-1.5 rounded-sm border text-xs font-medium cursor-pointer transition-colors ${
                     status === o.value ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
                   }`}
                 >
@@ -839,7 +865,7 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Featured</p>
             <div className="grid grid-cols-3 gap-2">
               {FEATURED_OPTIONS.map((o) => (
@@ -847,7 +873,7 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
                   key={o.value || "any"}
                   type="button"
                   onClick={() => setFeatured(o.value)}
-                  className={`px-3 py-2 rounded-sm border text-sm font-medium cursor-pointer transition-colors ${
+                  className={`px-2 py-1.5 rounded-sm border text-xs font-medium cursor-pointer transition-colors ${
                     featured === o.value ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
                   }`}
                 >
@@ -857,15 +883,15 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1 sm:col-span-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Stock level</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
               {STOCK_OPTIONS.map((o) => (
                 <button
                   key={o.value || "any"}
                   type="button"
                   onClick={() => setStockLevel(o.value)}
-                  className={`px-3 py-2 rounded-sm border text-sm font-medium cursor-pointer transition-colors ${
+                  className={`px-2 py-1.5 rounded-sm border text-xs font-medium cursor-pointer transition-colors ${
                     stockLevel === o.value ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
                   }`}
                 >
@@ -875,15 +901,15 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1 sm:col-span-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Expiry</p>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {EXPIRY_OPTIONS.map((o) => (
                 <button
                   key={o.value || "any"}
                   type="button"
                   onClick={() => setExpiry(o.value)}
-                  className={`px-3 py-2 rounded-sm border text-sm font-medium cursor-pointer transition-colors text-left ${
+                  className={`px-2 py-1.5 rounded-sm border text-xs font-medium cursor-pointer transition-colors ${
                     expiry === o.value ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
                   }`}
                 >
@@ -894,7 +920,7 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
           </div>
 
           {categories.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Category</p>
               <Select
                 options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
@@ -904,7 +930,7 @@ function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setS
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Sort by</p>
             <Select options={SORT_OPTIONS} value={sort} onChange={setSort} />
           </div>

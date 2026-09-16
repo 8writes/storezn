@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { products, productVariants, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
-import { and, asc, count, desc, eq, gt, ilike, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { products, productVariants, productBranchStock, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
+import { and, asc, count, desc, eq, gt, ilike, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
@@ -33,6 +33,15 @@ export async function GET(req, { params }) {
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const searchParams = new URL(req.url).searchParams;
+  const storeBranches = await db.select({ id: branches.id, name: branches.name, isDefault: branches.isDefault })
+    .from(branches).where(eq(branches.storeId, storeId)).orderBy(branches.createdAt);
+  const allowedBranches = user.role === "staff" && user.branchId
+    ? storeBranches.filter((branch) => branch.id === user.branchId)
+    : storeBranches;
+  const requestedBranchId = searchParams.get("branch")?.trim();
+  const selectedBranch = user.role === "staff" && user.branchId
+    ? allowedBranches[0] || null
+    : allowedBranches.find((branch) => branch.id === requestedBranchId) || null;
   const q = searchParams.get("q")?.trim();
   const categoryId = searchParams.get("category")?.trim();
   const orderBy = SORTS[searchParams.get("sort")] || SORTS.newest;
@@ -41,16 +50,18 @@ export async function GET(req, { params }) {
   if (q) conditions.push(or(ilike(products.name, `%${q}%`), ilike(products.sku, `%${q}%`)));
   if (categoryId) conditions.push(eq(products.categoryId, categoryId));
 
-  // Stock-level filter. products.stock is the cached storewide sum (see
-  // lib/inventory.js) - null means untracked/unlimited, which counts as
-  // "in stock", never low or out.
+  // A selected branch makes that branch's base-product stock authoritative
+  // for filtering and display. Without a branch, use the cached store total.
+  const stockValue = selectedBranch ? productBranchStock.stock : products.stock;
   const stockFilter = searchParams.get("stock")?.trim();
   if (stockFilter === "in") {
-    conditions.push(or(isNull(products.stock), gt(products.stock, LOW_STOCK_THRESHOLD)));
+    conditions.push(or(isNull(stockValue), gt(stockValue, LOW_STOCK_THRESHOLD)));
   } else if (stockFilter === "low") {
-    conditions.push(and(gt(products.stock, 0), lte(products.stock, LOW_STOCK_THRESHOLD)));
+    conditions.push(and(gt(stockValue, 0), lte(stockValue, LOW_STOCK_THRESHOLD)));
   } else if (stockFilter === "out") {
-    conditions.push(lte(products.stock, 0));
+    conditions.push(eq(stockValue, 0));
+  } else if (stockFilter === "oversold") {
+    conditions.push(lt(stockValue, 0));
   }
 
   // Status filter - the vendor's own Live/Archived toggle (products.isActive),
@@ -83,18 +94,31 @@ export async function GET(req, { params }) {
 
   const [rows, [{ total }]] = await Promise.all([
     db
-      .select({ product: products, categoryName: categories.name, variantCount: variantCountSql })
+      .select({ product: products, branchStock: selectedBranch ? productBranchStock.stock : products.stock, categoryName: categories.name, variantCount: variantCountSql })
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))
+      .leftJoin(productBranchStock, and(
+        eq(productBranchStock.productId, products.id),
+        selectedBranch ? eq(productBranchStock.branchId, selectedBranch.id) : sql`false`,
+        isNull(productBranchStock.variantId),
+      ))
       .where(and(...conditions))
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset),
-    db.select({ total: count() }).from(products).where(and(...conditions)),
+    db.select({ total: count() }).from(products)
+      .leftJoin(productBranchStock, and(
+        eq(productBranchStock.productId, products.id),
+        selectedBranch ? eq(productBranchStock.branchId, selectedBranch.id) : sql`false`,
+        isNull(productBranchStock.variantId),
+      ))
+      .where(and(...conditions)),
   ]);
 
   return NextResponse.json({
-    products: rows.map((r) => ({ ...r.product, categoryName: r.categoryName, variantCount: Number(r.variantCount) || 0 })),
+    products: rows.map((r) => ({ ...r.product, stock: r.branchStock, categoryName: r.categoryName, variantCount: Number(r.variantCount) || 0 })),
+    branches: allowedBranches,
+    selectedBranch: selectedBranch ? { id: selectedBranch.id, name: selectedBranch.name } : null,
     lowStockThreshold: LOW_STOCK_THRESHOLD,
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });

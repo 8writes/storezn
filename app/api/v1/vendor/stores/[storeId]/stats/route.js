@@ -35,7 +35,8 @@ export async function GET(req, { params }) {
       live: sql`count(*) filter (where ${products.isActive})`.mapWith(Number),
       // Only physical products with a tracked (non-null) stock count -
       // digital/unlimited items can't be "low".
-      lowStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} is not null and ${products.stock} <= ${LOW_STOCK_THRESHOLD})`.mapWith(Number),
+      lowStock: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} > 0 and ${products.stock} <= ${LOW_STOCK_THRESHOLD})`.mapWith(Number),
+      oversold: sql`count(*) filter (where ${products.productType} = 'physical' and ${products.stock} < 0)`.mapWith(Number),
       // Perishables past their date, or within the next 30 days.
       expired: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} < current_date)`.mapWith(Number),
       expiringSoon: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} >= current_date and ${products.expiryDate} < current_date + 30)`.mapWith(Number),
@@ -50,6 +51,7 @@ export async function GET(req, { params }) {
       total: productStats?.total || 0,
       live: productStats?.live || 0,
       lowStock: productStats?.lowStock || 0,
+      oversold: productStats?.oversold || 0,
       expired: productStats?.expired || 0,
       expiringSoon: productStats?.expiringSoon || 0,
     },

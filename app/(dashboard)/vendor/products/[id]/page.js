@@ -3,7 +3,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Pencil, Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import { Pencil, Archive, ArchiveRestore, Trash2, History } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
@@ -134,6 +134,12 @@ export default function VendorProductViewPage({ params }) {
         </div>
 
         <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
+          <Link href={`/vendor/products/${id}/history?storeId=${storeId}`}>
+            <Button type="button" variant="outline" size="sm">
+              <History size={14} />
+              History
+            </Button>
+          </Link>
           <Link href={`/vendor/products/${id}/edit?storeId=${storeId}`}>
             <Button type="button" variant="outline" size="sm">
               <Pencil size={14} />
