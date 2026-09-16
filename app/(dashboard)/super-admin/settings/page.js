@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Database, ExternalLink, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
-import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { PushNotificationToggle } from "@/components/ui/PushNotificationToggle.js";
@@ -25,6 +24,7 @@ export default function SuperAdminSettingsPage() {
   const [plusStaffLimit, setPlusStaffLimit] = useState("");
   const [freeBranchLimit, setFreeBranchLimit] = useState("");
   const [plusBranchLimit, setPlusBranchLimit] = useState("");
+  const [databaseAccess, setDatabaseAccess] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [togglingMaintenance, setTogglingMaintenance] = useState(false);
@@ -44,6 +44,7 @@ export default function SuperAdminSettingsPage() {
         setPlusStaffLimit(String(data.settings.plusStaffLimit ?? 10));
         setFreeBranchLimit(String(data.settings.freeBranchLimit ?? 1));
         setPlusBranchLimit(String(data.settings.plusBranchLimit ?? 5));
+        setDatabaseAccess(data.databaseAccess || null);
       })
       .catch((err) => toast.error(err.message || "Failed to load settings"))
       .finally(() => setLoading(false));
@@ -136,6 +137,52 @@ export default function SuperAdminSettingsPage() {
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                 <p>Maintenance mode is currently on. The live site is showing the maintenance page to everyone but super-admins.</p>
               </div>
+            )}
+          </div>
+
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <Database size={18} className="text-slate-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">Database access</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Open pgAdmin for the production database. Passwords stay server-side and are not shown here.
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!databaseAccess?.configured}
+                onClick={() => window.open(databaseAccess.pgAdminUrl, "_blank", "noopener,noreferrer")}
+              >
+                <ExternalLink size={14} />
+                Open pgAdmin
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="rounded-sm border border-slate-100 bg-slate-50 px-3 py-2">
+                <span className="block text-slate-500">Host</span>
+                <span className="font-medium text-slate-800 break-all">{databaseAccess?.host || "-"}</span>
+              </div>
+              <div className="rounded-sm border border-slate-100 bg-slate-50 px-3 py-2">
+                <span className="block text-slate-500">Database</span>
+                <span className="font-medium text-slate-800 break-all">{databaseAccess?.database || "-"}</span>
+              </div>
+              <div className="rounded-sm border border-slate-100 bg-slate-50 px-3 py-2">
+                <span className="block text-slate-500">Port</span>
+                <span className="font-medium text-slate-800">{databaseAccess?.port || "-"}</span>
+              </div>
+              <div className="rounded-sm border border-slate-100 bg-slate-50 px-3 py-2">
+                <span className="block text-slate-500">User</span>
+                <span className="font-medium text-slate-800 break-all">{databaseAccess?.username || "-"}</span>
+              </div>
+            </div>
+            {!databaseAccess?.configured && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-sm px-3 py-2">
+                Set PGADMIN_URL on the server to enable this button.
+              </p>
             )}
           </div>
 

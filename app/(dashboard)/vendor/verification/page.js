@@ -47,7 +47,7 @@ export default function VendorVerificationPage() {
       const data = await apiFetch("/api/v1/vendor/verification", { method: "POST", body: JSON.stringify({ nin: encryptedNin }) });
       setStatus(data);
       setNin("");
-      toast.success("NIN submitted for review");
+      toast.success(data.autoVerified ? "NIN verified automatically" : "NIN submitted for review");
     } catch (err) {
       toast.error(err.message || "Failed to submit NIN");
     } finally {

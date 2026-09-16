@@ -4,8 +4,9 @@ import { users } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, submitNinSchema } from "../../../../../lib/validate.js";
-import { sendPushToRole } from "../../../../../lib/push.js";
+import { sendPushToRole, sendPushToUser } from "../../../../../lib/push.js";
 import { decryptNin } from "../../../../../lib/nin.js";
+import { verifyNinWithVerifyGuru } from "../../../../../lib/verifyGuru.js";
 
 export async function GET(req) {
   const user = await getUser(req);
@@ -51,31 +52,56 @@ export async function POST(req) {
     return NextResponse.json({ error: "NIN must be exactly 11 digits" }, { status: 400 });
   }
 
+  const autoVerification = await verifyNinWithVerifyGuru({
+    nin: plainNin,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  });
+  const autoApproved = autoVerification.approved;
+
   const [updated] = await db
     .update(users)
     .set({
       nin: result.data.nin,
       ninSubmittedAt: new Date(),
-      approvalStatus: "pending",
-      approvalReviewNote: null,
+      approvalStatus: autoApproved ? "approved" : "pending",
+      approvalReviewNote: autoApproved ? "Auto-approved by VerifyGuru NIN verification." : null,
       approvalReviewedBy: null,
-      approvalReviewedAt: null,
+      approvalReviewedAt: autoApproved ? new Date() : null,
     })
     .where(eq(users.id, user.id))
     .returning();
 
-  after(() =>
+  after(() => {
+    if (autoApproved) {
+      sendPushToUser(updated.id, {
+        title: "You're verified!",
+        body: "Your identity was verified automatically - your store is now live and can take orders.",
+        url: "/vendor/verification",
+      }).catch((err) => console.error("sendPushToUser failed (NIN auto-approval):", err));
+      sendPushToRole("super_admin", {
+        title: "Vendor auto-approved",
+        body: `${updated.firstName} ${updated.lastName} was verified automatically by VerifyGuru.`,
+        url: "/super-admin/vendors?status=approved",
+      }).catch((err) => console.error("sendPushToRole failed (NIN auto-approval):", err));
+      return;
+    }
+
+    if (autoVerification.attempted) {
+      console.warn("VerifyGuru NIN auto-approval skipped:", autoVerification.reason);
+    }
     sendPushToRole("super_admin", {
       title: "Vendor verification submitted",
-      body: `${updated.firstName} ${updated.lastName} submitted their NIN for review.`,
-      url: "/super-admin/vendors",
-    }).catch((err) => console.error("sendPushToRole failed (NIN submission):", err)),
-  );
+      body: `${updated.firstName} ${updated.lastName} submitted their NIN for manual review.`,
+      url: "/super-admin/vendors?status=pending",
+    }).catch((err) => console.error("sendPushToRole failed (NIN submission):", err));
+  });
 
   return NextResponse.json({
     approvalStatus: updated.approvalStatus,
     nin: updated.nin,
     ninSubmittedAt: updated.ninSubmittedAt,
     approvalReviewNote: updated.approvalReviewNote,
+    autoVerified: autoApproved,
   });
 }

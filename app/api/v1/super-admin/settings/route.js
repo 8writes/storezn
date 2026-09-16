@@ -13,13 +13,31 @@ async function getOrCreateSettings() {
   return created;
 }
 
+function getDatabaseAccess() {
+  const pgAdminUrl = process.env.PGADMIN_URL || "";
+  const databaseUrl = process.env.DATABASE_URL || "";
+  try {
+    const url = new URL(databaseUrl);
+    return {
+      pgAdminUrl,
+      configured: !!pgAdminUrl,
+      host: url.hostname,
+      port: url.port || "5432",
+      database: url.pathname.replace(/^\//, ""),
+      username: url.username || null,
+    };
+  } catch {
+    return { pgAdminUrl, configured: !!pgAdminUrl, host: null, port: null, database: null, username: null };
+  }
+}
+
 export async function GET(req) {
   const user = await getUser(req);
   if (!requireRole(user, ["super_admin"]))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const settings = await getOrCreateSettings();
-  return NextResponse.json({ settings });
+  return NextResponse.json({ settings, databaseAccess: getDatabaseAccess() });
 }
 
 export async function PATCH(req) {
