@@ -276,7 +276,7 @@ export default async function Home() {
             href="/pricing"
             className="mt-7 inline-flex items-center justify-center gap-2 text-sm font-semibold text-brand-700 border border-brand-200 bg-brand-50 px-6 py-3 rounded-sm hover:bg-brand-100 transition-colors cursor-pointer"
           >
-            Compare all plans
+            See Pricing
           </Link>
         </Reveal>
       </section>
