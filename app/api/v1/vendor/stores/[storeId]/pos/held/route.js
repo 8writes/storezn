@@ -4,6 +4,7 @@ import { db } from "@/lib/db/index.js";
 import { posHeldSales } from "@/lib/db/schema.js";
 import { validate, holdSaleSchema } from "@/lib/validate.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
+import { lockPosSession } from "@/lib/posSession.js";
 
 // GET  ?sessionId= -> parked sales for that session.
 // POST             -> park the current cart (client-side snapshot only,
@@ -37,19 +38,22 @@ export async function POST(req, { params }) {
 
   const row = await loadSession(storeId, result.data.sessionId, ctx.user);
   if (!row) return NextResponse.json({ error: "Session not found" }, { status: 404 });
-  if (row.session.status !== "open") {
-    return NextResponse.json({ error: "This session is closed" }, { status: 409 });
+  let held;
+  try {
+    held = await db.transaction(async (tx) => {
+      const session = await lockPosSession(tx, result.data.sessionId);
+      if (!session || session.storeId !== storeId || session.status !== "open") {
+        throw Object.assign(new Error("This session is closed"), { code: "SESSION_CLOSED" });
+      }
+      const [created] = await tx.insert(posHeldSales).values({
+        sessionId: result.data.sessionId, label: result.data.label || null,
+        cart: result.data.cart, customer: result.data.customer || null, createdBy: ctx.user.id,
+      }).returning();
+      return created;
+    });
+  } catch (error) {
+    if (error.code === "SESSION_CLOSED") return NextResponse.json({ error: error.message }, { status: 409 });
+    throw error;
   }
-
-  const [held] = await db
-    .insert(posHeldSales)
-    .values({
-      sessionId: result.data.sessionId,
-      label: result.data.label || null,
-      cart: result.data.cart,
-      customer: result.data.customer || null,
-      createdBy: ctx.user.id,
-    })
-    .returning();
   return NextResponse.json({ heldSale: held }, { status: 201 });
 }

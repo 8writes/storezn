@@ -24,7 +24,7 @@ import { ZReport } from "@/components/pos/ZReport.js";
 import { PrintableReceipt } from "@/components/pos/PrintableReceipt.js";
 import { OfflineSetupModal } from "@/components/pos/OfflineSetupModal.js";
 import { generateOrderNumber } from "@/lib/orders.js";
-import { enqueueSale, flushQueue, listQueuedSales, saveCatalog, catalogMeta } from "@/lib/posOffline.js";
+import { enqueueSale, flushQueue, listQueuedSales, removeQueuedSale, saveCatalog, catalogMeta } from "@/lib/posOffline.js";
 import { Minus, Plus, Trash2, ShoppingCart, Pause, RotateCcw, X } from "lucide-react";
 
 const isNetErr = (err) =>
@@ -150,6 +150,8 @@ export default function SellPage() {
   }, [token, storeId, apiFetch, regCacheKey]);
 
   useEffect(() => {
+    // Reset stale store data before the asynchronous register refresh.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRegisters(null);
     loadRegisters();
   }, [loadRegisters]);
@@ -241,6 +243,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [saleKey, setSaleKey] = useState(null);
   const [orderNo, setOrderNo] = useState(null);
   const [editKey, setEditKey] = useState(null);
+  const [recalledHeldId, setRecalledHeldId] = useState(null);
 
   const [tenderOpen, setTenderOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -259,6 +262,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     () => typeof window !== "undefined" && localStorage.getItem(offlineKey) === "1",
   );
   const [pendingSync, setPendingSync] = useState(0);
+  const [queuedSales, setQueuedSales] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [offlineReceipt, setOfflineReceipt] = useState(null);
   const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false });
@@ -289,6 +293,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   useEffect(() => {
     const reg = resolveActiveRegister();
     if (reg?.openSession) {
+      // The callback owns the async state transition for this register.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchSession(reg.openSession.id).finally(() => setChecking(false));
     } else {
       setSessionData(null);
@@ -307,12 +313,14 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     setSyncing(true);
     try {
       const res = await flushQueue(storeId, apiFetch);
-      setPendingSync(res.remaining);
+      const queue = await listQueuedSales(storeId).catch(() => []);
+      setQueuedSales(queue);
+      setPendingSync(queue.length);
       if (res.synced > 0) {
         toast.success(`${res.synced} offline sale${res.synced === 1 ? "" : "s"} synced`);
         refresh();
       }
-      if (res.stuck > 0) toast.error(`${res.stuck} offline sale${res.stuck === 1 ? "" : "s"} couldn't sync - check Orders`);
+      if (res.stuck > 0) toast.error(`${res.stuck} offline sale${res.stuck === 1 ? "" : "s"} couldn't sync - open Offline setup to review`);
     } catch {
       /* still offline - try again next tick */
     } finally {
@@ -373,7 +381,9 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
   useEffect(() => {
     if (!openSession) return;
-    listQueuedSales(storeId).then((q) => setPendingSync(q.length)).catch(() => {});
+    listQueuedSales(storeId).then((q) => { setQueuedSales(q); setPendingSync(q.length); }).catch(() => {});
+    // Catalogue synchronization updates state after its first await.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     syncCatalog();
     // In "work offline" mode nothing auto-syncs - the cashier drives it
     // with the Sync button. The catalogue still refreshes (read-only).
@@ -435,6 +445,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     setSaleKey(null);
     setOrderNo(null);
     setEditKey(null);
+    setRecalledHeldId(null);
   };
 
   const lines = useMemo(
@@ -477,6 +488,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         ...(r.lineDiscount ? { lineDiscount: r.lineDiscount } : {}),
       })),
       tenders,
+      ...(recalledHeldId ? { heldSaleId: recalledHeldId } : {}),
     };
     if (buyer.name) payload.buyerName = buyer.name;
     if (buyer.phone) payload.buyerPhone = buyer.phone;
@@ -508,13 +520,20 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     };
 
     const queueIt = async (msg) => {
-      await enqueueSale(storeId, payload).catch(() => {});
+      try {
+        await enqueueSale(storeId, payload);
+      } catch (error) {
+        toast.error(error?.message || "Couldn't save this sale offline. The cart has been kept.");
+        setSubmitting(false);
+        return false;
+      }
       setTenderOpen(false);
       resetSale();
       setOfflineReceipt({ ...receipt, pending: true });
-      listQueuedSales(storeId).then((q) => setPendingSync(q.length)).catch(() => {});
+      listQueuedSales(storeId).then((q) => { setQueuedSales(q); setPendingSync(q.length); }).catch(() => {});
       toast.warning(msg);
       setSubmitting(false);
+      return true;
     };
 
     // "Work offline" is on - don't even try the network.
@@ -552,6 +571,11 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const holdSale = async (labelArg) => {
     const label = (labelArg ?? holdLabel ?? "").trim();
     setHoldPromptOpen(false);
+    if (recalledHeldId) {
+      resetSale();
+      toast.success("Sale remains held");
+      return;
+    }
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/held`, {
         method: "POST",
@@ -581,14 +605,17 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     setCart(rows);
     setDetails(det);
     setSaleKey(crypto.randomUUID());
+    setRecalledHeldId(held.id);
     setBuyer({ name: held.customer?.name || "", phone: held.customer?.phone || "", note: "" });
     setHeldOpen(false);
-    try {
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/held/${held.id}`, { method: "DELETE" });
-      refresh();
-    } catch {
-      /* keeping the cart is what matters */
-    }
+  };
+
+  const discardQueued = async (id) => {
+    if (!window.confirm("Discard this queued sale? It has not reached the server and cannot be recovered.")) return;
+    await removeQueuedSale(id);
+    const queue = await listQueuedSales(storeId);
+    setQueuedSales(queue);
+    setPendingSync(queue.length);
   };
 
   const discardHeld = async (id) => {
@@ -866,6 +893,10 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           storeId={storeId}
           catalog={catalog}
           pendingSync={pendingSync}
+          queuedSales={queuedSales}
+          syncing={syncing}
+          onSync={syncNow}
+          onDiscard={discardQueued}
           onSyncCatalog={() => syncCatalog(true)}
           onClose={() => setOfflineSetupOpen(false)}
         />

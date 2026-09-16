@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { posRegisters, posSessions, branches } from "@/lib/db/schema.js";
 import { validate, createRegisterSchema } from "@/lib/validate.js";
@@ -31,10 +31,11 @@ export async function GET(req, { params }) {
       ? rows.filter((r) => r.branchId === ctx.user.branchId)
       : rows;
 
-  const open = await db
-    .select({ id: posSessions.id, registerId: posSessions.registerId, openedAt: posSessions.openedAt })
-    .from(posSessions)
-    .where(eq(posSessions.status, "open"));
+  const open = scoped.length
+    ? await db.select({ id: posSessions.id, registerId: posSessions.registerId, openedAt: posSessions.openedAt })
+      .from(posSessions)
+      .where(and(eq(posSessions.status, "open"), inArray(posSessions.registerId, scoped.map((row) => row.id))))
+    : [];
   const openByRegister = new Map(open.map((s) => [s.registerId, s]));
 
   return NextResponse.json({

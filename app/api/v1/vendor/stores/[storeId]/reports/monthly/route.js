@@ -94,7 +94,7 @@ export async function GET(req, { params }) {
       .select({
         method: orderTenders.method,
         provider: orderTenders.provider,
-        amountKobo: sql`coalesce(sum(${orderTenders.amount} - ${orderTenders.changeGiven}), 0)`.mapWith(Number),
+        amountKobo: sql`coalesce(sum(case when ${orderTenders.method} = 'cash' then ${orderTenders.amount} - ${orderTenders.changeGiven} else ${orderTenders.amount} end), 0)`.mapWith(Number),
       })
       .from(orderTenders)
       .innerJoin(orders, eq(orders.id, orderTenders.orderId))

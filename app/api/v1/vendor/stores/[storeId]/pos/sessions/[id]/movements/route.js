@@ -5,6 +5,7 @@ import { cashMovements } from "@/lib/db/schema.js";
 import { validate, cashMovementSchema } from "@/lib/validate.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
+import { lockPosSession } from "@/lib/posSession.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 
 // Cashier cash-drawer actions: paid_in (+), paid_out (-), drop (-).
@@ -17,9 +18,6 @@ export async function POST(req, { params }) {
 
   const row = await loadSession(storeId, id, ctx.user);
   if (!row) return NextResponse.json({ error: "Session not found" }, { status: 404 });
-  if (row.session.status !== "open") {
-    return NextResponse.json({ error: "This session is closed" }, { status: 409 });
-  }
 
   const body = await req.json().catch(() => null);
   const result = validate(cashMovementSchema, body || {});
@@ -33,28 +31,32 @@ export async function POST(req, { params }) {
   // returns the movement that already landed instead of recording it
   // again (the incident this guards against: one payout written 27x on a
   // flaky connection).
-  if (clientRef) {
-    const [existing] = await db
-      .select()
-      .from(cashMovements)
-      .where(and(eq(cashMovements.sessionId, id), eq(cashMovements.clientRef, clientRef)))
-      .limit(1);
-    if (existing) return NextResponse.json({ movement: existing, replayed: true }, { status: 200 });
-  }
-
   let movement;
+  let replayed = false;
   try {
-    [movement] = await db
-      .insert(cashMovements)
-      .values({
+    ({ movement, replayed } = await db.transaction(async (tx) => {
+      const session = await lockPosSession(tx, id);
+      if (!session || session.storeId !== storeId) {
+        throw Object.assign(new Error("Session not found"), { code: "NOT_FOUND" });
+      }
+      if (session.status !== "open") {
+        throw Object.assign(new Error("This session is closed"), { code: "SESSION_CLOSED" });
+      }
+      if (clientRef) {
+        const [existing] = await tx.select().from(cashMovements)
+          .where(and(eq(cashMovements.sessionId, id), eq(cashMovements.clientRef, clientRef))).limit(1);
+        if (existing) return { movement: existing, replayed: true };
+      }
+      const [created] = await tx.insert(cashMovements).values({
         sessionId: id,
         kind: result.data.kind,
         amount,
         reason: result.data.reason,
         createdBy: ctx.user.id,
         clientRef,
-      })
-      .returning();
+      }).returning();
+      return { movement: created, replayed: false };
+    }));
   } catch (err) {
     // Lost the race with a concurrent identical request - the unique
     // index (session_id, client_ref) rejected the second insert. Return
@@ -67,8 +69,13 @@ export async function POST(req, { params }) {
         .limit(1);
       if (winner) return NextResponse.json({ movement: winner, replayed: true }, { status: 200 });
     }
+    if (["NOT_FOUND", "SESSION_CLOSED"].includes(err.code)) {
+      return NextResponse.json({ error: err.message }, { status: err.code === "NOT_FOUND" ? 404 : 409 });
+    }
     throw err;
   }
+
+  if (replayed) return NextResponse.json({ movement, replayed: true }, { status: 200 });
 
   const label = { paid_in: "Paid in", paid_out: "Paid out", drop: "Cash drop" }[result.data.kind] || result.data.kind;
   after(() =>

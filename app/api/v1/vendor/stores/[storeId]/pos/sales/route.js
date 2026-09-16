@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
-import { orders, orderItems, orderTenders, cashMovements, products, productVariants } from "@/lib/db/schema.js";
+import { orders, orderItems, orderTenders, cashMovements, products, productVariants, posHeldSales } from "@/lib/db/schema.js";
 import { validate, posSaleSchema } from "@/lib/validate.js";
 import { generateOrderNumber, computeOrderTotals } from "@/lib/orders.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
@@ -9,7 +9,8 @@ import { reserveStock, OutOfStockError } from "@/lib/inventory.js";
 import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
 import { validateTenders } from "@/lib/pos.js";
-import { posContext, loadSession, loadSessionAny, openSessionForRegister } from "@/lib/posAccess.js";
+import { posContext, loadSession } from "@/lib/posAccess.js";
+import { lockPosSession, reconcileClosedPosSession } from "@/lib/posSession.js";
 import { logAppError } from "@/lib/appErrorLog.js";
 import { withApiMonitoring } from "@/lib/apiMonitoring.js";
 
@@ -34,41 +35,21 @@ async function handlePost(req, { params }) {
   // (a live ring-up reaches the server in seconds). Those get lenient
   // session handling below - the sale really happened, so a shift that
   // has since been closed, or a branch reassignment, must not strand it.
-  const isDelayedSale = !!data.soldAt && Date.now() - new Date(data.soldAt).getTime() > 90_000;
+  const soldAtMs = data.soldAt ? new Date(data.soldAt).getTime() : NaN;
+  const isDelayedSale = Number.isFinite(soldAtMs) && Date.now() - soldAtMs > 90_000;
 
-  let sessionRow = await loadSession(storeId, data.sessionId, user);
-
-  if (!sessionRow) {
-    // Branch scoping changed under the cashier, or the session id is
-    // stale - look it up store-wide and carry on. Done for ANY sale, not
-    // just clearly-delayed ones: a queued replay whose `soldAt` is
-    // missing or <90s old must never be permanently stranded (that's what
-    // blocked a register close - one sale stuck on a 409 forever).
-    sessionRow = await loadSessionAny(storeId, data.sessionId);
-  }
+  const sessionRow = await loadSession(storeId, data.sessionId, user);
   if (!sessionRow) return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
-  if (sessionRow.session.status !== "open") {
-    // Re-home onto whatever shift is open on the same register now. This
-    // used to 409 unless the sale looked "delayed"; it no longer does -
-    // a sale that carries an idempotency key is a real completed sale,
-    // and rejecting it forever just strands revenue and blocks the close.
-    const openNow = await openSessionForRegister(sessionRow.register.id);
-    if (openNow) {
-      sessionRow = openNow;
-    } else if (!isDelayedSale) {
-      // Nothing open to re-home to AND this looks like a live ring-up
-      // against a just-closed shift - surface that to the cashier so they
-      // open a new session, rather than silently booking it to a closed Z.
-      return NextResponse.json({ error: "This register session is closed - open a new one" }, { status: 409 });
-    }
-    // else: delayed replay, no open shift - fall through and record it
-    // against the original (closed) shift; the drawer movement is skipped
-    // below so the immutable Z report isn't disturbed.
+  const canReplayClosedSession = sessionRow.session.status === "closed" &&
+    isDelayedSale && sessionRow.session.provisional && Number(sessionRow.session.pendingSyncCount || 0) > 0 &&
+    soldAtMs >= new Date(sessionRow.session.openedAt).getTime() &&
+    soldAtMs <= new Date(sessionRow.session.closedAt).getTime();
+  if (sessionRow.session.status !== "open" && !canReplayClosedSession) {
+    return NextResponse.json({ error: "This register session is closed - open a new one" }, { status: 409 });
   }
 
   const settleSessionId = sessionRow.session.id;
-  const sessionIsOpen = sessionRow.session.status === "open";
   const branchId = sessionRow.register.branchId;
 
   const paymentReference = `POS-${data.idempotencyKey}`;
@@ -189,6 +170,15 @@ async function handlePost(req, { params }) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const created = await db.transaction(async (tx) => {
+        const lockedSession = await lockPosSession(tx, settleSessionId);
+        if (!lockedSession) throw new Error("Session disappeared while settling sale");
+        const lockedReplayAllowed = lockedSession.status === "closed" && canReplayClosedSession &&
+          lockedSession.provisional && Number(lockedSession.pendingSyncCount || 0) > 0;
+        if (lockedSession.status !== "open" && !lockedReplayAllowed) {
+          const error = new Error("This register session is closed - open a new one");
+          error.code = "POS_SESSION_CLOSED";
+          throw error;
+        }
         await reserveStock(
           tx,
           resolved.map((r) => ({
@@ -275,9 +265,9 @@ async function handlePost(req, { params }) {
         //   2. cash change handed back on a POS/transfer overpayment
         //      -> `change_out` (its own kind: not a sale, not a
         //      discretionary paid-out).
-        // Skipped when the sale lands on an already-closed shift (a late
-        // offline replay with no open shift to re-home to) - its Z is immutable.
-        if (sessionIsOpen) {
+        // Late offline sales still write their real drawer effects. When
+        // the shift is already closed its frozen Z is rebuilt below.
+        {
           const cashTakenIn = tendersKobo.reduce(
             (s, t) => (t.method === "cash" ? s + (t.amount - Number(t.changeGiven || 0)) : s),
             0,
@@ -313,6 +303,13 @@ async function handlePost(req, { params }) {
             });
           }
           if (rows.length) await tx.insert(cashMovements).values(rows);
+        }
+
+        if (data.heldSaleId) {
+          await tx.delete(posHeldSales).where(and(eq(posHeldSales.id, data.heldSaleId), eq(posHeldSales.sessionId, settleSessionId)));
+        }
+        if (lockedSession.status === "closed") {
+          await reconcileClosedPosSession(tx, lockedSession);
         }
 
         return order;
@@ -375,6 +372,9 @@ async function handlePost(req, { params }) {
         // Otherwise an orderNumber collision - regenerate and retry once.
         orderNumber = generateOrderNumber();
         continue;
+      }
+      if (err?.code === "POS_SESSION_CLOSED") {
+        return NextResponse.json({ error: err.message }, { status: 409 });
       }
       await logAppError(err, {
         req,

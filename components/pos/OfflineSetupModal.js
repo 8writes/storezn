@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { X, Check, Loader2, WifiOff, AlertTriangle } from "lucide-react";
+import { X, Check, Loader2, WifiOff, AlertTriangle, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { prepareOfflineShell, catalogMeta } from "@/lib/posOffline.js";
 
@@ -29,7 +29,7 @@ function StepRow({ state, title, detail }) {
 // One-tap "make this device ready to sell offline": caches the register
 // screen + its files through the service worker, and pulls the whole
 // catalogue into local storage.
-export function OfflineSetupModal({ storeId, catalog, pendingSync = 0, onSyncCatalog, onClose }) {
+export function OfflineSetupModal({ storeId, catalog, pendingSync = 0, queuedSales = [], syncing, onSync, onDiscard, onSyncCatalog, onClose }) {
   const [phase, setPhase] = useState("idle"); // idle | running | done
   const [shell, setShell] = useState({ state: "pending", detail: "" });
   const [cat, setCat] = useState({
@@ -103,6 +103,34 @@ export function OfflineSetupModal({ storeId, catalog, pendingSync = 0, onSyncCat
               detail={pendingSync > 0 ? `${pendingSync} waiting - will sync when back online` : "none"}
             />
           </div>
+
+          {queuedSales.length > 0 && (
+            <div className="mt-3 border-t border-slate-200 pt-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-900">Queued sales</p>
+                <button type="button" onClick={onSync} disabled={syncing || !online} title="Retry all"
+                  className="p-1 text-slate-600 hover:text-brand-700 disabled:opacity-50">
+                  <RefreshCw size={15} className={syncing ? "animate-spin" : ""} />
+                </button>
+              </div>
+              <div className="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                {queuedSales.map((sale) => (
+                  <div key={sale.id} className="flex items-start justify-between gap-2 py-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-900 truncate">{sale.payload?.orderNumber || "Offline sale"}</p>
+                      <p className={`text-[11px] ${sale.lastError ? "text-red-700" : "text-slate-600"}`}>
+                        {sale.lastError || `Waiting to sync${sale.attempts ? ` - ${sale.attempts} attempt(s)` : ""}`}
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => onDiscard(sale.id)} title="Discard queued sale"
+                      className="p-1 text-slate-400 hover:text-red-600 shrink-0">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {phase === "done" && allOk && (
             <p className="mt-3 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-sm px-3 py-2">

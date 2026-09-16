@@ -90,6 +90,38 @@ export async function GET(req, { params }) {
     });
   }
 
+  // A closed shift already has its immutable Z snapshot. Do not rebuild
+  // it by loading the complete lifetime ledger every time it is viewed.
+  if (row.session.status === "closed" && row.session.zReport) {
+    const [movementRows, [{ movementTotal }], orderRows, [{ orderTotal }], held] = await Promise.all([
+      db.select().from(cashMovements).where(eq(cashMovements.sessionId, id))
+        .orderBy(desc(cashMovements.createdAt)).limit(LIST_PAGE),
+      db.select({ movementTotal: count() }).from(cashMovements).where(eq(cashMovements.sessionId, id)),
+      db.select({ id: orders.id, orderNumber: orders.orderNumber, totalAmount: orders.totalAmount,
+        originalOrderId: orders.originalOrderId, buyerName: orders.buyerName, createdAt: orders.createdAt })
+        .from(orders).where(eq(orders.posSessionId, id)).orderBy(desc(orders.createdAt)).limit(LIST_PAGE),
+      db.select({ orderTotal: count() }).from(orders).where(eq(orders.posSessionId, id)),
+      db.select().from(posHeldSales).where(eq(posHeldSales.sessionId, id)).orderBy(desc(posHeldSales.createdAt)),
+    ]);
+    const [nameById, methodsByOrder] = await Promise.all([
+      resolveNames([...new Set(movementRows.map((movement) => movement.createdBy).filter(Boolean))]),
+      methodsFor(orderRows.map((order) => order.id)),
+    ]);
+    const orderNoById = new Map(orderRows.map((order) => [order.id, order.orderNumber]));
+    return NextResponse.json({
+      session: row.session,
+      register: { id: row.register.id, name: row.register.name, branchId: row.register.branchId },
+      summary: row.session.zReport,
+      movements: movementRows.map((movement) => ({ ...movement,
+        by: nameById[movement.createdBy] || null,
+        orderNumber: movement.orderId ? orderNoById.get(movement.orderId) || null : null })),
+      movementsTotal: movementTotal,
+      orders: orderRows.map((order) => ({ ...order, paymentMethods: methodsByOrder.get(order.id) || [] })),
+      ordersTotal: orderTotal,
+      heldSales: held,
+    });
+  }
+
   // ---- full detail: summary (all data) + first page of each list ----
   const [movements, sessionOrders, held] = await Promise.all([
     db.select().from(cashMovements).where(eq(cashMovements.sessionId, id)).orderBy(cashMovements.createdAt),

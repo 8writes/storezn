@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { orders, orderItems, orderTenders, cashMovements } from "@/lib/db/schema.js";
 import { validate, posReturnSchema } from "@/lib/validate.js";
@@ -7,13 +7,13 @@ import { generateOrderNumber } from "@/lib/orders.js";
 import { restockItems } from "@/lib/inventory.js";
 import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
+import { lockPosSession } from "@/lib/posSession.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
 
-// A till return. Creates a linked NEGATIVE order (the original is never
-// touched - history stays additive), restocks the returned units at the
-// branch the sale came from, and records the cash going back out of the
-// drawer. Owner-only for now (returns move up to staff with the P2
-// manager override).
+function posError(message, code, status = 409) {
+  return Object.assign(new Error(message), { code, status });
+}
+
 export async function POST(req, { params }) {
   const { storeId } = await params;
   const ctx = await posContext(req, storeId);
@@ -27,158 +27,125 @@ export async function POST(req, { params }) {
   const result = validate(posReturnSchema, body || {});
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   const data = result.data;
+  const paymentReference = `POSRET-${data.idempotencyKey}`;
 
   const sessionRow = await loadSession(storeId, data.sessionId, user);
   if (!sessionRow) return NextResponse.json({ error: "Session not found" }, { status: 404 });
-  if (sessionRow.session.status !== "open") {
-    return NextResponse.json({ error: "Open a register session before processing a return" }, { status: 409 });
-  }
 
-  const [original] = await db.select().from(orders).where(eq(orders.id, data.originalOrderId)).limit(1);
-  if (!original || original.storeId !== storeId) {
-    return NextResponse.json({ error: "Original sale not found" }, { status: 404 });
-  }
-  if (original.originalOrderId || original.paymentStatus !== "paid" || Number(original.totalAmount) < 0) {
-    return NextResponse.json({ error: "That order can't be returned against" }, { status: 409 });
-  }
-
-  const originalItems = await db.select().from(orderItems).where(eq(orderItems.orderId, original.id));
-  const priorReturns = await db.select({ id: orders.id }).from(orders).where(eq(orders.originalOrderId, original.id));
-  // returned-so-far per original line (quantities on prior returns are
-  // stored negative)
-  const returnedByItem = new Map();
-  for (const pr of priorReturns) {
-    const lines = await db.select().from(orderItems).where(eq(orderItems.orderId, pr.id));
-    for (const l of lines) {
-      const key = l.productId + (l.variantId || "");
-      returnedByItem.set(key, (returnedByItem.get(key) || 0) + Math.abs(l.quantity));
+  const [existing] = await db.select().from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+  if (existing) {
+    if (existing.storeId !== storeId || existing.originalOrderId !== data.originalOrderId) {
+      return NextResponse.json({ error: "That idempotency key was already used" }, { status: 409 });
     }
+    return NextResponse.json({ order: existing, refundAmount: Math.abs(Number(existing.totalAmount)), replayed: true });
   }
 
-  const returnLines = [];
-  let refundKoboRaw = 0;
-  for (const line of data.items) {
-    const item = originalItems.find((i) => i.id === line.orderItemId);
-    if (!item) return NextResponse.json({ error: "A line isn't part of that sale" }, { status: 404 });
-    const key = item.productId + (item.variantId || "");
-    const alreadyReturned = returnedByItem.get(key) || 0;
-    if (line.quantity + alreadyReturned > item.quantity) {
-      return NextResponse.json({ error: `${item.productName}: more returned than were sold` }, { status: 409 });
-    }
-    // Returning everything still outstanding on this line refunds exactly
-    // what the line was charged - `lineTotal / qty` doesn't divide evenly
-    // for a bundle price (10 at the bundle rate + 1 loose) or a line
-    // discount, so per-unit rounding would otherwise leave a kobo or two
-    // stranded on a full return.
-    const lineTotalKobo = toKobo(item.lineTotal);
-    const perUnitKobo = Math.round(lineTotalKobo / item.quantity);
-    const returnsWholeLine = line.quantity + alreadyReturned === item.quantity;
-    const lineRefundKobo = returnsWholeLine
-      ? lineTotalKobo - perUnitKobo * alreadyReturned
-      : perUnitKobo * line.quantity;
-    refundKoboRaw += lineRefundKobo;
-    returnLines.push({ item, quantity: line.quantity, lineRefundKobo });
-  }
+  let outcome;
+  try {
+    outcome = await db.transaction(async (tx) => {
+      const session = await lockPosSession(tx, data.sessionId);
+      if (!session || session.storeId !== storeId) throw posError("Session not found", "NOT_FOUND", 404);
+      if (session.status !== "open") throw posError("Open a register session before processing a return", "SESSION_CLOSED");
 
-  // Distribute the original order-level discount across the refund so a
-  // partial return of a discounted sale refunds proportionally.
-  const scale =
-    toKobo(original.subtotal) > 0 ? toKobo(original.totalAmount) / toKobo(original.subtotal) : 1;
-  const refundKobo = Math.round(refundKoboRaw * scale);
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${data.originalOrderId}))`);
+      const [replay] = await tx.select().from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+      if (replay) return { order: replay, refundKobo: Math.abs(toKobo(replay.totalAmount)), replayed: true };
 
-  const now = new Date();
-  const returnOrder = await db.transaction(async (tx) => {
-    const [ret] = await tx
-      .insert(orders)
-      .values({
-        storeId,
-        branchId: original.branchId,
-        userId: null,
-        orderNumber: generateOrderNumber(),
-        buyerName: original.buyerName,
-        buyerPhone: original.buyerPhone,
-        guestEmail: original.guestEmail,
-        status: "refunded",
-        paymentStatus: "paid",
-        soldById: user.id,
-        soldByName: actorLabel(user),
-        subtotal: -toNaira(refundKobo),
-        shippingFee: 0,
-        totalAmount: -toNaira(refundKobo),
-        commissionRatePercent: 0,
-        commissionAmount: 0,
-        flatFeeAmount: 0,
-        vendorPayoutAmount: -toNaira(refundKobo),
-        feeChargedToCustomer: false,
-        note: `Return against ${original.orderNumber}`,
-        isOffline: true,
-        channel: "pos",
-        posSessionId: data.sessionId,
-        originalOrderId: original.id,
-        paymentReference: `POSRET-${crypto.randomUUID()}`,
-        paidAt: now,
-      })
-      .returning();
+      const [original] = await tx.select().from(orders).where(eq(orders.id, data.originalOrderId)).limit(1);
+      if (!original || original.storeId !== storeId) throw posError("Original sale not found", "NOT_FOUND", 404);
+      if (original.channel !== "pos" || original.originalOrderId || original.paymentStatus !== "paid" || Number(original.totalAmount) < 0) {
+        throw posError("That order can't be returned through POS", "INVALID_ORDER");
+      }
 
-    await tx.insert(orderItems).values(
-      returnLines.map((rl) => ({
-        orderId: ret.id,
-        productId: rl.item.productId,
-        variantId: rl.item.variantId,
-        productName: rl.item.productName,
-        productImage: rl.item.productImage,
-        variantLabel: rl.item.variantLabel,
-        unitPrice: rl.item.unitPrice,
-        quantity: -rl.quantity,
-        lineTotal: -toNaira(rl.lineRefundKobo),
-      })),
-    );
+      const originalItems = await tx.select().from(orderItems).where(eq(orderItems.orderId, original.id));
+      const priorReturns = await tx.select({ id: orders.id }).from(orders).where(eq(orders.originalOrderId, original.id));
+      const returnedByItem = new Map();
+      for (const previous of priorReturns) {
+        const lines = await tx.select().from(orderItems).where(eq(orderItems.orderId, previous.id));
+        for (const line of lines) {
+          returnedByItem.set(line.productId + (line.variantId || ""),
+            (returnedByItem.get(line.productId + (line.variantId || "")) || 0) + Math.abs(line.quantity));
+        }
+      }
 
-    await restockItems(
-      tx,
-      returnLines.map((rl) => ({
-        productId: rl.item.productId,
-        variantId: rl.item.variantId,
-        quantity: rl.quantity,
-        branchId: original.branchId,
-      })),
-    );
+      const returnLines = [];
+      let refundKoboRaw = 0;
+      for (const line of data.items) {
+        const item = originalItems.find((candidate) => candidate.id === line.orderItemId);
+        if (!item) throw posError("A line isn't part of that sale", "LINE_NOT_FOUND", 404);
+        const key = item.productId + (item.variantId || "");
+        const alreadyReturned = returnedByItem.get(key) || 0;
+        if (line.quantity + alreadyReturned > item.quantity) {
+          throw posError(`${item.productName}: more returned than were sold`, "OVER_RETURN");
+        }
+        const lineTotalKobo = toKobo(item.lineTotal);
+        const perUnitKobo = Math.round(lineTotalKobo / item.quantity);
+        const lineRefundKobo = line.quantity + alreadyReturned === item.quantity
+          ? lineTotalKobo - perUnitKobo * alreadyReturned
+          : perUnitKobo * line.quantity;
+        refundKoboRaw += lineRefundKobo;
+        returnLines.push({ item, quantity: line.quantity, lineRefundKobo });
+      }
 
-    const refundMethod = data.refundMethod === "transfer" || data.refundMethod === "card" ? data.refundMethod : "cash";
-    await tx.insert(orderTenders).values({
-      orderId: ret.id,
-      method: refundMethod,
-      amount: -refundKobo,
-      changeGiven: 0,
-      reference: data.reference || null,
-      sessionId: data.sessionId,
-    });
+      const scale = toKobo(original.subtotal) > 0
+        ? toKobo(original.totalAmount) / toKobo(original.subtotal)
+        : 1;
+      const refundKobo = Math.round(refundKoboRaw * scale);
+      if (refundKobo <= 0) throw posError("Refund amount must be positive", "INVALID_REFUND", 400);
+      const refundMethod = data.refundMethod || "cash";
+      const [returnOrder] = await tx.insert(orders).values({
+        storeId, branchId: original.branchId, userId: null, orderNumber: generateOrderNumber(),
+        buyerName: original.buyerName, buyerPhone: original.buyerPhone, guestEmail: original.guestEmail,
+        status: "refunded", paymentStatus: "paid", soldById: user.id, soldByName: actorLabel(user),
+        subtotal: -toNaira(refundKobo), shippingFee: 0, totalAmount: -toNaira(refundKobo),
+        commissionRatePercent: 0, commissionAmount: 0, flatFeeAmount: 0,
+        vendorPayoutAmount: -toNaira(refundKobo), feeChargedToCustomer: false,
+        note: `Return against ${original.orderNumber}`, isOffline: true, channel: "pos",
+        posSessionId: data.sessionId, originalOrderId: original.id, paymentReference, paidAt: new Date(),
+      }).returning();
 
-    if (data.refundMethod === "cash") {
-      await tx.insert(cashMovements).values({
-        sessionId: data.sessionId,
-        kind: "cash_refund",
-        amount: -refundKobo,
-        orderId: ret.id,
-        createdBy: user.id,
+      await tx.insert(orderItems).values(returnLines.map(({ item, quantity, lineRefundKobo }) => ({
+        orderId: returnOrder.id, productId: item.productId, variantId: item.variantId,
+        productName: item.productName, productImage: item.productImage, variantLabel: item.variantLabel,
+        unitPrice: item.unitPrice, quantity: -quantity, lineTotal: -toNaira(lineRefundKobo),
+      })));
+      await restockItems(tx, returnLines.map(({ item, quantity }) => ({
+        productId: item.productId, variantId: item.variantId, quantity, branchId: original.branchId,
+      })));
+      await tx.insert(orderTenders).values({
+        orderId: returnOrder.id, method: refundMethod, amount: -refundKobo,
+        changeGiven: 0, reference: data.reference || null, sessionId: data.sessionId,
       });
+      if (refundMethod === "cash") {
+        await tx.insert(cashMovements).values({
+          sessionId: data.sessionId, kind: "cash_refund", amount: -refundKobo,
+          orderId: returnOrder.id, createdBy: user.id,
+        });
+      }
+      return { order: returnOrder, original, refundKobo, refundMethod, replayed: false };
+    });
+  } catch (error) {
+    if (error.status) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (/unique|duplicate key/i.test(error.message || "")) {
+      const [winner] = await db.select().from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+      if (winner?.storeId === storeId && winner.originalOrderId === data.originalOrderId) {
+        return NextResponse.json({ order: winner, refundAmount: Math.abs(Number(winner.totalAmount)), replayed: true });
+      }
     }
+    throw error;
+  }
 
-    return ret;
-  });
-
-  after(() =>
-    logStoreActivity({
-      storeId,
-      actor: user,
-      branchId: original.branchId,
-      action: "pos.return",
-      summary: `Refunded ${formatKobo(refundKobo)} against ${original.orderNumber} (${data.refundMethod || "cash"})`,
-      targetType: "order",
-      targetId: returnOrder.id,
-      metadata: { refundKobo, refundMethod: data.refundMethod || "cash", originalOrderId: original.id, originalOrderNumber: original.orderNumber },
-    }),
+  if (!outcome.replayed) {
+    after(() => logStoreActivity({
+      storeId, actor: user, branchId: outcome.original.branchId, action: "pos.return",
+      summary: `Refunded ${formatKobo(outcome.refundKobo)} against ${outcome.original.orderNumber} (${outcome.refundMethod})`,
+      targetType: "order", targetId: outcome.order.id,
+      metadata: { refundKobo: outcome.refundKobo, refundMethod: outcome.refundMethod,
+        originalOrderId: outcome.original.id, originalOrderNumber: outcome.original.orderNumber },
+    }));
+  }
+  return NextResponse.json(
+    { order: outcome.order, refundAmount: toNaira(outcome.refundKobo), replayed: outcome.replayed },
+    { status: outcome.replayed ? 200 : 201 },
   );
-
-  return NextResponse.json({ order: returnOrder, refundAmount: toNaira(refundKobo) }, { status: 201 });
 }
