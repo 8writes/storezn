@@ -37,7 +37,7 @@ export default async function PricingPage() {
 
   const FREE_FEATURES = [
     "Your own store, on a free storezn.com subdomain",
-    "Unlimited products",
+    "Up to 50 products",
     "Automatic payouts to your bank account",
     `${settings.freeStorageMb.toLocaleString("en-NG")}MB of image storage`,
     `${settings.freeStaffLimit} staff seat`,
@@ -45,6 +45,7 @@ export default async function PricingPage() {
 
   const PLUS_FEATURES = [
     "Everything in Free",
+    "Unlimited products",
     "Record offline orders (in-person, phone, cash sales)",
     "Use your own custom domain",
     "A custom accent color for your storefront",

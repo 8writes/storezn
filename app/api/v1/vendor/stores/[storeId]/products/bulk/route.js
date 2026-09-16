@@ -7,6 +7,7 @@ import { validate, bulkProductRowSchema } from "../../../../../../../../lib/vali
 import { parsePagination } from "../../../../../../../../lib/pagination.js";
 import { slugify } from "../../../../../../../../lib/slugify.js";
 import { seedBranchStockForNewItem } from "../../../../../../../../lib/inventory.js";
+import { getProductLimit } from "../../../../../../../../lib/storePlan.js";
 
 const MAX_ROWS = 500;
 
@@ -122,6 +123,23 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: `Import is limited to ${MAX_ROWS} rows at a time` }, { status: 400 });
   }
 
+  const productLimit = getProductLimit(store);
+  if (Number.isFinite(productLimit)) {
+    const [{ total: productCount }] = await db.select({ total: count() }).from(products).where(eq(products.storeId, storeId));
+    const remaining = Math.max(0, productLimit - productCount);
+    if (body.rows.length > remaining) {
+      return NextResponse.json(
+        {
+          error:
+            remaining > 0
+              ? `Free stores can add ${remaining} more product${remaining === 1 ? "" : "s"} before reaching the ${productLimit}-product limit.`
+              : `Free stores can list up to ${productLimit} products. Upgrade to Storezn+ to add more.`,
+        },
+        { status: 402 },
+      );
+    }
+  }
+
   // Every imported product starts stocked at the store's default branch,
   // same as the single-product create route - without a productBranchStock
   // row the checkout stock guard treats it as untracked/unlimited, so a
@@ -185,7 +203,6 @@ export async function POST(req, { params }) {
       const base = slugify(data.name) || "product";
       let slug = base;
       let suffix = 2;
-      // eslint-disable-next-line no-await-in-loop
       while (
         await db
           .select({ id: products.id })

@@ -7,6 +7,7 @@ import { validate, createProductSchema } from "../../../../../../../lib/validate
 import { parsePagination } from "../../../../../../../lib/pagination.js";
 import { seedBranchStockForNewItem, LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
+import { getProductLimit } from "../../../../../../../lib/storePlan.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -107,6 +108,17 @@ export async function POST(req, { params }) {
   const store = await loadStore(storeId);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const productLimit = getProductLimit(store);
+  if (Number.isFinite(productLimit)) {
+    const [{ total: productCount }] = await db.select({ total: count() }).from(products).where(eq(products.storeId, storeId));
+    if (productCount >= productLimit) {
+      return NextResponse.json(
+        { error: `Free stores can list up to ${productLimit} products. Upgrade to Storezn+ to add more.` },
+        { status: 402 },
+      );
+    }
+  }
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });

@@ -15,6 +15,10 @@ const SUPPORT_EMAIL = "support@ozmictech.com";
 // Storezn+ is the self-serve tier (Paystack checkout on this page).
 const PLUS_FEATURES = [
   {
+    title: "Unlimited products",
+    text: "Grow past the free plan's 50-product limit and keep adding your full catalogue.",
+  },
+  {
     title: "Your own web address",
     text: "Run the store on a domain you own (yourstore.com) instead of a storezn.com subdomain. We provision and renew the SSL certificate for you. You point your DNS once and it stays working.",
   },
@@ -108,7 +112,6 @@ export default function VendorPlusPage() {
 
   useEffect(() => {
     if (!token || !storeId) return;
-    setLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}`)
       .then((data) => {
         setStore(data.store);
