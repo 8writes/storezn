@@ -103,5 +103,6 @@ export async function POST(req) {
     ninSubmittedAt: updated.ninSubmittedAt,
     approvalReviewNote: updated.approvalReviewNote,
     autoVerified: autoApproved,
+    autoVerificationReason: autoApproved ? null : autoVerification.reason,
   });
 }
