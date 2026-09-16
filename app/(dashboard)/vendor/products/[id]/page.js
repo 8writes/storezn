@@ -133,7 +133,7 @@ export default function VendorProductViewPage({ params }) {
           {product.sku && <p className="text-xs text-slate-700 mt-1">SKU: {product.sku}</p>}
         </div>
 
-        <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-2 md:flex items-center justify-end gap-2 w-full sm:w-auto">
           <Link href={`/vendor/products/${id}/history?storeId=${storeId}`}>
             <Button type="button" variant="outline" size="sm">
               <History size={14} />
