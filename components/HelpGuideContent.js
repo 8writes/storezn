@@ -135,7 +135,7 @@ const SECTIONS = [
     cards: [
       card("Your store link & QR", "Both are on your dashboard once you're verified. The QR is handy for a shop sign, flyer, or receipt."),
       card("Going offline temporarily", "Store settings → Store status. Turned off, customers see a \"closed\" page instead of your products; your link keeps working, it just isn't taking orders."),
-      card("Marketplace listing", "On by default - your products are discoverable in the Storezn marketplace on top of your own link. Turn it off in Store settings; your own storefront is unaffected."),
+      card("Marketplace listing", "On by default - your products are discoverable in the Storezn marketplace on top of your own link. Turn it off in Store settings; your own website is unaffected."),
       card("Accent colour (Storezn+)", "Store settings → Storefront theme. Pick one colour and your header, buttons, prices and filters all follow it. Free stores use the default green."),
       card("Custom domain (Storezn+)", "Store settings → Custom domain. Add your own e.g. shop.yourbrand.com, point its DNS as shown, then tap Verify. Links only switch to it once it's verified."),
     ],
@@ -319,7 +319,7 @@ function SectionBody({ section, query }) {
       {cards.map(({ q, a }) => (
         <div key={q} className="bg-surface border border-slate-200 rounded-sm p-4">
           <p className="text-sm font-semibold text-slate-900">{q}</p>
-          <p className="text-sm text-slate-500 mt-1 leading-relaxed">{a}</p>
+          <p className="text-sm text-slate-800 mt-1 leading-relaxed">{a}</p>
         </div>
       ))}
     </div>
@@ -354,7 +354,7 @@ export function HelpGuideContent() {
     <div className="space-y-10">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Vendor guide</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-800 mt-1">
           Everything you need to run your store. Search for anything, tap a topic to jump to it, or scroll to read it
           all. No technical know-how required.
         </p>
@@ -415,7 +415,7 @@ export function HelpGuideContent() {
       <section className="bg-surface border border-slate-200 rounded-sm p-6 space-y-4">
         <div>
           <h2 className="font-bold text-slate-900">Still stuck?</h2>
-          <p className="text-sm text-slate-500 mt-1">A real person will read your message - no bots, no ticket numbers to remember.</p>
+          <p className="text-sm text-slate-800 mt-1">A real person will read your message - no bots, no ticket numbers to remember.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link

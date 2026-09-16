@@ -86,7 +86,7 @@ export default function SuperAdminDevicesPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Devices</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
+        <p className="text-sm text-slate-800 mt-0.5">
           Every device that has signed in or signed up, with the accounts seen on it. Recorded at login / signup only.
         </p>
       </div>
@@ -101,7 +101,7 @@ export default function SuperAdminDevicesPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-3 py-2 font-medium">Device</th>
               <th className="px-3 py-2 font-medium">Accounts seen</th>
@@ -142,8 +142,8 @@ export default function SuperAdminDevicesPage() {
                       </ul>
                     )}
                   </td>
-                  <td className="px-3 py-2 align-top text-slate-500 whitespace-nowrap">{formatDateTime(d.lastSeenAt)}</td>
-                  <td className="px-3 py-2 align-top font-mono text-xs text-slate-500">{d.lastIp || "N/A"}</td>
+                  <td className="px-3 py-2 align-top text-slate-800 whitespace-nowrap">{formatDateTime(d.lastSeenAt)}</td>
+                  <td className="px-3 py-2 align-top font-mono text-xs text-slate-800">{d.lastIp || "N/A"}</td>
                   <td className="px-3 py-2 align-top">
                     <div className="flex flex-wrap gap-1">
                       {d.banned && (

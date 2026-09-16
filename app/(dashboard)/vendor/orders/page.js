@@ -130,7 +130,7 @@ export default function VendorOrdersPage() {
                 <span className="text-sm font-medium text-slate-900 shrink-0">{formatCurrency(o.totalAmount)}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-800">
                   {formatDate(o.createdAt)}
                   {paidByLabel(o.paymentMethods) && <span className="text-slate-400"> · {paidByLabel(o.paymentMethods)}</span>}
                 </span>
@@ -145,7 +145,7 @@ export default function VendorOrdersPage() {
       {/* Desktop: table */}
       <div className="hidden sm:block bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Order</th>
               <th className="px-4 py-3 font-medium">Date</th>
@@ -175,9 +175,9 @@ export default function VendorOrdersPage() {
                       {o.isOffline && <Badge color="slate">Offline</Badge>}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(o.createdAt)}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatCurrency(o.totalAmount)}</td>
-                  <td className="px-4 py-3 text-slate-500">{paidByLabel(o.paymentMethods) || "N/A"}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatDate(o.createdAt)}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatCurrency(o.totalAmount)}</td>
+                  <td className="px-4 py-3 text-slate-800">{paidByLabel(o.paymentMethods) || "N/A"}</td>
                   <td className="px-4 py-3">
                     <Badge color={STATUS_COLOR[o.status] || "slate"}>{o.status.replace("_", " ")}</Badge>
                   </td>

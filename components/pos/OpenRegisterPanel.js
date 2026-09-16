@@ -29,7 +29,7 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, opening }) {
       <div className="max-w-md mx-auto bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
         <Calculator size={28} className="mx-auto text-slate-300" />
         <h2 className="text-lg font-bold text-slate-900">No register set up</h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-800">
           {isOwner
             ? "Add a register to run a proper till - open a shift with a cash float, take split payments, and close out with a Z report."
             : "Ask the store owner to add a register for this branch."}
@@ -54,7 +54,7 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, opening }) {
       <div className="text-center space-y-1">
         <Calculator size={26} className="mx-auto text-brand-600" />
         <h2 className="text-lg font-bold text-slate-900">Open a register</h2>
-        <p className="text-sm text-slate-500">Start a shift to begin selling.</p>
+        <p className="text-sm text-slate-800">Start a shift to begin selling.</p>
       </div>
 
       <div className="space-y-1">
@@ -79,7 +79,7 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, opening }) {
           placeholder="0"
           className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
         />
-        <p className="text-xs text-slate-500">The cash already in the drawer right now.</p>
+        <p className="text-xs text-slate-800">The cash already in the drawer right now.</p>
       </div>
 
       <Button

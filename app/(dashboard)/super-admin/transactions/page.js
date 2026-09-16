@@ -115,7 +115,7 @@ export default function SuperAdminTransactionsPage() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Transactions</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-800 mt-1">
             Every checkout attempt platform-wide - initiated, pending, paid, or failed - so nothing gets lost between a customer paying and an order updating.
           </p>
         </div>
@@ -133,7 +133,7 @@ export default function SuperAdminTransactionsPage() {
             type="button"
             onClick={() => setTab(t.value)}
             className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px cursor-pointer transition-colors ${
-              tab === t.value ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-700"
+              tab === t.value ? "border-brand-600 text-brand-700" : "border-transparent text-slate-800 hover:text-slate-700"
             }`}
           >
             {t.label}
@@ -163,7 +163,7 @@ export default function SuperAdminTransactionsPage() {
       {tab === "orders" ? (
         <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
+            <thead className="bg-slate-50 text-slate-800 text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Order</th>
                 <th className="px-4 py-3 font-medium">Store</th>
@@ -185,10 +185,10 @@ export default function SuperAdminTransactionsPage() {
                 transactions.map((t) => (
                   <tr key={t.id} className="border-t border-slate-100">
                     <td className="px-4 py-3 font-medium text-slate-900">{t.orderNumber}</td>
-                    <td className="px-4 py-3 text-slate-500">{t.storeName}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatDateTime(t.createdAt)}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatCurrency(t.totalAmount)}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatCurrency(t.commissionAmount + (t.flatFeeAmount || 0))}</td>
+                    <td className="px-4 py-3 text-slate-800">{t.storeName}</td>
+                    <td className="px-4 py-3 text-slate-800">{formatDateTime(t.createdAt)}</td>
+                    <td className="px-4 py-3 text-slate-800">{formatCurrency(t.totalAmount)}</td>
+                    <td className="px-4 py-3 text-slate-800">{formatCurrency(t.commissionAmount + (t.flatFeeAmount || 0))}</td>
                     <td className="px-4 py-3 text-slate-700 font-mono text-xs">{t.isOffline ? "offline sale" : t.paymentReference}</td>
                     <td className="px-4 py-3">
                       <Badge color={STATUS_COLOR[t.paymentStatus] || "slate"}>{t.paymentStatus}</Badge>
@@ -203,7 +203,7 @@ export default function SuperAdminTransactionsPage() {
       ) : (
         <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
+            <thead className="bg-slate-50 text-slate-800 text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Store</th>
                 <th className="px-4 py-3 font-medium">Paid</th>
@@ -222,8 +222,8 @@ export default function SuperAdminTransactionsPage() {
                 subTransactions.map((t) => (
                   <tr key={t.id} className="border-t border-slate-100">
                     <td className="px-4 py-3 font-medium text-slate-900">{t.storeName}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatDateTime(t.paidAt)}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatCurrency(t.amount)}</td>
+                    <td className="px-4 py-3 text-slate-800">{formatDateTime(t.paidAt)}</td>
+                    <td className="px-4 py-3 text-slate-800">{formatCurrency(t.amount)}</td>
                     <td className="px-4 py-3 text-slate-700 font-mono text-xs">{t.paystackReference}</td>
                   </tr>
                 ))

@@ -50,7 +50,7 @@ export function SizeGuideEditor({ value, onChange }) {
     return (
       <div>
         <label className="text-sm font-medium text-slate-700">Size guide</label>
-        <p className="text-xs text-slate-500 mt-0.5 mb-2">
+        <p className="text-xs text-slate-800 mt-0.5 mb-2">
           A measurements table shoppers open from the product page. Use the same size names as your Size
           variant values and the measurements show inline when a shopper picks that size.
         </p>
@@ -87,7 +87,7 @@ export function SizeGuideEditor({ value, onChange }) {
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="text-xs text-slate-500 hover:text-red-600 cursor-pointer"
+          className="text-xs text-slate-800 hover:text-red-600 cursor-pointer"
         >
           Remove
         </button>
@@ -115,7 +115,7 @@ export function SizeGuideEditor({ value, onChange }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-slate-500">Measurements in</span>
+        <span className="text-xs text-slate-800">Measurements in</span>
         {["cm", "in"].map((u) => (
           <button
             key={u}
@@ -137,8 +137,8 @@ export function SizeGuideEditor({ value, onChange }) {
         <table className="text-sm">
           <thead>
             <tr className="bg-slate-50">
-              <th className="p-2 text-left text-xs font-medium text-slate-500">{sizeLabel || "Size"}</th>
-              {hasAlt && <th className="p-2 text-left text-xs font-medium text-slate-500">{altLabel}</th>}
+              <th className="p-2 text-left text-xs font-medium text-slate-800">{sizeLabel || "Size"}</th>
+              {hasAlt && <th className="p-2 text-left text-xs font-medium text-slate-800">{altLabel}</th>}
               {columns.map((c, ci) => (
                 <th key={ci} className="p-2">
                   <div className="flex items-center gap-1">

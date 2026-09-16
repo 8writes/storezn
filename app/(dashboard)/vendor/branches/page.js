@@ -40,7 +40,7 @@ export default function VendorBranchesPage() {
 
   // Owner-only, same as /vendor/staff.
   if (user && user.role !== "vendor") {
-    return <p className="text-sm text-slate-500">This page is only available to the store owner.</p>;
+    return <p className="text-sm text-slate-800">This page is only available to the store owner.</p>;
   }
 
   const add = async (e) => {
@@ -88,7 +88,7 @@ export default function VendorBranchesPage() {
       {confirmDialog}
       <div>
         <h1 className="text-xl font-bold text-slate-900">Branches</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-800 mt-1">
           Track stock and staff separately per physical location. Buyers never see this - your storefront looks the same either way.
         </p>
       </div>
@@ -96,7 +96,7 @@ export default function VendorBranchesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
+            <thead className="bg-slate-50 text-slate-800 text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Branch</th>
                 <th className="px-4 py-3 font-medium">Address</th>
@@ -119,7 +119,7 @@ export default function VendorBranchesPage() {
                         {branch.isDefault && <Badge color="slate">Default</Badge>}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{branch.address || "N/A"}</td>
+                    <td className="px-4 py-3 text-slate-800">{branch.address || "N/A"}</td>
                     <td className="px-4 py-3 text-right">
                       {!branch.isDefault && (
                         <button
@@ -147,7 +147,7 @@ export default function VendorBranchesPage() {
           </div>
           {atLimit ? (
             <div className="space-y-2">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-800">
                 You&apos;ve reached the {maxBranches}-branch limit{maxBranches <= 1 ? " on the free plan" : ""}.{" "}
                 {maxBranches <= 1 ? "Upgrade to Storezn+ for more branches." : "Delete one before adding another."}
               </p>

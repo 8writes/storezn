@@ -97,7 +97,7 @@ export default function SuperAdminProductsPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Product</th>
               <th className="px-4 py-3 font-medium">Store</th>
@@ -121,8 +121,8 @@ export default function SuperAdminProductsPage() {
                   className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
                 >
                   <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
-                  <td className="px-4 py-3 text-slate-500">{p.storeName}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatCurrency(p.price)}</td>
+                  <td className="px-4 py-3 text-slate-800">{p.storeName}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatCurrency(p.price)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Badge color={p.isActive ? "green" : "slate"}>{p.isActive ? "Live" : "Hidden"}</Badge>

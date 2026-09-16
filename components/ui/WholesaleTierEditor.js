@@ -27,7 +27,7 @@ export function WholesaleTierEditor({ value, onChange }) {
         <div className="space-y-2">
           {rows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 shrink-0">Bundle of</span>
+              <span className="text-xs text-slate-800 shrink-0">Bundle of</span>
               <input
                 type="number"
                 min="2"
@@ -37,8 +37,8 @@ export function WholesaleTierEditor({ value, onChange }) {
                 placeholder="10"
                 className="w-16 px-2 py-1.5 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
               />
-              <span className="text-xs text-slate-500 shrink-0">&rarr;</span>
-              <span className="text-sm text-slate-500 shrink-0">&#8358;</span>
+              <span className="text-xs text-slate-800 shrink-0">&rarr;</span>
+              <span className="text-sm text-slate-800 shrink-0">&#8358;</span>
               <input
                 type="number"
                 min="0"
@@ -49,7 +49,7 @@ export function WholesaleTierEditor({ value, onChange }) {
                 placeholder="900"
                 className="w-24 px-2 py-1.5 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
               />
-              <span className="text-xs text-slate-500 shrink-0">each</span>
+              <span className="text-xs text-slate-800 shrink-0">each</span>
               <button type="button" onClick={() => remove(i)} className="ml-auto text-slate-400 hover:text-red-600 cursor-pointer shrink-0">
                 <X size={15} />
               </button>

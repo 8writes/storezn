@@ -176,7 +176,7 @@ export default function ProfilePage() {
         <div className="bg-surface border border-red-200 rounded-sm p-5 space-y-3">
           <div>
             <p className="text-sm font-semibold text-slate-700">Leave this store</p>
-            <p className="text-xs text-slate-500 mt-1">You&apos;ll lose access to this store&apos;s dashboard immediately.</p>
+            <p className="text-xs text-slate-800 mt-1">You&apos;ll lose access to this store&apos;s dashboard immediately.</p>
           </div>
           <Button type="button" variant="danger" loading={leaving} onClick={handleLeaveStore}>Leave store</Button>
         </div>
@@ -186,7 +186,7 @@ export default function ProfilePage() {
         <div className="bg-surface border border-red-200 rounded-sm p-5 space-y-3">
           <div>
             <p className="text-sm font-semibold text-slate-700">Disable account</p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-800 mt-1">
               Suspends your account and takes your storefront offline. Your products, orders and settings are kept -
               contact Storezn support to reopen the store or to permanently delete everything.
             </p>

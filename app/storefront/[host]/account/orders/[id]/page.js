@@ -87,7 +87,7 @@ export default function CustomerOrderDetailPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{order.orderNumber}</h1>
-          <p className="text-sm text-slate-500 mt-1">Placed {formatDateTime(order.createdAt)}</p>
+          <p className="text-sm text-slate-800 mt-1">Placed {formatDateTime(order.createdAt)}</p>
         </div>
         <Button variant="outline" size="sm" onClick={downloadPdf}>
           <Download size={14} />
@@ -128,9 +128,9 @@ export default function CustomerOrderDetailPage() {
       {refundRequest ? (
         <div className="bg-white border border-slate-200 rounded-sm p-5 text-sm space-y-1">
           <p className="font-semibold text-slate-700">Refund request</p>
-          <p className="text-slate-500">Status: <Badge color={refundRequest.status === "approved" ? "green" : refundRequest.status === "rejected" ? "red" : "amber"}>{refundRequest.status}</Badge></p>
-          <p className="text-slate-500">Reason: {refundRequest.reason}</p>
-          {refundRequest.reviewNote && <p className="text-slate-500">Seller note: {refundRequest.reviewNote}</p>}
+          <p className="text-slate-800">Status: <Badge color={refundRequest.status === "approved" ? "green" : refundRequest.status === "rejected" ? "red" : "amber"}>{refundRequest.status}</Badge></p>
+          <p className="text-slate-800">Reason: {refundRequest.reason}</p>
+          {refundRequest.reviewNote && <p className="text-slate-800">Seller note: {refundRequest.reviewNote}</p>}
           {refundRequest.status === "approved" && (
             <p className="text-slate-400 text-xs pt-1">The seller has approved this refund and will send your money back directly - this isn't processed automatically through Storezn.</p>
           )}

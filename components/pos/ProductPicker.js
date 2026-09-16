@@ -217,7 +217,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
   return (
     <div className="space-y-4 min-w-0">
       <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-800 pointer-events-none" />
         <input
           ref={searchRef}
           type="text"

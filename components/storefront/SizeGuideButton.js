@@ -43,7 +43,7 @@ export function SizeGuideButton({ guide }) {
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close"
-                className="text-slate-500 hover:text-slate-900 cursor-pointer"
+                className="text-slate-800 hover:text-slate-900 cursor-pointer"
               >
                 <X size={18} />
               </button>

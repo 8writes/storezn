@@ -56,14 +56,14 @@ export function BranchStockPanel({ apiFetch, storeId, productId, onTotalBranches
     <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-5">
       <div>
         <p className="text-sm font-semibold text-slate-700">Stock by branch</p>
-        <p className="text-xs text-slate-500 mt-0.5">Leave blank for unlimited at that branch.</p>
+        <p className="text-xs text-slate-800 mt-0.5">Leave blank for unlimited at that branch.</p>
       </div>
 
       <BranchStockRows label={null} rows={data.productStock} saving={saving} onSave={(branchId, value, prev) => save(branchId, null, value, prev)} />
 
       {variants.map((v) => (
         <div key={v.id} className="pt-4 border-t border-slate-100">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+          <p className="text-xs font-medium text-slate-800 uppercase tracking-wide mb-2">
             {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
           </p>
           <BranchStockRows label={v.id} rows={data.variantStock[v.id] || []} saving={saving} onSave={(branchId, value, prev) => save(branchId, v.id, value, prev)} />

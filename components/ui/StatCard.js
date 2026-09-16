@@ -39,7 +39,7 @@ export function StatCard({ icon: Icon, label, value, sub, color = "brand", href,
         <p title={tip} className={`text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-tight truncate ${tip ? "cursor-help" : ""}`}>
           {display}
         </p>
-        <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
+        <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-800">{label}</p>
         {sub && <p className="text-xs text-slate-600 mt-1 break-words">{sub}</p>}
       </div>
     </>

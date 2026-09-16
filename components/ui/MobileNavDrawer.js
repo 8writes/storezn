@@ -55,7 +55,7 @@ export function MobileNavDrawer({ open, onClose, title, children, footer, muted 
             onClick={onClose}
             aria-label="Close menu"
             className={`w-9 h-9 -mr-2 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-              muted ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100" : "text-white/70 hover:text-white hover:bg-white/10"
+              muted ? "text-slate-800 hover:text-slate-900 hover:bg-slate-100" : "text-white/70 hover:text-white hover:bg-white/10"
             }`}
           >
             <X size={20} />

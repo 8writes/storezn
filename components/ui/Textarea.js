@@ -21,7 +21,7 @@ export function Textarea({ label, hint, error, className = "", id, ...props }) {
       {error ? (
         <p className="text-xs text-red-600">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-slate-500">{hint}</p>
+        <p className="text-xs text-slate-800">{hint}</p>
       ) : null}
     </div>
   );

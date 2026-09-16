@@ -30,9 +30,9 @@ function lastMonths(n) {
 function Stat({ label, value, sub }) {
   return (
     <div className="rounded-sm border border-slate-200 p-3">
-      <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{label}</p>
+      <p className="text-[11px] uppercase tracking-wide text-slate-800 font-semibold">{label}</p>
       <p className="text-lg font-bold text-slate-900 tabular-nums">{value}</p>
-      {sub && <p className="text-xs text-slate-500">{sub}</p>}
+      {sub && <p className="text-xs text-slate-800">{sub}</p>}
     </div>
   );
 }
@@ -81,7 +81,7 @@ function DetailTable({ title, head, rows, render }) {
       <p className="text-sm font-semibold text-slate-700 mb-2">{title}</p>
       <div className="overflow-x-auto border border-slate-200 rounded-sm max-h-96 overflow-y-auto">
         <table className="w-full text-sm whitespace-nowrap">
-          <thead className="bg-slate-50 text-slate-500 text-left sticky top-0">
+          <thead className="bg-slate-50 text-slate-800 text-left sticky top-0">
             <tr>
               {head.map((h, i) => (
                 <th key={i} className={`px-3 py-2 font-medium ${i === head.length - 1 ? "text-right" : ""}`}>{h}</th>
@@ -139,16 +139,16 @@ export default function VendorReportsPage() {
   }, [token, storeId]);
 
   if (user && user.role !== "vendor") {
-    return <p className="text-sm text-slate-500">Reports are only available to the store owner.</p>;
+    return <p className="text-sm text-slate-800">Reports are only available to the store owner.</p>;
   }
   if (denied) {
-    return <p className="text-sm text-slate-500">Reports are only available to the store owner.</p>;
+    return <p className="text-sm text-slate-800">Reports are only available to the store owner.</p>;
   }
   if (locked) {
     return (
       <div className="max-w-md mx-auto text-center bg-surface border border-slate-200 rounded-sm p-8 space-y-3 mt-6">
         <h1 className="text-lg font-bold text-slate-900">The monthly report is a Storezn Enterprise feature</h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-800">
           Enterprise adds a full month-end business &amp; forensic audit report: sales, tenders, cash reconciliation
           per shift, and who did what. It&apos;s set up by the Storezn team.
         </p>
@@ -170,7 +170,7 @@ export default function VendorReportsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3 no-print">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Monthly report</h1>
-          <p className="text-sm text-slate-500 mt-1">Sales, tenders, top products, cash variance and staff activity for a calendar month.</p>
+          <p className="text-sm text-slate-800 mt-1">Sales, tenders, top products, cash variance and staff activity for a calendar month.</p>
         </div>
         <div className="flex items-end gap-2">
           <div className="w-48">
@@ -337,7 +337,7 @@ export default function VendorReportsPage() {
               <p className="text-sm font-semibold text-slate-700 mb-2">Who did what</p>
               <div className="overflow-x-auto border border-slate-200 rounded-sm">
                 <table className="w-full text-sm whitespace-nowrap">
-                  <thead className="bg-slate-50 text-slate-500 text-left">
+                  <thead className="bg-slate-50 text-slate-800 text-left">
                     <tr>
                       <th className="px-3 py-2 font-medium">Staff</th>
                       <th className="px-3 py-2 font-medium text-right">Sales</th>
@@ -359,10 +359,10 @@ export default function VendorReportsPage() {
                           <td className="px-3 py-2 text-slate-700">{p.name}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{p.salesCount || 0}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(p.salesValue || 0)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-500">
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-800">
                             {p.discountsCount || 0} · {formatCurrency(p.discountsValue || 0)}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-500">
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-800">
                             {p.overrideLines || 0} · {formatCurrency(p.overridesValue || 0)}
                           </td>
                           <td className={`px-3 py-2 text-right tabular-nums font-medium ${givenAway > 0 ? "text-amber-600" : "text-slate-400"}`}>
@@ -374,7 +374,7 @@ export default function VendorReportsPage() {
                           <td className={`px-3 py-2 text-right tabular-nums ${p.cashOutValue > 0 ? "text-red-600" : "text-slate-400"}`}>
                             {p.cashOutCount ? `${p.cashOutCount} · ${formatCurrency(p.cashOutValue)}` : "N/A"}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-500">{p.shifts || 0}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-800">{p.shifts || 0}</td>
                           <td className={`px-3 py-2 text-right tabular-nums font-medium ${p.overShort < 0 ? "text-red-600" : p.overShort > 0 ? "text-amber-600" : "text-slate-400"}`}>
                             {p.shifts ? (p.overShort === 0 ? "balanced" : formatCurrency(p.overShort)) : "N/A"}
                           </td>
@@ -397,7 +397,7 @@ export default function VendorReportsPage() {
                       <span className="text-slate-700">
                         {c.name} <span className="text-slate-400">· {c.sessions} shift{c.sessions === 1 ? "" : "s"}</span>
                       </span>
-                      <span className={`font-medium tabular-nums ${c.overShort < 0 ? "text-red-600" : c.overShort > 0 ? "text-amber-600" : "text-slate-500"}`}>
+                      <span className={`font-medium tabular-nums ${c.overShort < 0 ? "text-red-600" : c.overShort > 0 ? "text-amber-600" : "text-slate-800"}`}>
                         {c.overShort === 0 ? "balanced" : `${c.overShort > 0 ? "over " : "short "}${formatCurrency(Math.abs(c.overShort))}`}
                       </span>
                     </div>
@@ -406,7 +406,7 @@ export default function VendorReportsPage() {
               )}
               <div className="overflow-x-auto border border-slate-200 rounded-sm">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-500 text-left">
+                  <thead className="bg-slate-50 text-slate-800 text-left">
                     <tr>
                       <th className="px-3 py-2 font-medium">Closed</th>
                       <th className="px-3 py-2 font-medium">Register</th>
@@ -420,7 +420,7 @@ export default function VendorReportsPage() {
                   <tbody>
                     {report.cashReconciliation.map((r, i) => (
                       <tr key={i} className="border-t border-slate-100">
-                        <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.closedAt)}</td>
+                        <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{formatDateTime(r.closedAt)}</td>
                         <td className="px-3 py-2 text-slate-700">{r.register}</td>
                         <td className="px-3 py-2 text-slate-700">{r.cashier}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.expected)}</td>
@@ -504,10 +504,10 @@ export default function VendorReportsPage() {
               rows={report.detail.discounts}
               render={(r) => (
                 <>
-                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
+                  <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{formatDateTime(r.at)}</td>
                   <td className="px-3 py-2 text-slate-700">{r.orderNumber}</td>
                   <td className="px-3 py-2 text-slate-700">{r.by || "N/A"}</td>
-                  <td className="px-3 py-2 text-slate-500">{r.reason || "N/A"}</td>
+                  <td className="px-3 py-2 text-slate-800">{r.reason || "N/A"}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-amber-600 font-medium">{formatCurrency(r.amount)}</td>
                 </>
               )}
@@ -521,12 +521,12 @@ export default function VendorReportsPage() {
               rows={report.detail.priceOverrides}
               render={(r) => (
                 <>
-                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
+                  <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{formatDateTime(r.at)}</td>
                   <td className="px-3 py-2 text-slate-700">{r.orderNumber}</td>
                   <td className="px-3 py-2 text-slate-700">{r.by || "N/A"}</td>
                   <td className="px-3 py-2 text-slate-700">{r.product}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{r.qty}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-500">{formatCurrency(r.catalogue)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-800">{formatCurrency(r.catalogue)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.charged)}</td>
                   <td className={`px-3 py-2 text-right tabular-nums font-medium ${r.givenAway > 0 ? "text-amber-600" : r.givenAway < 0 ? "text-green-700" : "text-slate-400"}`}>
                     {formatCurrency(r.givenAway)}
@@ -543,10 +543,10 @@ export default function VendorReportsPage() {
               rows={report.detail.returns}
               render={(r) => (
                 <>
-                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
+                  <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{formatDateTime(r.at)}</td>
                   <td className="px-3 py-2 text-slate-700">{r.orderNumber}</td>
                   <td className="px-3 py-2 text-slate-700">{r.by || "N/A"}</td>
-                  <td className="px-3 py-2 text-slate-500">{r.note || "N/A"}</td>
+                  <td className="px-3 py-2 text-slate-800">{r.note || "N/A"}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-red-600 font-medium">{formatCurrency(r.amount)}</td>
                 </>
               )}
@@ -560,10 +560,10 @@ export default function VendorReportsPage() {
               rows={report.detail.cashMovements}
               render={(r) => (
                 <>
-                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.at)}</td>
+                  <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{formatDateTime(r.at)}</td>
                   <td className="px-3 py-2 text-slate-700">{r.by}</td>
                   <td className="px-3 py-2 text-slate-700">{CASH_KIND[r.kind] || r.kind}</td>
-                  <td className="px-3 py-2 text-slate-500">{r.reason || "N/A"}</td>
+                  <td className="px-3 py-2 text-slate-800">{r.reason || "N/A"}</td>
                   <td className={`px-3 py-2 text-right tabular-nums font-medium ${r.kind === "paid_in" ? "text-green-700" : "text-red-600"}`}>
                     {r.kind === "paid_in" ? "" : "−"}{formatCurrency(r.amount)}
                   </td>
@@ -575,7 +575,7 @@ export default function VendorReportsPage() {
       )}
 
       {report && s.salesCount === 0 && s.returnsCount === 0 && (
-        <p className="text-sm text-slate-500 no-print">No sales recorded in {report.label}.</p>
+        <p className="text-sm text-slate-800 no-print">No sales recorded in {report.label}.</p>
       )}
     </div>
   );

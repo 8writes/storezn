@@ -120,7 +120,7 @@ export default function RegistersPage() {
         <BackLink href="/vendor/orders" label="Back to orders" />
         <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h1 className="text-lg font-bold text-slate-900">Registers are a Storezn Enterprise feature</h1>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+          <p className="text-sm text-slate-800 max-w-sm mx-auto">
             Enterprise adds the full in-person point-of-sale suite. It&apos;s set up by the Storezn team.
           </p>
           <Link href="/vendor/plus" className="inline-block">
@@ -142,7 +142,7 @@ export default function RegistersPage() {
           Session history &amp; Z reports
         </Link>
       </div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-slate-800">
         A register is a till at a branch. Open a shift on it from the Sell screen, take payments, and close it out with a Z report.
       </p>
 
@@ -156,7 +156,7 @@ export default function RegistersPage() {
         {loading ? (
           <div className="p-6 text-sm text-slate-400">Loading…</div>
         ) : registers.length === 0 ? (
-          <div className="p-6 text-sm text-slate-500 text-center">No registers yet</div>
+          <div className="p-6 text-sm text-slate-800 text-center">No registers yet</div>
         ) : (
           registers.map((r) => (
             <div key={r.id} className="flex items-center gap-3 px-4 py-3">
@@ -188,7 +188,7 @@ export default function RegistersPage() {
                     {r.name}
                   </button>
                 )}
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-slate-800">
                   {r.branchName || "N/A"}
                   {r.openSession && <span className="text-emerald-600 font-medium"> · shift open</span>}
                   {!r.isActive && <span className="text-slate-400"> · retired</span>}
@@ -213,7 +213,7 @@ export default function RegistersPage() {
               onChange={setBranchId}
               options={[{ value: "", label: "Choose a branch…" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
             />
-            <p className="text-xs text-slate-500">Sales rung up on this till count against this branch&apos;s stock.</p>
+            <p className="text-xs text-slate-800">Sales rung up on this till count against this branch&apos;s stock.</p>
           </div>
         )}
         <Button type="submit" loading={creating} disabled={!name.trim() || !branchId}>

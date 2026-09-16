@@ -279,7 +279,7 @@ export default function BulkProductsPage() {
   };
 
   if (user && user.role !== "vendor" && user.role !== "staff" && user.role !== "super_admin") {
-    return <p className="text-sm text-slate-500">Only the store team can bulk-edit products.</p>;
+    return <p className="text-sm text-slate-800">Only the store team can bulk-edit products.</p>;
   }
   if (!storeLoading && stores.length === 0) {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
@@ -294,7 +294,7 @@ export default function BulkProductsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Bulk edit products</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-sm text-slate-800 mt-0.5">
             Edit price, cost, stock, category and expiry in place, or add new products as rows. Stock changes apply to{" "}
             <span className="font-medium text-slate-700">{branchName || "the default branch"}</span>.
           </p>
@@ -333,7 +333,7 @@ export default function BulkProductsPage() {
           )}
         </div>
         <BarcodeScanButton onScan={scanFind} className="!py-1.5" />
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-slate-800">
           {q ? `${serverRows.length} match${serverRows.length === 1 ? "" : "es"}` : pagination ? `${serverRows.length} of ${pagination.total}` : ""}
         </span>
         <div className="ml-auto flex items-center gap-2">
@@ -350,7 +350,7 @@ export default function BulkProductsPage() {
         <>
           <div ref={tableRef} className="overflow-x-auto border border-slate-200 rounded-sm">
             <table className="w-full text-sm min-w-[1000px]">
-              <thead className="bg-slate-50 text-slate-500 text-left sticky top-0 z-10">
+              <thead className="bg-slate-50 text-slate-800 text-left sticky top-0 z-10">
                 <tr>
                   <th className="px-2 py-2 font-medium w-[22%]">Name</th>
                   <th className="px-2 py-2 font-medium w-[12%]">SKU</th>
@@ -465,12 +465,12 @@ function GridRow({ r, isNew, catOptions, baseStock, touched, highlight, onChange
           <span className="text-xs text-slate-400">not stocked</span>
         ) : (
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-500 tabular-nums w-14 shrink-0">now {baseStock ?? 0}</span>
+            <span className="text-xs text-slate-800 tabular-nums w-14 shrink-0">now {baseStock ?? 0}</span>
             <div className="flex rounded-sm border border-slate-200 overflow-hidden text-[11px] shrink-0">
-              <button type="button" onClick={() => onChange({ stockMode: "add" })} className={`px-1.5 py-1 ${r.stockMode === "add" ? "bg-brand-600 text-white" : "bg-surface text-slate-500"}`}>
+              <button type="button" onClick={() => onChange({ stockMode: "add" })} className={`px-1.5 py-1 ${r.stockMode === "add" ? "bg-brand-600 text-white" : "bg-surface text-slate-800"}`}>
                 +Add
               </button>
-              <button type="button" onClick={() => onChange({ stockMode: "set" })} className={`px-1.5 py-1 ${r.stockMode === "set" ? "bg-brand-600 text-white" : "bg-surface text-slate-500"}`}>
+              <button type="button" onClick={() => onChange({ stockMode: "set" })} className={`px-1.5 py-1 ${r.stockMode === "set" ? "bg-brand-600 text-white" : "bg-surface text-slate-800"}`}>
                 Set
               </button>
             </div>

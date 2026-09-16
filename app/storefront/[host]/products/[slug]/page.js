@@ -111,7 +111,7 @@ export default async function StorefrontProductPage({ params }) {
                     </li>
                   ))}
               </ul>
-              <p className="mt-1.5 text-[11px] text-slate-500">Extra units above a whole bundle are charged the normal price.</p>
+              <p className="mt-1.5 text-[11px] text-slate-800">Extra units above a whole bundle are charged the normal price.</p>
             </div>
           )}
 

@@ -43,7 +43,7 @@ export default function VendorCustomerDetailPage({ params }) {
 
       <div>
         <h1 className="text-xl font-bold text-slate-900">{customer.firstName} {customer.lastName}</h1>
-        <p className="text-sm text-slate-500">Customer since {formatDate(customer.createdAt)}</p>
+        <p className="text-sm text-slate-800">Customer since {formatDate(customer.createdAt)}</p>
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">

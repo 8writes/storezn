@@ -64,7 +64,7 @@ export default function VendorVerificationPage() {
   // here, this just avoids an infinite skeleton for a fetch that will
   // never succeed for them).
   if (user && user.role !== "vendor") {
-    return <p className="text-sm text-slate-500">This page is only available to the store owner.</p>;
+    return <p className="text-sm text-slate-800">This page is only available to the store owner.</p>;
   }
 
   if (loading || !status) return <FormSkeleton fields={3} />;
@@ -73,7 +73,7 @@ export default function VendorVerificationPage() {
     <div className="max-w-xl mx-auto space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Verification</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-800 mt-1">
           You can set up your store and add products right away, but it won&apos;t be visible to customers or able to take orders until your identity is verified.
         </p>
       </div>

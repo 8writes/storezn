@@ -35,7 +35,7 @@ export function CustomDomainSettings({ store, isPlus, apiFetch, storeId, onUpdat
           <p className="text-sm font-semibold text-slate-700">Custom domain</p>
           <Badge color="slate">Storezn+</Badge>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-800">
           Use your own domain instead of {`{slug}`}.storezn.com - part of Storezn+.
         </p>
         <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
@@ -80,7 +80,7 @@ export function CustomDomainSettings({ store, isPlus, apiFetch, storeId, onUpdat
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-700">Custom domain</p>
-          <p className="text-xs text-slate-500 mt-1">Use your own domain instead of {`{slug}`}.storezn.com.</p>
+          <p className="text-xs text-slate-800 mt-1">Use your own domain instead of {`{slug}`}.storezn.com.</p>
         </div>
         {badge && <Badge color={badge.color}>{badge.label}</Badge>}
       </div>
@@ -114,7 +114,7 @@ export function CustomDomainSettings({ store, isPlus, apiFetch, storeId, onUpdat
       )}
 
       {store.domainStatus === "verified" && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-800">
           Your store is live at{" "}
           <a href={`https://${store.customDomain}`} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">
             {store.customDomain}

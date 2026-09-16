@@ -66,14 +66,14 @@ export function RegisterBar({
         )}
       </span>
 
-      <span className="text-slate-500">
+      <span className="text-slate-800">
         Open since {formatClockTime(session.openedAt)}
       </span>
-      <span className="text-slate-500">
+      <span className="text-slate-800">
         Drawer <span className="font-medium text-slate-900 tabular-nums">{formatKobo(expected)}</span>
       </span>
       {summary && (
-        <span className="text-slate-500">
+        <span className="text-slate-800">
           {summary.saleCount} sale{summary.saleCount === 1 ? "" : "s"} ·{" "}
           <span className="font-medium text-slate-900 tabular-nums">{formatKobo(summary.grossSales)}</span>
         </span>
@@ -82,7 +82,7 @@ export function RegisterBar({
       <button
         type="button"
         onClick={onOpenOfflineSetup}
-        className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 cursor-pointer"
+        className="inline-flex items-center gap-1 text-xs text-slate-800 hover:text-slate-800 cursor-pointer"
         title="Set this device up to sell with no internet"
       >
         <Database size={12} className={catalog?.syncing ? "animate-pulse text-brand-600" : ""} />

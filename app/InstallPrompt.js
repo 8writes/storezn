@@ -99,12 +99,12 @@ export default function InstallPrompt() {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-slate-900">Install Storezn</p>
         {isIos ? (
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-800 mt-0.5">
             Tap the Share icon, then &quot;Add to Home Screen&quot; for instant access.
           </p>
         ) : (
           <>
-            <p className="text-xs text-slate-500 mt-0.5">Add it to your home screen for instant access.</p>
+            <p className="text-xs text-slate-800 mt-0.5">Add it to your home screen for instant access.</p>
             <button
               type="button"
               onClick={install}

@@ -108,7 +108,7 @@ export function ReviewsSection({ productId }) {
       <div className="flex items-center gap-3">
         <h2 className="text-lg font-bold text-slate-900">Reviews</h2>
         {data.count > 0 && (
-          <span className="flex items-center gap-1.5 text-sm text-slate-500">
+          <span className="flex items-center gap-1.5 text-sm text-slate-800">
             <Stars value={Math.round(data.average)} />
             {data.average.toFixed(1)} ({data.count})
           </span>

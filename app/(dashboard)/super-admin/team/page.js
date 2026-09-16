@@ -121,7 +121,7 @@ export default function SuperAdminTeamPage() {
       {confirmDialog}
       <div>
         <h1 className="text-xl font-bold text-slate-900">Team</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-800 mt-1">
           Invite admins and platform staff. Admin gets everything except platform settings; platform staff is scoped to products, with view-only orders and transactions.
         </p>
       </div>
@@ -129,7 +129,7 @@ export default function SuperAdminTeamPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
         <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
+            <thead className="bg-slate-50 text-slate-800 text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Team member</th>
                 <th className="px-4 py-3 font-medium">Role</th>
@@ -172,12 +172,12 @@ export default function SuperAdminTeamPage() {
                           className={`h-1.5 w-1.5 rounded-full ${isOnlineNow(member.lastActiveAt) ? "bg-green-500" : "bg-slate-300"}`}
                           aria-hidden
                         />
-                        <span className={isOnlineNow(member.lastActiveAt) ? "text-green-700 font-medium" : "text-slate-500"}>
+                        <span className={isOnlineNow(member.lastActiveAt) ? "text-green-700 font-medium" : "text-slate-800"}>
                           {isOnlineNow(member.lastActiveAt) ? "Active now" : formatRelativeTime(member.lastActiveAt)}
                         </span>
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{formatDate(member.createdAt)}</td>
+                    <td className="px-4 py-3 text-slate-800">{formatDate(member.createdAt)}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end items-center gap-3 flex-wrap">
                         <button

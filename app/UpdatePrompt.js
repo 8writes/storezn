@@ -57,7 +57,7 @@ export default function UpdatePrompt() {
       <div className="pointer-events-auto flex items-center gap-3 rounded-sm border border-slate-200 bg-surface px-4 py-3 shadow-lg max-w-md w-full sm:w-auto">
         <div className="min-w-0 flex-1 text-sm">
           <p className="font-semibold text-slate-900">A new version is ready</p>
-          <p className="text-xs text-slate-500">Reload to get the latest updates.</p>
+          <p className="text-xs text-slate-800">Reload to get the latest updates.</p>
         </div>
         <button
           type="button"
@@ -65,7 +65,7 @@ export default function UpdatePrompt() {
             dismissed.current = latest;
             setLatest(null);
           }}
-          className="text-xs font-medium text-slate-500 hover:text-slate-800 cursor-pointer shrink-0"
+          className="text-xs font-medium text-slate-800 hover:text-slate-800 cursor-pointer shrink-0"
         >
           Later
         </button>

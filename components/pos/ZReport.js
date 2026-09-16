@@ -72,7 +72,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
     <div className="space-y-4">
       <div className="flex items-baseline justify-between">
         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">{isZ ? "Z report" : title}</h3>
-        <span className="text-[11px] text-slate-500 tabular-nums">
+        <span className="text-[11px] text-slate-800 tabular-nums">
           {formatDateTime(summary.generatedAt)}
         </span>
       </div>
@@ -93,7 +93,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
         <div className="px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Taken by method</p>
           {Object.keys(byMethod).length === 0 ? (
-            <p className="text-sm text-slate-500 py-1">Nothing yet</p>
+            <p className="text-sm text-slate-800 py-1">Nothing yet</p>
           ) : (
             Object.entries(byMethod).map(([m, amt]) => (
               <Row key={m} label={METHOD_LABEL[m] || m} value={formatKobo(amt)} />
@@ -160,7 +160,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
                       {m.amount > 0 ? "+" : ""}{formatKobo(m.amount)}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-slate-800">
                     {m.reason || (m.orderNumber ? `Order ${m.orderNumber}` : "No reason given")}
                     {m.by ? ` (${m.by})` : ""}
                     {m.createdAt ? ` · ${formatDateTime(m.createdAt)}` : ""}

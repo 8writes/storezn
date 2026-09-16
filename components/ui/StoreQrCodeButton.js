@@ -70,7 +70,7 @@ function QrModal({ storeName, storeUrl, onClose }) {
           <div className="flex items-center justify-center bg-slate-50 rounded-sm border border-slate-200 p-3 min-h-64">
             {generating ? <div className="spinner" /> : previewUrl && <img src={previewUrl} alt="Storefront QR code" className="w-full rounded-sm" />}
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-800">
             Print this on packaging, flyers, or your storefront - scanning it takes customers straight to your store.
           </p>
           <Button type="button" onClick={handleDownload} disabled={!canvas} fullWidth>

@@ -89,7 +89,7 @@ export default function TermsPage() {
               <li>copy, imitate, or reproduce the platform&apos;s features, workflows, or design for the purpose of building a competing product;</li>
               <li>scrape, crawl, harvest, or bulk-download data from the platform by any automated or manual means;</li>
               <li>create accounts in bulk, or share your account credentials or access with anyone else;</li>
-              <li>use the platform, or any data or output obtained from it, for a commercial purpose other than operating your own store or shopping as a customer;</li>
+              <li>use the platform, or any data or output obtained from it, for a commercial purpose other than operating your own website or shopping as a customer;</li>
               <li>resell, sublicense, rent, or otherwise redistribute the platform or access to it;</li>
               <li>modify, adapt, translate, or create derivative works of the platform or its code.</li>
             </ul>

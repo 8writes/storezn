@@ -105,7 +105,7 @@ export default function CartPage() {
               {item.variant && (
                 <p className="text-xs text-slate-700 mt-0.5">{Object.entries(item.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ")}</p>
               )}
-              <p className="text-sm text-slate-500 mt-1">{formatCurrency(item.unitPrice)}</p>
+              <p className="text-sm text-slate-800 mt-1">{formatCurrency(item.unitPrice)}</p>
             </div>
 
             <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-4 pl-24 sm:pl-0">

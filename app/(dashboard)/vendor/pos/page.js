@@ -175,7 +175,7 @@ export default function SellPage() {
         <BackLink href="/vendor/orders" label="Back to orders" />
         <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h1 className="text-lg font-bold text-slate-900">In-person selling is a Storezn Enterprise feature</h1>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+          <p className="text-sm text-slate-800 max-w-sm mx-auto">
             Run a register to take sales in person - item-by-item ring-up, cash drawer, POS-machine and transfer payments,
             shift Z-reports, and offline mode. Enterprise is set up by the Storezn team.
           </p>
@@ -197,7 +197,7 @@ export default function SellPage() {
       ) : regError ? (
         <div className="max-w-md mx-auto bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h2 className="text-base font-bold text-slate-900">Couldn&apos;t load the register</h2>
-          <p className="text-sm text-slate-500">Check your connection and try again.</p>
+          <p className="text-sm text-slate-800">Check your connection and try again.</p>
           <Button type="button" onClick={loadRegisters}>
             Retry
           </Button>
@@ -678,7 +678,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
                   className={`text-xs font-semibold cursor-pointer inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 ${
                     heldCount
                       ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                      : "text-slate-500 hover:text-slate-900"
+                      : "text-slate-800 hover:text-slate-900"
                   }`}
                 >
                   <RotateCcw size={12} /> Held{heldCount ? ` · ${heldCount}` : ""}
@@ -696,7 +696,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
             </div>
 
             {lines.length === 0 ? (
-              <p className="text-sm text-slate-500 px-4 py-6 text-center">Scan or tap a product to start</p>
+              <p className="text-sm text-slate-800 px-4 py-6 text-center">Scan or tap a product to start</p>
             ) : (
               <ul className="divide-y divide-slate-100 max-h-[42vh] overflow-y-auto">
                 {lines.map((l) => (
@@ -705,11 +705,11 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-slate-900 leading-tight">{l.product?.name || "Item"}</p>
                         {l.variant && (
-                          <p className="text-[11px] text-slate-500 truncate">
+                          <p className="text-[11px] text-slate-800 truncate">
                             {Object.entries(l.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ")}
                           </p>
                         )}
-                        <p className="text-[11px] text-slate-500">
+                        <p className="text-[11px] text-slate-800">
                           {formatCurrency(l.unit)} each
                           {l.priceOverride != null && <span className="text-amber-600"> · overridden</span>}
                           {l.lineDiscount > 0 && <span className="text-amber-600"> · −{formatCurrency(l.lineDiscount)}</span>}
@@ -776,7 +776,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
             {isOwner && lines.length > 0 && (
               <div className="px-4 py-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-slate-500 w-20 shrink-0">Discount ₦</label>
+                  <label className="text-xs text-slate-800 w-20 shrink-0">Discount ₦</label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -800,7 +800,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
             <div className="px-4 py-3 border-t border-slate-100 space-y-1">
               {discountNum > 0 && (
-                <div className="flex justify-between text-xs text-slate-500">
+                <div className="flex justify-between text-xs text-slate-800">
                   <span>Subtotal</span>
                   <span className="tabular-nums">{formatCurrency(subtotal)}</span>
                 </div>
@@ -898,7 +898,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           <div className="fixed inset-0 bg-black/50" onClick={() => setHoldPromptOpen(false)} />
           <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-xs p-4 space-y-3">
             <p className="text-sm font-bold text-slate-900">Hold this sale</p>
-            <p className="text-xs text-slate-500">Give it a name so you can find it again for the customer.</p>
+            <p className="text-xs text-slate-800">Give it a name so you can find it again for the customer.</p>
             <input
               autoFocus
               type="text"
@@ -931,7 +931,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
               </button>
             </div>
             {heldCount === 0 ? (
-              <p className="text-sm text-slate-500 p-6 text-center">Nothing on hold</p>
+              <p className="text-sm text-slate-800 p-6 text-center">Nothing on hold</p>
             ) : (
               <ul className="overflow-y-auto divide-y divide-slate-100">
                 {sessionData.heldSales.map((h) => {
@@ -942,9 +942,9 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-slate-900 truncate">{s.title}</p>
                           {s.hasLabel && s.preview && (
-                            <p className="text-[11px] text-slate-500 truncate">{s.preview}</p>
+                            <p className="text-[11px] text-slate-800 truncate">{s.preview}</p>
                           )}
-                          <p className="text-[11px] text-slate-500">
+                          <p className="text-[11px] text-slate-800">
                             {s.itemCount} item{s.itemCount === 1 ? "" : "s"} · {formatCurrency(s.total)} ·{" "}
                             {formatClockTime(h.createdAt)}
                           </p>

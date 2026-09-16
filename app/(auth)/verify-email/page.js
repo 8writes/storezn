@@ -44,14 +44,14 @@ function VerifyEmailBody() {
   };
 
   if (status === "verifying") {
-    return <p className="text-center text-sm text-slate-500 py-10">Verifying your email…</p>;
+    return <p className="text-center text-sm text-slate-800 py-10">Verifying your email…</p>;
   }
 
   if (status === "success") {
     return (
       <div className="space-y-4 text-center">
         <h2 className="text-xl font-bold text-slate-900">Email verified</h2>
-        <p className="text-sm text-slate-500">You&apos;re all set - you can sign in now.</p>
+        <p className="text-sm text-slate-800">You&apos;re all set - you can sign in now.</p>
         <Link href="/login" className="text-sm text-brand-600 hover:underline">Sign in</Link>
       </div>
     );
@@ -64,7 +64,7 @@ function VerifyEmailBody() {
         <h2 className="text-xl font-bold text-slate-900">
           {status === "missing" ? "Missing verification link" : "Link expired or invalid"}
         </h2>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-800 mt-1">
           {status === "missing"
             ? "This page needs a verification link from your email."
             : "This verification link is no longer valid. Request a new one below."}
@@ -72,7 +72,7 @@ function VerifyEmailBody() {
       </div>
 
       {resent ? (
-        <p className="text-sm text-slate-500">If that email has an unverified account, a new link is on its way.</p>
+        <p className="text-sm text-slate-800">If that email has an unverified account, a new link is on its way.</p>
       ) : (
         <form onSubmit={handleResend} className="space-y-3 text-left">
           <Input
@@ -94,7 +94,7 @@ function VerifyEmailBody() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<p className="text-center text-sm text-slate-500 py-10">Loading…</p>}>
+    <Suspense fallback={<p className="text-center text-sm text-slate-800 py-10">Loading…</p>}>
       <VerifyEmailBody />
     </Suspense>
   );

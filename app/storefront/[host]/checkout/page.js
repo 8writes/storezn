@@ -261,7 +261,7 @@ export default function CheckoutPage() {
             </div>
           )}
           {needsShipping && effectiveState && cart.shippingFeeTBD && (
-            <p className="text-xs text-slate-500 -mt-1">
+            <p className="text-xs text-slate-800 -mt-1">
               This seller confirms delivery pricing after you order. You won&apos;t be charged for shipping now, it&apos;s arranged directly with the seller.
             </p>
           )}

@@ -265,7 +265,7 @@ export default function VendorDashboardPage() {
                 ? "text-red-600"
                 : store.isOpen
                   ? "text-brand-700"
-                  : "text-slate-500"
+                  : "text-slate-800"
             }`}
           >
             <span
@@ -318,7 +318,7 @@ export default function VendorDashboardPage() {
               <p className="text-sm font-semibold text-slate-900">
                 This is your store&apos;s link
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-800">
                 Anyone who opens it can browse and buy from you, copy it
                 and share it on WhatsApp, Instagram, anywhere.
               </p>
@@ -342,10 +342,10 @@ export default function VendorDashboardPage() {
             verification &&
             verification.approvalStatus !== "approved" && (
               <Card pad="sm" className="max-w-md border-dashed bg-slate-50!">
-                <p className="text-sm font-semibold text-slate-500">
+                <p className="text-sm font-semibold text-slate-800">
                   Your store&apos;s link will appear here
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-800 mt-0.5">
                   Once your identity is verified below, you&apos;ll get a
                   shareable link customers can use to shop from you.
                 </p>
@@ -481,7 +481,7 @@ export default function VendorDashboardPage() {
           )}
 
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2.5">
               Quick actions
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">

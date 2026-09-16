@@ -23,7 +23,7 @@ export function ThemeToggle({ collapsed = false, tone = "auto" }) {
   const skin =
     tone === "light"
       ? "text-white/70 hover:bg-white/10 hover:text-white"
-      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900";
+      : "text-slate-800 hover:bg-slate-50 hover:text-slate-900";
 
   return (
     <button type="button" onClick={() => setTheme(saveTheme(dark ? "light" : "dark"))} title={label} className={`${base} ${skin} cursor-pointer`}>

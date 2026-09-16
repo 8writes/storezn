@@ -76,7 +76,7 @@ export default function BansPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Device bans</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-800 mt-1">
           {data.activeCount} active. Devices are auto-flagged for repeated blocked-email attempts, signup floods and
           request bursts (see the privacy policy); you can also ban or lift by hand.
         </p>
@@ -85,7 +85,7 @@ export default function BansPage() {
       {/* Manual ban */}
       <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
         <p className="text-sm font-semibold text-slate-700">Ban a device by id</p>
-        <p className="text-xs text-slate-500">Paste a device id from the watch-list or abuse stream below.</p>
+        <p className="text-xs text-slate-800">Paste a device id from the watch-list or abuse stream below.</p>
         <Input label="Device id" value={manualDevice} onChange={(e) => setManualDevice(e.target.value)} />
         <Input label="Reason" value={manualReason} onChange={(e) => setManualReason(e.target.value)} />
         <Button
@@ -103,7 +103,7 @@ export default function BansPage() {
           <p className="text-sm font-semibold text-slate-700 mb-2">Watch list, abuse events, last 24h</p>
           <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-left">
+              <thead className="bg-slate-50 text-slate-800 text-left">
                 <tr>
                   <th className="px-3 py-2 font-medium">Device</th>
                   <th className="px-3 py-2 font-medium text-right">Events</th>
@@ -118,7 +118,7 @@ export default function BansPage() {
                     <tr key={r.deviceId} className="border-t border-slate-100">
                       <td className="px-3 py-2 font-mono text-xs break-all">{r.deviceId}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{r.n}</td>
-                      <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(r.last)}</td>
+                      <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{formatDateTime(r.last)}</td>
                       <td className="px-3 py-2 text-right">
                         {banned ? (
                           <Badge color="red">banned</Badge>
@@ -145,11 +145,11 @@ export default function BansPage() {
       <div>
         <p className="text-sm font-semibold text-slate-700 mb-2">Active bans ({active.length})</p>
         {active.length === 0 ? (
-          <p className="text-sm text-slate-500">None.</p>
+          <p className="text-sm text-slate-800">None.</p>
         ) : (
           <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-left">
+              <thead className="bg-slate-50 text-slate-800 text-left">
                 <tr>
                   <th className="px-3 py-2 font-medium">Device / fingerprint</th>
                   <th className="px-3 py-2 font-medium">Reason</th>
@@ -167,8 +167,8 @@ export default function BansPage() {
                       {d.fingerprint && <div className="text-slate-400">fp {d.fingerprint}</div>}
                     </td>
                     <td className="px-3 py-2 text-slate-700">{d.reason || "N/A"}</td>
-                    <td className="px-3 py-2 text-slate-500 break-all">{d.subjectEmail || "N/A"}</td>
-                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{formatDateTime(d.bannedAt)}</td>
+                    <td className="px-3 py-2 text-slate-800 break-all">{d.subjectEmail || "N/A"}</td>
+                    <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{formatDateTime(d.bannedAt)}</td>
                     <td className="px-3 py-2">
                       <Badge color={d.autoFlagged ? "amber" : "slate"}>{d.autoFlagged ? "auto" : "manual"}</Badge>
                     </td>
@@ -194,7 +194,7 @@ export default function BansPage() {
               <div key={e.id} className="flex items-start justify-between gap-4 px-3 py-2 text-sm">
                 <span>
                   <span className="font-medium text-slate-700">{KIND_LABEL[e.kind] || e.kind}</span>
-                  {e.normalizedEmail && <span className="text-slate-500"> · {e.normalizedEmail}</span>}
+                  {e.normalizedEmail && <span className="text-slate-800"> · {e.normalizedEmail}</span>}
                   <span className="block font-mono text-[11px] text-slate-400 break-all">
                     {e.deviceId} {e.ip ? `· ${e.ip}` : ""}
                   </span>
@@ -208,10 +208,10 @@ export default function BansPage() {
 
       {lifted.length > 0 && (
         <details className="text-sm">
-          <summary className="cursor-pointer text-slate-500">Lifted bans ({lifted.length})</summary>
+          <summary className="cursor-pointer text-slate-800">Lifted bans ({lifted.length})</summary>
           <ul className="mt-2 divide-y divide-slate-100 border border-slate-100 rounded-sm">
             {lifted.map((d) => (
-              <li key={d.id} className="px-3 py-2 text-xs text-slate-500">
+              <li key={d.id} className="px-3 py-2 text-xs text-slate-800">
                 <span className="font-mono break-all">{d.deviceId || d.fingerprint}</span> · {d.reason} · lifted{" "}
                 {formatDateTime(d.unbannedAt)}
               </li>

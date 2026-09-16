@@ -91,13 +91,13 @@ export function Footer() {
           </p>
           <div className="mt-4 rounded-sm border border-white/10 bg-white/5 p-4">
             <p className="text-sm text-white/70 leading-relaxed">
-              Free to start, no card required.
+              Free to use. No card required.
             </p>
             <Link
               href="/signup"
               className="mt-3 flex w-full items-center justify-center whitespace-nowrap text-sm font-semibold bg-white text-brand-900 px-4 py-2 rounded-sm hover:bg-brand-50 transition-colors"
             >
-              Get started for free
+              Get started now
             </Link>
           </div>
         </div>

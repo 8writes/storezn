@@ -58,9 +58,9 @@ export default async function StorefrontHomePage({ params, searchParams }) {
         <div className="text-center max-w-xl mx-auto space-y-2">
           <h1 className={`text-3xl sm:text-4xl font-semibold tracking-tight ${themed ? "text-brand-700" : "text-slate-900"}`}>{store.name}</h1>
           {store.showDescription !== false && store.description ? (
-            <p className="text-sm text-slate-500 leading-relaxed line-clamp-2">{store.description}</p>
+            <p className="text-sm text-slate-800 leading-relaxed line-clamp-2">{store.description}</p>
           ) : (
-            <p className="text-sm text-slate-500 uppercase tracking-widest">All products</p>
+            <p className="text-sm text-slate-800 uppercase tracking-widest">All products</p>
           )}
         </div>
 
@@ -74,7 +74,7 @@ export default async function StorefrontHomePage({ params, searchParams }) {
         <StorefrontFilters categories={categoryList} themed={themed} />
 
         {q && (
-          <p className="text-sm text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="text-sm text-slate-800 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
               Showing {total} {total === 1 ? "result" : "results"} for{" "}
               <span className={`font-medium ${themed ? "text-brand-700" : "text-slate-900"}`}>&ldquo;{q}&rdquo;</span>

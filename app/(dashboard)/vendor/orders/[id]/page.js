@@ -158,7 +158,7 @@ export default function VendorOrderDetailPage({ params }) {
             {order.orderNumber}
             {order.isOffline && <Badge color="slate">Offline</Badge>}
           </h1>
-          <p className="text-sm text-slate-500">Placed {formatDateTime(order.createdAt)}</p>
+          <p className="text-sm text-slate-800">Placed {formatDateTime(order.createdAt)}</p>
         </div>
         <div className="flex items-center gap-3">
           <Badge color={STATUS_COLOR[order.status] || "slate"}>{order.status.replace("_", " ")}</Badge>
@@ -214,7 +214,7 @@ export default function VendorOrderDetailPage({ params }) {
         ))}
         {!order.isOffline && (
           <div className="pt-2 border-t border-slate-100">
-            <div className="flex justify-between text-sm text-slate-500">
+            <div className="flex justify-between text-sm text-slate-800">
               <span>
                 Platform fee ({order.commissionRatePercent}%
                 {order.flatFeeAmount > 0 ? ` + ${formatCurrency(order.flatFeeAmount)}` : ""})
@@ -275,7 +275,7 @@ export default function VendorOrderDetailPage({ params }) {
             </p>
           ) : (
             <div className="space-y-2">
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-800">
                 Delivery for this order is to be determined - enter what you actually charged before you can update its
                 status.
               </p>
@@ -301,7 +301,7 @@ export default function VendorOrderDetailPage({ params }) {
 
       {(NEXT_ACTIONS[order.status] || []).length > 0 && (
         order.shippingFeeTBD && !order.shippingFeeConfirmedAt ? (
-          <p className="text-xs text-slate-500 text-right">Enter the delivery fee above before updating this order's status.</p>
+          <p className="text-xs text-slate-800 text-right">Enter the delivery fee above before updating this order's status.</p>
         ) : (
           <div className="flex justify-end gap-3">
             {NEXT_ACTIONS[order.status].map((action) => (

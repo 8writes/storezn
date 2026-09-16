@@ -80,7 +80,7 @@ export default function SuperAdminStoresPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Vendor</th>
@@ -107,13 +107,13 @@ export default function SuperAdminStoresPage() {
                     <p className="font-medium">{s.name}</p>
                     <p className="text-xs text-slate-700">{s.slug}</p>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-4 py-3 text-slate-800">
                     {s.owner ? `${s.owner.firstName} ${s.owner.lastName}` : "-"}
                   </td>
                   <td className="px-4 py-3">
                     <Badge color={s.isActive ? "green" : "red"}>{s.isActive ? "Active" : "Inactive"}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-4 py-3 text-slate-800">
                     {s.subAccountCode ? `${s.bankName} · ${s.accountNumber}` : <span className="text-slate-700">Not set</span>}
                   </td>
                   <td className="px-4 py-3 text-right space-x-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>

@@ -44,14 +44,14 @@ function VerifyEmailBody() {
   };
 
   if (status === "verifying") {
-    return <p className="text-center text-sm text-slate-500 py-10">Verifying your email…</p>;
+    return <p className="text-center text-sm text-slate-800 py-10">Verifying your email…</p>;
   }
 
   if (status === "success") {
     return (
       <div className="max-w-sm mx-auto py-8 space-y-4 text-center">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Email verified</h1>
-        <p className="text-sm text-slate-500">You&apos;re all set - you can sign in now.</p>
+        <p className="text-sm text-slate-800">You&apos;re all set - you can sign in now.</p>
         <Link href="/login" className="block text-sm text-slate-900 underline underline-offset-2">Sign in</Link>
       </div>
     );
@@ -63,7 +63,7 @@ function VerifyEmailBody() {
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
           {status === "missing" ? "Missing verification link" : "Link expired or invalid"}
         </h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-800">
           {status === "missing"
             ? "This page needs a verification link from your email."
             : "This verification link is no longer valid. Request a new one below."}
@@ -71,7 +71,7 @@ function VerifyEmailBody() {
       </div>
 
       {resent ? (
-        <p className="text-center text-sm text-slate-500">If that email has an unverified account, a new link is on its way.</p>
+        <p className="text-center text-sm text-slate-800">If that email has an unverified account, a new link is on its way.</p>
       ) : (
         <form onSubmit={handleResend} className="space-y-4">
           <Input label="Email" type="email" value={resendEmail} onChange={(e) => setResendEmail(e.target.value)} required autoComplete="email" />
@@ -86,7 +86,7 @@ function VerifyEmailBody() {
 
 export default function StorefrontVerifyEmailPage() {
   return (
-    <Suspense fallback={<p className="text-center text-sm text-slate-500 py-10">Loading…</p>}>
+    <Suspense fallback={<p className="text-center text-sm text-slate-800 py-10">Loading…</p>}>
       <VerifyEmailBody />
     </Suspense>
   );

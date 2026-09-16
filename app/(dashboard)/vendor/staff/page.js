@@ -47,7 +47,7 @@ export default function VendorStaffPage() {
   // staff member landing here directly would just get a 401 from the API
   // above, this just skips the confusing empty form for them.
   if (user && user.role !== "vendor") {
-    return <p className="text-sm text-slate-500">This page is only available to the store owner.</p>;
+    return <p className="text-sm text-slate-800">This page is only available to the store owner.</p>;
   }
 
   const invite = async (e) => {
@@ -112,7 +112,7 @@ export default function VendorStaffPage() {
       {confirmDialog}
       <div>
         <h1 className="text-xl font-bold text-slate-900">Staff</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-800 mt-1">
           Invite people to help run your store. They get their own login, scoped to this store - everything except your payout account and this staff list.
         </p>
       </div>
@@ -120,7 +120,7 @@ export default function VendorStaffPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
+            <thead className="bg-slate-50 text-slate-800 text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Staff member</th>
                 {branches.length > 1 && <th className="px-4 py-3 font-medium">Branch</th>}
@@ -158,7 +158,7 @@ export default function VendorStaffPage() {
                         </div>
                       </td>
                     )}
-                    <td className="px-4 py-3 text-slate-500">{formatDate(member.createdAt)}</td>
+                    <td className="px-4 py-3 text-slate-800">{formatDate(member.createdAt)}</td>
                     <td className="px-4 py-3">
                       {member.activatedAt ? (
                         <Badge color="green">Active</Badge>
@@ -191,7 +191,7 @@ export default function VendorStaffPage() {
           </div>
           {atLimit ? (
             <div className="space-y-2">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-800">
                 You&apos;ve reached the {maxStaff}-staff limit{maxStaff <= 1 ? " on the free plan" : ""}.{" "}
                 {maxStaff <= 1 ? "Upgrade to Storezn+ for more staff seats." : "Remove someone before inviting another."}
               </p>

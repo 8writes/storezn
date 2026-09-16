@@ -51,8 +51,8 @@ export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tender
           <div className="receipt bg-surface border border-slate-200 rounded-sm p-5 font-mono text-[13px] text-slate-900 leading-relaxed">
             <div className="text-center">
               <p className="font-bold text-sm uppercase">{storeName}</p>
-              <p className="text-slate-500 text-[11px]">{formatDateTime(soldAt)}</p>
-              <p className="text-slate-500 text-[11px]">Receipt {orderNumber}</p>
+              <p className="text-slate-800 text-[11px]">{formatDateTime(soldAt)}</p>
+              <p className="text-slate-800 text-[11px]">Receipt {orderNumber}</p>
             </div>
             <div className="border-t border-dashed border-slate-300 my-2" />
             <table className="w-full">
@@ -61,16 +61,16 @@ export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tender
                   <tr key={i} className="align-top">
                     <td className="py-0.5 pr-2">
                       {it.quantity}× {it.name}
-                      {it.variantLabel ? <div className="text-slate-500 text-[11px]">{it.variantLabel}</div> : null}
+                      {it.variantLabel ? <div className="text-slate-800 text-[11px]">{it.variantLabel}</div> : null}
                       {it.segments
                         ? it.segments.map((s, si) => (
-                            <div key={si} className="text-slate-500 text-[11px]">
+                            <div key={si} className="text-slate-800 text-[11px]">
                               {s.quantity} @ {formatCurrency(s.unitPrice)}
                               {s.bundleSize ? " (bundle)" : ""}
                             </div>
                           ))
                         : it.priceOverridden
-                          ? <div className="text-slate-500 text-[11px]">@ {formatCurrency(it.unitPrice)}</div>
+                          ? <div className="text-slate-800 text-[11px]">@ {formatCurrency(it.unitPrice)}</div>
                           : null}
                     </td>
                     <td className="py-0.5 text-right tabular-nums whitespace-nowrap">{formatCurrency(it.lineTotal)}</td>
@@ -104,7 +104,7 @@ export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tender
               </>
             )}
             <div className="border-t border-dashed border-slate-300 my-2" />
-            <p className="text-center text-[11px] text-slate-500">Thank you</p>
+            <p className="text-center text-[11px] text-slate-800">Thank you</p>
             {note ? <p className="text-center text-[11px] text-slate-400 mt-1">{note}</p> : null}
           </div>
         </div>

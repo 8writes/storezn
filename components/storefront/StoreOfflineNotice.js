@@ -27,7 +27,7 @@ export function StoreOfflineNotice({ store }) {
         <h1 className="text-xl font-bold text-slate-900">
           {pendingApproval ? `${store.name} is still getting set up` : `${store.name} isn't taking orders right now`}
         </h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-800">
           {pendingApproval
             ? "This store hasn't finished setting up yet. Check back soon."
             : "This store is temporarily closed. Please check back later."}

@@ -20,7 +20,7 @@ function StepRow({ state, title, detail }) {
       <span className="mt-0.5 w-4 flex justify-center shrink-0">{icon}</span>
       <div className="min-w-0">
         <p className="text-sm font-medium text-slate-900">{title}</p>
-        {detail && <p className="text-xs text-slate-500">{detail}</p>}
+        {detail && <p className="text-xs text-slate-800">{detail}</p>}
       </div>
     </div>
   );
@@ -83,7 +83,7 @@ export function OfflineSetupModal({ storeId, catalog, pendingSync = 0, onSyncCat
         </div>
 
         <div className="p-4">
-          <p className="text-xs text-slate-500 mb-2">
+          <p className="text-xs text-slate-800 mb-2">
             Prepares this device so the register opens and keeps selling with no internet. Do it once per device, and again after an app update.
           </p>
 

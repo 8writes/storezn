@@ -53,10 +53,10 @@ export default function StorefrontSignupPage() {
     return (
       <div className="max-w-sm mx-auto py-8 space-y-4 text-center">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Verify your email to continue</h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-800">
           We&apos;ve sent a verification link to <strong>{form.email}</strong>. Open it and click the link to activate your account - you won&apos;t be able to sign in until you do.
         </p>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-800">
           Don&apos;t see it? Check your spam or junk folder.
         </p>
         <Link href="/login" className="block text-sm text-slate-900 underline underline-offset-2">Sign in</Link>
@@ -85,7 +85,7 @@ export default function StorefrontSignupPage() {
         </label>
         <Button type="submit" fullWidth size="lg" loading={loading}>Create account</Button>
       </form>
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-slate-800">
         Already have an account?{" "}
         <Link href="/login" className="text-slate-900 underline underline-offset-2">Sign in</Link>
       </p>

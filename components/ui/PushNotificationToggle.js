@@ -63,7 +63,7 @@ export function PushNotificationToggle({ token }) {
         )}
         <div>
           <p className="text-sm font-semibold text-slate-900">Push notifications</p>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-800 mt-0.5">
             {subscribed
               ? "You'll get notified on this device for new orders, low stock, and updates."
               : "Get notified on this device for new orders, low stock, and updates."}

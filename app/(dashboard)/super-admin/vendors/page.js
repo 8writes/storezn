@@ -178,7 +178,7 @@ export default function SuperAdminVendorsPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Vendor</th>
               <th className="px-4 py-3 font-medium">Contact</th>
@@ -231,16 +231,16 @@ export default function SuperAdminVendorsPage() {
                         className={`h-1.5 w-1.5 rounded-full ${isOnlineNow(v.lastActiveAt) ? "bg-green-500" : "bg-slate-300"}`}
                         aria-hidden
                       />
-                      <span className={isOnlineNow(v.lastActiveAt) ? "text-green-700 font-medium" : "text-slate-500"}>
+                      <span className={isOnlineNow(v.lastActiveAt) ? "text-green-700 font-medium" : "text-slate-800"}>
                         {isOnlineNow(v.lastActiveAt) ? "Active now" : formatRelativeTime(v.lastActiveAt)}
                       </span>
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{v.storeNames.join(", ") || "-"}</td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-4 py-3 text-slate-800">{v.storeNames.join(", ") || "-"}</td>
+                  <td className="px-4 py-3 text-slate-800">
                     <RevealNin hasNin={v.hasNin} apiFetch={apiFetch} endpoint={`/api/v1/super-admin/vendors/${v.id}/nin`} />
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{v.ninSubmittedAt ? formatDateTime(v.ninSubmittedAt) : "-"}</td>
+                  <td className="px-4 py-3 text-slate-800">{v.ninSubmittedAt ? formatDateTime(v.ninSubmittedAt) : "-"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Badge color={STATUS_COLOR[v.approvalStatus] || "slate"}>{v.approvalStatus}</Badge>
@@ -257,7 +257,7 @@ export default function SuperAdminVendorsPage() {
                           ? `Push · ${v.pushDeviceCount} device${v.pushDeviceCount === 1 ? "" : "s"}`
                           : "No push"}
                       </Badge>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-slate-800">
                         Email {v.emailNotificationsEnabled ? "on" : "off"}
                       </span>
                     </div>

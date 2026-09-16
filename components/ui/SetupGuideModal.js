@@ -59,7 +59,7 @@ export function SetupGuideModal({ open, onClose, steps }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-bold text-slate-900 text-lg">Get your store ready</h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-800 mt-1">
               {doneCount} of {steps.length} done - finish these and you&apos;re ready to sell.
             </p>
             <p className="text-xs text-slate-700 mt-2">
@@ -92,7 +92,7 @@ export function SetupGuideModal({ open, onClose, steps }) {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${step.done ? "text-slate-700 line-through" : "text-slate-900"}`}>{step.label}</p>
-                  {!step.done && step.description && <p className="text-xs text-slate-500 mt-0.5">{step.description}</p>}
+                  {!step.done && step.description && <p className="text-xs text-slate-800 mt-0.5">{step.description}</p>}
                 </div>
                 {!step.done && (
                   <span className="shrink-0 text-xs font-semibold text-brand-600 whitespace-nowrap">

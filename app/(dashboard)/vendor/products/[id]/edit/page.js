@@ -353,7 +353,7 @@ export default function VendorProductEditPage({ params }) {
               onChange={(e) => setForm((f) => ({ ...f, costPrice: e.target.value }))}
             />
             {form.costPrice !== "" && form.price !== "" && Number(form.price) > 0 && (
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-800 mt-1">
                 Margin {formatCurrency(Number(form.price) - Number(form.costPrice))} (
                 {Math.round(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100)}%)
               </p>
@@ -392,7 +392,7 @@ export default function VendorProductEditPage({ params }) {
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Photos</label>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-800">
             Drag to reorder - the first photo is the cover shown in your store. Up to {MAX_MEDIA} photos and video combined.
           </p>
           <div className="flex flex-wrap gap-3">
@@ -486,7 +486,7 @@ export default function VendorProductEditPage({ params }) {
               <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoUpload} className="hidden" />
             </label>
           ) : (
-            <p className="text-xs text-slate-500">Remove a photo to make room for a video.</p>
+            <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
           )}
         </div>
 
@@ -763,7 +763,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
     <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-slate-700">Variants</p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-800">
           e.g. Size: Large, Color: Red - each with its own price/stock. Leave
           empty to sell this product as-is. Adding variants doesn&apos;t
           replace the product&apos;s own price/stock above - customers can
@@ -776,7 +776,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
         <div className="flex items-center justify-between gap-4 rounded-sm border border-slate-200 p-3">
           <div className="min-w-0">
             <p className="text-sm font-medium text-slate-700">Show a &quot;Standard&quot; option</p>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-800 mt-0.5">
               {standardEnabled
                 ? "Customers can buy the plain product (its own price/stock) alongside the options below."
                 : "Customers must pick one of the options below - the plain product isn't offered."}
@@ -817,7 +817,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
               type="button"
               onClick={() => handleBulkDelete(variants.map((v) => v.id))}
               disabled={bulkDeleting}
-              className="text-xs font-medium text-slate-500 hover:text-red-600 disabled:opacity-50 cursor-pointer"
+              className="text-xs font-medium text-slate-800 hover:text-red-600 disabled:opacity-50 cursor-pointer"
             >
               Delete all
             </button>
@@ -844,7 +844,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
                         .map(([k, val]) => `${k}: ${val}`)
                         .join(", ")}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-800">
                       {v.sku && `SKU ${v.sku} · `}
                       {v.price != null ? `₦${v.price}` : "uses product price"} ·{" "}
                       {v.stock != null ? `${v.stock} in stock` : "no stock limit"}
@@ -855,7 +855,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
                   <button
                     type="button"
                     onClick={() => (editingId === v.id ? cancelEdit() : startEdit(v))}
-                    className="text-slate-500 hover:text-brand-600 cursor-pointer"
+                    className="text-slate-800 hover:text-brand-600 cursor-pointer"
                     aria-label="Edit variant"
                   >
                     <Pencil size={16} />
@@ -864,7 +864,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
                     type="button"
                     onClick={() => handleDelete(v.id)}
                     disabled={deletingId === v.id}
-                    className="text-slate-500 hover:text-red-600 disabled:opacity-50 cursor-pointer"
+                    className="text-slate-800 hover:text-red-600 disabled:opacity-50 cursor-pointer"
                     aria-label="Delete variant"
                   >
                     <Trash2 size={16} />
@@ -934,7 +934,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
               <button
                 type="button"
                 onClick={() => removeDim(i)}
-                className="text-slate-500 hover:text-red-600 cursor-pointer pb-2 justify-self-start sm:justify-self-auto"
+                className="text-slate-800 hover:text-red-600 cursor-pointer pb-2 justify-self-start sm:justify-self-auto"
                 aria-label="Remove option"
               >
                 <Trash2 size={16} />
@@ -953,7 +953,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
           </Button>
         </div>
       </form>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-800">
         Two options (e.g. Size &times; Colour) creates a variant for every combination. Set each variant&apos;s
         price and stock by editing it below.
       </p>

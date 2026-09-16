@@ -60,7 +60,7 @@ export function ConfirmModal({
           </div>
           <div className="min-w-0">
             <h2 className="font-semibold text-slate-900">{title}</h2>
-            {description && <p className="text-sm text-slate-500 mt-1 break-words">{description}</p>}
+            {description && <p className="text-sm text-slate-800 mt-1 break-words">{description}</p>}
           </div>
         </div>
 

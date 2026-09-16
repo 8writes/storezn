@@ -44,7 +44,7 @@ const CROP_CONFIG = {
 // section instead of reading every label in sequence to figure out
 // where one topic ends and the next begins.
 function SectionLabel({ children }) {
-  return <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{children}</p>;
+  return <p className="text-[11px] font-semibold text-slate-800 uppercase tracking-wider">{children}</p>;
 }
 
 export default function VendorSettingsPage() {
@@ -242,7 +242,7 @@ export default function VendorSettingsPage() {
         <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-slate-900">Store status</p>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-800 mt-0.5">
               {store.isOpen ? "Live - customers can browse and order." : "Offline - customers see a closed page instead."}
             </p>
           </div>
@@ -269,10 +269,10 @@ export default function VendorSettingsPage() {
             <div className="flex items-center gap-1.5">
               <p className="text-sm font-semibold text-slate-900">Marketplace listing</p>
               <InfoTip>
-                Shoppers can discover your products from the Storezn marketplace, outside your own store link. Turning this off only removes you from the marketplace - your store link keeps working exactly as before.
+                Shoppers can discover your products from the Storezn marketplace, outside your own website link. Turning this off only removes you from the marketplace - your store link keeps working exactly as before.
               </InfoTip>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-800 mt-0.5">
               {store.listOnMarketplace ? "Your products show up in the marketplace." : "Not listed in the marketplace."}
             </p>
           </div>
@@ -316,7 +316,7 @@ export default function VendorSettingsPage() {
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Used across logos, favicons, and product photos</span>
+                  <span className="text-slate-800">Used across logos, favicons, and product photos</span>
                   <span className={storageUsedBytes >= storageLimitBytes ? "font-medium text-red-600" : "text-slate-700 font-medium"}>
                     {formatBytes(storageUsedBytes)} of {formatBytes(storageLimitBytes)}
                   </span>
@@ -345,7 +345,7 @@ export default function VendorSettingsPage() {
                 <Palette size={16} className="text-slate-400" />
                 <SectionLabel>Storefront theme</SectionLabel>
               </div>
-              <p className="text-xs text-slate-500">Sets the accent color for your storefront&apos;s header, buttons, and prices.</p>
+              <p className="text-xs text-slate-800">Sets the accent color for your storefront&apos;s header, buttons, and prices.</p>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -363,7 +363,7 @@ export default function VendorSettingsPage() {
                   <button
                     type="button"
                     onClick={() => setForm((f) => ({ ...f, storefrontAccentColor: "" }))}
-                    className="text-xs text-slate-500 hover:text-slate-700 shrink-0 cursor-pointer"
+                    className="text-xs text-slate-800 hover:text-slate-700 shrink-0 cursor-pointer"
                   >
                     Reset
                   </button>
@@ -385,7 +385,7 @@ export default function VendorSettingsPage() {
                 </div>
                 <Badge color="slate">Storezn+</Badge>
               </div>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-800">
                 Pick a custom accent color for your storefront&apos;s header, buttons, and prices.
               </p>
               <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
@@ -446,7 +446,7 @@ export default function VendorSettingsPage() {
               <div className="flex items-center justify-between gap-4 pt-1">
                 <div>
                   <p className="text-sm font-medium text-slate-700">Show description on storefront</p>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-800 mt-0.5">
                     {form.showDescription
                       ? "Shown as the tagline under your store name."
                       : "Hidden - your storefront shows “All products” instead."}
@@ -489,7 +489,7 @@ export default function VendorSettingsPage() {
             <div className="flex items-center justify-between gap-4 pt-1">
               <div>
                 <p className="text-sm font-medium text-slate-700">Show &quot;Ships from&quot; on products</p>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-800 mt-0.5">
                   {form.showShipsFrom
                     ? "Your store location shows on product cards and detail pages."
                     : "Your store location is hidden from shoppers."}

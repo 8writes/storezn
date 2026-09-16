@@ -135,7 +135,7 @@ export function StorefrontFilters({ categories, themed = false }) {
             />
           )}
           {sort !== "newest" && <Chip label={SORT_LABEL[sort]} onClear={() => setParam("sort", "")} />}
-          <button type="button" onClick={clearAll} className="text-slate-500 hover:text-slate-800 underline cursor-pointer">
+          <button type="button" onClick={clearAll} className="text-slate-800 hover:text-slate-800 underline cursor-pointer">
             Clear all
           </button>
         </div>

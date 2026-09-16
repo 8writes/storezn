@@ -56,7 +56,7 @@ export function AccountMenu() {
 
       {open && (
         <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 shadow-lg z-20 py-1">
-          <p className="px-3 py-2 text-sm text-slate-500 border-b border-slate-100 truncate">
+          <p className="px-3 py-2 text-sm text-slate-800 border-b border-slate-100 truncate">
             {user.firstName ? `Hi, ${user.firstName}` : user.email}
           </p>
           <Link href="/account/orders" onClick={() => setOpen(false)} className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">

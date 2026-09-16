@@ -131,7 +131,7 @@ export function Select({
               </div>
             )}
             <div className="overflow-auto py-1">
-              {visibleOptions.length === 0 && <div className="px-3 py-2 text-sm text-slate-500">No options</div>}
+              {visibleOptions.length === 0 && <div className="px-3 py-2 text-sm text-slate-800">No options</div>}
               {visibleOptions.map((opt) => (
                 <button
                   type="button"
@@ -188,7 +188,7 @@ export function Select({
         >
           <span
             className={`truncate min-w-0 ${
-              active ? "text-brand-700 font-medium" : accent ? "text-brand-700" : selected ? "text-slate-900" : "text-slate-500"
+              active ? "text-brand-700 font-medium" : accent ? "text-brand-700" : selected ? "text-slate-900" : "text-slate-800"
             }`}
           >
             {loading ? "Loading…" : selected ? selected.label : placeholder}
@@ -204,7 +204,7 @@ export function Select({
       {error ? (
         <p className="text-xs text-red-600">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-slate-500">{hint}</p>
+        <p className="text-xs text-slate-800">{hint}</p>
       ) : null}
     </div>
   );

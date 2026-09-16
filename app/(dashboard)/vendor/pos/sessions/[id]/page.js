@@ -139,7 +139,7 @@ export default function SessionDetailPage({ params }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">{register.name}</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-800">
             {session.status === "open" ? "Open" : "Closed"} · opened {formatDateTime(session.openedAt)}
             {session.closedAt && ` · closed ${formatDateTime(session.closedAt)}`}
           </p>
@@ -183,7 +183,7 @@ export default function SessionDetailPage({ params }) {
           )}
 
           {session.reviewStatus === "approved" && (
-            <p className="text-slate-500 text-xs">
+            <p className="text-slate-800 text-xs">
               Approved{session.reviewedAt ? ` ${formatDateTime(session.reviewedAt)}` : ""}
               {session.reviewNote ? ` · “${session.reviewNote}”` : ""}
             </p>
@@ -233,7 +233,7 @@ export default function SessionDetailPage({ params }) {
           <p className="text-xs text-slate-400">Every entry in and out of this drawer, newest first, who did it, when, and why.</p>
         </div>
         {moves.length === 0 ? (
-          <p className="text-sm text-slate-500 px-4 py-4">None</p>
+          <p className="text-sm text-slate-800 px-4 py-4">None</p>
         ) : (
           <>
             <ul className="divide-y divide-slate-100 text-sm">
@@ -282,7 +282,7 @@ export default function SessionDetailPage({ params }) {
           Sales ({ordsTotal})
         </p>
         {ords.length === 0 ? (
-          <p className="text-sm text-slate-500 px-4 py-4">None</p>
+          <p className="text-sm text-slate-800 px-4 py-4">None</p>
         ) : (
           <>
             <ul className="divide-y divide-slate-100 text-sm">

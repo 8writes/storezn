@@ -11,7 +11,7 @@ export function Pagination({ pagination, onPageChange }) {
   const { page, totalPages, total } = pagination;
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 text-xs sm:text-sm text-slate-500">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 text-xs sm:text-sm text-slate-800">
       <span className="tabular-nums">
         Page {page} of {totalPages}
         <span className="hidden sm:inline"> · {total.toLocaleString()} total</span>

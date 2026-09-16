@@ -69,7 +69,7 @@ export default function SuperAdminOrdersPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Order</th>
               <th className="px-4 py-3 font-medium">Store</th>
@@ -90,10 +90,10 @@ export default function SuperAdminOrdersPage() {
               orders.map((o) => (
                 <tr key={o.id} className="border-t border-slate-100">
                   <td className="px-4 py-3 font-medium text-slate-900">{o.orderNumber}</td>
-                  <td className="px-4 py-3 text-slate-500">{o.storeName}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(o.createdAt)}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatCurrency(o.totalAmount)}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatCurrency(o.commissionAmount + (o.flatFeeAmount || 0))}</td>
+                  <td className="px-4 py-3 text-slate-800">{o.storeName}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatDate(o.createdAt)}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatCurrency(o.totalAmount)}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatCurrency(o.commissionAmount + (o.flatFeeAmount || 0))}</td>
                   <td className="px-4 py-3">
                     <Badge color={STATUS_COLOR[o.status] || "slate"}>{o.status.replace("_", " ")}</Badge>
                   </td>

@@ -72,7 +72,7 @@ export default function VendorShippingPage() {
           <form onSubmit={handleSave} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
             <div>
               <label className="text-sm font-medium text-slate-700">Default delivery fee</label>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-800 mt-0.5">
                 Used on any order that needs shipping, unless a more specific rate below matches the delivery state/city.
               </p>
             </div>
@@ -86,7 +86,7 @@ export default function VendorShippingPage() {
                 }`}
               >
                 <p className="text-sm font-semibold text-slate-900">To be determined</p>
-                <p className="text-xs text-slate-500 mt-0.5">Recommended</p>
+                <p className="text-xs text-slate-800 mt-0.5">Recommended</p>
               </button>
               <button
                 type="button"
@@ -96,12 +96,12 @@ export default function VendorShippingPage() {
                 }`}
               >
                 <p className="text-sm font-semibold text-slate-900">Fixed amount</p>
-                <p className="text-xs text-slate-500 mt-0.5">Same fee every time</p>
+                <p className="text-xs text-slate-800 mt-0.5">Same fee every time</p>
               </button>
             </div>
 
             {form.defaultShippingIsTBD ? (
-              <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-sm p-3">
+              <p className="text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-sm p-3">
                 Buyers won&apos;t be charged shipping at checkout for orders that fall under this default - they&apos;ll be told
                 you confirm delivery pricing after they order. You&apos;ll record the real delivery fee on each order once you
                 know it (for your own records).
@@ -183,7 +183,7 @@ function ShippingRatesManager({ storeId, apiFetch, token }) {
     <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-slate-700">Shipping rates by state/city</p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-800">
           Add a fixed rate for areas you already know the cost for. Everywhere else uses your default above. Leave city
           blank for a rate that covers the whole state.
         </p>
@@ -195,7 +195,7 @@ function ShippingRatesManager({ storeId, apiFetch, token }) {
             <div key={r.id} className="flex items-center justify-between p-3 text-sm">
               <div>
                 <p className="text-slate-900">{r.city ? `${r.city}, ${r.state}` : `${r.state} (whole state)`}</p>
-                <p className="text-xs text-slate-500">{formatCurrency(r.fee)}</p>
+                <p className="text-xs text-slate-800">{formatCurrency(r.fee)}</p>
               </div>
               <button type="button" onClick={() => handleDelete(r.id)} disabled={deletingId === r.id} className="text-slate-700 hover:text-red-600 disabled:opacity-50 cursor-pointer">
                 <Trash2 size={16} />

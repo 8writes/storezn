@@ -83,7 +83,7 @@ export default function SuperAdminApiMonitoringPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">API monitoring</h1>
-          <p className="text-sm text-slate-500 mt-1">Request status, duration, and backend failures for monitored API endpoints.</p>
+          <p className="text-sm text-slate-800 mt-1">Request status, duration, and backend failures for monitored API endpoints.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -143,7 +143,7 @@ export default function SuperAdminApiMonitoringPage() {
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-left">
+            <thead className="bg-slate-50 text-slate-800 text-left">
               <tr>
                 <th className="px-4 py-3 font-medium">Time</th>
                 <th className="px-4 py-3 font-medium">Endpoint</th>
@@ -162,10 +162,10 @@ export default function SuperAdminApiMonitoringPage() {
               ) : (
                 requests.map((row) => (
                   <tr key={row.id} className="border-t border-slate-100 align-top">
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatDateTime(row.createdAt)}</td>
+                    <td className="px-4 py-3 text-slate-800 whitespace-nowrap">{formatDateTime(row.createdAt)}</td>
                     <td className="px-4 py-3 min-w-72">
                       <p className="font-semibold text-slate-900">{row.source}</p>
-                      <p className="mt-1 font-mono text-xs text-slate-500 break-all">{row.method} {row.route}</p>
+                      <p className="mt-1 font-mono text-xs text-slate-800 break-all">{row.method} {row.route}</p>
                       {row.requestId && <p className="mt-1 font-mono text-xs text-slate-400 break-all">{row.requestId}</p>}
                     </td>
                     <td className="px-4 py-3"><Badge color={statusColor(row.statusCode)}>{row.statusCode}</Badge></td>
@@ -198,8 +198,8 @@ export default function SuperAdminApiMonitoringPage() {
               slowRoutes.map((r) => (
                 <div key={`${r.source}-${r.route}`} className="border-t border-slate-100 pt-3 first:border-t-0 first:pt-0">
                   <p className="text-sm font-semibold text-slate-900">{r.source}</p>
-                  <p className="mt-1 text-xs font-mono text-slate-500 break-all">{r.route}</p>
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-1 text-xs font-mono text-slate-800 break-all">{r.route}</p>
+                  <p className="mt-2 text-xs text-slate-800">
                     {r.hits} hit{r.hits === 1 ? "" : "s"} - avg {r.avgDurationMs}ms - max {r.maxDurationMs}ms
                     {r.errors > 0 ? ` - ${r.errors} error${r.errors === 1 ? "" : "s"}` : ""}
                   </p>

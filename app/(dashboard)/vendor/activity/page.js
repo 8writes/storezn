@@ -76,17 +76,17 @@ export default function VendorActivityPage() {
   }, [token, storeId, page, group]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (user && user.role !== "vendor") {
-    return <p className="text-sm text-slate-500">The activity log is only available to the store owner.</p>;
+    return <p className="text-sm text-slate-800">The activity log is only available to the store owner.</p>;
   }
   if (denied) {
-    return <p className="text-sm text-slate-500">The activity log is only available to the store owner.</p>;
+    return <p className="text-sm text-slate-800">The activity log is only available to the store owner.</p>;
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Activity log</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-800 mt-1">
           Every important action on your store: who rang up which sale, cash-drawer moves, returns, price and stock changes, staff changes.
         </p>
       </div>
@@ -105,7 +105,7 @@ export default function VendorActivityPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium whitespace-nowrap">When</th>
               <th className="px-4 py-3 font-medium">Who</th>
@@ -126,7 +126,7 @@ export default function VendorActivityPage() {
                 const href = targetHref(r, storeId);
                 return (
                   <tr key={r.id} className="border-t border-slate-100 align-top">
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatDateTime(r.createdAt)}</td>
+                    <td className="px-4 py-3 text-slate-800 whitespace-nowrap">{formatDateTime(r.createdAt)}</td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-slate-900">{r.actorName}</p>
                       <span className="text-xs text-slate-400">

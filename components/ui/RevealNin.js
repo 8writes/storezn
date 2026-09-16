@@ -41,7 +41,7 @@ export function RevealNin({ hasNin, apiFetch, endpoint }) {
       type="button"
       disabled={loading}
       onClick={reveal}
-      className="inline-flex items-center gap-1.5 text-slate-500 hover:text-brand-600 cursor-pointer disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 text-slate-800 hover:text-brand-600 cursor-pointer disabled:opacity-50"
     >
       {loading ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
       Reveal

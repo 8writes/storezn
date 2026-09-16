@@ -297,7 +297,7 @@ export default function VendorAnalyticsPage() {
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-slate-900 truncate">{p.name}</p>
-                        <p className="text-xs text-slate-500">{p.units} sold</p>
+                        <p className="text-xs text-slate-800">{p.units} sold</p>
                       </div>
                       <span className="text-sm font-semibold text-slate-900 shrink-0">{formatCurrency(p.revenue)}</span>
                     </li>
@@ -339,9 +339,9 @@ export default function VendorAnalyticsPage() {
                       <tr key={c.customerId}>
                         <td className="px-5 py-3 min-w-0">
                           <p className="font-medium text-slate-900 truncate">{c.name?.trim() || c.email}</p>
-                          <p className="text-xs text-slate-500 truncate">{c.email}</p>
+                          <p className="text-xs text-slate-800 truncate">{c.email}</p>
                         </td>
-                        <td className="px-5 py-3 text-slate-500 text-right whitespace-nowrap">{c.orderCount} orders</td>
+                        <td className="px-5 py-3 text-slate-800 text-right whitespace-nowrap">{c.orderCount} orders</td>
                         <td className="px-5 py-3 font-semibold text-slate-900 text-right whitespace-nowrap">{formatCurrency(c.revenue)}</td>
                       </tr>
                     ))}
@@ -359,9 +359,9 @@ export default function VendorAnalyticsPage() {
                     const row = data.channelBreakdown.find((c) => c.channel === ch);
                     return (
                       <div key={ch} className="bg-slate-50 rounded-sm p-3">
-                        <p className="text-xs text-slate-500 capitalize">{ch}</p>
+                        <p className="text-xs text-slate-800 capitalize">{ch}</p>
                         <p className="text-lg font-bold text-slate-900">{formatCurrency(row?.revenue || 0)}</p>
-                        <p className="text-xs text-slate-500">{row?.count || 0} orders</p>
+                        <p className="text-xs text-slate-800">{row?.count || 0} orders</p>
                       </div>
                     );
                   })}
@@ -414,7 +414,7 @@ export default function VendorAnalyticsPage() {
                     </span>
                     <span className={`font-medium ${data.products.expired > 0 ? "text-red-600" : "text-amber-600"}`}>
                       {data.products.expiringSoon}
-                      {data.products.expired > 0 && <span className="text-xs font-normal text-slate-500"> ({data.products.expired} expired)</span>}
+                      {data.products.expired > 0 && <span className="text-xs font-normal text-slate-800"> ({data.products.expired} expired)</span>}
                     </span>
                   </div>
                 )}

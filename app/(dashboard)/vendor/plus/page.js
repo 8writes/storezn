@@ -82,7 +82,7 @@ function FeatureList({ features }) {
           <Check size={16} className="text-brand-600 shrink-0 mt-0.5" />
           <span>
             <span className="font-medium text-slate-900">{title}</span>
-            <span className="text-slate-500">: {text}</span>
+            <span className="text-slate-800">: {text}</span>
           </span>
         </li>
       ))}
@@ -217,7 +217,7 @@ export default function VendorPlusPage() {
               )}
 
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">What you get</p>
+                <p className="text-xs font-semibold text-slate-800 uppercase tracking-wide mb-2">What you get</p>
                 <FeatureList features={PLUS_FEATURES} />
               </div>
 
@@ -278,7 +278,7 @@ export default function VendorPlusPage() {
               )}
 
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                <p className="text-xs font-semibold text-slate-800 uppercase tracking-wide mb-2">
                   {isEnterprise ? "What's included" : "What you get on top of Storezn+"}
                 </p>
                 <FeatureList features={ENTERPRISE_FEATURES} />
@@ -309,7 +309,7 @@ export default function VendorPlusPage() {
           </p>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-500 border-b border-slate-100">
+              <tr className="text-left text-xs text-slate-800 border-b border-slate-100">
                 <th className="font-medium px-5 py-2.5">Date</th>
                 <th className="font-medium px-5 py-2.5">Reference</th>
                 <th className="font-medium px-5 py-2.5 text-right">Amount</th>
@@ -334,7 +334,7 @@ export default function VendorPlusPage() {
           <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-sm p-6 space-y-5 my-auto">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Confirm subscription</p>
+                <p className="text-xs font-semibold text-slate-800 uppercase tracking-wide">Confirm subscription</p>
                 <p className="text-2xl font-extrabold text-slate-900 mt-1">
                   {formatCurrency(plusMonthlyPrice)}
                   <span className="text-sm font-medium text-slate-400">/month</span>

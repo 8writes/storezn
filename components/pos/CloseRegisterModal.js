@@ -105,7 +105,7 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
               {forcing ? (
                 <div className="space-y-2">
                   <p className="text-sm text-slate-700 font-medium">Can&apos;t count the drawer?</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-800">
                     The system&apos;s expected figure will be recorded and this shift will be flagged for the owner to review.
                     Say what stopped you counting.
                   </p>
@@ -129,14 +129,14 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
                       <button
                         type="button"
                         onClick={() => setMode("total")}
-                        className={`px-2 py-1 rounded-sm border ${mode === "total" ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-500"}`}
+                        className={`px-2 py-1 rounded-sm border ${mode === "total" ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-800"}`}
                       >
                         Total
                       </button>
                       <button
                         type="button"
                         onClick={() => setMode("notes")}
-                        className={`px-2 py-1 rounded-sm border ${mode === "notes" ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-500"}`}
+                        className={`px-2 py-1 rounded-sm border ${mode === "notes" ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-800"}`}
                       >
                         By notes
                       </button>
@@ -168,7 +168,7 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
                             placeholder="0"
                             className="w-16 px-2 py-1 border border-slate-300 rounded-sm text-sm tabular-nums outline-none focus:border-brand-500"
                           />
-                          <span className="ml-auto tabular-nums text-slate-500">
+                          <span className="ml-auto tabular-nums text-slate-800">
                             {formatKobo(d * 100 * (Number(qtys[d]) || 0))}
                           </span>
                         </div>
@@ -182,7 +182,7 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
 
                   {/* Deliberately NO expected / over-short shown here - it's a
                       blind count. Both appear on the Z report after submit. */}
-                  <button type="button" onClick={() => setForcing(true)} className="text-xs text-slate-500 hover:text-slate-700 hover:underline">
+                  <button type="button" onClick={() => setForcing(true)} className="text-xs text-slate-800 hover:text-slate-700 hover:underline">
                     I can&apos;t count the drawer right now
                   </button>
                 </>

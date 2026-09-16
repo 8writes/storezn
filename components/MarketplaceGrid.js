@@ -79,7 +79,7 @@ export function MarketplaceGrid({ initialProducts, total, filters }) {
 
   if (items.length === 0) {
     return (
-      <div className="text-center py-16 text-slate-500 bg-white border-2 border-dashed border-slate-300">
+      <div className="text-center py-16 text-slate-800 bg-white border-2 border-dashed border-slate-300">
         <Package size={28} className="mx-auto mb-3" />
         <p className="font-medium">No products match{filters.q ? " your search" : " yet"}.</p>
       </div>

@@ -327,7 +327,7 @@ export default function VendorProductsPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Products</h1>
-          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+          <p className="text-xs text-slate-800 mt-0.5 flex items-center gap-1">
             <Star size={12} className={featuredCount > 0 ? "fill-amber-400 text-amber-400" : "text-slate-300"} />
             {featuredCount}/{MAX_FEATURED} featured on your storefront
           </p>
@@ -364,7 +364,7 @@ export default function VendorProductsPage() {
         {bulkOpen && (
           <div className="px-5 pb-5 pt-1 space-y-4 border-t border-slate-100">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
+              <p className="text-xs text-slate-800 max-w-xl leading-relaxed">
                 One product per row. Only <code className="text-slate-700">name</code> and{" "}
                 <code className="text-slate-700">price</code> are required.{" "}
                 <code className="text-slate-700">categoryName</code> must match one of your existing categories.
@@ -391,7 +391,7 @@ export default function VendorProductsPage() {
                     <span className="font-medium text-slate-900">{bulkRows.length}</span> row{bulkRows.length === 1 ? "" : "s"} ready to import
                   </p>
                   <div className="flex items-center gap-3">
-                    <button type="button" onClick={resetBulk} className="text-sm text-slate-500 hover:text-slate-700 cursor-pointer">
+                    <button type="button" onClick={resetBulk} className="text-sm text-slate-800 hover:text-slate-700 cursor-pointer">
                       Clear
                     </button>
                     <Button size="sm" onClick={handleBulkImport} loading={bulkSubmitting}>
@@ -402,7 +402,7 @@ export default function VendorProductsPage() {
 
                 <div className="overflow-x-auto border border-slate-200 rounded-sm">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-slate-500 text-left">
+                    <thead className="bg-slate-50 text-slate-800 text-left">
                       <tr>
                         <th className="px-3 py-2 font-medium w-10">#</th>
                         {BULK_HEADERS.map((h) => (
@@ -448,7 +448,7 @@ export default function VendorProductsPage() {
                   <>
                     <div className="max-h-56 overflow-auto border border-slate-200 rounded-sm">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50 text-slate-500 text-left sticky top-0">
+                        <thead className="bg-slate-50 text-slate-800 text-left sticky top-0">
                           <tr>
                             <th className="px-3 py-2 font-medium">Row</th>
                             <th className="px-3 py-2 font-medium">Name</th>
@@ -458,7 +458,7 @@ export default function VendorProductsPage() {
                         <tbody>
                           {bulkResults.filter((r) => r.status === "error").map((r) => (
                             <tr key={r.row} className="border-t border-slate-100">
-                              <td className="px-3 py-2 text-slate-500">{r.row}</td>
+                              <td className="px-3 py-2 text-slate-800">{r.row}</td>
                               <td className="px-3 py-2">{r.name || "-"}</td>
                               <td className="px-3 py-2 text-red-600">{r.error}</td>
                             </tr>
@@ -532,7 +532,7 @@ export default function VendorProductsPage() {
               setStatus("");
               setFeatured("");
             }}
-            className="text-slate-500 hover:text-slate-800 underline cursor-pointer"
+            className="text-slate-800 hover:text-slate-800 underline cursor-pointer"
           >
             Clear all
           </button>
@@ -632,7 +632,7 @@ export default function VendorProductsPage() {
                     <p className="font-medium text-slate-900">{p.name}</p>
                     <p className="text-sm font-medium text-slate-900 shrink-0">{formatCurrency(p.price)}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-800">
                     <span className="capitalize">{p.productType}</span>
                     {p.productType === "physical" && p.condition !== "new" && <span>· {formatCondition(p.condition)}</span>}
                     {p.categoryName && <span>· {p.categoryName}</span>}
@@ -681,7 +681,7 @@ export default function VendorProductsPage() {
       {/* Desktop: table */}
       <div className="hidden sm:block bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 w-10">
                 <input
@@ -737,16 +737,16 @@ export default function VendorProductsPage() {
                       <span>{p.name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{p.categoryName || "-"}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatCurrency(p.price)}</td>
-                  <td className="px-4 py-3 text-slate-500">{p.costPrice != null ? formatCurrency(p.costPrice) : "N/A"}</td>
-                  <td className="px-4 py-3 text-slate-500 capitalize">
+                  <td className="px-4 py-3 text-slate-800">{p.categoryName || "-"}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatCurrency(p.price)}</td>
+                  <td className="px-4 py-3 text-slate-800">{p.costPrice != null ? formatCurrency(p.costPrice) : "N/A"}</td>
+                  <td className="px-4 py-3 text-slate-800 capitalize">
                     {p.productType}
                     {p.productType === "physical" && p.condition !== "new" && (
                       <span className="text-slate-700"> · {formatCondition(p.condition)}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-4 py-3 text-slate-800">
                     {p.productType === "physical" ? (
                       <span className="inline-flex items-center gap-2">
                         {p.stock ?? "-"}

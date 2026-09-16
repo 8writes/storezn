@@ -62,7 +62,7 @@ export function SizeGuideTable({ guide, showControls = true }) {
       <div className="overflow-x-auto border border-slate-200 rounded-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-slate-50 text-slate-500 text-left">
+            <tr className="bg-slate-50 text-slate-800 text-left">
               <th className="px-3 py-2 font-medium whitespace-nowrap">{leadHead}</th>
               {hasAlt && <th className="px-3 py-2 font-medium whitespace-nowrap">{secondHead}</th>}
               {guide.columns.map((c, i) => (
@@ -84,7 +84,7 @@ export function SizeGuideTable({ guide, showControls = true }) {
         </table>
       </div>
 
-      {guide.note && <p className="text-xs text-slate-500 leading-relaxed">{guide.note}</p>}
+      {guide.note && <p className="text-xs text-slate-800 leading-relaxed">{guide.note}</p>}
     </div>
   );
 }

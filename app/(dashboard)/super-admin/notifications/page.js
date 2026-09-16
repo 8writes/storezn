@@ -71,7 +71,7 @@ export default function SuperAdminNotificationsPage() {
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Notify vendors</h1>
-        <p className="text-sm text-slate-500 mt-1">Send a custom push notification and/or email to one vendor or every vendor.</p>
+        <p className="text-sm text-slate-800 mt-1">Send a custom push notification and/or email to one vendor or every vendor.</p>
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">

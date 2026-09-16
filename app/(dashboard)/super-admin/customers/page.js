@@ -103,7 +103,7 @@ export default function SuperAdminCustomersPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Email</th>
@@ -126,11 +126,11 @@ export default function SuperAdminCustomersPage() {
               customers.map((c) => (
                 <tr key={c.id} className="border-t border-slate-100">
                   <td className="px-4 py-3 font-medium text-slate-900">{c.firstName} {c.lastName}</td>
-                  <td className="px-4 py-3 text-slate-500">{c.email}</td>
-                  <td className="px-4 py-3 text-slate-500">{c.storeName || "-"}</td>
-                  <td className="px-4 py-3 text-slate-500">{c.orderCount}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatCurrency(c.totalSpent)}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(c.createdAt)}</td>
+                  <td className="px-4 py-3 text-slate-800">{c.email}</td>
+                  <td className="px-4 py-3 text-slate-800">{c.storeName || "-"}</td>
+                  <td className="px-4 py-3 text-slate-800">{c.orderCount}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatCurrency(c.totalSpent)}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatDate(c.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge color={c.emailVerified ? "green" : "amber"}>{c.emailVerified ? "Verified" : "Unverified"}</Badge>

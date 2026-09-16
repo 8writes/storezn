@@ -43,9 +43,9 @@ const ADMIN_ACTION_LABEL = {
 function Metric({ label, value, sub }) {
   return (
     <div className="rounded-sm border border-slate-200 p-3">
-      <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{label}</p>
+      <p className="text-[11px] uppercase tracking-wide text-slate-800 font-semibold">{label}</p>
       <p className="text-lg font-bold text-slate-900 tabular-nums">{value}</p>
-      {sub && <p className="text-xs text-slate-500">{sub}</p>}
+      {sub && <p className="text-xs text-slate-800">{sub}</p>}
     </div>
   );
 }
@@ -53,7 +53,7 @@ function Metric({ label, value, sub }) {
 function Detail({ label, children }) {
   return (
     <div className="flex justify-between gap-3">
-      <dt className="text-slate-500">{label}</dt>
+      <dt className="text-slate-800">{label}</dt>
       <dd className="text-slate-900 font-medium text-right">{children}</dd>
     </div>
   );
@@ -237,7 +237,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">{store.name}</h1>
-          <p className="text-sm text-slate-500">{store.slug}.storezn.com</p>
+          <p className="text-sm text-slate-800">{store.slug}.storezn.com</p>
         </div>
         <div className="flex items-center gap-3">
           <Badge color={getEffectivePlan(store) === "free" ? "slate" : getEffectivePlan(store) === "enterprise" ? "blue" : "green"}>
@@ -317,23 +317,23 @@ export default function SuperAdminStoreDetailPage({ params }) {
           <>
             <dl className="text-sm space-y-1.5">
               <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Bank</dt>
+                <dt className="text-slate-800">Bank</dt>
                 <dd className="text-slate-900 font-medium">{store.bankName}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Account number</dt>
+                <dt className="text-slate-800">Account number</dt>
                 <dd className="text-slate-900 font-medium">{store.accountNumber}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Account name</dt>
+                <dt className="text-slate-800">Account name</dt>
                 <dd className="text-slate-900 font-medium">{store.accountName}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Paystack sub-account</dt>
+                <dt className="text-slate-800">Paystack sub-account</dt>
                 <dd className="text-slate-900 font-medium font-mono text-xs">{store.subAccountCode}</dd>
               </div>
             </dl>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-800">
               This is locked on the vendor&apos;s side once set. Only unlock it after verifying the change with the vendor directly.
             </p>
             <Button size="sm" variant="danger" onClick={unlockPayoutAccount} loading={unlocking}>
@@ -347,7 +347,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
 
       <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
         <p className="text-sm font-semibold text-slate-700">Custom commission rate</p>
-        <p className="text-xs text-slate-500">Leave blank to use the platform default rate.</p>
+        <p className="text-xs text-slate-800">Leave blank to use the platform default rate.</p>
         <div className="flex items-end gap-3">
           <Input label="Commission rate (%)" type="number" min="0" max="100" step="0.1" value={rateOverride} onChange={(e) => setRateOverride(e.target.value)} className="flex-1" />
           <Button onClick={saveRate} loading={saving}>Save</Button>
@@ -356,7 +356,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
 
       <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
         <p className="text-sm font-semibold text-slate-700">Custom Storezn+ price</p>
-        <p className="text-xs text-slate-500">Leave blank to use the platform default price. Only applies the next time this store subscribes - doesn&apos;t change an already-active subscription&apos;s charge.</p>
+        <p className="text-xs text-slate-800">Leave blank to use the platform default price. Only applies the next time this store subscribes - doesn&apos;t change an already-active subscription&apos;s charge.</p>
         <div className="flex items-end gap-3">
           <Input label="Monthly price" type="number" min="0" step="1" value={priceOverride} onChange={(e) => setPriceOverride(e.target.value)} className="flex-1" />
           <Button onClick={savePrice} loading={savingPrice}>Save</Button>
@@ -370,7 +370,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
             {getEffectivePlan(store) === "enterprise" ? "Enterprise" : getEffectivePlan(store) === "plus" ? "Plus" : "Free"}
           </Badge>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-800">
           {getEffectivePlan(store) === "free"
             ? "This store is on the free plan."
             : `${getEffectivePlan(store) === "enterprise" ? "Enterprise" : "Plus"} active until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "-"}${store.planCancelled ? " - won't auto-renew" : " - renews via Paystack"}.`}
@@ -428,11 +428,11 @@ export default function SuperAdminStoreDetailPage({ params }) {
 
         {subTx.length > 0 && (
           <div className="pt-1">
-            <p className="text-xs font-medium text-slate-500 mb-1.5">Storezn+ payments</p>
+            <p className="text-xs font-medium text-slate-800 mb-1.5">Storezn+ payments</p>
             <ul className="divide-y divide-slate-100 border border-slate-100 rounded-sm">
               {subTx.map((s) => (
                 <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-                  <span className="text-slate-500">{formatDate(s.paidAt)}</span>
+                  <span className="text-slate-800">{formatDate(s.paidAt)}</span>
                   <span className="text-slate-900 font-medium">{formatCurrency(s.amount)}</span>
                   <Badge color={s.manual ? "amber" : "slate"}>{s.manual ? "Offline" : "Paystack"}</Badge>
                 </li>
@@ -444,7 +444,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
 
       <div>
         <p className="text-sm font-semibold text-slate-700 mb-1">Store activity</p>
-        <p className="text-xs text-slate-500 mb-3">
+        <p className="text-xs text-slate-800 mb-3">
           The store&apos;s own audit trail: what the owner and staff have been doing. Latest 25.
         </p>
         {storeActivity.length === 0 ? (
@@ -452,7 +452,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         ) : (
           <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-left">
+              <thead className="bg-slate-50 text-slate-800 text-left">
                 <tr>
                   <th className="px-4 py-3 font-medium whitespace-nowrap">When</th>
                   <th className="px-4 py-3 font-medium">Who</th>
@@ -465,7 +465,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
                   const kind = KIND[r.action] || { label: r.action, color: "slate" };
                   return (
                     <tr key={r.id} className="border-t border-slate-100 align-top">
-                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatDateTime(r.createdAt)}</td>
+                      <td className="px-4 py-3 text-slate-800 whitespace-nowrap">{formatDateTime(r.createdAt)}</td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-slate-900">{r.actorName}</p>
                         <span className="text-xs text-slate-400">
@@ -487,7 +487,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
       {adminActivity.length > 0 && (
         <div>
           <p className="text-sm font-semibold text-slate-700 mb-1">Admin actions on this store</p>
-          <p className="text-xs text-slate-500 mb-3">What the Storezn team has changed here.</p>
+          <p className="text-xs text-slate-800 mb-3">What the Storezn team has changed here.</p>
           <ul className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-100 text-sm">
             {adminActivity.map((a) => (
               <li key={a.id} className="flex items-start justify-between gap-4 px-4 py-2.5">
@@ -520,7 +520,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
         ) : (
           <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-left">
+              <thead className="bg-slate-50 text-slate-800 text-left">
                 <tr>
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Channel</th>
@@ -533,7 +533,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
                 {transactions.map((t) => (
                   <tr key={t.id} className="border-t border-slate-100">
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(t.createdAt)}</td>
-                    <td className="px-4 py-3 text-slate-500">
+                    <td className="px-4 py-3 text-slate-800">
                       {t.isReturn ? "return" : t.channel === "pos" ? "POS" : t.channel === "manual" ? "recorded" : "online"}
                     </td>
                     <td className="px-4 py-3">{formatCurrency(t.amount)}</td>

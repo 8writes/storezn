@@ -38,7 +38,7 @@ function ResetPasswordForm() {
     return (
       <div className="space-y-4 text-center">
         <h2 className="text-xl font-bold text-slate-900">Invalid link</h2>
-        <p className="text-sm text-slate-500">This password reset link is missing its token.</p>
+        <p className="text-sm text-slate-800">This password reset link is missing its token.</p>
         <Link href="/forgot-password" className="text-sm text-brand-600 hover:underline">Request a new link</Link>
       </div>
     );

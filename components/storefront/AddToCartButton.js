@@ -240,11 +240,11 @@ export function AddToCartButton({
       {sizeGuide && !sizeGroupName && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           <SizeGuideButton guide={sizeGuide} />
-          {sizeGuide.note && <span className="text-slate-500">{sizeGuide.note}</span>}
+          {sizeGuide.note && <span className="text-slate-800">{sizeGuide.note}</span>}
         </div>
       )}
       {sizeGuide && sizeGroupName && sizeGuide.note && (
-        <p className="text-xs text-slate-500">{sizeGuide.note}</p>
+        <p className="text-xs text-slate-800">{sizeGuide.note}</p>
       )}
 
       {needsSelection && hasChosen && stock != null && productType === "physical" && (

@@ -81,7 +81,7 @@ export default function SuperAdminProductDetailPage({ params }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900">{product.name}</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-800 mt-1">
             {product.storeName} · Listed {formatDateTime(product.createdAt)}
           </p>
         </div>
@@ -150,7 +150,7 @@ export default function SuperAdminProductDetailPage({ params }) {
             {variants.map((v) => (
               <div key={v.id} className="flex items-center justify-between p-3 text-sm">
                 <p className="text-slate-900">{Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}</p>
-                <p className="text-slate-500">
+                <p className="text-slate-800">
                   {v.sku && `SKU ${v.sku} · `}
                   {v.price != null ? formatCurrency(v.price) : "uses product price"} · {v.stock != null ? `${v.stock} in stock` : "no stock limit"}
                 </p>

@@ -84,10 +84,10 @@ function VendorSignupForm() {
     return (
       <div className="space-y-4 text-center">
         <h2 className="text-xl font-bold text-slate-900">Verify your email to continue</h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-800">
           We&apos;ve sent a verification link to <strong>{form.vendor.email}</strong>. Open it and click the link to activate your account - you won&apos;t be able to sign in until you do.
         </p>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-800">
           Don&apos;t see it? Check your spam or junk folder.
         </p>
         <Link href="/login" className="text-sm text-brand-600 hover:underline">Sign in</Link>
@@ -99,7 +99,7 @@ function VendorSignupForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <h2 className="text-xl font-bold text-slate-900">Getting started</h2>
-        <p className="text-sm text-slate-500 mt-1">Create your business in a couple of minutes.</p>
+        <p className="text-sm text-slate-800 mt-1">Create your business in a couple of minutes.</p>
       </div>
 
       <Input
@@ -182,7 +182,7 @@ function VendorSignupForm() {
         Create my business
       </Button>
 
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-slate-800">
         Already have an account?{" "}
         <Link href="/login" className="text-brand-600 hover:underline">Sign in</Link>
       </p>

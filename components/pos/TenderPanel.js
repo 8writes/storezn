@@ -84,13 +84,13 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
 
         <div className="p-4 space-y-4 overflow-y-auto">
           <div className="rounded-sm bg-slate-50 border border-slate-200 p-3 text-center">
-            <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+            <p className="text-[11px] uppercase tracking-wide text-slate-800 font-semibold">
               {shortBy > 0 ? "Balance due" : change > 0 ? "Change due" : "Paid in full"}
             </p>
             <p className={`text-2xl font-bold tabular-nums ${change > 0 ? "text-emerald-700" : shortBy > 0 ? "text-red-600" : "text-slate-900"}`}>
               {formatCurrency(shortBy > 0 ? shortBy : change > 0 ? change : total)}
             </p>
-            <p className="text-xs text-slate-500 mt-0.5">Total {formatCurrency(total)}</p>
+            <p className="text-xs text-slate-800 mt-0.5">Total {formatCurrency(total)}</p>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -177,7 +177,7 @@ export function TenderPanel({ open, onClose, total, onComplete, submitting }) {
           )}
 
           {change > 0 && !isCash && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-800">
               Customer overpaid by {method === "transfer" ? "transfer" : "POS"}
               {provider ? ` (${provider})` : ""}: {formatCurrency(change)} change to hand back in cash from the drawer.
             </p>

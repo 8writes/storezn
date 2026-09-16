@@ -218,7 +218,7 @@ export default function VendorProductViewPage({ params }) {
                       </li>
                     ))}
                 </ul>
-                <p className="text-[11px] text-slate-500 mt-1.5">
+                <p className="text-[11px] text-slate-800 mt-1.5">
                   Whole bundles use the bundle price; any extra units are charged the normal price.
                 </p>
               </div>
@@ -248,7 +248,7 @@ export default function VendorProductViewPage({ params }) {
                     <span className="text-slate-700">
                       {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
                     </span>
-                    <span className="text-slate-500">
+                    <span className="text-slate-800">
                       {v.price != null ? formatCurrency(v.price) : "uses product price"} · {v.stock != null ? `${v.stock} in stock` : "no limit"}
                     </span>
                   </div>
@@ -272,7 +272,7 @@ export default function VendorProductViewPage({ params }) {
               <BranchStockList label={null} rows={branchStock.productStock} />
               {variants.slice(0, visibleVariants).map((v) => (
                 <div key={v.id} className="pt-3 border-t border-slate-100">
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                  <p className="text-xs font-medium text-slate-800 uppercase tracking-wide mb-1.5">
                     {Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ")}
                   </p>
                   <BranchStockList rows={branchStock.variantStock[v.id] || []} />
@@ -303,7 +303,7 @@ function BranchStockList({ rows }) {
       {rows.map((row) => (
         <div key={row.branchId} className="flex items-center justify-between text-sm">
           <span className="text-slate-700">{row.branchName}</span>
-          <span className="text-slate-500">{row.stock != null ? `${row.stock} in stock` : "Unlimited"}</span>
+          <span className="text-slate-800">{row.stock != null ? `${row.stock} in stock` : "Unlimited"}</span>
         </div>
       ))}
     </div>

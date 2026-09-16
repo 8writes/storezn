@@ -73,7 +73,7 @@ export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
               </button>
             ))}
           </div>
-          <p className="text-xs text-slate-500">{active.hint}</p>
+          <p className="text-xs text-slate-800">{active.hint}</p>
           <input
             type="number"
             inputMode="decimal"

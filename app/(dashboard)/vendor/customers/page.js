@@ -59,7 +59,7 @@ export default function VendorCustomersPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Email</th>
@@ -85,11 +85,11 @@ export default function VendorCustomersPage() {
                   className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
                 >
                   <td className="px-4 py-3 font-medium text-slate-900">{c.firstName} {c.lastName}</td>
-                  <td className="px-4 py-3 text-slate-500">{c.email}</td>
-                  <td className="px-4 py-3 text-slate-500">{c.phone || "-"}</td>
-                  <td className="px-4 py-3 text-slate-500">{c.orderCount}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatCurrency(c.totalSpent)}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(c.createdAt)}</td>
+                  <td className="px-4 py-3 text-slate-800">{c.email}</td>
+                  <td className="px-4 py-3 text-slate-800">{c.phone || "-"}</td>
+                  <td className="px-4 py-3 text-slate-800">{c.orderCount}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatCurrency(c.totalSpent)}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatDate(c.createdAt)}</td>
                   <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <Link href={`/vendor/customers/${c.id}?storeId=${storeId}`} className="text-brand-600 hover:underline">View</Link>
                   </td>

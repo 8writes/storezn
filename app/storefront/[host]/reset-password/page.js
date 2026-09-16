@@ -38,7 +38,7 @@ function ResetPasswordForm() {
     return (
       <div className="max-w-sm mx-auto py-8 space-y-4 text-center">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Invalid link</h1>
-        <p className="text-sm text-slate-500">This password reset link is missing its token.</p>
+        <p className="text-sm text-slate-800">This password reset link is missing its token.</p>
         <Link href="/forgot-password" className="block text-sm text-slate-900 underline underline-offset-2">Request a new link</Link>
       </div>
     );

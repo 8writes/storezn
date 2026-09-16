@@ -384,7 +384,7 @@ export default function VendorNewProductPage() {
                         }
                         className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
                       />
-                      <p className="mt-1 text-xs text-slate-500">Stock is added to your branch.</p>
+                      <p className="mt-1 text-xs text-slate-800">Stock is added to your branch.</p>
                     </div>
                   ) : branchCount > 1 && branches.length > 0 ? (
                     <div className="sm:col-span-2">
@@ -409,7 +409,7 @@ export default function VendorNewProductPage() {
                           </div>
                         ))}
                       </div>
-                      <p className="mt-1 text-xs text-slate-500">Blank counts as 0. You can adjust these anytime from the product page.</p>
+                      <p className="mt-1 text-xs text-slate-800">Blank counts as 0. You can adjust these anytime from the product page.</p>
                     </div>
                   ) : (
                     <div>
@@ -453,7 +453,7 @@ export default function VendorNewProductPage() {
                     onChange={(e) => setForm((f) => ({ ...f, costPrice: e.target.value }))}
                   />
                   {form.costPrice !== "" && form.price !== "" && Number(form.price) > 0 && (
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-slate-800 mt-1">
                       Margin {formatCurrency(Number(form.price) - Number(form.costPrice))} (
                       {Math.round(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100)}%)
                     </p>
@@ -468,7 +468,7 @@ export default function VendorNewProductPage() {
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Photos</label>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-800">
               Drag to reorder - the first photo is the cover shown in your store. Up to {MAX_MEDIA} photos and video combined.
             </p>
             <div className="flex flex-wrap gap-3">
@@ -556,7 +556,7 @@ export default function VendorNewProductPage() {
                 <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoUpload} className="hidden" />
               </label>
             ) : (
-              <p className="text-xs text-slate-500">Remove a photo to make room for a video.</p>
+              <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
             )}
           </div>
 

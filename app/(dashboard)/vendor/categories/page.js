@@ -128,7 +128,7 @@ export default function VendorCategoriesPage() {
       <BackLink onClick={() => router.back()} label="Back" />
       <div>
         <h1 className="text-xl font-bold text-slate-900">Categories</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-800 mt-1">
           Shared across every product and used as the category filter on your storefront.
         </p>
       </div>
@@ -191,7 +191,7 @@ export default function VendorCategoriesPage() {
                   >
                     <div className="min-w-0">
                       <p className="text-sm text-slate-900 truncate">{c.name}</p>
-                      <p className="text-xs text-slate-500 truncate">
+                      <p className="text-xs text-slate-800 truncate">
                         /{c.slug} · {c.productCount ?? 0} product{(c.productCount ?? 0) === 1 ? "" : "s"}
                       </p>
                     </div>
@@ -199,7 +199,7 @@ export default function VendorCategoriesPage() {
                       <button
                         type="button"
                         onClick={() => startEdit(c)}
-                        className="text-slate-500 hover:text-brand-600 cursor-pointer"
+                        className="text-slate-800 hover:text-brand-600 cursor-pointer"
                         aria-label={`Edit ${c.name}`}
                       >
                         <Pencil size={16} />
@@ -208,7 +208,7 @@ export default function VendorCategoriesPage() {
                         type="button"
                         onClick={() => handleDelete(c)}
                         disabled={deletingId === c.id}
-                        className="text-slate-500 hover:text-red-600 disabled:opacity-40 cursor-pointer"
+                        className="text-slate-800 hover:text-red-600 disabled:opacity-40 cursor-pointer"
                         aria-label={`Delete ${c.name}`}
                       >
                         <Trash2 size={16} />

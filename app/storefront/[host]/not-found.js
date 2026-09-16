@@ -9,7 +9,7 @@ export default function StorefrontNotFound() {
           <Store size={26} />
         </span>
         <h1 className="text-xl font-bold text-slate-900">Store not found</h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-800">
           We couldn&apos;t find a store at this address. Double check the link - it may be mistyped, or the store may no longer exist.
         </p>
         <a

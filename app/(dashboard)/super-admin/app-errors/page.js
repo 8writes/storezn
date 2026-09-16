@@ -99,7 +99,7 @@ export default function SuperAdminAppErrorsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Application errors</h1>
-          <p className="text-sm text-slate-500 mt-1">Server-side failures captured from checkout, payments, auth, uploads, and admin flows.</p>
+          <p className="text-sm text-slate-800 mt-1">Server-side failures captured from checkout, payments, auth, uploads, and admin flows.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -129,7 +129,7 @@ export default function SuperAdminAppErrorsPage() {
           <p className="mt-1 text-2xl font-bold text-red-900 tabular-nums">{stats.open.toLocaleString()}</p>
         </div>
         <div className="border border-slate-200 bg-surface rounded-sm p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resolved</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-800">Resolved</p>
           <p className="mt-1 text-2xl font-bold text-slate-900 tabular-nums">{stats.resolved.toLocaleString()}</p>
         </div>
       </div>
@@ -178,7 +178,7 @@ export default function SuperAdminAppErrorsPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Time</th>
               <th className="px-4 py-3 font-medium">Source</th>
@@ -199,13 +199,13 @@ export default function SuperAdminAppErrorsPage() {
                 const metadata = compactJson(row.metadata);
                 return (
                   <tr key={row.id} className="border-t border-slate-100 align-top">
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatDateTime(row.createdAt)}</td>
+                    <td className="px-4 py-3 text-slate-800 whitespace-nowrap">{formatDateTime(row.createdAt)}</td>
                     <td className="px-4 py-3 min-w-56">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge color={LEVEL_COLOR[row.level] || "slate"}>{row.level}</Badge>
                         <span className="font-semibold text-slate-900">{row.source}</span>
                       </div>
-                      <p className="mt-1 text-xs text-slate-500 font-mono break-all">{row.method || "-"} {row.route || "-"}</p>
+                      <p className="mt-1 text-xs text-slate-800 font-mono break-all">{row.method || "-"} {row.route || "-"}</p>
                       {row.requestId && <p className="mt-1 text-xs text-slate-400 font-mono break-all">{row.requestId}</p>}
                     </td>
                     <td className="px-4 py-3 min-w-96">
@@ -218,13 +218,13 @@ export default function SuperAdminAppErrorsPage() {
                       </div>
                       {(row.stack || metadata) && (
                         <details className="mt-3">
-                          <summary className="cursor-pointer text-xs font-semibold text-slate-500">Details</summary>
+                          <summary className="cursor-pointer text-xs font-semibold text-slate-800">Details</summary>
                           {row.stack && <pre className="mt-2 max-w-3xl overflow-x-auto rounded-sm bg-slate-950 p-3 text-xs text-slate-100">{row.stack}</pre>}
                           {metadata && <pre className="mt-2 max-w-3xl overflow-x-auto rounded-sm bg-slate-50 p-3 text-xs text-slate-700">{metadata}</pre>}
                         </details>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-500">
+                    <td className="px-4 py-3 text-slate-800">
                       <p>{row.userRole || "-"}</p>
                       <p className="mt-1 text-xs font-mono break-all">{row.userId || ""}</p>
                       {row.storeId && <p className="mt-1 text-xs font-mono break-all">store {row.storeId}</p>}

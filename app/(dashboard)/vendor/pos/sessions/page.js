@@ -61,7 +61,7 @@ export default function SessionsPage() {
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-100">
+            <tr className="text-left text-[11px] uppercase tracking-wide text-slate-800 border-b border-slate-100">
               <th className="px-4 py-2.5 font-semibold">Register</th>
               <th className="px-4 py-2.5 font-semibold">Opened</th>
               <th className="px-4 py-2.5 font-semibold">Status</th>
@@ -77,7 +77,7 @@ export default function SessionsPage() {
               </tr>
             ) : sessions.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-slate-500 text-center">
+                <td colSpan={4} className="px-4 py-6 text-slate-800 text-center">
                   No sessions yet
                 </td>
               </tr>
@@ -95,7 +95,7 @@ export default function SessionsPage() {
                       <span className="text-emerald-600 font-medium">Open</span>
                     ) : (
                       <span className="inline-flex flex-wrap items-center gap-1">
-                        <span className="text-slate-500">Closed</span>
+                        <span className="text-slate-800">Closed</span>
                         {s.closeMethod === "forced_uncounted" && (
                           <span className="rounded-sm bg-red-100 text-red-700 text-[10px] font-semibold px-1.5 py-0.5">not counted</span>
                         )}
@@ -112,7 +112,7 @@ export default function SessionsPage() {
                     {s.overShort == null ? (
                       "N/A"
                     ) : (
-                      <span className={s.overShort === 0 ? "text-slate-500" : "text-red-600"}>{formatKobo(s.overShort)}</span>
+                      <span className={s.overShort === 0 ? "text-slate-800" : "text-red-600"}>{formatKobo(s.overShort)}</span>
                     )}
                   </td>
                 </tr>

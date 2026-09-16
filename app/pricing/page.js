@@ -36,7 +36,7 @@ export default async function PricingPage() {
   const settings = await getSettings();
 
   const FREE_FEATURES = [
-    "Your own store, on a free storezn.com subdomain",
+    "Your own website, on a free storezn.com subdomain",
     "Up to 50 products",
     "Automatic payouts to your bank account",
     `${settings.freeStorageMb.toLocaleString("en-NG")}MB of image storage`,
@@ -65,8 +65,8 @@ export default async function PricingPage() {
             style={{ background: "radial-gradient(60% 50% at 50% 0%, var(--color-brand-50), transparent)" }}
           />
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900">Simple pricing</h1>
-          <p className="mt-4 text-base sm:text-lg text-slate-500 max-w-md mx-auto">
-            Every store starts free, with everything you need to sell online. Upgrade only if you outgrow it.
+          <p className="mt-4 text-base sm:text-lg text-slate-800 max-w-md mx-auto">
+            Every business starts free, with everything you need to run your business. Upgrade only if you outgrow it.
           </p>
           <p className="mt-3 text-xs text-slate-400">
             No card required to start &middot; Payments secured by Paystack &middot; Cancel anytime
@@ -76,7 +76,7 @@ export default async function PricingPage() {
         <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {/* Free */}
           <div className="bg-white border border-slate-200 rounded-sm p-7 shadow-sm">
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Free</p>
+            <p className="text-sm font-semibold text-slate-800 uppercase tracking-wide">Free</p>
             <p className="mt-2 text-4xl font-extrabold text-slate-900">₦0</p>
             <p className="mt-1 text-sm text-slate-400">forever</p>
             <ul className="mt-6 space-y-3">
@@ -150,7 +150,7 @@ export default async function PricingPage() {
         </section>
 
         <section className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16 text-center">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-800">
             Already have a store? Upgrade to Storezn+ any time from{" "}
             <span className="font-medium text-slate-700">Plans</span> in your dashboard. For Enterprise, email{" "}
             <a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-brand-700 hover:text-brand-800">

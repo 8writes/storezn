@@ -27,7 +27,7 @@ import { getEffectivePrice } from "@/lib/pricing.js";
 import { formatCurrency } from "@/lib/format.js";
 
 const PERKS = [
-  { icon: Store, title: "Your own storefront", text: "A real online store on your own storezn.com address, live in minutes - no theme to fight, no code." },
+  { icon: Store, title: "Your own website", text: "A website on your own storezn.com address, live in minutes - no theme to fight, no code." },
   { icon: Wallet, title: "Payouts to your bank", text: "Every paid order is split at checkout and settled straight to your bank account. We never hold your money." },
   { icon: ScanLine, title: "A till for the counter", text: "Ring up walk-in customers on any phone or tablet - cash, transfer or POS machine, with change from the drawer." },
   { icon: Package, title: "Stock that stays honest", text: "Inventory moves the moment an order comes in - online or in person - so the number you see is the number you have." },
@@ -71,8 +71,8 @@ export default async function Home() {
             <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.4rem] font-extrabold leading-[1.05] text-slate-900">
               Everything you need to manage your business
             </h1>
-            <p className="mt-5 text-base sm:text-lg text-slate-500 max-w-xl mx-auto lg:mx-0">
-              Your own store, a shared marketplace, a point-of-sale for the counter, automatic payouts to your bank,
+            <p className="mt-5 text-base sm:text-lg text-slate-800 max-w-xl mx-auto lg:mx-0">
+              Your own website, a shared marketplace, a point-of-sale for the counter, automatic payouts to your bank,
               and the business tools to run it, all from one clean dashboard.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3">
@@ -81,7 +81,6 @@ export default async function Home() {
                 className="group inline-flex items-center justify-center gap-2 text-sm font-semibold bg-brand-600 text-white px-6 py-3.5 rounded-sm hover:bg-brand-700 transition-colors cursor-pointer shadow-lg shadow-brand-600/25"
               >
                 Get started for free
-                <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
           </Reveal>
@@ -144,7 +143,7 @@ export default async function Home() {
       <div className="sm:hidden border-y border-slate-100 bg-slate-50/70 py-3 overflow-hidden">
         <div className="flex w-max animate-marquee gap-8 pr-8">
           {[...TRUST_ITEMS, ...TRUST_ITEMS].map(({ icon: Icon, text }, i) => (
-            <span key={i} className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
+            <span key={i} className="flex items-center gap-2 text-xs text-slate-800 whitespace-nowrap">
               <Icon size={14} className="text-slate-400 shrink-0" />
               {text}
             </span>
@@ -153,7 +152,7 @@ export default async function Home() {
       </div>
       {/* Desktop: plenty of room, centred and static. */}
       <div className="hidden sm:block max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-slate-800">
           {TRUST_ITEMS.map(({ icon: Icon, text }) => (
             <span key={text} className="inline-flex items-center gap-2">
               <Icon size={14} className="text-slate-400" />
@@ -167,7 +166,7 @@ export default async function Home() {
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
         <Reveal className="text-center max-w-xl mx-auto mb-12">
           <h2 className="font-display text-2xl sm:text-4xl font-bold text-slate-900">Everything to run a real business</h2>
-          <p className="mt-3 text-slate-500">Not a page builder with a shop bolted on. The whole operation.</p>
+          <p className="mt-3 text-slate-800">Not a page builder with a shop bolted on. The whole operation.</p>
         </Reveal>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {PERKS.map(({ icon: Icon, title, text }, i) => (
@@ -184,7 +183,7 @@ export default async function Home() {
               />
               <div className="relative">
                 <p className="font-semibold text-slate-900">{title}</p>
-                <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{text}</p>
+                <p className="mt-1.5 text-sm text-slate-800 leading-relaxed">{text}</p>
               </div>
             </Reveal>
           ))}
@@ -196,7 +195,7 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 grid lg:grid-cols-2 gap-12 items-center">
           <Reveal>
             <h2 className="font-display text-2xl sm:text-4xl font-bold text-slate-900">Sell everywhere. Track it in one place.</h2>
-            <p className="mt-4 text-slate-500 leading-relaxed">
+            <p className="mt-4 text-slate-800 leading-relaxed">
               A sale is a sale, whether it came from your link, the marketplace, the till at your shop, or a WhatsApp
               message. Every one of them pulls the same stock down and lands in the same order history, so your
               numbers are never split across four places.
@@ -206,7 +205,6 @@ export default async function Home() {
               className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-800"
             >
               See how it works
-              <ArrowRight size={15} />
             </Link>
           </Reveal>
           <div className="space-y-3">
@@ -217,7 +215,7 @@ export default async function Home() {
                 className="bg-white border border-slate-100 rounded-sm p-5 shadow-sm"
               >
                 <p className="font-semibold text-slate-900">{title}</p>
-                <p className="mt-1 text-sm text-slate-500">{text}</p>
+                <p className="mt-1 text-sm text-slate-800">{text}</p>
               </Reveal>
             ))}
           </div>
@@ -231,11 +229,10 @@ export default async function Home() {
             <Reveal className="flex items-end justify-between gap-4 mb-8 flex-wrap">
               <div>
                 <h2 className="font-display text-2xl sm:text-4xl font-bold text-slate-900">Shop the Marketplace</h2>
-                <p className="mt-2 text-slate-500">Real products from real businesses already selling on Storezn.</p>
+                <p className="mt-2 text-slate-800">Real products from real businesses already selling on Storezn.</p>
               </div>
               <Link href="/marketplace" className="text-sm font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1.5 shrink-0">
                 See the marketplace
-                <ArrowRight size={15} />
               </Link>
             </Reveal>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -280,7 +277,6 @@ export default async function Home() {
             className="mt-7 inline-flex items-center justify-center gap-2 text-sm font-semibold text-brand-700 border border-brand-200 bg-brand-50 px-6 py-3 rounded-sm hover:bg-brand-100 transition-colors cursor-pointer"
           >
             Compare all plans
-            <ArrowRight size={16} />
           </Link>
         </Reveal>
       </section>
@@ -294,13 +290,12 @@ export default async function Home() {
         <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
           <Reveal>
             <h2 className="font-display text-2xl sm:text-4xl font-bold text-white">Your store is a few minutes away</h2>
-            <p className="mt-3 text-white/70">Set it up now. Add your first product before your coffee&apos;s cold.</p>
+            <p className="mt-3 text-white/60">Set it up now. Add your first product before your coffee&apos;s cold.</p>
             <Link
               href="/signup"
               className="mt-8 inline-flex items-center justify-center gap-2 text-sm font-semibold bg-white text-brand-900 px-6 py-3.5 rounded-sm hover:bg-brand-50 transition-colors cursor-pointer"
             >
               Get started for free
-              <ArrowRight size={16} />
             </Link>
           </Reveal>
         </div>

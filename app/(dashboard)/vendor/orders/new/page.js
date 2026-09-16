@@ -136,7 +136,7 @@ export default function RecordPastSalePage() {
         <BackLink href="/vendor/orders" label="Back to orders" />
         <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h1 className="text-lg font-bold text-slate-900">Recording past sales is a Storezn Enterprise feature</h1>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto">
+          <p className="text-sm text-slate-800 max-w-sm mx-auto">
             Log sales made in person, by phone, or in cash so they show up in your order history and stock.
             Enterprise is set up by the Storezn team.
           </p>
@@ -172,7 +172,7 @@ export default function RecordPastSalePage() {
       </div>
 
       {isOwner && (
-        <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-sm px-3 py-2 flex items-center justify-between gap-2">
+        <div className="text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-sm px-3 py-2 flex items-center justify-between gap-2">
           <span>Selling to a customer right now? Use the register instead - split payments, a cash drawer, Z reports, works offline.</span>
           <Link href="/vendor/pos" className="font-semibold text-brand-700 hover:text-brand-800 whitespace-nowrap">
             Open the register →
@@ -189,7 +189,7 @@ export default function RecordPastSalePage() {
               <ShoppingCart size={16} className="text-slate-400" /> Current sale
             </p>
             {lines.length === 0 ? (
-              <p className="text-sm text-slate-500 px-4 py-6 text-center">Tap a product to add it</p>
+              <p className="text-sm text-slate-800 px-4 py-6 text-center">Tap a product to add it</p>
             ) : (
               <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                 {lines.map((l) => (
@@ -197,11 +197,11 @@ export default function RecordPastSalePage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-medium text-slate-900 truncate">{l.product?.name || "Item"}</p>
                       {l.variant && (
-                        <p className="text-[11px] text-slate-500 truncate">
+                        <p className="text-[11px] text-slate-800 truncate">
                           {Object.entries(l.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ")}
                         </p>
                       )}
-                      <p className="text-[11px] text-slate-500">{formatCurrency(l.unit)} each</p>
+                      <p className="text-[11px] text-slate-800">{formatCurrency(l.unit)} each</p>
                     </div>
                     <div className="flex items-center gap-1.5 border border-slate-300 rounded-sm shrink-0">
                       <button type="button" onClick={() => setQty(l.key, l.quantity - 1)} className="h-6 w-6 flex items-center justify-center hover:bg-slate-50 cursor-pointer">
@@ -254,7 +254,7 @@ export default function RecordPastSalePage() {
             </div>
             {(pay.method === "card" || pay.method === "transfer") && (
               <div className="flex flex-wrap gap-2 pt-1">
-                <span className="w-full text-xs text-slate-500">
+                <span className="w-full text-xs text-slate-800">
                   {pay.method === "transfer" ? "Transferred to which account?" : "Which POS machine?"}
                 </span>
                 {["Moniepoint", "Opay", "Other"].map((p) => (

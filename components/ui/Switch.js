@@ -15,7 +15,7 @@ export function Switch({ checked, onChange, label, description }) {
     >
       <div className="min-w-0">
         {label && <p className="text-sm font-medium text-slate-900">{label}</p>}
-        {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
+        {description && <p className="text-xs text-slate-800 mt-0.5">{description}</p>}
       </div>
       <span className={`shrink-0 relative w-11 h-6 rounded-full transition-colors ${checked ? "bg-brand-600" : "bg-slate-200"}`}>
         <span

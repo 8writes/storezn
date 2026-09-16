@@ -31,7 +31,7 @@ export function OrderItemModal({ item, productHref, onClose }) {
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-surface/90 text-slate-500 hover:text-slate-700 flex items-center justify-center cursor-pointer"
+          className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-surface/90 text-slate-800 hover:text-slate-700 flex items-center justify-center cursor-pointer"
         >
           <X size={16} />
         </button>
@@ -47,15 +47,15 @@ export function OrderItemModal({ item, productHref, onClose }) {
         <div className="p-5 space-y-3">
           <div>
             <h2 className="font-semibold text-slate-900">{item.productName}</h2>
-            {item.variantLabel && <p className="text-sm text-slate-500">{item.variantLabel}</p>}
+            {item.variantLabel && <p className="text-sm text-slate-800">{item.variantLabel}</p>}
           </div>
           <dl className="text-sm space-y-1.5">
             <div className="flex justify-between">
-              <dt className="text-slate-500">Unit price</dt>
+              <dt className="text-slate-800">Unit price</dt>
               <dd className="text-slate-900">{formatCurrency(item.unitPrice)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-slate-500">Quantity</dt>
+              <dt className="text-slate-800">Quantity</dt>
               <dd className="text-slate-900">{item.quantity}</dd>
             </div>
             <div className="flex justify-between font-semibold pt-1.5 border-t border-slate-100">

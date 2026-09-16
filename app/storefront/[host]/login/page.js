@@ -89,7 +89,7 @@ export default function StorefrontLoginPage() {
         <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required autoComplete="email" />
         <PasswordInput label="Password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} required autoComplete="current-password" />
         <div className="text-right">
-          <Link href="/forgot-password" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">Forgot your password?</Link>
+          <Link href="/forgot-password" className="text-sm text-slate-800 hover:text-slate-900 transition-colors">Forgot your password?</Link>
         </div>
         {unverified && (
           <div className="bg-amber-50 border border-amber-200 rounded-sm p-3 text-sm text-amber-800 flex items-center justify-between gap-3">
@@ -106,7 +106,7 @@ export default function StorefrontLoginPage() {
         )}
         <Button type="submit" fullWidth size="lg" loading={loading}>Sign in</Button>
       </form>
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-slate-800">
         New here?{" "}
         <Link href="/signup" className="text-slate-900 underline underline-offset-2">Create an account</Link>
       </p>

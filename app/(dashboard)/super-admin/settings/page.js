@@ -109,7 +109,7 @@ export default function SuperAdminSettingsPage() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-slate-700">Maintenance mode</p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-800 mt-1">
                   Shows every visitor a &quot;we&apos;ll be back soon&quot; page instead of the app - storefronts, vendor dashboard, customer sign-in.
                   Super-admin and login stay reachable so you can turn this back off.
                 </p>
@@ -143,10 +143,10 @@ export default function SuperAdminSettingsPage() {
           <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
-                <Database size={18} className="text-slate-500 mt-0.5 shrink-0" />
+                <Database size={18} className="text-slate-800 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-sm font-semibold text-slate-700">Database access</p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-800 mt-1">
                     Open pgAdmin for the production database. Passwords stay server-side and are not shown here.
                   </p>
                 </div>
@@ -163,19 +163,19 @@ export default function SuperAdminSettingsPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="rounded-sm border border-slate-100 bg-slate-50 px-3 py-2">
-                <span className="block text-slate-500">Host</span>
+                <span className="block text-slate-800">Host</span>
                 <span className="font-medium text-slate-800 break-all">{databaseAccess?.host || "-"}</span>
               </div>
               <div className="rounded-sm border border-slate-100 bg-slate-50 px-3 py-2">
-                <span className="block text-slate-500">Database</span>
+                <span className="block text-slate-800">Database</span>
                 <span className="font-medium text-slate-800 break-all">{databaseAccess?.database || "-"}</span>
               </div>
               <div className="rounded-sm border border-slate-100 bg-slate-50 px-3 py-2">
-                <span className="block text-slate-500">Port</span>
+                <span className="block text-slate-800">Port</span>
                 <span className="font-medium text-slate-800">{databaseAccess?.port || "-"}</span>
               </div>
               <div className="rounded-sm border border-slate-100 bg-slate-50 px-3 py-2">
-                <span className="block text-slate-500">User</span>
+                <span className="block text-slate-800">User</span>
                 <span className="font-medium text-slate-800 break-all">{databaseAccess?.username || "-"}</span>
               </div>
             </div>
@@ -189,7 +189,7 @@ export default function SuperAdminSettingsPage() {
           <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
           <div>
             <p className="text-sm font-semibold text-slate-700">Commission</p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-800 mt-1">
               Default cut the platform takes from every sale, deducted automatically at checkout via split payment.
               Individual stores can get a custom rate from their store page.
             </p>
@@ -197,13 +197,13 @@ export default function SuperAdminSettingsPage() {
           <Input label="Default commission rate (%)" type="number" min="0" max="100" step="0.1" value={rate} onChange={(e) => setRate(e.target.value)} />
           <div>
             <Input label="Platform fee cap (₦ per order, optional)" type="number" min="0" step="1" placeholder="No cap" value={cap} onChange={(e) => setCap(e.target.value)} />
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-800 mt-1">
               The platform never takes more than this per order in total - commission plus the flat fee below combined, regardless of the rate above or the order&apos;s subtotal. The flat fee always stays intact; the percentage commission is what shrinks to fit under the cap. Leave blank for no cap.
             </p>
           </div>
           <div>
             <Input label="Flat fee (₦ per order)" type="number" min="0" step="1" value={flatFee} onChange={(e) => setFlatFee(e.target.value)} />
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-800 mt-1">
               A fixed amount charged on every order on top of the commission above. Counts toward the cap above (which the commission makes room for), 0 disables it.
             </p>
           </div>
@@ -213,7 +213,7 @@ export default function SuperAdminSettingsPage() {
           <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
             <div>
               <p className="text-sm font-semibold text-slate-700">Storezn+</p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-800 mt-1">
                 Pricing and limits for the Storezn+ paid tier (offline orders, storefront theme color, higher staff and storage limits).
               </p>
             </div>
@@ -287,7 +287,7 @@ function BlockedEmails({ token }) {
     <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
       <div>
         <p className="text-sm font-semibold text-slate-700">Blocked signup emails</p>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-slate-800 mt-1">
           An <span className="font-medium">email</span> (blocks that mailbox and all its <code>+tag</code> aliases) or a bare{" "}
           <span className="font-medium">domain</span> like <code>mailinator.com</code> (blocks the whole domain). Applies to
           customer and vendor signup.
@@ -316,7 +316,7 @@ function BlockedEmails({ token }) {
               <span className="min-w-0">
                 <span className="font-medium text-slate-800 break-all">{b.value}</span>
                 <span className="ml-1.5 text-[10px] uppercase tracking-wide text-slate-400">{b.kind}</span>
-                {b.reason && <span className="block text-xs text-slate-500 truncate">{b.reason}</span>}
+                {b.reason && <span className="block text-xs text-slate-800 truncate">{b.reason}</span>}
               </span>
               <button type="button" onClick={() => remove(b.id)} className="text-slate-400 hover:text-red-600 shrink-0" title="Remove">
                 <Trash2 size={14} />

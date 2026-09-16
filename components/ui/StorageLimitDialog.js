@@ -32,7 +32,7 @@ export function StorageLimitDialog({ open, onClose }) {
           </div>
           <div className="min-w-0">
             <h2 className="font-semibold text-slate-900">Storage limit reached</h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-800 mt-1">
               You&apos;re out of image storage. Upgrade to Storezn+ for more space, or remove some photos from
               existing products to free some up.
             </p>
@@ -46,7 +46,7 @@ export function StorageLimitDialog({ open, onClose }) {
           <Link href="/vendor/products" className="w-full">
             <Button variant="outline" fullWidth onClick={onClose}>Manage products</Button>
           </Link>
-          <button type="button" onClick={onClose} className="text-sm text-slate-500 hover:text-slate-700 cursor-pointer pt-1">
+          <button type="button" onClick={onClose} className="text-sm text-slate-800 hover:text-slate-700 cursor-pointer pt-1">
             Cancel
           </button>
         </div>

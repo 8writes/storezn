@@ -16,7 +16,7 @@ export function DataTable({ children, pagination, onPageChange, footer, dense = 
       <div className="overflow-x-auto">
         <table
           className={`w-full text-sm text-slate-700
-            [&_thead_th]:bg-slate-50 [&_thead_th]:text-slate-500 [&_thead_th]:font-medium [&_thead_th]:text-left [&_thead_th]:whitespace-nowrap
+            [&_thead_th]:bg-slate-50 [&_thead_th]:text-slate-800 [&_thead_th]:font-medium [&_thead_th]:text-left [&_thead_th]:whitespace-nowrap
             [&_thead_th]:border-b [&_thead_th]:border-slate-200
             [&_tbody_tr]:border-t [&_tbody_tr]:border-slate-100
             [&_tbody_tr:hover]:bg-slate-50/60

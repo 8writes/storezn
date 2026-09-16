@@ -192,7 +192,7 @@ export default function VendorPayoutsPage() {
   // lib/auth.js) - staff never see them, even read-only.
   if (user && user.role !== "vendor") {
     return (
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-slate-800">
         This page is only available to the store owner.
       </p>
     );
@@ -400,7 +400,7 @@ export default function VendorPayoutsPage() {
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Order</th>
               <th className="px-4 py-3 font-medium">Paid on</th>
@@ -443,13 +443,13 @@ export default function VendorPayoutsPage() {
                         {t.orderNumber}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">
+                    <td className="px-4 py-3 text-slate-800">
                       {formatDate(paidAt)}
                     </td>
-                    <td className="px-4 py-3 text-slate-500">
+                    <td className="px-4 py-3 text-slate-800">
                       {formatCurrency(t.totalAmount)}
                     </td>
-                    <td className="px-4 py-3 text-slate-500">
+                    <td className="px-4 py-3 text-slate-800">
                       {formatCurrency(
                         t.commissionAmount + (t.flatFeeAmount || 0),
                       )}{" "}

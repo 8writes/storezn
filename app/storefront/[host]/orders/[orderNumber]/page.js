@@ -53,7 +53,7 @@ export default function OrderConfirmationPage() {
     return (
       <div className="max-w-sm mx-auto space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Find your order</h1>
-        <p className="text-sm text-slate-500">Enter the email you checked out with to view order {orderNumber}.</p>
+        <p className="text-sm text-slate-800">Enter the email you checked out with to view order {orderNumber}.</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -72,9 +72,9 @@ export default function OrderConfirmationPage() {
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div>
-        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Order confirmed</p>
+        <p className="text-xs font-medium text-slate-800 uppercase tracking-wide">Order confirmed</p>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 mt-1">{order.orderNumber}</h1>
-        <p className="text-sm text-slate-500 mt-1">Placed {formatDateTime(order.createdAt)}</p>
+        <p className="text-sm text-slate-800 mt-1">Placed {formatDateTime(order.createdAt)}</p>
       </div>
 
       <Badge color={STATUS_COLOR[order.status] || "slate"}>{order.status.replace("_", " ")}</Badge>
@@ -104,7 +104,7 @@ export default function OrderConfirmationPage() {
           <div className="pt-3 border-t border-slate-100">
             <p className="font-semibold text-slate-700 mb-1">Delivery fee</p>
             {order.shippingFeeTBD && !order.shippingFeeConfirmedAt ? (
-              <p className="text-slate-500">To be determined - the seller will confirm your delivery fee directly.</p>
+              <p className="text-slate-800">To be determined - the seller will confirm your delivery fee directly.</p>
             ) : (
               <p>{formatCurrency(order.shippingFee)}{order.shippingFeeTBD ? " (paid separately, not included in your total above)" : ""}</p>
             )}

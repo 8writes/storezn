@@ -33,12 +33,12 @@ export default function SuperAdminActivityLogPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Activity log</h1>
-        <p className="text-sm text-slate-500 mt-1">Actions taken by admin and platform staff accounts.</p>
+        <p className="text-sm text-slate-800 mt-1">Actions taken by admin and platform staff accounts.</p>
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-left">
+          <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>
               <th className="px-4 py-3 font-medium">Time</th>
               <th className="px-4 py-3 font-medium">Actor</th>
@@ -56,13 +56,13 @@ export default function SuperAdminActivityLogPage() {
             ) : (
               logs.map((log) => (
                 <tr key={log.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3 text-slate-500">{formatDateTime(log.createdAt)}</td>
+                  <td className="px-4 py-3 text-slate-800">{formatDateTime(log.createdAt)}</td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-slate-900">{log.actorName}</p>
                     <Badge color={ROLE_COLOR[log.actorRole] || "slate"}>{ROLE_LABEL[log.actorRole] || log.actorRole}</Badge>
                   </td>
                   <td className="px-4 py-3 text-slate-700 font-mono text-xs">{log.action}</td>
-                  <td className="px-4 py-3 text-slate-500">{log.targetType ? `${log.targetType}${log.targetId ? ` · ${log.targetId}` : ""}` : "-"}</td>
+                  <td className="px-4 py-3 text-slate-800">{log.targetType ? `${log.targetType}${log.targetId ? ` · ${log.targetId}` : ""}` : "-"}</td>
                 </tr>
               ))
             )}

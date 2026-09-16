@@ -98,7 +98,7 @@ function LoginForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <h2 className="text-xl font-bold text-slate-900">Welcome back</h2>
-        <p className="text-sm text-slate-500 mt-1">Sign in to your account</p>
+        <p className="text-sm text-slate-800 mt-1">Sign in to your account</p>
       </div>
 
       <Input
@@ -144,7 +144,7 @@ function LoginForm() {
         Sign In
       </Button>
 
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-slate-800">
         Don&apos;t have an account?{" "}
         <Link href="/signup" className="text-brand-600 hover:underline">Create an account</Link>
       </p>
