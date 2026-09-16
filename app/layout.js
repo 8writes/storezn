@@ -3,6 +3,7 @@ import "./globals.css";
 import RegisterServiceWorker from "./RegisterServiceWorker.js";
 import InstallPrompt from "./InstallPrompt.js";
 import ScrollToTop from "./ScrollToTop.js";
+import CookieConsentBanner from "@/components/CookieConsentBanner.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
 
 // Jakarta stays the default (storefront / marketing pages - warmer,
@@ -103,6 +104,7 @@ export default function RootLayout({ children }) {
         <InstallPrompt />
         <ScrollToTop />
         {children}
+        <CookieConsentBanner />
       </body>
     </html>
   );
