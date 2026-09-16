@@ -103,6 +103,8 @@ export default function VendorPlusPage() {
   const [isPlus, setIsPlus] = useState(false);
   const [isEnterprise, setIsEnterprise] = useState(false);
   const [plusMonthlyPrice, setPlusMonthlyPrice] = useState(5000);
+  const [plusStandardMonthlyPrice, setPlusStandardMonthlyPrice] = useState(5000);
+  const [discountPercent, setDiscountPercent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -118,6 +120,8 @@ export default function VendorPlusPage() {
         setIsPlus(!!data.isPlus);
         setIsEnterprise(!!data.isEnterprise);
         setPlusMonthlyPrice(data.plusMonthlyPrice || 5000);
+        setPlusStandardMonthlyPrice(data.plusStandardMonthlyPrice || 5000);
+        setDiscountPercent(data.subscriptionDiscountPercent ?? null);
       })
       .catch((err) => toast.error(err.message || "Failed to load store"))
       .finally(() => setLoading(false));
@@ -197,9 +201,15 @@ export default function VendorPlusPage() {
               </div>
               <p className="relative mt-2 text-4xl font-extrabold tracking-tight">
                 {formatCurrency(plusMonthlyPrice)}
-                <span className="text-lg font-medium text-white/70">/month</span>
+                <span className="text-lg font-medium text-white/70">{discountPercent != null ? " first month" : "/month"}</span>
               </p>
-              <p className="relative mt-1 text-sm text-white/70">Billed every month, cancel anytime.</p>
+              {discountPercent != null ? (
+                <p className="relative mt-1 text-sm text-white/80">
+                  {discountPercent}% off, then {formatCurrency(plusStandardMonthlyPrice)}/month from month two. Cancel anytime.
+                </p>
+              ) : (
+                <p className="relative mt-1 text-sm text-white/70">Billed every month, cancel anytime.</p>
+              )}
             </div>
 
             <div className="p-6 space-y-6">
@@ -232,7 +242,9 @@ export default function VendorPlusPage() {
                     Upgrade to Storezn+
                   </Button>
                   <p className="text-xs text-slate-400 text-center">
-                    {formatCurrency(plusMonthlyPrice)}/month, billed automatically until you cancel.
+                    {discountPercent != null
+                      ? `${formatCurrency(plusMonthlyPrice)} for your first month, then ${formatCurrency(plusStandardMonthlyPrice)}/month until you cancel.`
+                      : `${formatCurrency(plusMonthlyPrice)}/month, billed automatically until you cancel.`}
                   </p>
                 </>
               )}
@@ -337,7 +349,7 @@ export default function VendorPlusPage() {
                 <p className="text-xs font-semibold text-slate-800 uppercase tracking-wide">Confirm subscription</p>
                 <p className="text-2xl font-extrabold text-slate-900 mt-1">
                   {formatCurrency(plusMonthlyPrice)}
-                  <span className="text-sm font-medium text-slate-400">/month</span>
+                  <span className="text-sm font-medium text-slate-400">{discountPercent != null ? " first month" : "/month"}</span>
                 </p>
               </div>
               <button type="button" onClick={() => setConfirmOpen(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
@@ -346,8 +358,9 @@ export default function VendorPlusPage() {
             </div>
 
             <div className="bg-amber-100 border border-current/10 rounded-sm p-3 text-xs text-amber-800">
-              This is a recurring monthly charge. {formatCurrency(plusMonthlyPrice)} will be deducted from your card
-              automatically every month, starting today, until you cancel from this page.
+              {discountPercent != null
+                ? `This is a recurring subscription. ${formatCurrency(plusMonthlyPrice)} will be charged today, then ${formatCurrency(plusStandardMonthlyPrice)} monthly from your next billing date until you cancel.`
+                : `This is a recurring monthly charge. ${formatCurrency(plusMonthlyPrice)} will be deducted from your card automatically every month, starting today, until you cancel from this page.`}
             </div>
 
             <label className="flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer">
@@ -358,8 +371,9 @@ export default function VendorPlusPage() {
                 className="mt-0.5 shrink-0"
               />
               <span>
-                I understand I&apos;ll be charged {formatCurrency(plusMonthlyPrice)} every month until I cancel my
-                subscription.
+                {discountPercent != null
+                  ? `I understand I'll be charged ${formatCurrency(plusMonthlyPrice)} today, then ${formatCurrency(plusStandardMonthlyPrice)} monthly until I cancel.`
+                  : `I understand I'll be charged ${formatCurrency(plusMonthlyPrice)} every month until I cancel my subscription.`}
               </span>
             </label>
 

@@ -6,7 +6,7 @@ import { getUser, canManageStore, isStoreOwner } from "../../../../../../lib/aut
 import { validate, updateVendorStoreSchema } from "../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../lib/storage/index.js";
 import { removeStoreUpload, getStoreStorageUsage } from "../../../../../../lib/storeUploads.js";
-import { isPlusStore, isEnterpriseStore, getEffectivePlan, getStorageLimitBytes } from "../../../../../../lib/storePlan.js";
+import { isPlusStore, isEnterpriseStore, getEffectivePlan, getStorageLimitBytes, getPlusMonthlyPrice } from "../../../../../../lib/storePlan.js";
 import { isColorTooLight } from "../../../../../../lib/colorShades.js";
 
 // The two upload-backed fields - PATCHing over (or clearing) either one
@@ -42,7 +42,7 @@ export async function GET(req, { params }) {
   // Same override pattern as commission above - surfaces the price
   // this store will actually be charged, not the platform default, so a
   // discounted vendor never sees one number here and gets billed another.
-  const plusMonthlyPrice = store.subscriptionPriceOverride ?? settings?.plusMonthlyPrice ?? 5000;
+  const plusMonthlyPrice = getPlusMonthlyPrice(store, settings);
   const storageUsedBytes = await getStoreStorageUsage(storeId);
   const storageLimitBytes = getStorageLimitBytes(store, settings || { freeStorageMb: 500, plusStorageMb: 5000 });
   // The count is available to any canManageStore user (staff included) so
@@ -72,6 +72,8 @@ export async function GET(req, { params }) {
     isEnterprise,
     plan,
     plusMonthlyPrice,
+    plusStandardMonthlyPrice: settings?.plusMonthlyPrice ?? 5000,
+    subscriptionDiscountPercent: store.subscriptionDiscountPercent,
     storageUsedBytes,
     storageLimitBytes,
     branchCount: branchRows.length,

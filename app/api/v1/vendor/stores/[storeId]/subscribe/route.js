@@ -4,8 +4,8 @@ import { db } from "../../../../../../../lib/db/index.js";
 import { stores, platformSettings, users } from "../../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
-import { initializeTransaction } from "../../../../../../../lib/paystack.js";
-import { isPlusStore, isEnterpriseStore } from "../../../../../../../lib/storePlan.js";
+import { initializeTransaction, updatePlan } from "../../../../../../../lib/paystack.js";
+import { isPlusStore, isEnterpriseStore, getPlusMonthlyPrice } from "../../../../../../../lib/storePlan.js";
 import { buildRequestUrl, getRequestOrigin } from "../../../../../../../lib/requestUrl.js";
 import { logAppError } from "../../../../../../../lib/appErrorLog.js";
 import { withApiMonitoring } from "../../../../../../../lib/apiMonitoring.js";
@@ -69,11 +69,20 @@ async function handlePost(req, { params }) {
   // plan's amount, so a discounted store on the shared plan would renew
   // at the full plusMonthlyPrice. `amount` and `plan` are resolved
   // together so they always match.
-  const amount = store.subscriptionPriceOverride ?? settings.plusMonthlyPrice;
+  const amount = getPlusMonthlyPrice(store, settings);
   const planCode = store.paystackPlanCodeOverride ?? settings.paystackPlanCode;
   const redirectUrl = resolveSubscriptionRedirectUrl(req, body.redirectUrl);
 
   try {
+    // Percentage discounts follow the current platform price. Refresh the
+    // dedicated plan immediately before a new subscription so a later base
+    // price change cannot make Paystack charge a stale amount.
+    if (store.subscriptionDiscountPercent != null && store.paystackPlanCodeOverride) {
+      await updatePlan(store.paystackPlanCodeOverride, {
+        amount,
+        updateExistingSubscriptions: false,
+      });
+    }
     const { authorizationUrl } = await initializeTransaction({
       amount,
       email: owner.email,

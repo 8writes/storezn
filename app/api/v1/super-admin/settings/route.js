@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { platformSettings } from "../../../../../lib/db/schema.js";
-import { eq } from "drizzle-orm";
+import { platformSettings, stores } from "../../../../../lib/db/schema.js";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, updatePlatformSettingsSchema } from "../../../../../lib/validate.js";
 import { createPlan, updatePlan } from "../../../../../lib/paystack.js";
@@ -65,6 +65,26 @@ export async function PATCH(req) {
         data.paystackPlanCode = planCode;
       } else {
         await updatePlan(current.paystackPlanCode, { amount: data.plusMonthlyPrice });
+      }
+
+      // A consumed first-month offer leaves its subscription on a dedicated
+      // plan. Keep those plans aligned with the platform price as well.
+      const standardDedicatedPlans = await db
+        .select({ planCode: stores.paystackPlanCodeOverride })
+        .from(stores)
+        .where(
+          and(
+            isNotNull(stores.paystackPlanCodeOverride),
+            isNull(stores.subscriptionPriceOverride),
+            isNull(stores.subscriptionDiscountPercent),
+          ),
+        );
+      const syncResults = await Promise.allSettled(
+        standardDedicatedPlans.map(({ planCode }) => updatePlan(planCode, { amount: data.plusMonthlyPrice })),
+      );
+      const failedSyncs = syncResults.filter((result) => result.status === "rejected");
+      if (failedSyncs.length > 0) {
+        console.error(`Failed to sync ${failedSyncs.length} dedicated Storezn+ plan(s)`);
       }
     } catch (err) {
       console.error("Failed to sync Storezn+ Paystack plan:", err);

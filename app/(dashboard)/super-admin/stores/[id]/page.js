@@ -74,6 +74,7 @@ export default function SuperAdminStoreDetailPage({ params }) {
   const [subTx, setSubTx] = useState([]);
   const [rateOverride, setRateOverride] = useState("");
   const [priceOverride, setPriceOverride] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("");
   const [plusForm, setPlusForm] = useState({ amount: "", months: "1", plan: "plus", paidAt: "", note: "" });
   const [activatingPlus, setActivatingPlus] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -95,12 +96,15 @@ export default function SuperAdminStoreDetailPage({ params }) {
         setSubTx(data.subscriptionTransactions || []);
         setRateOverride(data.store.commissionRatePercent != null ? String(data.store.commissionRatePercent) : "");
         setPriceOverride(data.store.subscriptionPriceOverride != null ? String(data.store.subscriptionPriceOverride) : "");
+        setDiscountPercent(data.store.subscriptionDiscountPercent != null ? String(data.store.subscriptionDiscountPercent) : "");
       })
       .catch((err) => toast.error(err.message || "Failed to load store"))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
+    // load() starts the asynchronous page request and owns loading state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (token) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, id]);
@@ -129,9 +133,27 @@ export default function SuperAdminStoreDetailPage({ params }) {
         body: JSON.stringify({ subscriptionPriceOverride: priceOverride === "" ? null : Number(priceOverride) }),
       });
       setStore(data.store);
+      setDiscountPercent("");
       toast.success("Subscription price updated");
     } catch (err) {
       toast.error(err.message || "Failed to update price");
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
+  const saveDiscount = async () => {
+    setSavingPrice(true);
+    try {
+      const data = await apiFetch(`/api/v1/super-admin/stores/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ subscriptionDiscountPercent: discountPercent === "" ? null : Number(discountPercent) }),
+      });
+      setStore(data.store);
+      setPriceOverride(data.store.subscriptionPriceOverride != null ? String(data.store.subscriptionPriceOverride) : "");
+      toast.success(discountPercent === "" ? "Subscription discount cleared" : "Subscription discount updated");
+    } catch (err) {
+      toast.error(err.message || "Failed to update discount");
     } finally {
       setSavingPrice(false);
     }
@@ -355,10 +377,17 @@ export default function SuperAdminStoreDetailPage({ params }) {
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm p-5 max-w-md space-y-3">
-        <p className="text-sm font-semibold text-slate-700">Custom Storezn+ price</p>
-        <p className="text-xs text-slate-800">Leave blank to use the platform default price. Only applies the next time this store subscribes - doesn&apos;t change an already-active subscription&apos;s charge.</p>
+        <p className="text-sm font-semibold text-slate-700">Storezn+ discount</p>
+        <p className="text-xs text-slate-800">A percentage discount applies to the first month only; Paystack renews at the normal platform price from month two. A fixed monthly price remains recurring. Saving one replaces the other and does not alter an active subscription.</p>
         <div className="flex items-end gap-3">
-          <Input label="Monthly price" type="number" min="0" step="1" value={priceOverride} onChange={(e) => setPriceOverride(e.target.value)} className="flex-1" />
+          <Input label="Discount (%)" type="number" min="1" max="99" step="0.1" value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)} className="flex-1" />
+          <Button onClick={saveDiscount} loading={savingPrice}>Save</Button>
+        </div>
+        {store.subscriptionDiscountPercent != null && store.subscriptionPriceOverride != null && (
+          <p className="text-xs text-brand-700">First month: {formatCurrency(store.subscriptionPriceOverride)}. Normal price from month two.</p>
+        )}
+        <div className="border-t border-slate-100 pt-3 flex items-end gap-3">
+          <Input label="Or fixed monthly price (₦)" type="number" min="0" step="1" value={priceOverride} onChange={(e) => setPriceOverride(e.target.value)} className="flex-1" />
           <Button onClick={savePrice} loading={savingPrice}>Save</Button>
         </div>
       </div>

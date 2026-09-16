@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
-import { orders, orderItems, carts, cartItems, users, customers, stores, storeSubscriptionTransactions, branches, productBranchStock } from "../../../../../lib/db/schema.js";
+import { orders, orderItems, carts, cartItems, users, customers, stores, storeSubscriptionTransactions, branches, productBranchStock, platformSettings } from "../../../../../lib/db/schema.js";
 import { and, eq, isNull, ne } from "drizzle-orm";
-import { verifyWebhookSignature, verifyTransaction } from "../../../../../lib/paystack.js";
+import { verifyWebhookSignature, verifyTransaction, updatePlan } from "../../../../../lib/paystack.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../lib/format.js";
@@ -92,13 +92,62 @@ async function handleSubscriptionRenewal(event) {
     .where(eq(stores.id, storeId));
 }
 
-async function handleSubscriptionCreate(event) {
+async function findStoreForSubscriptionEvent(event) {
+  const subscriptionCode = event.data?.subscription_code || event.data?.subscription?.subscription_code;
+  if (subscriptionCode) {
+    const [store] = await db.select().from(stores).where(eq(stores.paystackSubscriptionCode, subscriptionCode)).limit(1);
+    if (store) return store;
+  }
+
   const email = event.data?.customer?.email;
-  if (!email) return;
-  const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-  if (!owner) return;
-  const [store] = await db.select({ id: stores.id }).from(stores).where(eq(stores.ownerId, owner.id)).limit(1);
+  const planCode =
+    event.data?.plan?.plan_code ||
+    event.data?.plan_code ||
+    event.data?.subscription?.plan?.plan_code;
+
+  // A discounted store has a dedicated Paystack plan, which identifies it
+  // more reliably than owner email when one owner has multiple stores.
+  if (planCode) {
+    const [store] = await db.select().from(stores).where(eq(stores.paystackPlanCodeOverride, planCode)).limit(1);
+    if (store) return store;
+  }
+  if (email) {
+    const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (owner) {
+      const [store] = await db.select().from(stores).where(eq(stores.ownerId, owner.id)).limit(1);
+      if (store) return store;
+    }
+  }
+  return null;
+}
+
+async function consumeIntroDiscount(store) {
+  if (store.subscriptionDiscountPercent == null || !store.paystackPlanCodeOverride) return false;
+  // Percentage discounts are introductory: the plan charges the discounted
+  // first month, then this webhook restores the normal amount for the next
+  // invoice and consumes the offer. Throwing on a Paystack failure makes the
+  // webhook retry instead of silently leaving a permanent discount behind.
+  const [settings] = await db
+    .select({ plusMonthlyPrice: platformSettings.plusMonthlyPrice })
+    .from(platformSettings)
+    .where(eq(platformSettings.id, "singleton"))
+    .limit(1);
+  await updatePlan(store.paystackPlanCodeOverride, {
+    amount: settings?.plusMonthlyPrice ?? 5000,
+    updateExistingSubscriptions: true,
+  });
+  await db
+    .update(stores)
+    .set({ subscriptionDiscountPercent: null, subscriptionPriceOverride: null })
+    .where(eq(stores.id, store.id));
+  return true;
+}
+
+async function handleSubscriptionCreate(event) {
+  const store = await findStoreForSubscriptionEvent(event);
   if (!store) return;
+
+  await consumeIntroDiscount(store);
 
   const nextPaymentDate = event.data?.next_payment_date || event.data?.subscription?.next_payment_date;
   await db
@@ -106,8 +155,8 @@ async function handleSubscriptionCreate(event) {
     .set({
       plan: "plus",
       planCancelled: false,
-      paystackSubscriptionCode: event.data?.subscription_code,
-      paystackSubscriptionToken: event.data?.email_token,
+      paystackSubscriptionCode: event.data?.subscription_code || event.data?.subscription?.subscription_code,
+      paystackSubscriptionToken: event.data?.email_token || event.data?.subscription?.email_token,
       paystackCustomerCode: event.data?.customer?.customer_code,
       ...(nextPaymentDate ? { planRenewsAt: new Date(nextPaymentDate) } : {}),
     })
@@ -174,6 +223,11 @@ async function handlePost(req) {
   try {
   if (event.event === "subscription.create") {
     await handleSubscriptionCreate(event);
+    return NextResponse.json({ received: true });
+  }
+  if (event.event === "invoice.create") {
+    const store = await findStoreForSubscriptionEvent(event);
+    if (store) await consumeIntroDiscount(store);
     return NextResponse.json({ received: true });
   }
   if (event.event === "subscription.disable" || event.event === "subscription.not_renew") {
