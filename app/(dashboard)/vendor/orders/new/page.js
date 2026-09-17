@@ -13,7 +13,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { Switch } from "@/components/ui/Switch.js";
 import { formatCurrency } from "@/lib/format.js";
-import { isEnterpriseStore } from "@/lib/storePlan.js";
+import { isPlusStore } from "@/lib/storePlan.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
@@ -61,7 +61,6 @@ export default function RecordPastSalePage() {
         setBranchId(data.branches[0]?.id || "");
       })
       .catch(() => {});
-    setCart([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, branchScoped, user?.role]);
 
@@ -130,18 +129,18 @@ export default function RecordPastSalePage() {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
-  if (activeStore && !isEnterpriseStore(activeStore)) {
+  if (activeStore && !isPlusStore(activeStore)) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <BackLink href="/vendor/orders" label="Back to orders" />
         <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
-          <h1 className="text-lg font-bold text-slate-900">Recording past sales is a Storezn Enterprise feature</h1>
+          <h1 className="text-lg font-bold text-slate-900">Recording past sales is a Storezn+ feature</h1>
           <p className="text-sm text-slate-800 max-w-sm mx-auto">
             Log sales made in person, by phone, or in cash so they show up in your order history and stock.
-            Enterprise is set up by the Storezn team.
+            Upgrade to Storezn+ to record these sales without opening a POS register.
           </p>
           <Link href="/vendor/plus" className="inline-block">
-            <Button type="button">See Enterprise</Button>
+            <Button type="button">See Storezn+</Button>
           </Link>
         </div>
       </div>
@@ -160,7 +159,15 @@ export default function RecordPastSalePage() {
         <div className="flex gap-3">
           {stores.length > 1 && (
             <div className="w-40">
-              <Select options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+              <Select
+                options={stores.map((s) => ({ value: s.id, label: s.name }))}
+                value={storeId}
+                onChange={(value) => {
+                  setStoreId(value);
+                  setCart([]);
+                  setDetails({});
+                }}
+              />
             </div>
           )}
           {branches.length > 1 && (

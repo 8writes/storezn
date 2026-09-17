@@ -196,7 +196,7 @@ const SECTIONS = [
     id: "pos",
     label: "Record a sale in person",
     cards: [
-      card("Opening the POS", "Orders → \"Record offline order\". Search your catalogue, tap a product to add it (again to bump quantity), pick a variant if it has them."),
+      card("Recording a past sale", "Open Orders, then choose \"Record order\". Search your catalogue, add the items, choose how the customer paid, and save it to your order history."),
       card("Buyer details", "Name / phone / email are optional - fill in what you have for your own records."),
       card("Fees", "The platform takes no commission on an offline sale - you already collected that money directly, so it's fully yours."),
     ],

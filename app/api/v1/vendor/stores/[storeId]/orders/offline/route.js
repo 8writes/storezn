@@ -6,7 +6,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, createOfflineOrderSchema } from "../../../../../../../../lib/validate.js";
 import { generateOrderNumber, computeOrderTotals } from "../../../../../../../../lib/orders.js";
-import { isEnterpriseStore } from "../../../../../../../../lib/storePlan.js";
+import { isPlusStore } from "../../../../../../../../lib/storePlan.js";
 import { sendMail } from "../../../../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
@@ -32,8 +32,8 @@ export async function POST(req, { params }) {
   const store = await loadStore(storeId);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isEnterpriseStore(store)) {
-    return NextResponse.json({ error: "Recording past sales is a Storezn Enterprise feature - contact the Storezn team to switch it on" }, { status: 402 });
+  if (!isPlusStore(store)) {
+    return NextResponse.json({ error: "Recording past sales is a Storezn+ feature" }, { status: 402 });
   }
 
   const body = await req.json().catch(() => null);

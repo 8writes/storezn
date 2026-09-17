@@ -12,7 +12,6 @@ import {
   storeActivityLogs,
   activityLogs,
   storeSubscriptionTransactions,
-  platformSettings,
 } from "../../../../../../lib/db/schema.js";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
@@ -201,22 +200,7 @@ export async function PATCH(req, { params }) {
   if (data.isActive === true) data.disabledReason = null;
   if (data.isActive === false) data.disabledReason = "manual";
 
-  // A percentage discount is converted to an explicit monthly price here.
-  // Keeping that amount beside the percentage makes both Paystack renewals
-  // and the amount shown to the vendor deterministic.
-  if ("subscriptionDiscountPercent" in data) {
-    if (data.subscriptionDiscountPercent == null) {
-      if (!("subscriptionPriceOverride" in data)) data.subscriptionPriceOverride = null;
-    } else {
-      const [settings] = await db
-        .select({ plusMonthlyPrice: platformSettings.plusMonthlyPrice })
-        .from(platformSettings)
-        .where(eq(platformSettings.id, "singleton"))
-        .limit(1);
-      const basePrice = settings?.plusMonthlyPrice ?? 5000;
-      data.subscriptionPriceOverride = Math.round(basePrice * (1 - data.subscriptionDiscountPercent / 100) * 100) / 100;
-    }
-  } else if ("subscriptionPriceOverride" in data) {
+  if ("subscriptionPriceOverride" in data) {
     // A manually entered fixed price replaces any percentage discount.
     data.subscriptionDiscountPercent = null;
   }

@@ -34,6 +34,8 @@ const ENTERPRISE_FEATURES = [
 
 export default async function PricingPage() {
   const settings = await getSettings();
+  const discountPercent = Number(settings.plusIntroDiscountPercent || 0);
+  const introductoryPrice = Math.round(settings.plusMonthlyPrice * (1 - discountPercent / 100) * 100) / 100;
 
   const FREE_FEATURES = [
     "Your own website, on a free storezn.com subdomain",
@@ -102,10 +104,14 @@ export default async function PricingPage() {
             </span>
             <p className="text-sm font-semibold text-brand-700 uppercase tracking-wide">Storezn+</p>
             <p className="mt-2 text-4xl font-extrabold text-slate-900">
-              {formatCurrency(settings.plusMonthlyPrice)}
+              {formatCurrency(discountPercent ? introductoryPrice : settings.plusMonthlyPrice)}
               <span className="text-base font-medium text-slate-400">/month</span>
             </p>
-            <p className="mt-1 text-sm text-slate-400">cancel anytime</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {discountPercent
+                ? `${discountPercent}% off your first month; ${formatCurrency(settings.plusMonthlyPrice)}/month after`
+                : "cancel anytime"}
+            </p>
             <ul className="mt-6 space-y-3">
               {PLUS_FEATURES.map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-sm text-slate-700">

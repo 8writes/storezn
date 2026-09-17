@@ -70,16 +70,17 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, opening }) {
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm font-medium text-slate-700">Opening cash float</label>
+        <label className="text-sm font-medium text-slate-700">Cash physically in drawer now</label>
         <input
           type="number"
           inputMode="decimal"
           value={float}
           onChange={(e) => setFloat(e.target.value)}
-          placeholder="0"
+          placeholder="Count and enter the amount"
+          min="0"
           className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
         />
-        <p className="text-xs text-slate-800">The cash already in the drawer right now.</p>
+        <p className="text-xs text-slate-800">Include cash carried over from the previous shift. Enter 0 only when the drawer is empty.</p>
       </div>
 
       <Button
@@ -87,10 +88,10 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, opening }) {
         fullWidth
         size="lg"
         loading={opening}
-        disabled={!registerId || !!busy}
+        disabled={!registerId || !!busy || float === "" || Number(float) < 0}
         onClick={() => onOpen({ registerId, openingFloat: Number(float || 0) })}
       >
-        {busy ? "That register is already open" : "Open register"}
+        {busy ? "That register is already open" : float === "" ? "Enter the drawer cash" : "Open register"}
       </Button>
 
       {isOwner && (
