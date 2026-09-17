@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDateTime } from "@/lib/format.js";
+import { Check, Flag } from "lucide-react";
 
 const GROUPS = [
   { value: "", label: "All activity" },
@@ -57,12 +58,15 @@ export default function VendorActivityPage() {
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [group, setGroup] = useState("");
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
   const [denied, setDenied] = useState(false);
 
   useEffect(() => {
     if (!token || !storeId) return;
     const qs = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (group) qs.set("group", group);
+    if (flaggedOnly) qs.set("flagged", "true");
     apiFetch(`/api/v1/vendor/stores/${storeId}/activity?${qs}`)
       .then((data) => {
         setRows(data.activity);
@@ -73,7 +77,29 @@ export default function VendorActivityPage() {
         if (/owner/i.test(err.message || "")) setDenied(true);
         else toast.error(err.message || "Failed to load activity");
       });
-  }, [token, storeId, page, group]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, storeId, page, group, flaggedOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateFlag = async (row, action) => {
+    let note;
+    if (action === "flag") {
+      note = window.prompt("Optional note for your review:", "");
+      if (note === null) return;
+    }
+    setUpdatingId(row.id);
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/activity/${row.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action, ...(note?.trim() ? { note: note.trim() } : {}) }),
+      });
+      if (flaggedOnly && action !== "flag") setRows((current) => current.filter((item) => item.id !== row.id));
+      else setRows((current) => current.map((item) => item.id === row.id ? { ...item, ...data.activity } : item));
+      toast.success(action === "flag" ? "Activity flagged" : "Activity marked as reviewed");
+    } catch (error) {
+      toast.error(error.message || "Failed to update activity");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   if (user && user.role !== "vendor") {
     return <p className="text-sm text-slate-800">The activity log is only available to the store owner.</p>;
@@ -91,7 +117,8 @@ export default function VendorActivityPage() {
         </p>
       </div>
 
-      <div className="max-w-xs">
+      <div className="flex items-end gap-3 flex-wrap">
+        <div className="w-full max-w-xs">
         <Select
           label="Show"
           options={GROUPS}
@@ -101,6 +128,16 @@ export default function VendorActivityPage() {
             setPage(1);
           }}
         />
+        </div>
+        <button
+          type="button"
+          aria-pressed={flaggedOnly}
+          onClick={() => { setFlaggedOnly((value) => !value); setPage(1); }}
+          className={`h-10 px-3 border rounded-sm text-sm font-medium inline-flex items-center gap-2 cursor-pointer ${flaggedOnly ? "border-amber-400 bg-amber-50 text-amber-800" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+        >
+          <Flag size={15} fill={flaggedOnly ? "currentColor" : "none"} />
+          Flagged only
+        </button>
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -111,14 +148,15 @@ export default function VendorActivityPage() {
               <th className="px-4 py-3 font-medium">Who</th>
               <th className="px-4 py-3 font-medium">Action</th>
               <th className="px-4 py-3 font-medium">Details</th>
+              <th className="px-4 py-3 font-medium text-right">Review</th>
             </tr>
           </thead>
           <tbody>
             {rows === null || storeLoading ? (
-              <TableRowSkeleton cols={4} />
+              <TableRowSkeleton cols={5} />
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">Nothing logged for this filter yet</td>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">Nothing logged for this filter yet</td>
               </tr>
             ) : (
               rows.map((r) => {
@@ -144,6 +182,18 @@ export default function VendorActivityPage() {
                         </Link>
                       ) : (
                         r.summary
+                      )}
+                      {r.flagNote && <p className="mt-1 text-xs text-amber-800">Review note: {r.flagNote}</p>}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {r.flaggedAt && !r.reviewedAt ? (
+                        <button type="button" title="Mark reviewed" aria-label="Mark activity reviewed" disabled={updatingId === r.id} onClick={() => updateFlag(r, "review")} className="p-2 text-amber-700 hover:bg-amber-50 rounded-sm cursor-pointer disabled:opacity-50">
+                          <Check size={17} />
+                        </button>
+                      ) : (
+                        <button type="button" title="Flag for review" aria-label="Flag activity for review" disabled={updatingId === r.id} onClick={() => updateFlag(r, "flag")} className="p-2 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-sm cursor-pointer disabled:opacity-50">
+                          <Flag size={17} />
+                        </button>
                       )}
                     </td>
                   </tr>

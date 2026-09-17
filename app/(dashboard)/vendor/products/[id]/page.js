@@ -29,7 +29,7 @@ export default function VendorProductViewPage({ params }) {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId");
   const router = useRouter();
-  const { token } = useAuth(true);
+  const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const { confirm, confirmDialog } = useConfirm();
 
@@ -141,12 +141,14 @@ export default function VendorProductViewPage({ params }) {
         </div>
 
         <div className="grid grid-cols-2 md:flex items-center justify-end gap-2 w-full sm:w-auto">
-          <Link href={`/vendor/products/${id}/history?storeId=${storeId}`}>
-            <Button type="button" variant="outline" size="sm" fullWidth={true}>
-              <History size={14} />
-              History
-            </Button>
-          </Link>
+          {user?.role === "vendor" && (
+            <Link href={`/vendor/products/${id}/history?storeId=${storeId}`}>
+              <Button type="button" variant="outline" size="sm" fullWidth={true}>
+                <History size={14} />
+                History
+              </Button>
+            </Link>
+          )}
           <Link href={`/vendor/products/${id}/edit?storeId=${storeId}`}>
             <Button type="button" variant="outline" size="sm" fullWidth={true}>
               <Pencil size={14} />

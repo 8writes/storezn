@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, count, desc, eq, gte, like, lt, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, isNull, like, lt, or } from "drizzle-orm";
 import { db } from "../../../../../../../lib/db/index.js";
 import { stores, storeActivityLogs, branches } from "../../../../../../../lib/db/schema.js";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
@@ -29,6 +29,9 @@ export async function GET(req, { params }) {
   const group = sp.get("group")?.trim();
   if (group && /^[a-z_]+$/.test(group)) {
     conds.push(or(eq(storeActivityLogs.action, group), like(storeActivityLogs.action, `${group}.%`)));
+  }
+  if (sp.get("flagged") === "true") {
+    conds.push(isNotNull(storeActivityLogs.flaggedAt), isNull(storeActivityLogs.reviewedAt));
   }
   const from = sp.get("from")?.trim();
   const to = sp.get("to")?.trim();
@@ -65,6 +68,9 @@ export async function GET(req, { params }) {
       targetType: r.log.targetType,
       targetId: r.log.targetId,
       metadata: r.log.metadata,
+      flaggedAt: r.log.flaggedAt,
+      flagNote: r.log.flagNote,
+      reviewedAt: r.log.reviewedAt,
       createdAt: r.log.createdAt,
     })),
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },

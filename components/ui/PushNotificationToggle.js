@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Bell, BellOff } from "lucide-react";
-import { pushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from "@/lib/pushClient.js";
+import { pushSupported, pushUnavailableReason, getPushSubscription, subscribeToPush, unsubscribeFromPush } from "@/lib/pushClient.js";
 
 // Self-contained enable/disable control for browser push - reads its own
 // current subscription state from the service worker rather than
@@ -13,16 +13,25 @@ export function PushNotificationToggle({ token }) {
   const [supported, setSupported] = useState(null);
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [unavailableReason, setUnavailableReason] = useState(null);
+  const [permission, setPermission] = useState("default");
 
   useEffect(() => {
-    if (!pushSupported()) {
-      setSupported(false);
-      return;
-    }
-    setSupported(true);
-    getPushSubscription()
-      .then((sub) => setSubscribed(!!sub))
-      .catch(() => {});
+    let active = true;
+    Promise.resolve().then(async () => {
+      const reason = pushUnavailableReason();
+      if (!active) return;
+      if (reason || !pushSupported()) {
+        setUnavailableReason(reason || "Push notifications are not supported by this browser.");
+        setSupported(false);
+        return;
+      }
+      setSupported(true);
+      setPermission(Notification.permission);
+      const sub = await getPushSubscription().catch(() => null);
+      if (active) setSubscribed(!!sub);
+    });
+    return () => { active = false; };
   }, []);
 
   const enable = async () => {
@@ -30,6 +39,7 @@ export function PushNotificationToggle({ token }) {
     try {
       await subscribeToPush(token);
       setSubscribed(true);
+      setPermission("granted");
       toast.success("Notifications enabled");
     } catch (err) {
       toast.error(err.message || "Could not enable notifications");
@@ -51,7 +61,9 @@ export function PushNotificationToggle({ token }) {
     }
   };
 
-  if (supported === false || supported === null) return null;
+  if (supported === null) {
+    return <div className="bg-surface border border-slate-200 rounded-sm p-5 h-20 animate-pulse" aria-label="Checking notification support" />;
+  }
 
   return (
     <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
@@ -64,22 +76,28 @@ export function PushNotificationToggle({ token }) {
         <div>
           <p className="text-sm font-semibold text-slate-900">Push notifications</p>
           <p className="text-xs text-slate-800 mt-0.5">
-            {subscribed
+            {supported === false
+              ? unavailableReason
+              : permission === "denied"
+                ? "Notifications are blocked for Storezn. Allow them in this browser's site settings, then reload the page."
+                : subscribed
               ? "You'll get notified on this device for new orders, low stock, and updates."
               : "Get notified on this device for new orders, low stock, and updates."}
           </p>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={subscribed ? disable : enable}
-        disabled={busy}
-        className={`shrink-0 px-3 py-1.5 rounded-sm text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-          subscribed ? "border border-slate-300 text-slate-600 hover:bg-slate-50" : "bg-brand-600 text-white hover:bg-brand-700"
-        }`}
-      >
-        {subscribed ? "Turn off" : "Enable"}
-      </button>
+      {supported && (
+        <button
+          type="button"
+          onClick={subscribed ? disable : enable}
+          disabled={busy || permission === "denied" || !token}
+          className={`shrink-0 px-3 py-1.5 rounded-sm text-sm font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+            subscribed ? "border border-slate-300 text-slate-600 hover:bg-slate-50" : "bg-brand-600 text-white hover:bg-brand-700"
+          }`}
+        >
+          {permission === "denied" ? "Blocked" : subscribed ? "Turn off" : "Enable"}
+        </button>
+      )}
     </div>
   );
 }

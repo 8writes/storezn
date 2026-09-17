@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { PushNotificationToggle } from "@/components/ui/PushNotificationToggle.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
+import { formatCurrency } from "@/lib/format.js";
 
 export default function SuperAdminSettingsPage() {
   const { token } = useAuth(true);
@@ -18,6 +19,7 @@ export default function SuperAdminSettingsPage() {
   const [flatFee, setFlatFee] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [plusPrice, setPlusPrice] = useState("");
+  const [plusDiscount, setPlusDiscount] = useState("");
   const [freeStorageMb, setFreeStorageMb] = useState("");
   const [plusStorageMb, setPlusStorageMb] = useState("");
   const [freeStaffLimit, setFreeStaffLimit] = useState("");
@@ -28,6 +30,9 @@ export default function SuperAdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [togglingMaintenance, setTogglingMaintenance] = useState(false);
+  const numericPlusPrice = Number(plusPrice) || 0;
+  const numericPlusDiscount = Number(plusDiscount) || 0;
+  const discountedPlusPrice = Math.round(numericPlusPrice * (1 - numericPlusDiscount / 100) * 100) / 100;
 
   useEffect(() => {
     if (!token) return;
@@ -38,6 +43,7 @@ export default function SuperAdminSettingsPage() {
         setFlatFee(String(data.settings.defaultFlatFee ?? 0));
         setMaintenanceMode(!!data.settings.maintenanceMode);
         setPlusPrice(String(data.settings.plusMonthlyPrice ?? 5000));
+        setPlusDiscount(data.settings.plusIntroDiscountPercent != null ? String(data.settings.plusIntroDiscountPercent) : "");
         setFreeStorageMb(String(data.settings.freeStorageMb ?? 500));
         setPlusStorageMb(String(data.settings.plusStorageMb ?? 5000));
         setFreeStaffLimit(String(data.settings.freeStaffLimit ?? 1));
@@ -61,6 +67,7 @@ export default function SuperAdminSettingsPage() {
           maxCommissionAmount: cap.trim() === "" ? null : Number(cap),
           defaultFlatFee: flatFee.trim() === "" ? 0 : Number(flatFee),
           plusMonthlyPrice: Number(plusPrice),
+          plusIntroDiscountPercent: plusDiscount.trim() === "" ? null : Number(plusDiscount),
           freeStorageMb: Number(freeStorageMb),
           plusStorageMb: Number(plusStorageMb),
           freeStaffLimit: Number(freeStaffLimit),
@@ -210,14 +217,26 @@ export default function SuperAdminSettingsPage() {
           <Button onClick={save} loading={saving}>Save</Button>
           </div>
 
-          <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+          <div id="storezn-plus-pricing" className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4 scroll-mt-6">
             <div>
-              <p className="text-sm font-semibold text-slate-700">Storezn+</p>
+              <p className="text-sm font-semibold text-slate-900">Storezn+ pricing and discount</p>
               <p className="text-xs text-slate-800 mt-1">
                 Pricing and limits for the Storezn+ paid tier (offline orders, storefront theme color, higher staff and storage limits).
               </p>
             </div>
             <Input label="Storezn+ monthly price (₦)" type="number" min="0" step="1" value={plusPrice} onChange={(e) => setPlusPrice(e.target.value)} />
+            <div className="border border-brand-200 bg-brand-50/40 rounded-sm p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Storezn+ introductory discount</p>
+                <p className="text-xs text-slate-700 mt-1">Platform-wide promotion for new subscriptions. It applies only to the first month.</p>
+              </div>
+              <Input label="Discount percentage" type="number" min="1" max="99" step="0.1" placeholder="Leave blank for no discount" value={plusDiscount} onChange={(e) => setPlusDiscount(e.target.value)} />
+              {numericPlusDiscount > 0 && numericPlusDiscount < 100 && (
+                <div className="text-sm text-slate-800 border-t border-brand-100 pt-3">
+                  New subscribers pay <span className="font-semibold text-brand-700">{formatCurrency(discountedPlusPrice)}</span> for month one, then {formatCurrency(numericPlusPrice)} monthly from month two.
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Input label="Free plan storage (MB)" type="number" min="0" step="1" value={freeStorageMb} onChange={(e) => setFreeStorageMb(e.target.value)} />
               <Input label="Storezn+ storage (MB)" type="number" min="0" step="1" value={plusStorageMb} onChange={(e) => setPlusStorageMb(e.target.value)} />

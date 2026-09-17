@@ -73,7 +73,7 @@ export async function GET(req, { params }) {
     plan,
     plusMonthlyPrice,
     plusStandardMonthlyPrice: settings?.plusMonthlyPrice ?? 5000,
-    subscriptionDiscountPercent: store.subscriptionDiscountPercent,
+    subscriptionDiscountPercent: !isPlus && (store.subscriptionPriceOverride == null || store.subscriptionDiscountPercent != null) && settings?.plusIntroDiscountPercent != null ? settings.plusIntroDiscountPercent : null,
     storageUsedBytes,
     storageLimitBytes,
     branchCount: branchRows.length,

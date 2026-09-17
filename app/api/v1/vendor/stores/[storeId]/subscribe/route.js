@@ -4,7 +4,7 @@ import { db } from "../../../../../../../lib/db/index.js";
 import { stores, platformSettings, users } from "../../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
-import { initializeTransaction, updatePlan } from "../../../../../../../lib/paystack.js";
+import { createPlan, initializeTransaction, updatePlan } from "../../../../../../../lib/paystack.js";
 import { isPlusStore, isEnterpriseStore, getPlusMonthlyPrice } from "../../../../../../../lib/storePlan.js";
 import { buildRequestUrl, getRequestOrigin } from "../../../../../../../lib/requestUrl.js";
 import { logAppError } from "../../../../../../../lib/appErrorLog.js";
@@ -63,25 +63,36 @@ async function handlePost(req, { params }) {
 
   const body = await req.json().catch(() => ({}));
   const reference = `STOREZNSUB-${nanoid()}`;
-  // A super_admin-set discount for this store (see /api/v1/super-admin/
-  // stores/[id]) wins over the platform-wide price. It also gets its own
-  // Paystack Plan (paystackPlanCodeOverride) - Paystack renews at the
-  // plan's amount, so a discounted store on the shared plan would renew
-  // at the full plusMonthlyPrice. `amount` and `plan` are resolved
-  // together so they always match.
-  const amount = getPlusMonthlyPrice(store, settings);
-  const planCode = store.paystackPlanCodeOverride ?? settings.paystackPlanCode;
+  let amount = getPlusMonthlyPrice(store, settings);
+  // A negotiated recurring price is already an explicit exception to the
+  // platform price and must not be replaced by an introductory campaign.
+  const hasNegotiatedPrice = store.subscriptionPriceOverride != null && store.subscriptionDiscountPercent == null;
+  const discountPercent = hasNegotiatedPrice ? null : settings.plusIntroDiscountPercent;
+  let planCode = store.paystackPlanCodeOverride ?? settings.paystackPlanCode;
   const redirectUrl = resolveSubscriptionRedirectUrl(req, body.redirectUrl);
 
   try {
-    // Percentage discounts follow the current platform price. Refresh the
-    // dedicated plan immediately before a new subscription so a later base
-    // price change cannot make Paystack charge a stale amount.
-    if (store.subscriptionDiscountPercent != null && store.paystackPlanCodeOverride) {
-      await updatePlan(store.paystackPlanCodeOverride, {
-        amount,
-        updateExistingSubscriptions: false,
-      });
+    // Every discounted signup gets an isolated plan. The webhook restores
+    // this plan to the standard price after the first successful charge;
+    // sharing one discounted plan would alter every subscriber together.
+    if (discountPercent != null) {
+      if (!store.paystackPlanCodeOverride) {
+        const created = await createPlan({ name: `Storezn+ - ${store.name}`.slice(0, 100), amount });
+        planCode = created.planCode;
+      } else {
+        await updatePlan(store.paystackPlanCodeOverride, { amount, updateExistingSubscriptions: false });
+      }
+      await db.update(stores).set({
+        paystackPlanCodeOverride: planCode,
+        subscriptionDiscountPercent: discountPercent,
+        subscriptionPriceOverride: amount,
+      }).where(eq(stores.id, storeId));
+    } else if (store.subscriptionDiscountPercent != null && store.paystackPlanCodeOverride) {
+      // Promotion was disabled after this store opened checkout but before
+      // it paid. Restore its dedicated plan so a retry cannot use stale pricing.
+      await updatePlan(store.paystackPlanCodeOverride, { amount: settings.plusMonthlyPrice, updateExistingSubscriptions: false });
+      await db.update(stores).set({ subscriptionDiscountPercent: null, subscriptionPriceOverride: null }).where(eq(stores.id, storeId));
+      amount = settings.plusMonthlyPrice;
     }
     const { authorizationUrl } = await initializeTransaction({
       amount,

@@ -8,20 +8,32 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
+import { Pagination } from "@/components/ui/Pagination.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 
 export default function ProductHistoryPage({ params }) {
   const { id } = use(params);
   const storeId = useSearchParams().get("storeId");
-  const { token } = useAuth(true);
+  const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const [data, setData] = useState(null);
+  const [changesPage, setChangesPage] = useState(1);
+  const [salesPage, setSalesPage] = useState(1);
+  const [denied, setDenied] = useState(false);
 
   useEffect(() => {
     if (!token || !storeId) return;
-    apiFetch(`/api/v1/vendor/stores/${storeId}/products/${id}/history`)
-      .then(setData).catch((error) => toast.error(error.message || "Failed to load product history"));
-  }, [token, storeId, id, apiFetch]);
+    apiFetch(`/api/v1/vendor/stores/${storeId}/products/${id}/history?changesPage=${changesPage}&salesPage=${salesPage}`)
+      .then((result) => { setData(result); setDenied(false); })
+      .catch((error) => {
+        if (/owner/i.test(error.message || "")) setDenied(true);
+        else toast.error(error.message || "Failed to load product history");
+      });
+  }, [token, storeId, id, changesPage, salesPage, apiFetch]);
+
+  if (user && user.role !== "vendor" || denied) {
+    return <p className="text-sm text-slate-800">Product history is only available to the store owner.</p>;
+  }
 
   if (!data) return <div className="space-y-5"><BackLink href={`/vendor/products/${id}?storeId=${storeId}`} label="Back to product" /><FormSkeleton fields={4} /></div>;
 
@@ -39,10 +51,11 @@ export default function ProductHistoryPage({ params }) {
             <time className="text-xs text-slate-500 whitespace-nowrap">{formatDateTime(entry.createdAt)}</time>
           </div>)}
       </div>
+      <Pagination pagination={data.changesPagination} onPageChange={setChangesPage} />
     </section>
 
     <section className="space-y-2">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><ShoppingBag size={16} /> Sales ({data.sales.length})</h2>
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><ShoppingBag size={16} /> Sales ({data.salesPagination.total})</h2>
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm"><thead className="bg-slate-50 text-left text-slate-700"><tr>
           <th className="px-3 py-2 font-medium">Date</th><th className="px-3 py-2 font-medium">Order</th>
@@ -61,6 +74,7 @@ export default function ProductHistoryPage({ params }) {
         })}</tbody></table>
         {data.sales.length === 0 && <p className="p-4 text-sm text-slate-600">No sales recorded for this product.</p>}
       </div>
+      <Pagination pagination={data.salesPagination} onPageChange={setSalesPage} />
     </section>
   </div>;
 }
