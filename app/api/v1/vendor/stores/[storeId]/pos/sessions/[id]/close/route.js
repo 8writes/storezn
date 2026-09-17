@@ -26,7 +26,7 @@ export async function POST(req, { params }) {
   try {
     closeResult = await db.transaction(async (tx) => {
       const session = await lockPosSession(tx, id);
-      if (!session || session.storeId !== storeId) {
+      if (!session) {
         throw Object.assign(new Error("Session not found"), { code: "NOT_FOUND" });
       }
       if (session.status !== "open") {

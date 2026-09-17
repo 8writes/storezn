@@ -42,7 +42,7 @@ export async function POST(req, { params }) {
   try {
     held = await db.transaction(async (tx) => {
       const session = await lockPosSession(tx, result.data.sessionId);
-      if (!session || session.storeId !== storeId || session.status !== "open") {
+      if (!session || session.status !== "open") {
         throw Object.assign(new Error("This session is closed"), { code: "SESSION_CLOSED" });
       }
       const [created] = await tx.insert(posHeldSales).values({

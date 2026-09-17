@@ -23,7 +23,10 @@ export async function GET(req, { params }) {
   const product = await loadOwnedProduct(user, storeId, id);
   if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
-  const variants = await db.select().from(productVariants).where(eq(productVariants.productId, id)).orderBy(productVariants.createdAt);
+  const activeOnly = new URL(req.url).searchParams.get("active") === "true";
+  const conditions = [eq(productVariants.productId, id)];
+  if (activeOnly) conditions.push(eq(productVariants.isActive, true));
+  const variants = await db.select().from(productVariants).where(and(...conditions)).orderBy(productVariants.createdAt);
   return NextResponse.json({ variants });
 }
 

@@ -46,6 +46,7 @@ export async function GET(req, { params }) {
   const categoryId = searchParams.get("category")?.trim();
   const orderBy = SORTS[searchParams.get("sort")] || SORTS.newest;
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
+  const includeVariants = searchParams.get("includeVariants") === "true";
   const conditions = [eq(products.storeId, storeId)];
   if (q) conditions.push(or(ilike(products.name, `%${q}%`), ilike(products.sku, `%${q}%`)));
   if (categoryId) conditions.push(eq(products.categoryId, categoryId));
@@ -115,8 +116,29 @@ export async function GET(req, { params }) {
       .where(and(...conditions)),
   ]);
 
+  // Offline POS catalogue sync asks for variants alongside each product.
+  // One batched query per page avoids an N+1 request storm for large stores.
+  const variants = includeVariants && rows.length
+    ? await db.select().from(productVariants).where(and(
+      inArray(productVariants.productId, rows.map((row) => row.product.id)),
+      eq(productVariants.isActive, true),
+    )).orderBy(productVariants.createdAt)
+    : [];
+  const variantsByProduct = new Map();
+  for (const variant of variants) {
+    const list = variantsByProduct.get(variant.productId) || [];
+    list.push(variant);
+    variantsByProduct.set(variant.productId, list);
+  }
+
   return NextResponse.json({
-    products: rows.map((r) => ({ ...r.product, stock: r.branchStock, categoryName: r.categoryName, variantCount: Number(r.variantCount) || 0 })),
+    products: rows.map((r) => ({
+      ...r.product,
+      stock: r.branchStock,
+      categoryName: r.categoryName,
+      variantCount: Number(r.variantCount) || 0,
+      ...(includeVariants ? { offlineVariants: variantsByProduct.get(r.product.id) || [] } : {}),
+    })),
     branches: allowedBranches,
     selectedBranch: selectedBranch ? { id: selectedBranch.id, name: selectedBranch.name } : null,
     lowStockThreshold: LOW_STOCK_THRESHOLD,

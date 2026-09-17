@@ -37,11 +37,11 @@ export function OfflineNavGuard() {
     } catch {
       /* private mode / storage blocked - guard just stays off */
     }
-    setActive(a);
+    Promise.resolve().then(() => setActive(a));
   }, [pathname]);
 
   useEffect(() => {
-    setOffline(isOffline());
+    Promise.resolve().then(() => setOffline(isOffline()));
     return onConnectivityChange(setOffline);
   }, []);
 

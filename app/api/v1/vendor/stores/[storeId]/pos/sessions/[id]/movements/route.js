@@ -5,7 +5,7 @@ import { cashMovements } from "@/lib/db/schema.js";
 import { validate, cashMovementSchema } from "@/lib/validate.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
-import { lockPosSession } from "@/lib/posSession.js";
+import { buildPosSessionSummary, lockPosSession } from "@/lib/posSession.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 
 // Cashier cash-drawer actions: paid_in (+), paid_out (-), drop (-).
@@ -36,7 +36,7 @@ export async function POST(req, { params }) {
   try {
     ({ movement, replayed } = await db.transaction(async (tx) => {
       const session = await lockPosSession(tx, id);
-      if (!session || session.storeId !== storeId) {
+      if (!session) {
         throw Object.assign(new Error("Session not found"), { code: "NOT_FOUND" });
       }
       if (session.status !== "open") {
@@ -46,6 +46,15 @@ export async function POST(req, { params }) {
         const [existing] = await tx.select().from(cashMovements)
           .where(and(eq(cashMovements.sessionId, id), eq(cashMovements.clientRef, clientRef))).limit(1);
         if (existing) return { movement: existing, replayed: true };
+      }
+      if (amount < 0) {
+        const summary = await buildPosSessionSummary(tx, session);
+        if (summary.drawer.expectedCash + amount < 0) {
+          throw Object.assign(
+            new Error("Not enough expected cash in this drawer. Record missing cash as paid in first."),
+            { code: "INSUFFICIENT_DRAWER_CASH" },
+          );
+        }
       }
       const [created] = await tx.insert(cashMovements).values({
         sessionId: id,
@@ -69,7 +78,7 @@ export async function POST(req, { params }) {
         .limit(1);
       if (winner) return NextResponse.json({ movement: winner, replayed: true }, { status: 200 });
     }
-    if (["NOT_FOUND", "SESSION_CLOSED"].includes(err.code)) {
+    if (["NOT_FOUND", "SESSION_CLOSED", "INSUFFICIENT_DRAWER_CASH"].includes(err.code)) {
       return NextResponse.json({ error: err.message }, { status: err.code === "NOT_FOUND" ? 404 : 409 });
     }
     throw err;

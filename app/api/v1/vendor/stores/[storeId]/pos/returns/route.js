@@ -7,7 +7,7 @@ import { generateOrderNumber } from "@/lib/orders.js";
 import { restockItems } from "@/lib/inventory.js";
 import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
-import { lockPosSession } from "@/lib/posSession.js";
+import { buildPosSessionSummary, lockPosSession } from "@/lib/posSession.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
 
 function posError(message, code, status = 409) {
@@ -31,6 +31,7 @@ export async function POST(req, { params }) {
 
   const sessionRow = await loadSession(storeId, data.sessionId, user);
   if (!sessionRow) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  const returnBranchId = sessionRow.register.branchId;
 
   const [existing] = await db.select().from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
   if (existing) {
@@ -44,7 +45,7 @@ export async function POST(req, { params }) {
   try {
     outcome = await db.transaction(async (tx) => {
       const session = await lockPosSession(tx, data.sessionId);
-      if (!session || session.storeId !== storeId) throw posError("Session not found", "NOT_FOUND", 404);
+      if (!session) throw posError("Session not found", "NOT_FOUND", 404);
       if (session.status !== "open") throw posError("Open a register session before processing a return", "SESSION_CLOSED");
 
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${data.originalOrderId}))`);
@@ -58,7 +59,10 @@ export async function POST(req, { params }) {
       }
 
       const originalItems = await tx.select().from(orderItems).where(eq(orderItems.orderId, original.id));
-      const priorReturns = await tx.select({ id: orders.id }).from(orders).where(eq(orders.originalOrderId, original.id));
+      const priorReturns = await tx
+        .select({ id: orders.id, totalAmount: orders.totalAmount })
+        .from(orders)
+        .where(eq(orders.originalOrderId, original.id));
       const returnedByItem = new Map();
       for (const previous of priorReturns) {
         const lines = await tx.select().from(orderItems).where(eq(orderItems.orderId, previous.id));
@@ -87,14 +91,30 @@ export async function POST(req, { params }) {
         returnLines.push({ item, quantity: line.quantity, lineRefundKobo });
       }
 
-      const scale = toKobo(original.subtotal) > 0
-        ? toKobo(original.totalAmount) / toKobo(original.subtotal)
+      // Allocate an order-level discount proportionally across returned
+      // lines. POS `subtotal` is already net of that discount, while the
+      // item snapshots are pre-order-discount, so using subtotal as the
+      // denominator would refund the undiscounted line amount.
+      const originalLinesKobo = originalItems.reduce((sum, item) => sum + toKobo(item.lineTotal), 0);
+      const scale = originalLinesKobo > 0
+        ? toKobo(original.totalAmount) / originalLinesKobo
         : 1;
-      const refundKobo = Math.round(refundKoboRaw * scale);
+      const previouslyRefundedKobo = priorReturns.reduce(
+        (sum, previous) => sum + Math.abs(toKobo(previous.totalAmount)),
+        0,
+      );
+      const remainingRefundableKobo = Math.max(0, toKobo(original.totalAmount) - previouslyRefundedKobo);
+      const refundKobo = Math.min(Math.round(refundKoboRaw * scale), remainingRefundableKobo);
       if (refundKobo <= 0) throw posError("Refund amount must be positive", "INVALID_REFUND", 400);
       const refundMethod = data.refundMethod || "cash";
+      if (refundMethod === "cash") {
+        const summary = await buildPosSessionSummary(tx, session);
+        if (summary.drawer.expectedCash < refundKobo) {
+          throw posError("Not enough expected cash in this drawer. Record cash paid in or use a non-cash refund method.", "INSUFFICIENT_DRAWER_CASH");
+        }
+      }
       const [returnOrder] = await tx.insert(orders).values({
-        storeId, branchId: original.branchId, userId: null, orderNumber: generateOrderNumber(),
+        storeId, branchId: returnBranchId, userId: null, orderNumber: generateOrderNumber(),
         buyerName: original.buyerName, buyerPhone: original.buyerPhone, guestEmail: original.guestEmail,
         status: "refunded", paymentStatus: "paid", soldById: user.id, soldByName: actorLabel(user),
         subtotal: -toNaira(refundKobo), shippingFee: 0, totalAmount: -toNaira(refundKobo),
@@ -110,7 +130,7 @@ export async function POST(req, { params }) {
         unitPrice: item.unitPrice, quantity: -quantity, lineTotal: -toNaira(lineRefundKobo),
       })));
       await restockItems(tx, returnLines.map(({ item, quantity }) => ({
-        productId: item.productId, variantId: item.variantId, quantity, branchId: original.branchId,
+        productId: item.productId, variantId: item.variantId, quantity, branchId: returnBranchId,
       })));
       await tx.insert(orderTenders).values({
         orderId: returnOrder.id, method: refundMethod, amount: -refundKobo,
@@ -137,7 +157,7 @@ export async function POST(req, { params }) {
 
   if (!outcome.replayed) {
     after(() => logStoreActivity({
-      storeId, actor: user, branchId: outcome.original.branchId, action: "pos.return",
+      storeId, actor: user, branchId: returnBranchId, action: "pos.return",
       summary: `Refunded ${formatKobo(outcome.refundKobo)} against ${outcome.original.orderNumber} (${outcome.refundMethod})`,
       targetType: "order", targetId: outcome.order.id,
       metadata: { refundKobo: outcome.refundKobo, refundMethod: outcome.refundMethod,

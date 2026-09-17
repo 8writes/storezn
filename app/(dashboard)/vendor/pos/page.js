@@ -24,11 +24,22 @@ import { ZReport } from "@/components/pos/ZReport.js";
 import { PrintableReceipt } from "@/components/pos/PrintableReceipt.js";
 import { OfflineSetupModal } from "@/components/pos/OfflineSetupModal.js";
 import { generateOrderNumber } from "@/lib/orders.js";
-import { enqueueSale, flushQueue, listQueuedSales, removeQueuedSale, saveCatalog, catalogMeta } from "@/lib/posOffline.js";
+import { isOffline, onConnectivityChange } from "@/lib/connectivity.js";
+import { networkErrorMessage } from "@/lib/fetchError.js";
+import {
+  enqueueSale,
+  flushQueue,
+  listHeldSales,
+  listQueuedSales,
+  removeHeldSale,
+  removeQueuedSale,
+  saveCatalog,
+  saveHeldSale,
+  catalogMeta,
+} from "@/lib/posOffline.js";
 import { Minus, Plus, Trash2, ShoppingCart, Pause, RotateCcw, X } from "lucide-react";
 
-const isNetErr = (err) =>
-  !err || err.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(err.message || "");
+const isNetErr = (err) => !err || !!networkErrorMessage(err);
 
 // Catalogue pricing for one cart line, before any line discount. An
 // owner price override and a variant's own price are flat (unit x qty);
@@ -235,7 +246,9 @@ export default function SellPage() {
 function TillMode({ storeId, storeName, token, user, apiFetch, registers, reloadRegisters }) {
   const router = useRouter();
   const isOwner = user?.role === "vendor" || user?.role === "super_admin";
+  const actorId = user?.id || null;
   const lsKey = `pos_register_${storeId}`;
+  const sessionCacheKey = useCallback((sessionId) => `pos_session_${storeId}_${sessionId}`, [storeId]);
 
   const [sessionData, setSessionData] = useState(null); // { session, register, summary, heldSales } | null
   const [checking, setChecking] = useState(true);
@@ -260,6 +273,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [heldOpen, setHeldOpen] = useState(false);
   const [holdPromptOpen, setHoldPromptOpen] = useState(false);
   const [holdLabel, setHoldLabel] = useState("");
+  const [heldSales, setHeldSales] = useState([]);
   // "Work offline": every sale goes straight to the local queue and
   // nothing auto-syncs until the cashier taps Sync (or turns this off).
   // Persisted per device so it survives a reload / cold open.
@@ -273,8 +287,20 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [offlineReceipt, setOfflineReceipt] = useState(null);
   const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false });
   const [offlineSetupOpen, setOfflineSetupOpen] = useState(false);
+  const [networkOffline, setNetworkOffline] = useState(false);
+
+  useEffect(() => {
+    Promise.resolve().then(() => setNetworkOffline(isOffline()));
+    return onConnectivityChange(setNetworkOffline);
+  }, []);
 
   const openSession = sessionData?.session?.status === "open" ? sessionData : null;
+
+  const loadLocalHeld = useCallback(async (sessionId) => {
+    const rows = await listHeldSales(storeId, sessionId).catch(() => []);
+    setHeldSales(rows);
+    return rows;
+  }, [storeId]);
 
   // Find the register we should try to run: the last one used on this
   // device, else the first that already has an open session, else none.
@@ -292,17 +318,52 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       try {
         const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${sessionId}`);
         setSessionData(data);
+        try {
+          localStorage.setItem(sessionCacheKey(sessionId), JSON.stringify(data));
+        } catch {
+          /* private mode */
+        }
+        // One-time migration for carts held by the previous server-backed
+        // implementation. Persist locally before deleting the server row.
+        for (const held of data.heldSales || []) {
+          try {
+            await saveHeldSale(storeId, sessionId, { ...held, migratedFromServer: true });
+            await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/held/${held.id}`, { method: "DELETE" }).catch(() => {});
+          } catch {
+            // Keep the server copy intact if this browser cannot persist
+            // it. A held-cart migration must never hide the open shift.
+          }
+        }
+        await loadLocalHeld(sessionId);
       } catch (error) {
-        setSessionData(null);
         if (error?.status === 404 || error?.status === 409) {
+          setSessionData(null);
           localStorage.removeItem(lsKey);
+          localStorage.removeItem(sessionCacheKey(sessionId));
           reloadRegisters(true).catch(() => {});
+        } else if (isNetErr(error)) {
+          // An offline reload has no API response to rebuild the till
+          // from. Reuse the last authenticated snapshot for this exact
+          // shift; all writes still queue against its server-issued ID.
+          try {
+            const cached = JSON.parse(localStorage.getItem(sessionCacheKey(sessionId)) || "null");
+            if (cached?.session?.id === sessionId && cached.session.status === "open") {
+              setSessionData(cached);
+              await loadLocalHeld(sessionId);
+              return;
+            }
+          } catch {
+            /* malformed/blocked storage */
+          }
+          setSessionData(null);
+          toast.error("This register was not prepared for an offline reload. Reconnect once to restore it.");
         } else {
+          setSessionData(null);
           toast.error(error.message || "Could not load the open register");
         }
       }
     },
-    [apiFetch, storeId, lsKey, reloadRegisters],
+    [apiFetch, storeId, lsKey, reloadRegisters, sessionCacheKey, loadLocalHeld],
   );
 
   useEffect(() => {
@@ -324,10 +385,10 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
   // Push any sales that were completed while offline, and (best-effort)
   // keep a local catalogue snapshot fresh so search/scan survive a drop.
-  const syncNow = useCallback(async () => {
+  const syncNow = useCallback(async (force = false) => {
     setSyncing(true);
     try {
-      const res = await flushQueue(storeId, apiFetch);
+      const res = await flushQueue(storeId, apiFetch, { force: force === true, actorId });
       const queue = await listQueuedSales(storeId).catch(() => []);
       setQueuedSales(queue);
       setPendingSync(queue.length);
@@ -336,12 +397,13 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         refresh();
       }
       if (res.stuck > 0) toast.error(`${res.stuck} offline sale${res.stuck === 1 ? "" : "s"} couldn't sync - open Offline setup to review`);
+      if (res.blocked > 0) toast.error(`${res.blocked} queued sale${res.blocked === 1 ? " belongs" : "s belong"} to another cashier. Sign in as that cashier to sync.`);
     } catch {
       /* still offline - try again next tick */
     } finally {
       setSyncing(false);
     }
-  }, [storeId, apiFetch, refresh]);
+  }, [storeId, apiFetch, refresh, actorId]);
 
   // Pulls the WHOLE catalogue into IndexedDB so the register's search and
   // barcode lookup keep working with no network. Skips if a snapshot
@@ -362,7 +424,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         const fetchPage = async (page) => {
           for (let attempt = 0; ; attempt++) {
             try {
-              return await apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${page}&pageSize=100`);
+              return await apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${page}&pageSize=100&includeVariants=true`);
             } catch (err) {
               if (attempt >= 2) throw err;
               await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
@@ -391,7 +453,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     } catch {
       /* private mode */
     }
-    if (!on) syncNow(); // turning it off means "I'm back - push everything"
+    if (!on) syncNow(true); // turning it off means "I'm back - push everything"
   };
 
   useEffect(() => {
@@ -469,7 +531,13 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         const det = details[r.key] || {};
         const line = { ...r, product: det.product, variant: det.variant };
         const p = linePricing(line);
-        return { ...line, unit: p.unit, segments: p.segments, lineTotal: Math.max(0, p.lineTotal - (r.lineDiscount || 0)) };
+        return {
+          ...line,
+          unit: p.unit,
+          segments: p.segments,
+          baseLineTotal: p.lineTotal,
+          lineTotal: Math.max(0, p.lineTotal - (r.lineDiscount || 0)),
+        };
       }),
     [cart, details],
   );
@@ -495,12 +563,14 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       idempotencyKey: saleKey,
       orderNumber: num,
       soldAt,
-      items: cart.map((r) => ({
-        productId: r.productId,
-        ...(r.variantId ? { variantId: r.variantId } : {}),
-        quantity: r.quantity,
-        ...(r.priceOverride != null ? { unitPrice: r.priceOverride } : {}),
-        ...(r.lineDiscount ? { lineDiscount: r.lineDiscount } : {}),
+      offlineReplay: true,
+      items: lines.map((line) => ({
+        productId: line.productId,
+        ...(line.variantId ? { variantId: line.variantId } : {}),
+        quantity: line.quantity,
+        capturedLineTotal: line.baseLineTotal,
+        ...(line.priceOverride != null ? { unitPrice: line.priceOverride } : {}),
+        ...(line.lineDiscount ? { lineDiscount: line.lineDiscount } : {}),
       })),
       tenders,
       ...(recalledHeldId ? { heldSaleId: recalledHeldId } : {}),
@@ -534,13 +604,35 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       note: buyer.note || null,
     };
 
-    const queueIt = async (msg) => {
-      try {
-        await enqueueSale(storeId, payload);
-      } catch (error) {
-        toast.error(error?.message || "Couldn't save this sale offline. The cart has been kept.");
+    // Write-ahead queue: persist before touching the network. If the tab,
+    // browser, or device dies after payment but during the request, the sale
+    // still exists locally and the same idempotency key can safely replay it.
+    let recoverySaved = false;
+    try {
+      await enqueueSale(storeId, payload, actorId);
+      recoverySaved = true;
+    } catch (error) {
+      if (offlineMode) {
+        toast.error(error?.message || "This device could not save the sale. Keep the cart open and reconnect before taking payment.");
         setSubmitting(false);
-        return false;
+        return;
+      }
+    }
+
+    const queueIt = async (msg) => {
+      if (!recoverySaved) {
+        try {
+          await enqueueSale(storeId, payload, actorId);
+          recoverySaved = true;
+        } catch (error) {
+          toast.error(error?.message || "Couldn't save this sale offline. The cart has been kept.");
+          setSubmitting(false);
+          return false;
+        }
+      }
+      if (recalledHeldId) {
+        await removeHeldSale(recalledHeldId).catch(() => {});
+        await loadLocalHeld(openSession.session.id);
       }
       setTenderOpen(false);
       resetSale();
@@ -558,7 +650,15 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     }
 
     try {
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sales`, { method: "POST", body: JSON.stringify(payload) });
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sales`, {
+        method: "POST",
+        body: JSON.stringify({ ...payload, offlineReplay: false }),
+      });
+      await removeQueuedSale(payload.idempotencyKey).catch(() => {});
+      if (recalledHeldId) {
+        await removeHeldSale(recalledHeldId).catch(() => {});
+        await loadLocalHeld(openSession.session.id);
+      }
       setTenderOpen(false);
       resetSale();
       refresh();
@@ -569,6 +669,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         await queueIt("Saved offline - it'll sync when you're back online");
         return;
       }
+      if (recoverySaved) await removeQueuedSale(payload.idempotencyKey).catch(() => {});
       toast.error(err.message || "Couldn't complete the sale");
     } finally {
       setSubmitting(false);
@@ -592,17 +693,14 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       return;
     }
     try {
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/held`, {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: openSession.session.id,
-          label,
-          cart: cart.map((r) => ({ ...r, _d: details[r.key] })),
-          customer: buyer.name || buyer.phone ? { name: buyer.name, phone: buyer.phone } : null,
-        }),
+      await saveHeldSale(storeId, openSession.session.id, {
+        label,
+        cart: cart.map((r) => ({ ...r, _d: details[r.key] })),
+        customer: buyer.name || buyer.phone ? { name: buyer.name, phone: buyer.phone } : null,
+        createdBy: actorId,
       });
       resetSale();
-      refresh();
+      await loadLocalHeld(openSession.session.id);
       toast.success("Sale held");
     } catch (err) {
       toast.error(err.message || "Couldn't hold the sale");
@@ -635,8 +733,11 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
   const discardHeld = async (id) => {
     try {
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/held/${id}`, { method: "DELETE" });
-      refresh();
+      await removeHeldSale(id);
+      await loadLocalHeld(openSession.session.id);
+      // Best-effort cleanup for a record migrated from the old server
+      // implementation. Local discard must still work while offline.
+      apiFetch(`/api/v1/vendor/stores/${storeId}/pos/held/${id}`, { method: "DELETE" }).catch(() => {});
     } catch (err) {
       toast.error(err.message || "Couldn't discard");
     }
@@ -658,6 +759,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         setCashOpen(false);
         setSessionData(null);
         localStorage.removeItem(lsKey);
+        localStorage.removeItem(sessionCacheKey(openSession.session.id));
         reloadRegisters(true).catch(() => {});
       }
       toast.error(err.message || "Couldn't record that");
@@ -673,12 +775,16 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         method: "POST",
         body: JSON.stringify({ ...payload, pendingSyncCount: pendingSync }),
       });
+      localStorage.removeItem(sessionCacheKey(openSession.session.id));
+      localStorage.removeItem(lsKey);
       reloadRegisters();
       return data.zReport;
     } catch (error) {
       if (error?.status === 404 || (error?.status === 409 && /session is closed|already closed/i.test(error.message || ""))) {
         await reloadRegisters(true).catch(() => {});
         setSessionData(null);
+        localStorage.removeItem(sessionCacheKey(openSession.session.id));
+        localStorage.removeItem(lsKey);
         setCloseOpen(false);
       }
       toast.error(error.message || "Could not close the register");
@@ -699,7 +805,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     );
   }
 
-  const heldCount = sessionData.heldSales?.length || 0;
+  const heldCount = heldSales.length;
 
   return (
     <div className="space-y-4">
@@ -710,7 +816,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         heldCount={heldCount}
         pendingSync={pendingSync}
         syncing={syncing}
-        onSync={syncNow}
+        onSync={() => syncNow(true)}
         offlineMode={offlineMode}
         onToggleOfflineMode={toggleOfflineMode}
         catalog={catalog}
@@ -718,6 +824,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         onCashDrawer={() => setCashOpen(true)}
         onXReport={() => setXOpen(true)}
         onCloseRegister={() => setCloseOpen(true)}
+        networkOffline={networkOffline}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
@@ -912,7 +1019,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           heldCount={heldCount}
           pendingSync={pendingSync}
           syncing={syncing}
-          onSync={syncNow}
+          onSync={() => syncNow(true)}
           onSubmit={closeRegister}
         />
       )}
@@ -926,7 +1033,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           pendingSync={pendingSync}
           queuedSales={queuedSales}
           syncing={syncing}
-          onSync={syncNow}
+          onSync={() => syncNow(true)}
           onDiscard={discardQueued}
           onSyncCatalog={() => syncCatalog(true)}
           onClose={() => setOfflineSetupOpen(false)}
@@ -996,7 +1103,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
               <p className="text-sm text-slate-800 p-6 text-center">Nothing on hold</p>
             ) : (
               <ul className="overflow-y-auto divide-y divide-slate-100">
-                {sessionData.heldSales.map((h) => {
+                {heldSales.map((h) => {
                   const s = heldSummary(h);
                   return (
                     <li key={h.id} className="px-4 py-3">

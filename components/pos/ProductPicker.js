@@ -5,12 +5,13 @@ import { Search, ImageOff, Loader2, Barcode, WifiOff } from "lucide-react";
 import { useApi } from "@/hooks/useApi.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
-import { searchCatalog, findBySku } from "@/lib/posOffline.js";
+import { networkErrorMessage } from "@/lib/fetchError.js";
+import { searchCatalog, findBySku, getCatalogProduct } from "@/lib/posOffline.js";
 
 const PAGE_SIZE = 12;
 
 function isNetErr(err) {
-  return !err || err.name === "TypeError" || /failed to fetch|networkerror|load failed/i.test(err.message || "");
+  return !err || !!networkErrorMessage(err);
 }
 
 // Shared product search + grid for both the manual offline form and the
@@ -85,8 +86,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
 
   useEffect(() => {
     if (!token || !storeId) return;
-    setProducts([]);
-    load(1, debounced);
+    Promise.resolve().then(() => load(1, debounced));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId, debounced]);
 
@@ -94,12 +94,19 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
     if (variantsBy[productId]) return variantsBy[productId];
     setLoadingVariantsFor(productId);
     try {
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`);
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants?active=true`);
       setVariantsBy((v) => ({ ...v, [productId]: data.variants }));
       return data.variants;
-    } catch {
-      setVariantsBy((v) => ({ ...v, [productId]: [] }));
-      return [];
+    } catch (error) {
+      const cachedProduct = cache[productId] || await getCatalogProduct(storeId, productId);
+      const cachedVariants = cachedProduct?.offlineVariants;
+      if (Array.isArray(cachedVariants) && cachedVariants.length > 0) {
+        setOffline(true);
+        setVariantsBy((v) => ({ ...v, [productId]: cachedVariants }));
+        return cachedVariants;
+      }
+      toast.error(error?.message || "Variant choices are not available offline. Reconnect and update the offline catalogue.");
+      return null;
     } finally {
       setLoadingVariantsFor(null);
     }
@@ -115,12 +122,19 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
       return;
     }
     const variants = await ensureVariants(product.id);
+    if (variants === null) return;
     if (variants.length === 0) onAdd(product, null);
     else setPicker(product);
   };
 
   const acceptHit = async (hit) => {
     setCache((prev) => ({ ...prev, [hit.id]: hit }));
+    if (hit._matchedVariant) {
+      onAdd(hit, hit._matchedVariant);
+      setSearch("");
+      searchRef.current?.focus();
+      return;
+    }
     if (!hit.variantCount) {
       onAdd(hit, null);
       setSearch("");
@@ -128,6 +142,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
       return;
     }
     const variants = await ensureVariants(hit.id);
+    if (variants === null) return;
     if (variants.length === 0) {
       onAdd(hit, null);
       setSearch("");

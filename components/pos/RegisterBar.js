@@ -29,6 +29,7 @@ export function RegisterBar({
   onCashDrawer,
   onXReport,
   onCloseRegister,
+  networkOffline = false,
 }) {
   const expected = summary?.drawer?.expectedCash ?? session?.openingFloat ?? 0;
   return (
@@ -94,13 +95,13 @@ export function RegisterBar({
       </button>
 
       <span className="ml-auto flex items-center gap-1.5">
-        <button type="button" onClick={onCashDrawer} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
+        <button type="button" onClick={onCashDrawer} disabled={networkOffline} title={networkOffline ? "Reconnect to record a drawer movement" : undefined} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
           <Wallet size={13} /> Cash
         </button>
         <button type="button" onClick={onXReport} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
           <FileText size={13} /> X report
         </button>
-        <button type="button" onClick={onCloseRegister} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 text-xs font-medium text-red-600 hover:bg-red-50 cursor-pointer">
+        <button type="button" onClick={onCloseRegister} disabled={networkOffline} title={networkOffline ? "Reconnect and sync before closing the register" : undefined} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 text-xs font-medium text-red-600 hover:bg-red-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
           <LockKeyhole size={13} /> Close
         </button>
       </span>

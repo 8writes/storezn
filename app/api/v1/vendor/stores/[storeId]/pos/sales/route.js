@@ -10,7 +10,7 @@ import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
 import { canReplayOfflineSale, validateTenders } from "@/lib/pos.js";
 import { posContext, loadSession, loadSessionAny } from "@/lib/posAccess.js";
-import { lockPosSession, reconcileClosedPosSession } from "@/lib/posSession.js";
+import { buildPosSessionSummary, lockPosSession, reconcileClosedPosSession } from "@/lib/posSession.js";
 import { logAppError } from "@/lib/appErrorLog.js";
 import { withApiMonitoring } from "@/lib/apiMonitoring.js";
 
@@ -37,18 +37,33 @@ async function handlePost(req, { params }) {
   // has since been closed, or a branch reassignment, must not strand it.
   const soldAtMs = data.soldAt ? new Date(data.soldAt).getTime() : NaN;
   const isDelayedSale = Number.isFinite(soldAtMs) && Date.now() - soldAtMs > 90_000;
+  const isOfflineReplay = data.offlineReplay === true || isDelayedSale;
 
   // Live sales remain branch-scoped. A delayed queued sale may use its
   // original same-store session after a branch reassignment; its timestamp
   // is still required to fall inside that shift below.
   let sessionRow = await loadSession(storeId, data.sessionId, user);
-  if (!sessionRow && isDelayedSale) {
+  if (!sessionRow && isOfflineReplay) {
     const historicalSession = await loadSessionAny(storeId, data.sessionId);
     if (historicalSession?.session.status === "closed") sessionRow = historicalSession;
   }
   if (!sessionRow) return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
-  const canReplayClosedSession = isDelayedSale && canReplayOfflineSale(sessionRow.session, soldAtMs);
+  if (isOfflineReplay) {
+    const openedAtMs = new Date(sessionRow.session.openedAt).getTime();
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    if (
+      !Number.isFinite(soldAtMs) ||
+      !Number.isFinite(openedAtMs) ||
+      soldAtMs < openedAtMs ||
+      soldAtMs < sevenDaysAgo ||
+      soldAtMs > Date.now() + 60_000
+    ) {
+      return NextResponse.json({ error: "Offline sale timestamp is outside this register shift" }, { status: 409 });
+    }
+  }
+
+  const canReplayClosedSession = isOfflineReplay && canReplayOfflineSale(sessionRow.session, soldAtMs);
   if (sessionRow.session.status !== "open" && !canReplayClosedSession) {
     return NextResponse.json({ error: "This register session is closed - open a new one" }, { status: 409 });
   }
@@ -110,9 +125,14 @@ async function handlePost(req, { params }) {
       : toKobo(computeWholesalePrice(product, item.quantity).total);
     const catalogueUnitKobo = item.quantity > 0 ? Math.round(catalogueLineKobo / item.quantity) : catalogueLineKobo;
 
-    const overridden = item.unitPrice != null && toKobo(item.unitPrice) !== catalogueUnitKobo;
-    const unitKobo = item.unitPrice != null ? toKobo(item.unitPrice) : catalogueUnitKobo;
-    const baseLineKobo = item.unitPrice != null ? unitKobo * item.quantity : catalogueLineKobo;
+    const capturedLineKobo = isOfflineReplay && item.capturedLineTotal != null ? toKobo(item.capturedLineTotal) : null;
+    const baseLineKobo = capturedLineKobo != null
+      ? capturedLineKobo
+      : item.unitPrice != null
+        ? toKobo(item.unitPrice) * item.quantity
+        : catalogueLineKobo;
+    const unitKobo = item.quantity > 0 ? Math.round(baseLineKobo / item.quantity) : baseLineKobo;
+    const overridden = baseLineKobo !== catalogueLineKobo;
 
     const lineDiscountKobo = Math.min(toKobo(item.lineDiscount || 0), baseLineKobo);
     const lineTotalKobo = baseLineKobo - lineDiscountKobo;
@@ -129,9 +149,19 @@ async function handlePost(req, { params }) {
     });
   }
 
+  if (!isOwner && resolved.some((line) => line.overridden)) {
+    return NextResponse.json(
+      { error: "A product price changed while this sale was offline. Ask the store owner to review and sync it." },
+      { status: 403 },
+    );
+  }
+
   const subtotalKobo = resolved.reduce((s, r) => s + r.lineTotalKobo, 0);
   const discountAmountKobo = Math.min(toKobo(data.discountAmount || 0), subtotalKobo);
   const totalKobo = subtotalKobo - discountAmountKobo;
+  if (!Number.isSafeInteger(totalKobo) || totalKobo < 0 || totalKobo > 2_000_000_000) {
+    return NextResponse.json({ error: "Sale total is outside the supported POS range" }, { status: 400 });
+  }
 
   const tendersKobo = data.tenders.map((t) => ({
     method: t.method,
@@ -181,6 +211,20 @@ async function handlePost(req, { params }) {
           const error = new Error("This register session is closed - open a new one");
           error.code = "POS_SESSION_CLOSED";
           throw error;
+        }
+        if (lockedSession.status === "open" && !isOfflineReplay) {
+          const drawerDelta = tendersKobo.reduce(
+            (sum, tender) => sum + (tender.method === "cash" ? tender.amount : 0) - Number(tender.changeGiven || 0),
+            0,
+          );
+          if (drawerDelta < 0) {
+            const summary = await buildPosSessionSummary(tx, lockedSession);
+            if (summary.drawer.expectedCash + drawerDelta < 0) {
+              const error = new Error("Not enough expected cash in this drawer to give that change");
+              error.code = "INSUFFICIENT_DRAWER_CASH";
+              throw error;
+            }
+          }
         }
         await reserveStock(
           tx,
@@ -376,7 +420,7 @@ async function handlePost(req, { params }) {
         orderNumber = generateOrderNumber();
         continue;
       }
-      if (err?.code === "POS_SESSION_CLOSED") {
+      if (["POS_SESSION_CLOSED", "INSUFFICIENT_DRAWER_CASH"].includes(err?.code)) {
         return NextResponse.json({ error: err.message }, { status: 409 });
       }
       await logAppError(err, {

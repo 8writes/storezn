@@ -8,6 +8,7 @@ test("split tenders must settle the total exactly", () => {
     { method: "card", amount: 6_000, changeGiven: 0 },
   ], 10_000), { ok: true });
   assert.equal(validateTenders([{ method: "cash", amount: 9_998 }], 10_000).ok, false);
+  assert.equal(validateTenders([{ method: "cash", amount: 2_100_000_000 }], 2_100_000_000).ok, false);
 });
 
 test("non-cash overpayment remains gross in its account and cash change leaves the drawer", () => {
