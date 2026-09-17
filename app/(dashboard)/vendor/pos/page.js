@@ -122,10 +122,10 @@ export default function SellPage() {
   const activeStore = stores.find((s) => s.id === storeId);
   const regCacheKey = `pos_registers_${storeId}`;
 
-  const loadRegisters = useCallback(() => {
+  const loadRegisters = useCallback((forceNetwork = false) => {
     if (!token || !storeId) return;
     setRegError(false);
-    apiFetch(`/api/v1/vendor/stores/${storeId}/pos/registers`)
+    return apiFetch(`/api/v1/vendor/stores/${storeId}/pos/registers`)
       .then((data) => {
         setRegisters(data.registers);
         try {
@@ -134,9 +134,15 @@ export default function SellPage() {
           /* ignore */
         }
       })
-      .catch(() => {
+      .catch((error) => {
         // Keep the till usable offline: reuse the last-seen register list
-        // rather than bailing to an error screen.
+        // only for a real network failure. An HTTP error or a forced stale-
+        // session refresh must not resurrect an obsolete session id.
+        if (forceNetwork || error?.status) {
+          setRegisters([]);
+          setRegError(true);
+          return;
+        }
         let cached = null;
         try {
           cached = JSON.parse(localStorage.getItem(regCacheKey) || "null");
@@ -200,7 +206,7 @@ export default function SellPage() {
         <div className="max-w-md mx-auto bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
           <h2 className="text-base font-bold text-slate-900">Couldn&apos;t load the register</h2>
           <p className="text-sm text-slate-800">Check your connection and try again.</p>
-          <Button type="button" onClick={loadRegisters}>
+          <Button type="button" onClick={() => loadRegisters()}>
             Retry
           </Button>
         </div>
@@ -290,7 +296,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         setSessionData(null);
         if (error?.status === 404 || error?.status === 409) {
           localStorage.removeItem(lsKey);
-          reloadRegisters();
+          reloadRegisters(true).catch(() => {});
         } else {
           toast.error(error.message || "Could not load the open register");
         }
@@ -652,7 +658,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         setCashOpen(false);
         setSessionData(null);
         localStorage.removeItem(lsKey);
-        reloadRegisters();
+        reloadRegisters(true).catch(() => {});
       }
       toast.error(err.message || "Couldn't record that");
     } finally {
@@ -671,7 +677,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       return data.zReport;
     } catch (error) {
       if (error?.status === 404 || (error?.status === 409 && /session is closed|already closed/i.test(error.message || ""))) {
-        await reloadRegisters();
+        await reloadRegisters(true).catch(() => {});
         setSessionData(null);
         setCloseOpen(false);
       }
