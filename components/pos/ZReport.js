@@ -103,14 +103,30 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
 
         {byAccount.length > 0 && (
           <div className="px-3 py-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Into which account</p>
-            {byAccount.map((a) => (
-              <Row
-                key={`${a.method}|${a.provider}`}
-                label={`${a.method === "card" ? "POS" : METHOD_LABEL[a.method] || a.method} · ${a.provider}`}
-                value={formatKobo(a.amount)}
-              />
-            ))}
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              Gross received into account
+            </p>
+            {byAccount.map((a) => {
+              const grossReceived = a.grossReceived ?? a.amount;
+              const refunds = a.refunds || 0;
+              return (
+              <div key={`${a.method}|${a.provider}`} className="py-1 border-b border-slate-100 last:border-0">
+                <Row
+                  label={`${a.method === "card" ? "POS" : METHOD_LABEL[a.method] || a.method} · ${a.provider}`}
+                  value={formatKobo(grossReceived)}
+                  strong
+                />
+                {(a.changeGiven || 0) > 0 && (
+                  <p className="text-[11px] text-slate-600 -mt-1 pb-1">
+                    Account received {formatKobo(grossReceived)} gross. Cash change given: {formatKobo(a.changeGiven)}. Sale amount: {formatKobo(a.netApplied ?? a.amount - a.changeGiven)}.
+                  </p>
+                )}
+                {refunds > 0 && <p className="text-[11px] text-red-600 -mt-1 pb-1">Refunded from this account: {formatKobo(refunds)}</p>}
+              </div>
+            );})}
+            <p className="text-[11px] text-slate-500 pt-1">
+              These are the full amounts credited to each POS or transfer account before cash change was handed out.
+            </p>
           </div>
         )}
 

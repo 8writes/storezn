@@ -20,6 +20,10 @@ test("non-cash overpayment remains gross in its account and cash change leaves t
   });
   assert.equal(summary.byTenderMethod.transfer, 10_000);
   assert.equal(summary.byAccount[0].amount, 10_000);
+  assert.equal(summary.byAccount[0].grossReceived, 10_000);
+  assert.equal(summary.byAccount[0].refunds, 0);
+  assert.equal(summary.byAccount[0].changeGiven, 1_000);
+  assert.equal(summary.byAccount[0].netApplied, 9_000);
   assert.equal(summary.nonCashChangeOut, 1_000);
   assert.equal(summary.drawer.expectedCash, 19_000);
 });

@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDateTime } from "@/lib/format.js";
+import { formatKobo } from "@/lib/money.js";
 import { Check, Flag } from "lucide-react";
 
 const GROUPS = [
@@ -34,14 +35,63 @@ const KIND = {
   "cash.drop": { label: "Cash drop", color: "slate" },
   "register.open": { label: "Register open", color: "blue" },
   "register.close": { label: "Register close", color: "slate" },
+  "register.close.reviewed": { label: "Close reviewed", color: "green" },
   "stock.adjust": { label: "Stock", color: "blue" },
   "product.create": { label: "Product added", color: "green" },
   "product.update": { label: "Product edit", color: "amber" },
   "product.delete": { label: "Product deleted", color: "red" },
+  "product.variant.create": { label: "Option added", color: "green" },
+  "product.variant.update": { label: "Option edited", color: "amber" },
+  "product.variant.delete": { label: "Option deleted", color: "red" },
   "staff.add": { label: "Staff added", color: "green" },
   "staff.remove": { label: "Staff removed", color: "red" },
   "staff.branch": { label: "Staff branch", color: "blue" },
 };
+
+function activityCopy(row) {
+  const meta = row.metadata || {};
+  if (row.action === "pos.sale" || row.action === "pos.sale.adjusted") {
+    const payments = Array.isArray(meta.tenders)
+      ? meta.tenders.map((tender) => {
+          const method = tender.method === "card" ? "POS" : tender.method === "transfer" ? "Transfer" : "Cash";
+          return `${method}${tender.provider ? ` (${tender.provider})` : ""}: ${formatKobo(tender.amountKobo || 0)}`;
+        }).join(" + ")
+      : null;
+    return {
+      title: `Completed sale${meta.orderNumber ? ` ${meta.orderNumber}` : ""}`,
+      detail: `${meta.itemCount || 0} item${meta.itemCount === 1 ? "" : "s"} sold for ${formatKobo(meta.totalKobo || 0)}`,
+      extra: payments ? `Payment received: ${payments}` : null,
+    };
+  }
+  if (row.action === "pos.return") {
+    return {
+      title: "Processed a customer return",
+      detail: `${formatKobo(meta.refundKobo || 0)} refunded${meta.originalOrderNumber ? ` for order ${meta.originalOrderNumber}` : ""}`,
+      extra: meta.refundMethod ? `Refund method: ${meta.refundMethod === "card" ? "POS" : meta.refundMethod}` : null,
+    };
+  }
+  if (row.action.startsWith("cash.")) {
+    const names = { "cash.paid_in": "Added cash to the drawer", "cash.paid_out": "Removed cash from the drawer", "cash.drop": "Moved cash to the safe or bank" };
+    return {
+      title: names[row.action] || "Changed drawer cash",
+      detail: `${formatKobo(meta.amountKobo || 0)}${meta.reason ? ` · Reason: ${meta.reason}` : ""}`,
+    };
+  }
+  if (row.action === "register.open") {
+    return {
+      title: `Opened ${meta.registerName || "the register"}`,
+      detail: `Starting cash: ${formatKobo(meta.openingFloatKobo || 0)}`,
+    };
+  }
+  if (row.action === "register.close") {
+    return {
+      title: `Closed ${meta.registerName || "the register"}`,
+      detail: `Counted ${formatKobo(meta.countedCashKobo || 0)} · Expected ${formatKobo(meta.expectedCashKobo || 0)}`,
+      extra: `Difference: ${formatKobo(meta.overShortKobo || 0)}${meta.provisional ? " · Pending offline sales" : ""}`,
+    };
+  }
+  return { title: (KIND[row.action] || {}).label || row.action, detail: row.summary };
+}
 
 function targetHref(row, storeId) {
   if (row.targetType === "order" && row.targetId) return `/vendor/orders/${row.targetId}?storeId=${storeId}`;
@@ -162,6 +212,7 @@ export default function VendorActivityPage() {
               rows.map((r) => {
                 const kind = KIND[r.action] || { label: r.action, color: "slate" };
                 const href = targetHref(r, storeId);
+                const copy = activityCopy(r);
                 return (
                   <tr key={r.id} className="border-t border-slate-100 align-top">
                     <td className="px-4 py-3 text-slate-800 whitespace-nowrap">{formatDateTime(r.createdAt)}</td>
@@ -176,13 +227,15 @@ export default function VendorActivityPage() {
                       <Badge color={kind.color}>{kind.label}</Badge>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
+                      <p className="font-semibold text-slate-900">{copy.title}</p>
                       {href ? (
-                        <Link href={href} className="text-brand-600 hover:underline">
-                          {r.summary}
+                        <Link href={href} className="text-brand-600 hover:underline block mt-0.5">
+                          {copy.detail}
                         </Link>
                       ) : (
-                        r.summary
+                        <p className="mt-0.5">{copy.detail}</p>
                       )}
+                      {copy.extra && <p className="mt-0.5 text-xs text-slate-600">{copy.extra}</p>}
                       {r.flagNote && <p className="mt-1 text-xs text-amber-800">Review note: {r.flagNote}</p>}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
