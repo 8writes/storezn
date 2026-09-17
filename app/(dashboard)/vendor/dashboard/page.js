@@ -455,7 +455,7 @@ export default function VendorDashboardPage() {
                     icon={Package}
                     label="Products"
                     value={stats.products.total}
-                    sub={`${stats.products.live} live · ₦${compactNumber(stats.products.stockValue || 0)} stock value`}
+                    sub={`${stats.products.live} live · ₦${compactNumber(stats.products.stockValue || 0)} value`}
                     href="/vendor/products"
                   />
                   <StatCard

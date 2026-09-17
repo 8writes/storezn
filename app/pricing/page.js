@@ -127,6 +127,7 @@ export default async function PricingPage() {
               Get started
               <ArrowRight size={16} />
             </Link>
+            <p className="mt-2 text-xs text-slate-500 text-center">Cancel anytime</p>
           </div>
 
           {/* Storezn Enterprise - contact sales, no self-serve checkout */}
