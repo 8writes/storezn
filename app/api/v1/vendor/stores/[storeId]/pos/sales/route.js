@@ -8,8 +8,8 @@ import { computeWholesalePrice } from "@/lib/pricing.js";
 import { reserveStock, OutOfStockError } from "@/lib/inventory.js";
 import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
-import { validateTenders } from "@/lib/pos.js";
-import { posContext, loadSession } from "@/lib/posAccess.js";
+import { canReplayOfflineSale, validateTenders } from "@/lib/pos.js";
+import { posContext, loadSession, loadSessionAny } from "@/lib/posAccess.js";
 import { lockPosSession, reconcileClosedPosSession } from "@/lib/posSession.js";
 import { logAppError } from "@/lib/appErrorLog.js";
 import { withApiMonitoring } from "@/lib/apiMonitoring.js";
@@ -38,13 +38,17 @@ async function handlePost(req, { params }) {
   const soldAtMs = data.soldAt ? new Date(data.soldAt).getTime() : NaN;
   const isDelayedSale = Number.isFinite(soldAtMs) && Date.now() - soldAtMs > 90_000;
 
-  const sessionRow = await loadSession(storeId, data.sessionId, user);
+  // Live sales remain branch-scoped. A delayed queued sale may use its
+  // original same-store session after a branch reassignment; its timestamp
+  // is still required to fall inside that shift below.
+  let sessionRow = await loadSession(storeId, data.sessionId, user);
+  if (!sessionRow && isDelayedSale) {
+    const historicalSession = await loadSessionAny(storeId, data.sessionId);
+    if (historicalSession?.session.status === "closed") sessionRow = historicalSession;
+  }
   if (!sessionRow) return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
-  const canReplayClosedSession = sessionRow.session.status === "closed" &&
-    isDelayedSale && sessionRow.session.provisional && Number(sessionRow.session.pendingSyncCount || 0) > 0 &&
-    soldAtMs >= new Date(sessionRow.session.openedAt).getTime() &&
-    soldAtMs <= new Date(sessionRow.session.closedAt).getTime();
+  const canReplayClosedSession = isDelayedSale && canReplayOfflineSale(sessionRow.session, soldAtMs);
   if (sessionRow.session.status !== "open" && !canReplayClosedSession) {
     return NextResponse.json({ error: "This register session is closed - open a new one" }, { status: 409 });
   }
@@ -172,8 +176,7 @@ async function handlePost(req, { params }) {
       const created = await db.transaction(async (tx) => {
         const lockedSession = await lockPosSession(tx, settleSessionId);
         if (!lockedSession) throw new Error("Session disappeared while settling sale");
-        const lockedReplayAllowed = lockedSession.status === "closed" && canReplayClosedSession &&
-          lockedSession.provisional && Number(lockedSession.pendingSyncCount || 0) > 0;
+        const lockedReplayAllowed = lockedSession.status === "closed" && canReplayClosedSession;
         if (lockedSession.status !== "open" && !lockedReplayAllowed) {
           const error = new Error("This register session is closed - open a new one");
           error.code = "POS_SESSION_CLOSED";

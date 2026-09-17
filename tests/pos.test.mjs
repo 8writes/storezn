@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildSessionSummary, computeDrawer, validateTenders } from "../lib/pos.js";
+import { buildSessionSummary, canReplayOfflineSale, computeDrawer, validateTenders } from "../lib/pos.js";
 
 test("split tenders must settle the total exactly", () => {
   assert.deepEqual(validateTenders([
@@ -30,4 +30,26 @@ test("opening float movement is not counted twice", () => {
     { kind: "paid_out", amount: -2_000 },
   ]);
   assert.equal(drawer.expectedCash, 60_500);
+});
+
+test("offline sale can replay only into the shift where it was rung up", () => {
+  const now = new Date("2026-01-02T10:00:00Z").getTime();
+  const session = {
+    status: "closed",
+    openedAt: "2026-01-01T08:00:00Z",
+    closedAt: "2026-01-01T18:00:00Z",
+  };
+  assert.equal(canReplayOfflineSale(session, new Date("2026-01-01T12:00:00Z").getTime(), now), true);
+  assert.equal(canReplayOfflineSale(session, new Date("2026-01-01T19:00:00Z").getTime(), now), false);
+  assert.equal(canReplayOfflineSale({ ...session, status: "open" }, new Date("2026-01-01T12:00:00Z").getTime(), now), false);
+});
+
+test("offline replay rejects sales older than seven days", () => {
+  const now = new Date("2026-01-10T10:00:00Z").getTime();
+  const session = {
+    status: "closed",
+    openedAt: "2026-01-01T08:00:00Z",
+    closedAt: "2026-01-01T18:00:00Z",
+  };
+  assert.equal(canReplayOfflineSale(session, new Date("2026-01-01T12:00:00Z").getTime(), now), false);
 });
