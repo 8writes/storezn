@@ -40,7 +40,6 @@ import {
   MonitorSmartphone,
   Bug,
   Activity,
-  BadgePercent,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -76,7 +75,6 @@ const NAV_BY_ROLE = {
         { href: "/super-admin/api-monitoring", label: "API monitor", icon: Activity },
         { href: "/super-admin/app-errors", label: "App errors", icon: Bug },
         { href: "/super-admin/notifications", label: "Notify vendors", icon: Bell },
-        { href: "/super-admin/settings#storezn-plus-pricing", label: "Storezn+ pricing", icon: BadgePercent },
         { href: "/super-admin/settings", label: "Platform settings", icon: Settings },
       ],
     },
