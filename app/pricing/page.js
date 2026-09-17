@@ -105,7 +105,7 @@ export default async function PricingPage() {
             <p className="text-sm font-semibold text-brand-700 uppercase tracking-wide">Storezn+</p>
             <p className="mt-2 text-4xl font-extrabold text-slate-900">
               {formatCurrency(discountPercent ? introductoryPrice : settings.plusMonthlyPrice)}
-              <span className="text-base font-medium text-slate-400">/month</span>
+              <span className="text-base font-medium text-slate-400">{discountPercent ? " first month" : "/month"}</span>
             </p>
             <p className="mt-1 text-sm text-slate-500">
               {discountPercent

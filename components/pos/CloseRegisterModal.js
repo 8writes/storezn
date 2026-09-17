@@ -55,7 +55,7 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
         payload = { countBreakdown };
       } else payload = { countedCash: Number(counted || 0) };
       const z = await onSubmit(payload);
-      setZReport(z);
+      if (z) setZReport(z);
     } finally {
       setSubmitting(false);
     }

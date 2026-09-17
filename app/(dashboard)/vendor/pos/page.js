@@ -275,7 +275,10 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const resolveActiveRegister = useCallback(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem(lsKey) : null;
     const withOpen = registers.find((r) => r.openSession);
-    return registers.find((r) => r.id === saved) || withOpen || null;
+    const savedRegister = registers.find((r) => r.id === saved);
+    // A remembered but currently closed register must not hide another
+    // register's open overnight shift.
+    return (savedRegister?.openSession ? savedRegister : null) || withOpen || savedRegister || null;
   }, [registers, lsKey]);
 
   const fetchSession = useCallback(
@@ -283,11 +286,17 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       try {
         const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${sessionId}`);
         setSessionData(data);
-      } catch {
+      } catch (error) {
         setSessionData(null);
+        if (error?.status === 404 || error?.status === 409) {
+          localStorage.removeItem(lsKey);
+          reloadRegisters();
+        } else {
+          toast.error(error.message || "Could not load the open register");
+        }
       }
     },
-    [apiFetch, storeId],
+    [apiFetch, storeId, lsKey, reloadRegisters],
   );
 
   useEffect(() => {
@@ -639,6 +648,12 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       refresh();
       toast.success(res?.replayed ? "Already recorded" : "Recorded");
     } catch (err) {
+      if (err?.status === 404 || (err?.status === 409 && /session is closed|already closed/i.test(err.message || ""))) {
+        setCashOpen(false);
+        setSessionData(null);
+        localStorage.removeItem(lsKey);
+        reloadRegisters();
+      }
       toast.error(err.message || "Couldn't record that");
     } finally {
       setCashSubmitting(false);
@@ -647,12 +662,22 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
   // payload: { countedCash } | { countBreakdown } | { forced, forcedReason }
   const closeRegister = async (payload) => {
-    const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${openSession.session.id}/close`, {
-      method: "POST",
-      body: JSON.stringify({ ...payload, pendingSyncCount: pendingSync }),
-    });
-    reloadRegisters();
-    return data.zReport;
+    try {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${openSession.session.id}/close`, {
+        method: "POST",
+        body: JSON.stringify({ ...payload, pendingSyncCount: pendingSync }),
+      });
+      reloadRegisters();
+      return data.zReport;
+    } catch (error) {
+      if (error?.status === 404 || (error?.status === 409 && /session is closed|already closed/i.test(error.message || ""))) {
+        await reloadRegisters();
+        setSessionData(null);
+        setCloseOpen(false);
+      }
+      toast.error(error.message || "Could not close the register");
+      return null;
+    }
   };
 
   if (checking) return <PosSkeleton />;
