@@ -26,7 +26,7 @@ const ENTERPRISE_FEATURES = [
   "Everything in Storezn+",
   "In-person registers (POS) on any phone, tablet or computer",
   "Cashier shifts, Z-reports and cash-drawer reconciliation",
-  "Keeps selling even when the internet drops, then syncs",
+  "Keeps selling even when the internet drops",
   "Record phone, WhatsApp and past sales into your order history",
   "Payment-account tracking (Moniepoint, Opay, transfers)",
   "Month-end forensic report: who did what, and where money went",

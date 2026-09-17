@@ -34,7 +34,7 @@ import {
   StatGridSkeleton,
   VendorDashboardSkeleton,
 } from "@/components/ui/Skeleton.js";
-import { formatCurrency, compactCurrency } from "@/lib/format.js";
+import { formatCurrency, compactCurrency, compactNumber } from "@/lib/format.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import {
   pushSupported,
@@ -455,7 +455,7 @@ export default function VendorDashboardPage() {
                     icon={Package}
                     label="Products"
                     value={stats.products.total}
-                    sub={`${stats.products.live} live`}
+                    sub={`${stats.products.live} live · ₦${compactNumber(stats.products.stockValue || 0)} stock value`}
                     href="/vendor/products"
                   />
                   <StatCard

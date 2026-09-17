@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { orders, products, stores } from "../../../../../../../lib/db/schema.js";
-import { eq, sql } from "drizzle-orm";
+import { orders, products, productVariants, stores } from "../../../../../../../lib/db/schema.js";
+import { and, eq, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
 
@@ -40,9 +40,35 @@ export async function GET(req, { params }) {
       // Perishables past their date, or within the next 30 days.
       expired: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} < current_date)`.mapWith(Number),
       expiringSoon: sql`count(*) filter (where ${products.expiryDate} is not null and ${products.expiryDate} >= current_date and ${products.expiryDate} < current_date + 30)`.mapWith(Number),
+      // Aggregate stock is maintained from branch stock by lib/inventory.
+      // Value tracked physical stock at the current effective shelf price;
+      // unlimited and negative balances do not have a useful stock value.
+      baseStockValue: sql`coalesce(sum(
+        ${products.stock} * ${products.price} * (1 - coalesce(${products.discountPercent}, 0) / 100.0)
+      ) filter (where ${products.productType} = 'physical' and ${products.isActive} and ${products.stock} is not null and ${products.stock} >= 0), 0)`.mapWith(Number),
     })
     .from(products)
     .where(eq(products.storeId, storeId));
+
+  const [variantStats] = await db
+    .select({
+      stockValue: sql`coalesce(sum(
+        ${productVariants.stock} * coalesce(
+          ${productVariants.price},
+          ${products.price} * (1 - coalesce(${products.discountPercent}, 0) / 100.0)
+        )
+      ) filter (where ${productVariants.stock} is not null and ${productVariants.stock} >= 0), 0)`.mapWith(Number),
+    })
+    .from(productVariants)
+    .innerJoin(products, eq(productVariants.productId, products.id))
+    .where(and(
+      eq(products.storeId, storeId),
+      eq(products.productType, "physical"),
+      eq(products.isActive, true),
+      eq(productVariants.isActive, true),
+    ));
+
+  const stockValue = (productStats?.baseStockValue || 0) + (variantStats?.stockValue || 0);
 
   return NextResponse.json({
     orders: { total: orderStats?.totalOrders || 0, pending: orderStats?.pending || 0 },
@@ -54,6 +80,7 @@ export async function GET(req, { params }) {
       oversold: productStats?.oversold || 0,
       expired: productStats?.expired || 0,
       expiringSoon: productStats?.expiringSoon || 0,
+      stockValue,
     },
   });
 }
