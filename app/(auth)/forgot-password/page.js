@@ -31,12 +31,15 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="space-y-4 text-center">
-        <h2 className="text-xl font-bold text-slate-900">Check your email</h2>
-        <p className="text-sm text-slate-800">
-          If an account exists for <strong>{email}</strong>, we've sent a link to reset your password.
-        </p>
-        <Link href="/login" className="text-sm text-brand-600 hover:underline">Back to sign in</Link>
+      <div className="space-y-5 text-center">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Reset link sent</h2>
+          <p className="mt-1 text-sm text-slate-700">If an account exists, we sent a password reset link to:</p>
+        </div>
+        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{email}</p>
+        <p className="text-sm leading-6 text-slate-800">Open the email and select <strong>Reset password</strong>. Then choose a new password.</p>
+        <p className="text-xs leading-5 text-slate-600">No email yet? Check your spam or junk folder, then try again.</p>
+        <Link href="/login" className="text-sm font-semibold text-brand-700 hover:underline">Back to sign in</Link>
       </div>
     );
   }
@@ -45,7 +48,7 @@ export default function ForgotPasswordPage() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <h2 className="text-xl font-bold text-slate-900">Forgot your password?</h2>
-        <p className="text-sm text-slate-800 mt-1">Enter your email and we'll send you a reset link.</p>
+        <p className="text-sm text-slate-800 mt-1">Enter your email and we&apos;ll send you a reset link.</p>
       </div>
 
       <Input

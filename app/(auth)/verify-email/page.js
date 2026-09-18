@@ -51,8 +51,8 @@ function VerifyEmailBody() {
     return (
       <div className="space-y-4 text-center">
         <h2 className="text-xl font-bold text-slate-900">Email verified</h2>
-        <p className="text-sm text-slate-800">You&apos;re all set - you can sign in now.</p>
-        <Link href="/login" className="text-sm text-brand-600 hover:underline">Sign in</Link>
+        <p className="text-sm text-slate-800">Your account is active. You can sign in now.</p>
+        <Link href="/login" className="text-sm font-semibold text-brand-700 hover:underline">Continue to sign in</Link>
       </div>
     );
   }
@@ -62,17 +62,20 @@ function VerifyEmailBody() {
     <div className="space-y-5 text-center">
       <div>
         <h2 className="text-xl font-bold text-slate-900">
-          {status === "missing" ? "Missing verification link" : "Link expired or invalid"}
+          {status === "missing" ? "Open your verification email" : "Request a new verification link"}
         </h2>
         <p className="text-sm text-slate-800 mt-1">
           {status === "missing"
-            ? "This page needs a verification link from your email."
-            : "This verification link is no longer valid. Request a new one below."}
+            ? "Use the Verify email link we sent to your inbox. If you cannot find it, request a new link below."
+            : "That link has expired or was already used. Enter your email below and we will send a new one."}
         </p>
       </div>
 
       {resent ? (
-        <p className="text-sm text-slate-800">If that email has an unverified account, a new link is on its way.</p>
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-slate-900">Verification email sent</p>
+          <p className="text-sm text-slate-700">Open the new email and select <strong>Verify email</strong>. Check spam or junk if it does not appear.</p>
+        </div>
       ) : (
         <form onSubmit={handleResend} className="space-y-3 text-left">
           <Input

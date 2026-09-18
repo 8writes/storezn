@@ -93,14 +93,14 @@ export default function StorefrontLoginPage() {
         </div>
         {unverified && (
           <div className="bg-amber-50 border border-amber-200 rounded-sm p-3 text-sm text-amber-800 flex items-center justify-between gap-3">
-            <span>Email not verified yet.</span>
+            <span>Verify your email before signing in.</span>
             <button
               type="button"
               onClick={handleResend}
               disabled={resending}
               className="font-medium underline underline-offset-2 disabled:opacity-50 cursor-pointer shrink-0"
             >
-              {resending ? "Sending…" : "Resend link"}
+              {resending ? "Sending…" : "Send new link"}
             </button>
           </div>
         )}

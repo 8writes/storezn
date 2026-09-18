@@ -31,12 +31,15 @@ export default function StorefrontForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="max-w-sm mx-auto py-8 space-y-4 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Check your email</h1>
-        <p className="text-sm text-slate-800">
-          If an account exists for <strong>{email}</strong>, we&apos;ve sent a link to reset your password.
-        </p>
-        <Link href="/login" className="block text-sm text-slate-900 underline underline-offset-2">Back to sign in</Link>
+      <div className="max-w-sm mx-auto py-8 space-y-5 text-center">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Reset link sent</h1>
+          <p className="mt-1 text-sm text-slate-700">If an account exists, we sent a password reset link to:</p>
+        </div>
+        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{email}</p>
+        <p className="text-sm leading-6 text-slate-800">Open the email and select <strong>Reset password</strong>. Then choose a new password.</p>
+        <p className="text-xs leading-5 text-slate-600">No email yet? Check your spam or junk folder, then try again.</p>
+        <Link href="/login" className="inline-block text-sm font-semibold text-brand-700 underline underline-offset-2">Back to sign in</Link>
       </div>
     );
   }

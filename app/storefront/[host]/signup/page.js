@@ -51,15 +51,15 @@ export default function StorefrontSignupPage() {
 
   if (created) {
     return (
-      <div className="max-w-sm mx-auto py-8 space-y-4 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Verify your email to continue</h1>
-        <p className="text-sm text-slate-800">
-          We&apos;ve sent a verification link to <strong>{form.email}</strong>. Open it and click the link to activate your account - you won&apos;t be able to sign in until you do.
-        </p>
-        <p className="text-sm text-slate-800">
-          Don&apos;t see it? Check your spam or junk folder.
-        </p>
-        <Link href="/login" className="block text-sm text-slate-900 underline underline-offset-2">Sign in</Link>
+      <div className="max-w-sm mx-auto py-8 space-y-5 text-center">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Check your email</h1>
+          <p className="mt-1 text-sm text-slate-700">We sent a verification link to:</p>
+        </div>
+        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{form.email}</p>
+        <p className="text-sm leading-6 text-slate-800">Open the email and select <strong>Verify email</strong>. Then return here and sign in.</p>
+        <p className="text-xs leading-5 text-slate-600">No email yet? Check your spam or junk folder. You can also request a new link from the sign-in page.</p>
+        <Link href="/login" className="inline-block text-sm font-semibold text-brand-700 underline underline-offset-2">I&apos;ve verified my email - sign in</Link>
       </div>
     );
   }

@@ -82,15 +82,15 @@ function VendorSignupForm() {
 
   if (created) {
     return (
-      <div className="space-y-4 text-center">
-        <h2 className="text-xl font-bold text-slate-900">Verify your email to continue</h2>
-        <p className="text-sm text-slate-800">
-          We&apos;ve sent a verification link to <strong>{form.vendor.email}</strong>. Open it and click the link to activate your account - you won&apos;t be able to sign in until you do.
-        </p>
-        <p className="text-sm text-slate-800">
-          Don&apos;t see it? Check your spam or junk folder.
-        </p>
-        <Link href="/login" className="text-sm text-brand-600 hover:underline">Sign in</Link>
+      <div className="space-y-5 text-center">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Check your email</h2>
+          <p className="mt-1 text-sm text-slate-700">We sent a verification link to:</p>
+        </div>
+        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{form.vendor.email}</p>
+        <p className="text-sm leading-6 text-slate-800">Open the email and select <strong>Verify email</strong>. Then return here and sign in.</p>
+        <p className="text-xs leading-5 text-slate-600">No email yet? Check your spam or junk folder. You can also request a new link from the sign-in page.</p>
+        <Link href="/login" className="inline-block text-sm font-semibold text-brand-700 hover:underline">I&apos;ve verified my email - sign in</Link>
       </div>
     );
   }
