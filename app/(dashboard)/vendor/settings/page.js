@@ -233,104 +233,132 @@ export default function VendorSettingsPage() {
       {isOwner && !loading && store && !store.isActive && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
           <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-          <p>Your store has been disabled by Storezn and isn&apos;t visible to customers. Contact support for details.</p>
+          <p>
+            Your store has been disabled by Storezn and isn&apos;t visible to
+            customers. Contact support for details.
+          </p>
         </div>
       )}
 
       {isOwner && !loading && store && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">Store status</p>
-            <p className="text-xs text-slate-800 mt-0.5">
-              {store.isOpen ? "Live - customers can browse and order." : "Offline - customers see a closed page instead."}
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={store.isOpen}
-            disabled={togglingOpen || !store.isActive}
-            onClick={handleToggleOpen}
-            className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-              store.isOpen ? "bg-brand-600" : "bg-slate-300"
-            }`}
-          >
-            <span
-              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
-                store.isOpen ? "translate-x-5" : "translate-x-0"
-              }`}
-            />
-          </button>
-        </div>
-
-        <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <p className="text-sm font-semibold text-slate-900">Marketplace listing</p>
-              <InfoTip>
-                Shoppers can discover your products from the Storezn marketplace, outside your own website link. Turning this off only removes you from the marketplace - your store link keeps working exactly as before.
-              </InfoTip>
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                Store status
+              </p>
+              <p className="text-xs text-slate-800 mt-0.5">
+                {store.isOpen
+                  ? "Live - customers can browse and order."
+                  : "Offline - customers see a closed page instead."}
+              </p>
             </div>
-            <p className="text-xs text-slate-800 mt-0.5">
-              {store.listOnMarketplace ? "Your products show up in the marketplace." : "Not listed in the marketplace."}
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={store.listOnMarketplace}
-            disabled={togglingMarketplace || !store.isActive}
-            onClick={handleToggleMarketplace}
-            className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-              store.listOnMarketplace ? "bg-brand-600" : "bg-slate-300"
-            }`}
-          >
-            <span
-              className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
-                store.listOnMarketplace ? "translate-x-5" : "translate-x-0"
+            <button
+              type="button"
+              role="switch"
+              aria-checked={store.isOpen}
+              disabled={togglingOpen || !store.isActive}
+              onClick={handleToggleOpen}
+              className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                store.isOpen ? "bg-brand-600" : "bg-slate-300"
               }`}
-            />
-          </button>
-        </div>
+            >
+              <span
+                className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
+                  store.isOpen ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
 
-        {/* Custom domain full-width on mobile; Storage rides beside it on desktop. */}
-        <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <CustomDomainSettings
-            store={store}
-            isPlus={isPlus}
-            apiFetch={apiFetch}
-            storeId={storeId}
-            onUpdated={(updated) => {
-              setStore(updated);
-              updateStore(updated);
-            }}
-          />
-          {storageLimitBytes > 0 && (
-            <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <SectionLabel>Storage</SectionLabel>
-                <Link href="/vendor/plus" className="text-xs font-semibold text-brand-600 hover:text-brand-700">
-                  Get more storage
-                </Link>
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-semibold text-slate-900">
+                  Marketplace listing
+                </p>
+                <InfoTip>
+                  Shoppers can discover your products from the Storezn
+                  marketplace, outside your own website link. Turning this off
+                  only removes you from the marketplace - your store link keeps
+                  working exactly as before.
+                </InfoTip>
               </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-800">Used across logos, favicons, and product photos</span>
-                  <span className={storageUsedBytes >= storageLimitBytes ? "font-medium text-red-600" : "text-slate-700 font-medium"}>
-                    {formatBytes(storageUsedBytes)} of {formatBytes(storageLimitBytes)}
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${storageUsedBytes / storageLimitBytes >= 0.9 ? "bg-red-500" : "bg-brand-600"}`}
-                    style={{ width: `${Math.min(100, (storageUsedBytes / storageLimitBytes) * 100)}%` }}
-                  />
-                </div>
-              </div>
+              <p className="text-xs text-slate-800 mt-0.5">
+                {store.listOnMarketplace
+                  ? "Your products show up in the marketplace."
+                  : "Not listed in the marketplace."}
+              </p>
             </div>
-          )}
-        </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={store.listOnMarketplace}
+              disabled={togglingMarketplace || !store.isActive}
+              onClick={handleToggleMarketplace}
+              className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                store.listOnMarketplace ? "bg-brand-600" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
+                  store.listOnMarketplace ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Custom domain full-width on mobile; Storage rides beside it on desktop. */}
+          <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <CustomDomainSettings
+              store={store}
+              isPlus={isPlus}
+              apiFetch={apiFetch}
+              storeId={storeId}
+              onUpdated={(updated) => {
+                setStore(updated);
+                updateStore(updated);
+              }}
+            />
+            {storageLimitBytes > 0 && (
+              <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <SectionLabel>Storage</SectionLabel>
+                  <Link
+                    href="/vendor/plus"
+                    className="text-xs font-semibold text-brand-600 hover:text-brand-700"
+                  >
+                    Get more storage
+                  </Link>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-800">
+                      Used across logos, favicons, and product photos
+                    </span>
+                    <span
+                      className={
+                        storageUsedBytes >= storageLimitBytes
+                          ? "font-medium text-red-600"
+                          : "text-slate-700 font-medium"
+                      }
+                    >
+                      {formatBytes(storageUsedBytes)} of{" "}
+                      {formatBytes(storageLimitBytes)}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${storageUsedBytes / storageLimitBytes >= 0.9 ? "bg-red-500" : "bg-brand-600"}`}
+                      style={{
+                        width: `${Math.min(100, (storageUsedBytes / storageLimitBytes) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -339,285 +367,461 @@ export default function VendorSettingsPage() {
       ) : (
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {isPlus ? (
-            <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <Palette size={16} className="text-slate-400" />
-                <SectionLabel>Storefront theme</SectionLabel>
-              </div>
-              <p className="text-xs text-slate-800">Sets the accent color for your storefront&apos;s header, buttons, and prices.</p>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={HEX_RE.test(form.storefrontAccentColor) ? form.storefrontAccentColor : DEFAULT_ACCENT}
-                  onChange={(e) => setForm((f) => ({ ...f, storefrontAccentColor: e.target.value }))}
-                  className="h-10 w-14 rounded-sm border border-slate-200 cursor-pointer shrink-0"
-                />
-                <Input
-                  placeholder={DEFAULT_ACCENT}
-                  value={form.storefrontAccentColor}
-                  onChange={(e) => setForm((f) => ({ ...f, storefrontAccentColor: e.target.value }))}
-                  className="flex-1"
-                />
-                {form.storefrontAccentColor && (
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, storefrontAccentColor: "" }))}
-                    className="text-xs text-slate-800 hover:text-slate-700 shrink-0 cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
-              {form.storefrontAccentColor && !HEX_RE.test(form.storefrontAccentColor) && (
-                <p className="text-xs text-red-600">Enter a valid hex color, e.g. #7c3aed</p>
-              )}
-              {form.storefrontAccentColor && HEX_RE.test(form.storefrontAccentColor) && isColorTooLight(form.storefrontAccentColor) && (
-                <p className="text-xs text-red-600">Too close to white - your header/footer text (white) would be unreadable on it. Pick something darker.</p>
-              )}
-            </div>
-          ) : (
-            <div className="lg:col-span-2 bg-surface border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
-              <div className="flex items-center justify-between gap-3">
+            {isPlus ? (
+              <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
                 <div className="flex items-center gap-2">
                   <Palette size={16} className="text-slate-400" />
                   <SectionLabel>Storefront theme</SectionLabel>
                 </div>
-                <Badge color="slate">Storezn+</Badge>
+                <p className="text-xs text-slate-800">
+                  Sets the accent color for your storefront&apos;s header,
+                  buttons, and prices.
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={
+                      HEX_RE.test(form.storefrontAccentColor)
+                        ? form.storefrontAccentColor
+                        : DEFAULT_ACCENT
+                    }
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        storefrontAccentColor: e.target.value,
+                      }))
+                    }
+                    className="h-10 w-14 rounded-sm border border-slate-200 cursor-pointer shrink-0"
+                  />
+                  <Input
+                    placeholder={DEFAULT_ACCENT}
+                    value={form.storefrontAccentColor}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        storefrontAccentColor: e.target.value,
+                      }))
+                    }
+                    className="flex-1"
+                  />
+                  {form.storefrontAccentColor && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, storefrontAccentColor: "" }))
+                      }
+                      className="text-xs text-slate-800 hover:text-slate-700 shrink-0 cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                {form.storefrontAccentColor &&
+                  !HEX_RE.test(form.storefrontAccentColor) && (
+                    <p className="text-xs text-red-600">
+                      Enter a valid hex color, e.g. #7c3aed
+                    </p>
+                  )}
+                {form.storefrontAccentColor &&
+                  HEX_RE.test(form.storefrontAccentColor) &&
+                  isColorTooLight(form.storefrontAccentColor) && (
+                    <p className="text-xs text-red-600">
+                      Too close to white - your header/footer text (white) would
+                      be unreadable on it. Pick something darker.
+                    </p>
+                  )}
               </div>
-              <p className="text-sm text-slate-800">
-                Pick a custom accent color for your storefront&apos;s header, buttons, and prices.
-              </p>
-              <Link href="/vendor/plus" className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
-                Upgrade to Storezn+
-              </Link>
-            </div>
-          )}
+            ) : (
+              <div className="lg:col-span-2 bg-surface border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Palette size={16} className="text-slate-400" />
+                    <SectionLabel>Storefront theme</SectionLabel>
+                  </div>
+                  <Badge color="slate">Storezn+</Badge>
+                </div>
+                <p className="text-sm text-slate-800">
+                  Pick a custom accent color for your storefront&apos;s header,
+                  buttons, and prices.
+                </p>
+                <Link
+                  href="/vendor/plus"
+                  className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700"
+                >
+                  Upgrade to Storezn+
+                </Link>
+              </div>
+            )}
 
-          <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
-            <SectionLabel>Branding</SectionLabel>
+            <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+              <SectionLabel>Branding</SectionLabel>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Store logo</label>
-              <div className="flex items-center gap-4">
-                {form.logoUrl ? (
-                  <img src={form.logoUrl} alt="" className="h-12 w-36 rounded-sm object-contain bg-slate-50 border border-slate-200" />
-                ) : (
-                  <div className="h-12 w-36 rounded-sm bg-slate-100 flex items-center justify-center text-slate-300 text-xs">None</div>
-                )}
-                <label className="text-sm text-brand-600 hover:underline cursor-pointer">
-                  {uploading ? "Uploading…" : "Upload logo"}
-                  <input type="file" accept="image/*" onChange={handleFileSelect("logoUrl")} disabled={uploading} className="hidden" />
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">
+                  Store logo
                 </label>
-                <InfoTip>Shown as a wide rectangle in your storefront navbar - you&apos;ll crop it after choosing a file.</InfoTip>
+                <div className="flex items-center gap-4">
+                  {form.logoUrl ? (
+                    <img
+                      src={form.logoUrl}
+                      alt=""
+                      className="h-12 w-36 rounded-sm object-contain bg-slate-50 border border-slate-200"
+                    />
+                  ) : (
+                    <div className="h-12 w-36 rounded-sm bg-slate-100 flex items-center justify-center text-slate-300 text-xs">
+                      None
+                    </div>
+                  )}
+                  <label className="text-sm text-brand-600 hover:underline cursor-pointer">
+                    {uploading ? "Uploading…" : "Upload logo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect("logoUrl")}
+                      disabled={uploading}
+                      className="hidden"
+                    />
+                  </label>
+                  <InfoTip>
+                    Shown as a wide rectangle in your storefront navbar -
+                    you&apos;ll crop it after choosing a file.
+                  </InfoTip>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Favicon</label>
-              <div className="flex items-center gap-4">
-                {form.faviconUrl ? (
-                  <img src={form.faviconUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-300 text-xs">None</div>
-                )}
-                <label className="text-sm text-brand-600 hover:underline cursor-pointer">
-                  {uploading ? "Uploading…" : "Upload favicon"}
-                  <input type="file" accept="image/*" onChange={handleFileSelect("faviconUrl")} disabled={uploading} className="hidden" />
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">
+                  Favicon
                 </label>
-                <InfoTip>Your browser tab icon - separate from the logo above, since it needs to be a small circle.</InfoTip>
+                <div className="flex items-center gap-4">
+                  {form.faviconUrl ? (
+                    <img
+                      src={form.faviconUrl}
+                      alt=""
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-300 text-xs">
+                      None
+                    </div>
+                  )}
+                  <label className="text-sm text-brand-600 hover:underline cursor-pointer">
+                    {uploading ? "Uploading…" : "Upload favicon"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect("faviconUrl")}
+                      disabled={uploading}
+                      className="hidden"
+                    />
+                  </label>
+                  <InfoTip>
+                    Your browser tab icon - separate from the logo above, since
+                    it needs to be a small circle.
+                  </InfoTip>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-sm font-medium text-slate-700">
+                    Store description
+                  </label>
+                  <InfoTip>
+                    Used as your storefront&apos;s preview text when a link to
+                    it is shared (e.g. on WhatsApp or Twitter/X), and, if the
+                    toggle below is on, as the tagline under your business name
+                    on your storefront.
+                  </InfoTip>
+                </div>
+                <Textarea
+                  rows={3}
+                  maxLength={DESCRIPTION_MAX}
+                  placeholder="A short line about what you sell and what makes your store worth a visit."
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, description: e.target.value }))
+                  }
+                />
+                <p className="text-xs text-slate-400 text-right">
+                  {form.description.length}/{DESCRIPTION_MAX}
+                </p>
+
+                <div className="flex items-center justify-between gap-4 pt-1">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">
+                      Show description on storefront
+                    </p>
+                    <p className="text-xs text-slate-800 mt-0.5">
+                      {form.showDescription
+                        ? "Shown as the tagline under your business name."
+                        : "Hidden - your storefront shows “All products” instead."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={form.showDescription}
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        showDescription: !f.showDescription,
+                      }))
+                    }
+                    className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer ${
+                      form.showDescription ? "bg-brand-600" : "bg-slate-300"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
+                        form.showDescription ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+              <SectionLabel>Contact &amp; socials</SectionLabel>
+
               <div className="flex items-center gap-1.5">
-                <label className="text-sm font-medium text-slate-700">Store description</label>
-                <InfoTip>Used as your storefront&apos;s preview text when a link to it is shared (e.g. on WhatsApp or Twitter/X), and, if the toggle below is on, as the tagline under your store name on your storefront.</InfoTip>
+                <label className="text-sm font-medium text-slate-700">
+                  Store address
+                </label>
+                <InfoTip>
+                  Shown in your storefront&apos;s footer, for a pickup location
+                  or just to build trust.
+                </InfoTip>
               </div>
-              <Textarea
-                rows={3}
-                maxLength={DESCRIPTION_MAX}
-                placeholder="A short line about what you sell and what makes your store worth a visit."
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              <Input
+                placeholder="12 Allen Avenue, Ikeja, Lagos"
+                value={form.address}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, address: e.target.value }))
+                }
               />
-              <p className="text-xs text-slate-400 text-right">{form.description.length}/{DESCRIPTION_MAX}</p>
+
+              <div className="flex items-center gap-1.5 pt-2">
+                <label className="text-sm font-medium text-slate-700">
+                  Business location
+                </label>
+                <InfoTip>
+                  Where you ship from - shown as the location on your
+                  products&apos; cards and detail pages, both on your website
+                  and the marketplace.
+                </InfoTip>
+              </div>
+              <Select
+                options={NIGERIA_STATE_OPTIONS}
+                value={form.state}
+                onChange={(v) => setForm((f) => ({ ...f, state: v }))}
+                placeholder="Select a state"
+              />
 
               <div className="flex items-center justify-between gap-4 pt-1">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Show description on storefront</p>
+                  <p className="text-sm font-medium text-slate-700">
+                    Show &quot;Ships from&quot; on products
+                  </p>
                   <p className="text-xs text-slate-800 mt-0.5">
-                    {form.showDescription
-                      ? "Shown as the tagline under your store name."
-                      : "Hidden - your storefront shows “All products” instead."}
+                    {form.showShipsFrom
+                      ? "Your business location shows on product cards and detail pages."
+                      : "Your business location is hidden from shoppers."}
                   </p>
                 </div>
                 <button
                   type="button"
                   role="switch"
-                  aria-checked={form.showDescription}
-                  onClick={() => setForm((f) => ({ ...f, showDescription: !f.showDescription }))}
+                  aria-checked={form.showShipsFrom}
+                  onClick={() =>
+                    setForm((f) => ({ ...f, showShipsFrom: !f.showShipsFrom }))
+                  }
                   className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer ${
-                    form.showDescription ? "bg-brand-600" : "bg-slate-300"
+                    form.showShipsFrom ? "bg-brand-600" : "bg-slate-300"
                   }`}
                 >
                   <span
                     className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
-                      form.showDescription ? "translate-x-5" : "translate-x-0"
+                      form.showShipsFrom ? "translate-x-5" : "translate-x-0"
                     }`}
                   />
                 </button>
               </div>
-            </div>
-          </div>
 
-          <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
-            <SectionLabel>Contact &amp; socials</SectionLabel>
-
-            <div className="flex items-center gap-1.5">
-              <label className="text-sm font-medium text-slate-700">Store address</label>
-              <InfoTip>Shown in your storefront&apos;s footer, for a pickup location or just to build trust.</InfoTip>
-            </div>
-            <Input placeholder="12 Allen Avenue, Ikeja, Lagos" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
-
-            <div className="flex items-center gap-1.5 pt-2">
-              <label className="text-sm font-medium text-slate-700">Store location</label>
-              <InfoTip>Where you ship from - shown as the location on your products&apos; cards and detail pages, both on your storefront and the marketplace.</InfoTip>
-            </div>
-            <Select options={NIGERIA_STATE_OPTIONS} value={form.state} onChange={(v) => setForm((f) => ({ ...f, state: v }))} placeholder="Select a state" />
-
-            <div className="flex items-center justify-between gap-4 pt-1">
-              <div>
-                <p className="text-sm font-medium text-slate-700">Show &quot;Ships from&quot; on products</p>
-                <p className="text-xs text-slate-800 mt-0.5">
-                  {form.showShipsFrom
-                    ? "Your store location shows on product cards and detail pages."
-                    : "Your store location is hidden from shoppers."}
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={form.showShipsFrom}
-                onClick={() => setForm((f) => ({ ...f, showShipsFrom: !f.showShipsFrom }))}
-                className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer ${
-                  form.showShipsFrom ? "bg-brand-600" : "bg-slate-300"
-                }`}
-              >
-                <span
-                  className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
-                    form.showShipsFrom ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5 pt-2">
-              <label className="text-sm font-medium text-slate-700">Socials</label>
-              <InfoTip>Only the ones you fill in show up as icons in your footer. WhatsApp also powers the quick-help button shoppers see everywhere.</InfoTip>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Website"
-                placeholder="https://yourbrand.com"
-                value={form.socialLinks.website}
-                onChange={(e) => setForm((f) => ({ ...f, socialLinks: { ...f.socialLinks, website: e.target.value } }))}
-              />
-              <Input
-                label="Instagram"
-                placeholder="https://instagram.com/yourbrand"
-                value={form.socialLinks.instagram}
-                onChange={(e) => setForm((f) => ({ ...f, socialLinks: { ...f.socialLinks, instagram: e.target.value } }))}
-              />
-              <Input
-                label="Twitter / X"
-                placeholder="https://x.com/yourbrand"
-                value={form.socialLinks.twitter}
-                onChange={(e) => setForm((f) => ({ ...f, socialLinks: { ...f.socialLinks, twitter: e.target.value } }))}
-              />
-              <Input
-                label="Facebook"
-                placeholder="https://facebook.com/yourbrand"
-                value={form.socialLinks.facebook}
-                onChange={(e) => setForm((f) => ({ ...f, socialLinks: { ...f.socialLinks, facebook: e.target.value } }))}
-              />
-              <Input
-                label="TikTok"
-                placeholder="https://tiktok.com/@yourbrand"
-                value={form.socialLinks.tiktok}
-                onChange={(e) => setForm((f) => ({ ...f, socialLinks: { ...f.socialLinks, tiktok: e.target.value } }))}
-              />
-              <Input
-                label="WhatsApp number"
-                placeholder="2348012345678"
-                value={form.socialLinks.whatsapp}
-                onChange={(e) => setForm((f) => ({ ...f, socialLinks: { ...f.socialLinks, whatsapp: e.target.value.replace(/[^\d+]/g, "") } }))}
-              />
-            </div>
-          </div>
-
-          <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
-            <SectionLabel>Fees &amp; refunds</SectionLabel>
-
-            <div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-slate-700">Who pays the platform fee?</label>
-                {commissionRate != null && (
-                  <Badge color="slate">
-                    {commissionRate}%{flatFee > 0 ? ` + ${formatCurrency(flatFee)}` : ""}
-                  </Badge>
-                )}
+              <div className="flex items-center gap-1.5 pt-2">
+                <label className="text-sm font-medium text-slate-700">
+                  Socials
+                </label>
                 <InfoTip>
-                  {form.feeChargedToCustomer
-                    ? "Shown as a separate \"Platform fee\" at checkout, added on top of the total. You receive your full subtotal + shipping."
-                    : "Commission is deducted from your payout. Customers never see it, they just pay the order total."}
+                  Only the ones you fill in show up as icons in your footer.
+                  WhatsApp also powers the quick-help button shoppers see
+                  everywhere.
                 </InfoTip>
               </div>
-              <div className="flex gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, feeChargedToCustomer: false }))}
-                  className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
-                    !form.feeChargedToCustomer
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  I absorb it
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, feeChargedToCustomer: true }))}
-                  className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
-                    form.feeChargedToCustomer
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  Customer pays it
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Website"
+                  placeholder="https://yourbrand.com"
+                  value={form.socialLinks.website}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      socialLinks: {
+                        ...f.socialLinks,
+                        website: e.target.value,
+                      },
+                    }))
+                  }
+                />
+                <Input
+                  label="Instagram"
+                  placeholder="https://instagram.com/yourbrand"
+                  value={form.socialLinks.instagram}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      socialLinks: {
+                        ...f.socialLinks,
+                        instagram: e.target.value,
+                      },
+                    }))
+                  }
+                />
+                <Input
+                  label="Twitter / X"
+                  placeholder="https://x.com/yourbrand"
+                  value={form.socialLinks.twitter}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      socialLinks: {
+                        ...f.socialLinks,
+                        twitter: e.target.value,
+                      },
+                    }))
+                  }
+                />
+                <Input
+                  label="Facebook"
+                  placeholder="https://facebook.com/yourbrand"
+                  value={form.socialLinks.facebook}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      socialLinks: {
+                        ...f.socialLinks,
+                        facebook: e.target.value,
+                      },
+                    }))
+                  }
+                />
+                <Input
+                  label="TikTok"
+                  placeholder="https://tiktok.com/@yourbrand"
+                  value={form.socialLinks.tiktok}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      socialLinks: { ...f.socialLinks, tiktok: e.target.value },
+                    }))
+                  }
+                />
+                <Input
+                  label="WhatsApp number"
+                  placeholder="2348012345678"
+                  value={form.socialLinks.whatsapp}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      socialLinks: {
+                        ...f.socialLinks,
+                        whatsapp: e.target.value.replace(/[^\d+]/g, ""),
+                      },
+                    }))
+                  }
+                />
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-1.5">
-                <label className="text-sm font-medium text-slate-700">Refund window (days)</label>
-                <InfoTip>How many days after you mark an order delivered a customer can still request a refund.</InfoTip>
+            <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+              <SectionLabel>Fees &amp; refunds</SectionLabel>
+
+              <div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-700">
+                    Who pays the platform fee?
+                  </label>
+                  {commissionRate != null && (
+                    <Badge color="slate">
+                      {commissionRate}%
+                      {flatFee > 0 ? ` + ${formatCurrency(flatFee)}` : ""}
+                    </Badge>
+                  )}
+                  <InfoTip>
+                    {form.feeChargedToCustomer
+                      ? 'Shown as a separate "Platform fee" at checkout, added on top of the total. You receive your full subtotal + shipping.'
+                      : "Commission is deducted from your payout. Customers never see it, they just pay the order total."}
+                  </InfoTip>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({ ...f, feeChargedToCustomer: false }))
+                    }
+                    className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
+                      !form.feeChargedToCustomer
+                        ? "border-brand-500 bg-brand-50 text-brand-700"
+                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    I absorb it
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({ ...f, feeChargedToCustomer: true }))
+                    }
+                    className={`flex-1 px-4 py-2 rounded-sm border text-sm font-medium transition-colors cursor-pointer ${
+                      form.feeChargedToCustomer
+                        ? "border-brand-500 bg-brand-50 text-brand-700"
+                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    Customer pays it
+                  </button>
+                </div>
               </div>
-              <Input
-                type="number"
-                min="0"
-                max="365"
-                className="max-w-32 mt-1.5"
-                value={form.returnWindowDays}
-                onChange={(e) => setForm((f) => ({ ...f, returnWindowDays: e.target.value }))}
-              />
+
+              <div className="pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-sm font-medium text-slate-700">
+                    Refund window (days)
+                  </label>
+                  <InfoTip>
+                    How many days after you mark an order delivered a customer
+                    can still request a refund.
+                  </InfoTip>
+                </div>
+                <Input
+                  type="number"
+                  min="0"
+                  max="365"
+                  className="max-w-32 mt-1.5"
+                  value={form.returnWindowDays}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, returnWindowDays: e.target.value }))
+                  }
+                />
+              </div>
             </div>
-          </div>
           </div>
 
           <div className="sticky bottom-0 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 bg-surface/95 backdrop-blur-sm border-t border-slate-200">
-            <Button type="submit" loading={saving} fullWidth>Save settings</Button>
+            <Button type="submit" loading={saving} fullWidth>
+              Save settings
+            </Button>
           </div>
         </form>
       )}
@@ -630,7 +834,10 @@ export default function VendorSettingsPage() {
         {...(cropTarget ? CROP_CONFIG[cropTarget] : {})}
       />
 
-      <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
+      <StorageLimitDialog
+        open={storageDialogOpen}
+        onClose={() => setStorageDialogOpen(false)}
+      />
     </div>
   );
 }

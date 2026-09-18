@@ -57,8 +57,8 @@ const STEPS = [
         Open <b>Store settings</b>. Upload a <b>logo</b> (wide) and a{" "}
         <b>favicon</b> (small round tab icon), write a short <b>description</b>,
         and add your <b>WhatsApp number</b> and social links - these show in
-        your storefront footer, and WhatsApp also powers the floating chat
-        button. Set your <b>store location</b> (the state you ship from); you
+        your website footer, and WhatsApp also powers the floating chat
+        button. Set your <b>business location</b> (the state you ship from); you
         can hide the &quot;Ships from&quot; line on product pages with the
         toggle right there.
       </p>

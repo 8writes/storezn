@@ -103,7 +103,7 @@ function VendorSignupForm() {
       </div>
 
       <Input
-        label="Store name"
+        label="Business name"
         value={form.name}
         onChange={(e) => {
           const name = e.target.value;
@@ -128,7 +128,7 @@ function VendorSignupForm() {
         required
       />
       <Select
-        label="Store location"
+        label="Business location"
         options={NIGERIA_STATE_OPTIONS}
         value={form.state}
         onChange={(v) => setForm((f) => ({ ...f, state: v }))}

@@ -76,7 +76,7 @@ export default function SuperAdminStoresPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Stores</h1>
 
-      <SearchInput value={q} onSearch={setQ} placeholder="Search by store name or slug..." className="max-w-sm" />
+      <SearchInput value={q} onSearch={setQ} placeholder="Search by business name or slug..." className="max-w-sm" />
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">

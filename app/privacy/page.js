@@ -26,8 +26,8 @@ export default function PrivacyPage() {
             <h2 className="text-base font-semibold text-slate-900">1. Information you give us</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li><span className="font-medium">Account details:</span> your name, email address, phone number, and a hashed (never plain-text) password.</li>
-              <li><span className="font-medium">Vendor identity:</span> your National Identification Number (NIN), submitted for verification before a store can sell.</li>
-              <li><span className="font-medium">Store &amp; catalogue data:</span> your store name, products, prices, stock, categories, and settings.</li>
+              <li><span className="font-medium">Vendor identity:</span> your National Identification Number (NIN), submitted for verification before a website can sell.</li>
+              <li><span className="font-medium">Business &amp; catalogue data:</span> your business name, products, prices, stock, categories, and settings.</li>
               <li><span className="font-medium">Order &amp; delivery data:</span> items ordered, delivery address, and buyer contact details for each order.</li>
               <li><span className="font-medium">Payout details:</span> the bank account a vendor links to receive payments.</li>
             </ul>
