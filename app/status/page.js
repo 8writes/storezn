@@ -136,7 +136,6 @@ export default async function StatusPage() {
 
           <section className="border-t border-slate-200 pt-6 text-sm text-slate-600">
             <p>Availability is calculated from instrumented Storezn API operations.</p>
-            <p className="mt-2">Services without dedicated request monitoring, including email delivery, are not shown as independently operational.</p>
             <p className="mt-2">Metrics updated {formatChecked(status.generatedAt)} and refresh automatically every minute.</p>
           </section>
         </div>
