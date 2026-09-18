@@ -7,6 +7,7 @@ import { Check, Cookie, Settings2, X } from "lucide-react";
 
 const CONSENT_KEY = "storezn_cookie_consent_v1";
 const PLATFORM_ROUTES = /^\/(vendor|super-admin|dashboard|profile)(\/|$)/;
+const BRAND_SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
 
 function saveConsent(preferences) {
   const value = {
@@ -25,11 +26,27 @@ export default function CookieConsentBanner() {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [preferences, setPreferences] = useState({ analytics: true, marketing: false });
+  const [siteName, setSiteName] = useState("Storezn");
+  const [brandStyle, setBrandStyle] = useState(undefined);
 
   useEffect(() => {
     if (PLATFORM_ROUTES.test(pathname || "")) return;
     queueMicrotask(() => {
       try {
+        const storefrontRoot = document.querySelector("[data-cookie-site-name]");
+        if (storefrontRoot) {
+          setSiteName(storefrontRoot.getAttribute("data-cookie-site-name") || "Storezn");
+          const computed = getComputedStyle(storefrontRoot);
+          const shades = {};
+          for (const shade of BRAND_SHADES) {
+            const value = computed.getPropertyValue(`--color-brand-${shade}`).trim();
+            if (value) shades[`--color-brand-${shade}`] = value;
+          }
+          setBrandStyle(shades);
+        } else {
+          setSiteName("Storezn");
+          setBrandStyle(undefined);
+        }
         setVisible(!localStorage.getItem(CONSENT_KEY));
       } catch {
         setVisible(false);
@@ -45,7 +62,7 @@ export default function CookieConsentBanner() {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[80] px-3 pb-3 sm:px-5 sm:pb-5">
+    <div className="fixed inset-x-0 bottom-0 z-[80] px-3 pb-3 sm:px-5 sm:pb-5" style={brandStyle}>
       <div className="mx-auto max-w-5xl overflow-hidden rounded-sm border border-slate-200 bg-surface shadow-xl">
         <div className="grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-start sm:p-5">
           <div className="flex gap-3">
@@ -53,7 +70,7 @@ export default function CookieConsentBanner() {
               <Cookie size={20} aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">Storezn uses cookies</p>
+              <p className="text-sm font-semibold text-slate-900">{siteName} uses cookies</p>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
                 We use essential cookies to keep the site working, and optional cookies to understand what is useful and improve the experience.
                 Read our <Link href="/privacy" className="font-medium text-brand-700 hover:text-brand-800">privacy policy</Link>.

@@ -71,7 +71,7 @@ export default async function StorefrontLayout({ children, params }) {
   const accentStyle = themed ? generateBrandShades(store.storefrontAccentColor) : undefined;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col" style={accentStyle}>
+    <div className="min-h-screen bg-white flex flex-col" style={accentStyle} data-cookie-site-name={store.name}>
       <Suspense fallback={null}>
         <MarketplaceBanner storeName={store.name} />
       </Suspense>
