@@ -134,10 +134,10 @@ export default function SuperAdminAppErrorsPage() {
         </div>
       </div>
 
-      <div className="bg-surface border border-slate-200 rounded-sm p-3">
+      <div className="bg-slate-100 border border-slate-300 rounded-sm p-3">
         <div className="grid gap-3 lg:grid-cols-[1fr_160px_180px]">
           <label className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               value={q}
               onChange={(e) => {
@@ -145,7 +145,7 @@ export default function SuperAdminAppErrorsPage() {
                 setQ(e.target.value);
               }}
               placeholder="Search message, source, route, request id"
-              className="w-full pl-9 pr-3 py-2 rounded-sm border border-slate-300 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full pl-9 pr-3 py-2 rounded-sm border border-slate-400 bg-surface text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </label>
           <select
@@ -154,7 +154,7 @@ export default function SuperAdminAppErrorsPage() {
               setPage(1);
               setLevel(e.target.value);
             }}
-            className="rounded-sm border border-slate-300 px-3 py-2 text-sm bg-white"
+            className="rounded-sm border border-slate-400 px-3 py-2 text-sm bg-surface text-slate-900"
           >
             <option value="all">All levels</option>
             <option value="error">Errors</option>
@@ -167,7 +167,7 @@ export default function SuperAdminAppErrorsPage() {
               setPage(1);
               setResolved(e.target.value);
             }}
-            className="rounded-sm border border-slate-300 px-3 py-2 text-sm bg-white"
+            className="rounded-sm border border-slate-400 px-3 py-2 text-sm bg-surface text-slate-900"
           >
             <option value="false">Open only</option>
             <option value="true">Resolved only</option>

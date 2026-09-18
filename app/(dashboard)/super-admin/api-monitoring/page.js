@@ -114,24 +114,24 @@ export default function SuperAdminApiMonitoringPage() {
         <Metric label="Avg duration" value={`${stats.avgDurationMs || 0}ms`} />
       </div>
 
-      <div className="bg-surface border border-slate-200 rounded-sm p-3">
+      <div className="bg-slate-100 border border-slate-300 rounded-sm p-3">
         <div className="grid gap-3 lg:grid-cols-[1fr_140px_140px]">
           <label className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               value={q}
               onChange={(e) => resetPage(setQ)(e.target.value)}
               placeholder="Search route, source, request id, message"
-              className="w-full pl-9 pr-3 py-2 rounded-sm border border-slate-300 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full pl-9 pr-3 py-2 rounded-sm border border-slate-400 bg-surface text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </label>
-          <select value={status} onChange={(e) => resetPage(setStatus)(e.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm bg-white">
+          <select value={status} onChange={(e) => resetPage(setStatus)(e.target.value)} className="rounded-sm border border-slate-400 px-3 py-2 text-sm bg-surface text-slate-900">
             <option value="all">All status</option>
             <option value="2xx">2xx</option>
             <option value="4xx">4xx</option>
             <option value="5xx">5xx</option>
           </select>
-          <select value={range} onChange={(e) => resetPage(setRange)(e.target.value)} className="rounded-sm border border-slate-300 px-3 py-2 text-sm bg-white">
+          <select value={range} onChange={(e) => resetPage(setRange)(e.target.value)} className="rounded-sm border border-slate-400 px-3 py-2 text-sm bg-surface text-slate-900">
             <option value="1h">Last hour</option>
             <option value="24h">Last 24h</option>
             <option value="7d">Last 7 days</option>
