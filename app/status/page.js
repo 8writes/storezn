@@ -82,14 +82,12 @@ export default async function StatusPage() {
                 <h1 className="mt-1 font-display text-3xl font-bold text-slate-900 sm:text-4xl">System availability</h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-700">Live health and seven-day observed reliability for monitored Storezn services.</p>
               </div>
-              <StatusRefresh />
             </div>
           </div>
         </section>
 
         <div className="mx-auto max-w-5xl space-y-10 px-4 py-10 sm:px-6 sm:py-14">
           <section className={`flex items-start gap-3 rounded-sm border p-4 ${overall.panel}`}>
-            <OverallIcon size={21} className={`mt-0.5 shrink-0 ${overall.text}`} />
             <div>
               <h2 className={`font-semibold ${overall.text}`}>{STATUS_LABELS[status.overallStatus]}</h2>
               <p className="mt-1 text-sm text-slate-700">
@@ -101,7 +99,6 @@ export default async function StatusPage() {
           <section className="grid gap-4 sm:grid-cols-3">
             <Metric icon={Activity} label="7-day uptime" value={formatUptime(status.uptime)} />
             <Metric icon={Clock3} label="Average response" value={status.avgDurationMs == null ? "Not available" : `${status.avgDurationMs}ms`} />
-            <Metric icon={CheckCircle2} label="Observed requests" value={status.requests.toLocaleString()} />
           </section>
 
           <section>
@@ -138,7 +135,8 @@ export default async function StatusPage() {
           </section>
 
           <section className="border-t border-slate-200 pt-6 text-sm text-slate-600">
-            <p>Availability is calculated from monitored Storezn requests. Server errors count as downtime; rejected or invalid client requests do not.</p>
+            <p>Availability is calculated from instrumented Storezn API operations.</p>
+            <p className="mt-2">Services without dedicated request monitoring, including email delivery, are not shown as independently operational.</p>
             <p className="mt-2">Metrics updated {formatChecked(status.generatedAt)} and refresh automatically every minute.</p>
           </section>
         </div>

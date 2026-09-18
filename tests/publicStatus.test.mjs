@@ -50,3 +50,14 @@ test("services without observed traffic report unknown status", () => {
   assert.equal(status.overallStatus, "unknown");
   assert.ok(status.services.every((service) => service.status === "unknown"));
 });
+
+test("subscription and payout operations appear as separate services", () => {
+  const historyRows = [
+    row({ source: "vendor.subscription.start" }),
+    row({ source: "vendor.payout_account.resolve" }),
+  ];
+  const status = buildPublicStatus({ historyRows, recentRows: historyRows, now });
+
+  assert.equal(status.services.find((service) => service.id === "subscriptions").status, "operational");
+  assert.equal(status.services.find((service) => service.id === "payouts").status, "operational");
+});

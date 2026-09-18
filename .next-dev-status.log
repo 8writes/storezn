@@ -14,3 +14,9 @@ Creating turbopack project {
 
 ○ Compiling /status ...
  GET /status 200 in 19.8s (next.js: 17.7s, proxy.ts: 832ms, application-code: 1292ms)
+✓ Compiled in 508ms
+✓ Compiled in 453ms
+✓ Compiled in 357ms
+✓ Compiled in 299ms
+✓ Compiled in 824ms
+✓ Compiled in 350ms
