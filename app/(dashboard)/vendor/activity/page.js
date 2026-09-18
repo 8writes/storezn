@@ -179,18 +179,18 @@ export default function VendorActivityPage() {
             setPage(1);
           }}
         >
-          <label htmlFor="activity-search" className="block text-sm font-medium text-slate-700 mb-1">Search details</label>
+          <label htmlFor="activity-search" className="block text-sm font-semibold text-slate-950 mb-1">Search details</label>
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700" />
             <input
               id="activity-search"
               type="search"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Order, product, reason, cashier..."
-              className="w-full h-10 pl-9 pr-10 rounded-sm border border-slate-300 bg-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full h-10 pl-9 pr-10 rounded-sm border border-slate-500 bg-white text-sm text-slate-950 placeholder:text-slate-600 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
             />
-            <button type="submit" title="Search activity" aria-label="Search activity" className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-brand-700 cursor-pointer">
+            <button type="submit" title="Search activity" aria-label="Search activity" className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-800 hover:text-brand-700 cursor-pointer">
               <Search size={16} />
             </button>
           </div>
@@ -210,7 +210,7 @@ export default function VendorActivityPage() {
           type="button"
           aria-pressed={flaggedOnly}
           onClick={() => { setFlaggedOnly((value) => !value); setPage(1); }}
-          className={`h-10 px-3 border rounded-sm text-sm font-medium inline-flex items-center gap-2 cursor-pointer ${flaggedOnly ? "border-amber-400 bg-amber-50 text-amber-800" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+          className={`h-10 px-3 border rounded-sm text-sm font-semibold inline-flex items-center gap-2 cursor-pointer ${flaggedOnly ? "border-amber-700 bg-amber-100 text-amber-950" : "border-slate-500 bg-white text-slate-950 hover:bg-slate-100"}`}
         >
           <Flag size={15} fill={flaggedOnly ? "currentColor" : "none"} />
           Flagged only
