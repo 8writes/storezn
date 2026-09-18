@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 const LINKS = [
   { href: "/marketplace", label: "Marketplace" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/status", label: "Status" },
 ];
 
 // Shared header for the public marketing pages (landing, pricing,

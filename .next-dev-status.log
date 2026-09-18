@@ -1,0 +1,16 @@
+
+> e-commerce@0.1.0 dev
+> next dev --port 3000
+
+▲ Next.js 16.2.9 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.105:3000
+- Environments: .env
+✓ Ready in 8.7s
+Creating turbopack project {
+  dir: 'D:\\maile\\Documents\\Work-Files\\ozmictech-assets\\storezn',
+  testMode: true
+}
+
+○ Compiling /status ...
+ GET /status 200 in 19.8s (next.js: 17.7s, proxy.ts: 832ms, application-code: 1292ms)

@@ -10,6 +10,7 @@ const PRODUCT_LINKS = [
 
 const COMPANY_LINKS = [
   { href: "mailto:support@ozmictech.com", label: "Contact us" },
+  { href: "/status", label: "System status" },
   { href: "/terms", label: "Terms of service" },
   { href: "/privacy", label: "Privacy policy" },
   { href: "https://ozmictech.com/", label: "Ozmictech", external: true },
