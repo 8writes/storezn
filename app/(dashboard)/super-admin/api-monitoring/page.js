@@ -83,7 +83,7 @@ export default function SuperAdminApiMonitoringPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">API monitoring</h1>
-          <p className="text-sm text-slate-800 mt-1">Request status, duration, and backend failures for monitored API endpoints.</p>
+          <p className="text-sm text-slate-800 mt-1">Request status, duration, and response messages for monitored API endpoints.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -121,7 +121,7 @@ export default function SuperAdminApiMonitoringPage() {
             <input
               value={q}
               onChange={(e) => resetPage(setQ)(e.target.value)}
-              placeholder="Search route, source, request id, error"
+              placeholder="Search route, source, request id, message"
               className="w-full pl-9 pr-3 py-2 rounded-sm border border-slate-300 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </label>
@@ -149,7 +149,7 @@ export default function SuperAdminApiMonitoringPage() {
                 <th className="px-4 py-3 font-medium">Endpoint</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Duration</th>
-                <th className="px-4 py-3 font-medium">Error</th>
+                <th className="px-4 py-3 font-medium">Response message</th>
               </tr>
             </thead>
             <tbody>
