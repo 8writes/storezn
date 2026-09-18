@@ -6,6 +6,7 @@ import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, sendNotificationSchema } from "../../../../../lib/validate.js";
 import { sendPushToUser, sendPushToUsers } from "../../../../../lib/push.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
+import { emailText } from "../../../../../lib/email/templates.js";
 import { logActivity } from "../../../../../lib/activityLog.js";
 
 // Lightweight vendor picker for the composer - not the same paginated
@@ -64,7 +65,14 @@ export async function POST(req) {
     const results = await Promise.allSettled(
       recipients
         .filter((r) => r.email)
-        .map((r) => sendMail({ to: r.email, subject: title, html: `<p>${message}</p>` })),
+        .map((r) =>
+          sendMail({
+            to: r.email,
+            subject: title,
+            html: `<h2>${emailText(title)}</h2><p>${emailText(message)}</p>`,
+            preheader: message,
+          }),
+        ),
     );
     for (const r of results) {
       if (r.status === "fulfilled") emailSent++;

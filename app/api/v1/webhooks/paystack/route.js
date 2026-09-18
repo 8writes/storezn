@@ -288,7 +288,7 @@ async function handlePost(req) {
     const order = finalized.order;
     const items = finalized.items;
     const [store] = await db
-      .select({ name: stores.name, ownerId: stores.ownerId })
+      .select({ name: stores.name, ownerId: stores.ownerId, logoUrl: stores.logoUrl, storefrontAccentColor: stores.storefrontAccentColor })
       .from(stores)
       .where(eq(stores.id, order.storeId))
       .limit(1);
@@ -320,6 +320,8 @@ async function handlePost(req) {
         subject: `Order confirmation - ${order.orderNumber}`,
         html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${escapeHtml(store?.name) || "the store"} has been received.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
         fromName: store?.name,
+        brand: store,
+        preheader: `Order ${order.orderNumber} has been received`,
       }).catch((err) => console.error("sendMail failed (order confirmation):", err));
     }
 
@@ -491,7 +493,7 @@ async function handlePost(req) {
   }
 
   const [store] = await db
-    .select({ name: stores.name, ownerId: stores.ownerId })
+    .select({ name: stores.name, ownerId: stores.ownerId, logoUrl: stores.logoUrl, storefrontAccentColor: stores.storefrontAccentColor })
     .from(stores)
     .where(eq(stores.id, order.storeId))
     .limit(1);
@@ -524,6 +526,8 @@ async function handlePost(req) {
       subject: `Order confirmation - ${order.orderNumber}`,
       html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${escapeHtml(store?.name) || "the store"} has been received.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
       fromName: store?.name,
+      brand: store,
+      preheader: `Order ${order.orderNumber} has been received`,
     }).catch((err) => console.error("sendMail failed (order confirmation):", err));
   }
 

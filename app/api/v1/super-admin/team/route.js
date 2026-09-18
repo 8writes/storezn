@@ -7,6 +7,7 @@ import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, inviteTeamMemberSchema } from "../../../../../lib/validate.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../lib/email/escapeHtml.js";
+import { emailButton } from "../../../../../lib/email/templates.js";
 
 // Team management (creating admin/p_staff accounts) is super_admin-only -
 // letting `admin` do this too would let an admin staff the platform with
@@ -85,7 +86,8 @@ export async function POST(req) {
     sendMail({
       to: newMember.email,
       subject: "You've been added to the Storezn team",
-      html: `<p>Hi ${escapeHtml(firstName)},</p><p>${escapeHtml(user.firstName) || "A super admin"} added you as ${role === "admin" ? "an admin" : "platform staff"} on Storezn.</p><p>Set your password to get started. This link expires in 7 days.</p><p><a href="${setPasswordUrl}">Set your password</a></p>`,
+      html: `<h2>Welcome to the Storezn team</h2><p>Hi ${escapeHtml(firstName)},</p><p>${escapeHtml(user.firstName) || "A super admin"} added you as ${role === "admin" ? "an admin" : "platform staff"}.</p><p>Set your password within 7 days to get started.</p>${emailButton(setPasswordUrl, "Set your password")}`,
+      preheader: "Set your password to join the Storezn team",
     }).catch((err) => console.error("sendMail failed (team invite):", err)),
   );
 

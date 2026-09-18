@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
+import { ADMIN_EMAIL_TEMPLATES, getAdminEmailTemplate } from "@/lib/email/adminNotificationTemplates.js";
 
 const CHANNEL_OPTIONS = [
   { value: "push", label: "Push notification only" },
@@ -18,12 +19,14 @@ const TARGET_OPTIONS = [
   { value: "single", label: "One vendor" },
   { value: "all_vendors", label: "All vendors" },
 ];
+const TEMPLATE_OPTIONS = ADMIN_EMAIL_TEMPLATES.map((template) => ({ value: template.id, label: template.label }));
 
 export default function SuperAdminNotificationsPage() {
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
   const [vendors, setVendors] = useState([]);
+  const [templateId, setTemplateId] = useState("custom");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [url, setUrl] = useState("");
@@ -80,6 +83,22 @@ export default function SuperAdminNotificationsPage() {
           <Select label="Vendor" options={vendorOptions} value={userId} onChange={setUserId} placeholder="Choose a vendor" />
         )}
         <Select label="Channel" options={CHANNEL_OPTIONS} value={channel} onChange={setChannel} searchable={false} />
+        {(channel === "email" || channel === "both") && (
+          <Select
+            label="Email template"
+            options={TEMPLATE_OPTIONS}
+            value={templateId}
+            searchable={false}
+            onChange={(value) => {
+              const template = getAdminEmailTemplate(value);
+              setTemplateId(value);
+              if (value !== "custom") {
+                setTitle(template.title);
+                setBody(template.body);
+              }
+            }}
+          />
+        )}
         <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="e.g. Scheduled maintenance tonight" />
         <Textarea label="Message" value={body} onChange={(e) => setBody(e.target.value)} maxLength={500} rows={4} placeholder="What do you want to tell them?" />
         {(channel === "push" || channel === "both") && (

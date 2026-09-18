@@ -6,6 +6,7 @@ import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { validate, forgotPasswordSchema } from "../../../../../lib/validate.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveStore.js";
+import { emailBrand, emailButton } from "../../../../../lib/email/templates.js";
 
 export async function POST(req) {
   const limit = checkRateLimit(req, "forgot-password", { max: 5, windowMs: 60_000 });
@@ -27,6 +28,7 @@ export async function POST(req) {
   // customer", never the platform's own users/staff.
   let account = null;
   let tokenCols = null;
+  let mailBrand = null;
   if (isPlatformHost(host)) {
     const [vendorOrAdmin] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (vendorOrAdmin) {
@@ -42,6 +44,7 @@ export async function POST(req) {
   } else {
     const store = await resolveStoreByHost(host);
     if (store) {
+      mailBrand = store;
       const [customerRow] = await db.select().from(customers).where(and(eq(customers.storeId, store.id), eq(customers.email, email))).limit(1);
       if (customerRow) {
         account = customerRow;
@@ -68,6 +71,7 @@ export async function POST(req) {
     // root, and vice versa for a vendor/admin request.
     const protocol = req.headers.get("x-forwarded-proto") || "http";
     const resetUrl = `${protocol}://${host}/reset-password?token=${token}`;
+    const identity = emailBrand(mailBrand);
     // Not awaited - the response below must stay fast regardless of mail
     // provider latency, and always-ok must not depend on send success
     // (see the comment above). Wrapped in after() rather than left as a
@@ -80,7 +84,10 @@ export async function POST(req) {
       sendMail({
         to: account.email,
         subject: "Reset your password",
-        html: `<p>A password reset was requested for your account.</p><p>Click below to reset your password. This link expires in 1 hour.</p><p><a href="${resetUrl}">Reset Password</a></p>`,
+        html: `<h2>Reset your password</h2><p>We received a request to reset your password.</p><p>Use the secure button below within 1 hour. If you did not request this, you can ignore this email.</p>${emailButton(resetUrl, "Reset password", identity.accentColor)}`,
+        brand: mailBrand,
+        fromName: mailBrand?.name,
+        preheader: "Use this secure link to reset your password",
       }).catch((err) => console.error("sendMail failed (forgot-password):", err)),
     );
   }

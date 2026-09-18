@@ -9,6 +9,7 @@ import { sendMail } from "../../../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../../../lib/email/escapeHtml.js";
 import { getStaffLimit } from "../../../../../../../lib/storePlan.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
+import { emailBrand, emailButton } from "../../../../../../../lib/email/templates.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -141,13 +142,16 @@ export async function POST(req, { params }) {
   const protocol = req.headers.get("x-forwarded-proto") || "http";
   const host = req.headers.get("host") || "";
   const setPasswordUrl = `${protocol}://${host}/reset-password?token=${token}`;
+  const mailIdentity = emailBrand(store);
 
   after(() =>
     sendMail({
       to: newStaff.email,
       subject: `You've been added to ${store.name} on Storezn`,
-      html: `<p>Hi ${escapeHtml(firstName)},</p><p>${escapeHtml(user.firstName) || "The team"} added you as staff on <strong>${escapeHtml(store.name)}</strong>'s Storezn dashboard.</p><p>Set your password to get started. This link expires in 7 days.</p><p><a href="${setPasswordUrl}">Set your password</a></p>`,
+      html: `<h2>You&apos;re invited</h2><p>Hi ${escapeHtml(firstName)},</p><p>${escapeHtml(user.firstName) || "The team"} added you as staff on <strong>${escapeHtml(store.name)}</strong>.</p><p>Set your password within 7 days to get started.</p>${emailButton(setPasswordUrl, "Set your password", mailIdentity.accentColor)}`,
       fromName: store.name,
+      brand: store,
+      preheader: `You have been invited to ${store.name}`,
     }).catch((err) => console.error("sendMail failed (staff invite):", err)),
   );
 
