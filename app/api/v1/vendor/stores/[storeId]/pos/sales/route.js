@@ -8,7 +8,7 @@ import { computeWholesalePrice } from "@/lib/pricing.js";
 import { reserveStock, OutOfStockError } from "@/lib/inventory.js";
 import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
-import { canReplayOfflineSale, validateTenders } from "@/lib/pos.js";
+import { canReplayOfflineSale, posPriceAdjustmentPolicy, validateTenders } from "@/lib/pos.js";
 import { posContext, loadSession, loadSessionAny } from "@/lib/posAccess.js";
 import { buildPosSessionSummary, lockPosSession, reconcileClosedPosSession } from "@/lib/posSession.js";
 import { logAppError } from "@/lib/appErrorLog.js";
@@ -90,7 +90,8 @@ async function handlePost(req, { params }) {
   const wantsPriceChange =
     data.items.some((i) => i.unitPrice != null || (i.lineDiscount || 0) > 0) || (data.discountAmount || 0) > 0;
   const isOwner = user.role === "vendor" || user.role === "super_admin";
-  if (wantsPriceChange && !isOwner) {
+  const initialPricePolicy = posPriceAdjustmentPolicy({ isOwner, wantsPriceChange, isOfflineReplay });
+  if (initialPricePolicy.blocked) {
     return NextResponse.json({ error: "Only the store owner can override prices or apply a discount right now" }, { status: 403 });
   }
 
@@ -142,6 +143,8 @@ async function handlePost(req, { params }) {
       variant,
       quantity: item.quantity,
       unitKobo,
+      capturedLineKobo: baseLineKobo,
+      catalogueLineKobo,
       lineDiscountKobo,
       lineTotalKobo,
       overridden,
@@ -149,12 +152,16 @@ async function handlePost(req, { params }) {
     });
   }
 
-  if (!isOwner && resolved.some((line) => line.overridden)) {
-    return NextResponse.json(
-      { error: "A product price changed while this sale was offline. Ask the store owner to review and sync it." },
-      { status: 403 },
-    );
-  }
+  // The cashier already completed an offline sale at the price cached on
+  // their device. Catalogue drift must not strand that real sale: settle it
+  // at the captured price and put it in the owner's audit queue. Explicit
+  // staff-entered overrides/discounts remain blocked by wantsPriceChange.
+  const offlinePriceDrift = posPriceAdjustmentPolicy({
+    isOwner,
+    wantsPriceChange,
+    isOfflineReplay,
+    hasPriceDifference: resolved.some((line) => line.overridden),
+  }).reviewRequired;
 
   const subtotalKobo = resolved.reduce((s, r) => s + r.lineTotalKobo, 0);
   const discountAmountKobo = Math.min(toKobo(data.discountAmount || 0), subtotalKobo);
@@ -366,6 +373,19 @@ async function handlePost(req, { params }) {
 
       const itemCount = resolved.reduce((n, r) => n + r.quantity, 0);
       const anyOverride = resolved.some((r) => r.overridden) || discountAmountKobo > 0;
+      const priceDriftLines = offlinePriceDrift
+        ? resolved
+            .filter((r) => r.overridden)
+            .map((r) => ({
+              productId: r.product.id,
+              variantId: r.variant?.id || null,
+              productName: r.product.name,
+              quantity: r.quantity,
+              capturedLineKobo: r.capturedLineKobo,
+              catalogueLineKobo: r.catalogueLineKobo,
+              varianceKobo: r.capturedLineKobo - r.catalogueLineKobo,
+            }))
+        : [];
       // "cash", "POS (Moniepoint)", "transfer (Opay)" ... joined for a split.
       const payLabel = tendersKobo
         .map((t) => {
@@ -384,7 +404,7 @@ async function handlePost(req, { params }) {
             `Rang up ${formatKobo(totalKobo)} - ${itemCount} item${itemCount === 1 ? "" : "s"} - ${payLabel}` +
             (changeKobo > 0 ? ` - ${formatKobo(changeKobo)} cash change from drawer` : "") +
             (discountAmountKobo > 0 ? ` - ${formatKobo(discountAmountKobo)} off` : "") +
-            (resolved.some((r) => r.overridden) ? " - price overridden" : "") +
+            (offlinePriceDrift ? " - offline price changed; review required" : resolved.some((r) => r.overridden) ? " - price overridden" : "") +
             (settleSessionId !== data.sessionId ? " - synced to current shift" : ""),
           targetType: "order",
           targetId: created.id,
@@ -394,9 +414,13 @@ async function handlePost(req, { params }) {
             itemCount,
             discountKobo: discountAmountKobo,
             overridden: resolved.some((r) => r.overridden),
+            offlinePriceDrift,
+            priceDriftLines,
             rehomed: settleSessionId !== data.sessionId,
             tenders: tendersKobo.map((t) => ({ method: t.method, provider: t.provider, amountKobo: t.amount, changeKobo: t.changeGiven })),
           },
+          flaggedAt: offlinePriceDrift ? new Date() : null,
+          flagNote: offlinePriceDrift ? "Offline sale used a cached price that differs from the current catalogue." : null,
         }),
       );
 

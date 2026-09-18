@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildSessionSummary, canReplayOfflineSale, computeDrawer, validateTenders } from "../lib/pos.js";
+import { buildSessionSummary, canReplayOfflineSale, computeDrawer, posPriceAdjustmentPolicy, validateTenders } from "../lib/pos.js";
 
 test("split tenders must settle the total exactly", () => {
   assert.deepEqual(validateTenders([
@@ -57,4 +57,25 @@ test("offline replay rejects sales older than seven days", () => {
     closedAt: "2026-01-01T18:00:00Z",
   };
   assert.equal(canReplayOfflineSale(session, new Date("2026-01-01T12:00:00Z").getTime(), now), false);
+});
+
+test("staff price adjustments remain blocked", () => {
+  assert.deepEqual(
+    posPriceAdjustmentPolicy({ isOwner: false, wantsPriceChange: true, isOfflineReplay: true, hasPriceDifference: true }),
+    { blocked: true, reviewRequired: false },
+  );
+});
+
+test("staff offline catalogue drift syncs with owner review required", () => {
+  assert.deepEqual(
+    posPriceAdjustmentPolicy({ isOwner: false, wantsPriceChange: false, isOfflineReplay: true, hasPriceDifference: true }),
+    { blocked: false, reviewRequired: true },
+  );
+});
+
+test("owner price differences do not require an automatic review flag", () => {
+  assert.deepEqual(
+    posPriceAdjustmentPolicy({ isOwner: true, wantsPriceChange: true, isOfflineReplay: true, hasPriceDifference: true }),
+    { blocked: false, reviewRequired: false },
+  );
 });
