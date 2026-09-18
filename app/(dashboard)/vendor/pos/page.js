@@ -558,9 +558,11 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     // with orderNo still null) - never serialise null into the payload.
     const num = orderNo || generateOrderNumber();
     if (num !== orderNo) setOrderNo(num);
+    const key = saleKey || crypto.randomUUID();
+    if (key !== saleKey) setSaleKey(key);
     const payload = {
       sessionId: openSession.session.id,
-      idempotencyKey: saleKey,
+      idempotencyKey: key,
       orderNumber: num,
       soldAt,
       offlineReplay: true,
