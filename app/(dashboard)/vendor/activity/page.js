@@ -11,7 +11,7 @@ import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDateTime } from "@/lib/format.js";
 import { formatKobo } from "@/lib/money.js";
-import { Check, Flag } from "lucide-react";
+import { Check, Flag, Search } from "lucide-react";
 
 const GROUPS = [
   { value: "", label: "All activity" },
@@ -108,6 +108,8 @@ export default function VendorActivityPage() {
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [group, setGroup] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [query, setQuery] = useState("");
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
   const [denied, setDenied] = useState(false);
@@ -116,6 +118,7 @@ export default function VendorActivityPage() {
     if (!token || !storeId) return;
     const qs = new URLSearchParams({ page: String(page), pageSize: "20" });
     if (group) qs.set("group", group);
+    if (query) qs.set("q", query);
     if (flaggedOnly) qs.set("flagged", "true");
     apiFetch(`/api/v1/vendor/stores/${storeId}/activity?${qs}`)
       .then((data) => {
@@ -127,7 +130,7 @@ export default function VendorActivityPage() {
         if (/owner/i.test(err.message || "")) setDenied(true);
         else toast.error(err.message || "Failed to load activity");
       });
-  }, [token, storeId, page, group, flaggedOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, storeId, page, group, query, flaggedOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateFlag = async (row, action) => {
     let note;
@@ -168,6 +171,30 @@ export default function VendorActivityPage() {
       </div>
 
       <div className="flex items-end gap-3 flex-wrap">
+        <form
+          className="w-full sm:max-w-sm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setQuery(searchInput.trim());
+            setPage(1);
+          }}
+        >
+          <label htmlFor="activity-search" className="block text-sm font-medium text-slate-700 mb-1">Search details</label>
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              id="activity-search"
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Order, product, reason, cashier..."
+              className="w-full h-10 pl-9 pr-10 rounded-sm border border-slate-300 bg-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            />
+            <button type="submit" title="Search activity" aria-label="Search activity" className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-brand-700 cursor-pointer">
+              <Search size={16} />
+            </button>
+          </div>
+        </form>
         <div className="w-full max-w-xs">
         <Select
           label="Show"

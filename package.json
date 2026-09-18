@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:pos": "node --test tests/pos.test.mjs"
+    "test:pos": "node --test tests/pos.test.mjs",
+    "test:unit": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",

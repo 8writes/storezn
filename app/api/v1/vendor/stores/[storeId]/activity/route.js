@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, count, desc, eq, gte, isNotNull, isNull, like, lt, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, isNotNull, isNull, like, lt, or, sql } from "drizzle-orm";
 import { db } from "../../../../../../../lib/db/index.js";
 import { stores, storeActivityLogs, branches } from "../../../../../../../lib/db/schema.js";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
@@ -23,6 +23,17 @@ export async function GET(req, { params }) {
   const { page, pageSize, limit, offset } = parsePagination(sp);
 
   const conds = [eq(storeActivityLogs.storeId, storeId)];
+  const q = sp.get("q")?.trim().slice(0, 200);
+  if (q) {
+    const term = `%${q}%`;
+    conds.push(or(
+      ilike(storeActivityLogs.summary, term),
+      ilike(storeActivityLogs.actorName, term),
+      ilike(storeActivityLogs.action, term),
+      ilike(storeActivityLogs.flagNote, term),
+      sql`coalesce(${storeActivityLogs.metadata}::text, '') ilike ${term}`,
+    ));
+  }
   const actor = sp.get("actorId")?.trim();
   if (actor) conds.push(eq(storeActivityLogs.actorId, actor));
   // action group, e.g. "pos" -> pos.sale / pos.return / pos.sale.adjusted

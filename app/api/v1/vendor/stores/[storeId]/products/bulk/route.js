@@ -8,6 +8,13 @@ import { parsePagination } from "../../../../../../../../lib/pagination.js";
 import { slugify } from "../../../../../../../../lib/slugify.js";
 import { seedBranchStockForNewItem } from "../../../../../../../../lib/inventory.js";
 import { getProductLimit } from "../../../../../../../../lib/storePlan.js";
+import {
+  isProductNameUniqueViolation,
+  normalizeProductName,
+  productNameKey,
+  productNameKeyExpression,
+  PRODUCT_NAME_TAKEN_MESSAGE,
+} from "../../../../../../../../lib/productName.js";
 
 const MAX_ROWS = 500;
 
@@ -163,8 +170,19 @@ export async function POST(req, { params }) {
       continue;
     }
     const data = result.data;
+    data.name = normalizeProductName(data.name);
 
     try {
+      const [sameName] = await db
+        .select({ id: products.id })
+        .from(products)
+        .where(and(eq(products.storeId, storeId), sql`${productNameKeyExpression(products.name)} = ${productNameKey(data.name)}`))
+        .limit(1);
+      if (sameName) {
+        results.push({ row: rowNumber, name: data.name, status: "error", error: PRODUCT_NAME_TAKEN_MESSAGE });
+        continue;
+      }
+
       let categoryId = null;
       if (data.categoryId) {
         // Grid path: an id picked from the store's own category list.
@@ -248,7 +266,12 @@ export async function POST(req, { params }) {
 
       results.push({ row: rowNumber, name: data.name, status: "created", productId: created.id });
     } catch (err) {
-      results.push({ row: rowNumber, name: data.name, status: "error", error: err.message || "Failed to create this row" });
+      results.push({
+        row: rowNumber,
+        name: data.name,
+        status: "error",
+        error: isProductNameUniqueViolation(err) ? PRODUCT_NAME_TAKEN_MESSAGE : err.message || "Failed to create this row",
+      });
     }
   }
 

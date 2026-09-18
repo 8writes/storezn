@@ -8,6 +8,13 @@ import { parsePagination } from "../../../../../../../lib/pagination.js";
 import { seedBranchStockForNewItem, LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 import { getProductLimit } from "../../../../../../../lib/storePlan.js";
+import {
+  isProductNameUniqueViolation,
+  normalizeProductName,
+  productNameKey,
+  productNameKeyExpression,
+  PRODUCT_NAME_TAKEN_MESSAGE,
+} from "../../../../../../../lib/productName.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -172,19 +179,31 @@ export async function POST(req, { params }) {
   const result = validate(createProductSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  const [existing] = await db
-    .select({ id: products.id })
-    .from(products)
-    .where(and(eq(products.storeId, storeId), eq(products.slug, result.data.slug)))
-    .limit(1);
-  if (existing) return NextResponse.json({ error: "That product slug already exists" }, { status: 409 });
+  const normalizedName = normalizeProductName(result.data.name);
+  const [[existingName], [existingSlug]] = await Promise.all([
+    db
+      .select({ id: products.id })
+      .from(products)
+      .where(and(eq(products.storeId, storeId), sql`${productNameKeyExpression(products.name)} = ${productNameKey(normalizedName)}`))
+      .limit(1),
+    db
+      .select({ id: products.id })
+      .from(products)
+      .where(and(eq(products.storeId, storeId), eq(products.slug, result.data.slug)))
+      .limit(1),
+  ]);
+  if (existingName) return NextResponse.json({ error: PRODUCT_NAME_TAKEN_MESSAGE }, { status: 409 });
+  if (existingSlug) return NextResponse.json({ error: "That product slug already exists" }, { status: 409 });
 
   const { branchStock, ...productData } = result.data;
+  productData.name = normalizedName;
   // The `date` column rejects "" - the form sends "" to mean "no date".
   if (productData.expiryDate === "") productData.expiryDate = null;
 
-  const created = await db.transaction(async (tx) => {
-    const [product] = await tx.insert(products).values({ storeId, ...productData }).returning();
+  let created;
+  try {
+    created = await db.transaction(async (tx) => {
+      const [product] = await tx.insert(products).values({ storeId, ...productData }).returning();
 
     const storeBranches = await tx
       .select({ id: branches.id, isDefault: branches.isDefault })
@@ -222,8 +241,14 @@ export async function POST(req, { params }) {
         stockByBranch,
       });
     }
-    return product;
-  });
+      return product;
+    });
+  } catch (error) {
+    if (isProductNameUniqueViolation(error)) {
+      return NextResponse.json({ error: PRODUCT_NAME_TAKEN_MESSAGE }, { status: 409 });
+    }
+    throw error;
+  }
   after(() =>
     logStoreActivity({
       storeId,

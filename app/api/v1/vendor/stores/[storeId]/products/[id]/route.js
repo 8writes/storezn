@@ -10,6 +10,13 @@ import { deleteStoreProducts, purgeProductAssets } from "../../../../../../../..
 import { setBranchStock } from "../../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
+import {
+  isProductNameUniqueViolation,
+  normalizeProductName,
+  productNameKey,
+  productNameKeyExpression,
+  PRODUCT_NAME_TAKEN_MESSAGE,
+} from "../../../../../../../../lib/productName.js";
 
 const money = (v) => (v == null ? "N/A" : formatCurrency(v));
 
@@ -61,6 +68,20 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "No changes to update" }, { status: 400 });
   }
 
+  if (result.data.name) {
+    result.data.name = normalizeProductName(result.data.name);
+    const [sameName] = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(and(
+        eq(products.storeId, storeId),
+        ne(products.id, id),
+        sql`${productNameKeyExpression(products.name)} = ${productNameKey(result.data.name)}`,
+      ))
+      .limit(1);
+    if (sameName) return NextResponse.json({ error: PRODUCT_NAME_TAKEN_MESSAGE }, { status: 409 });
+  }
+
   if (result.data.slug && result.data.slug !== product.slug) {
     const [existing] = await db
       .select({ id: products.id })
@@ -79,11 +100,19 @@ export async function PATCH(req, { params }) {
   const { stock, ...rest } = result.data;
   // The `date` column rejects "" - "" from the form means "clear the date".
   if (rest.expiryDate === "") rest.expiryDate = null;
-  const [updated] = await db
-    .update(products)
-    .set({ ...rest, updatedAt: new Date() })
-    .where(eq(products.id, id))
-    .returning();
+  let updated;
+  try {
+    [updated] = await db
+      .update(products)
+      .set({ ...rest, updatedAt: new Date() })
+      .where(eq(products.id, id))
+      .returning();
+  } catch (error) {
+    if (isProductNameUniqueViolation(error)) {
+      return NextResponse.json({ error: PRODUCT_NAME_TAKEN_MESSAGE }, { status: 409 });
+    }
+    throw error;
+  }
 
   if (stock !== undefined) {
     const [defaultBranch] = await db.select({ id: branches.id }).from(branches).where(and(eq(branches.storeId, storeId), eq(branches.isDefault, true))).limit(1);
