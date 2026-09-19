@@ -4,11 +4,9 @@ import { useSyncExternalStore } from "react";
 import Image from "next/image";
 import { X, Download } from "lucide-react";
 
-const DISMISSED_KEY = "pwa_install_dismissed";
-
 // Module-level singleton store, read via useSyncExternalStore below - this
 // (not a mount-flag useEffect) is the project's lint-approved way to read
-// browser-only state (matchMedia/localStorage/the beforeinstallprompt
+// browser-only state (matchMedia/the beforeinstallprompt
 // event) without a hydration mismatch: getServerSnapshot always returns
 // this frozen default, so the server render and the client's hydration
 // pass agree; the real values only take over on the client's next render.
@@ -52,23 +50,26 @@ if (typeof window !== "undefined") {
     deferredPrompt: null,
     ready: true,
     isIos,
-    standaloneOrDismissed: !isPlatformHost || standalone || !!localStorage.getItem(DISMISSED_KEY),
+    standaloneOrDismissed: !isPlatformHost || standalone,
   };
 
   window.addEventListener("beforeinstallprompt", (e) => {
     // Always suppress Chrome's own mini-infobar (which would use the same
     // mis-branded manifest) - only actually surface our UI on-platform.
     e.preventDefault();
-    if (isPlatformHost) setState({ deferredPrompt: e });
+    // A fresh event is the browser's signal that the app is not currently
+    // installed. It must also clear an earlier in-memory dismissal so the
+    // prompt returns after an uninstall.
+    if (isPlatformHost) setState({ deferredPrompt: e, standaloneOrDismissed: false });
   });
   window.addEventListener("appinstalled", () => {
-    localStorage.setItem(DISMISSED_KEY, "1");
     setState({ deferredPrompt: null, standaloneOrDismissed: true });
   });
 }
 
 function dismiss() {
-  localStorage.setItem(DISMISSED_KEY, "1");
+  // Dismiss only for this loaded page. Persisting this flag prevents the
+  // prompt from returning if the user later uninstalls the app.
   setState({ standaloneOrDismissed: true });
 }
 
@@ -94,30 +95,30 @@ export default function InstallPrompt() {
   if (!ready || standaloneOrDismissed || (!deferredPrompt && !isIos)) return null;
 
   return (
-    <div className="fixed bottom-4 inset-x-4 sm:left-auto sm:right-4 sm:w-96 z-50 bg-surface border border-slate-200 rounded-sm shadow-lg p-4 flex items-start gap-3 animate-fade-in">
-      <Image src="/icon-192.png" alt="" width={40} height={40} unoptimized className="rounded-sm shrink-0" />
+    <div className="fixed bottom-3 inset-x-3 sm:bottom-6 sm:left-auto sm:right-6 sm:w-[32rem] z-50 bg-surface border-2 border-brand-500 rounded-sm shadow-2xl p-5 sm:p-6 flex items-start gap-4 animate-fade-in">
+      <Image src="/icon-192.png" alt="" width={56} height={56} unoptimized className="rounded-sm shrink-0 shadow-sm" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-900">Install Storezn</p>
+        <p className="text-lg font-bold text-slate-900">Install Storezn</p>
         {isIos ? (
-          <p className="text-xs text-slate-800 mt-0.5">
+          <p className="text-sm leading-6 text-slate-800 mt-1">
             Tap the Share icon, then &quot;Add to Home Screen&quot; for instant access.
           </p>
         ) : (
           <>
-            <p className="text-xs text-slate-800 mt-0.5">Add it to your home screen for instant access.</p>
+            <p className="text-sm leading-6 text-slate-800 mt-1">Add it to your home screen for faster access and a focused app experience.</p>
             <button
               type="button"
               onClick={install}
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold bg-brand-600 text-white px-3 py-1.5 rounded-sm hover:bg-brand-700 transition-colors cursor-pointer"
+              className="mt-4 inline-flex h-11 items-center gap-2 bg-brand-600 text-white px-5 text-sm font-bold rounded-sm hover:bg-brand-700 transition-colors cursor-pointer"
             >
-              <Download size={14} />
-              Install
+              <Download size={18} />
+              Install Storezn
             </button>
           </>
         )}
       </div>
-      <button type="button" onClick={dismiss} aria-label="Dismiss" className="shrink-0 text-slate-700 hover:text-slate-700 cursor-pointer">
-        <X size={16} />
+      <button type="button" onClick={dismiss} aria-label="Dismiss install prompt" className="-mr-2 -mt-2 inline-flex h-10 w-10 shrink-0 items-center justify-center text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer rounded-sm">
+        <X size={20} />
       </button>
     </div>
   );
