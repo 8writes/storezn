@@ -5,6 +5,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getUser, canManageStore, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { setBranchStock, addBranchStock } from "../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
+import { STAFF_BRANCH_REQUIRED_MESSAGE, stockBranchForUser } from "../../../../../../../lib/stockBranch.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -23,8 +24,8 @@ async function resolveBranch(user, storeId, requested) {
     .orderBy(branches.createdAt);
 
   let target;
-  if (user.role === "staff" && user.branchId) {
-    target = rows.find((b) => b.id === user.branchId);
+  if (user.role === "staff") {
+    target = stockBranchForUser(rows, user);
   } else if (requested) {
     target = rows.find((b) => b.id === requested);
   } else {
@@ -46,6 +47,7 @@ export async function GET(req, { params }) {
 
   const requested = new URL(req.url).searchParams.get("branchId")?.trim() || null;
   const { rows, target } = await resolveBranch(user, storeId, requested);
+  if (user.role === "staff" && !target) return NextResponse.json({ error: STAFF_BRANCH_REQUIRED_MESSAGE }, { status: 409 });
   if (!target) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
 
   const stockRows = await db
@@ -82,6 +84,7 @@ export async function PATCH(req, { params }) {
   if (updates.length > 500) return NextResponse.json({ error: "Too many rows in one request" }, { status: 400 });
 
   const { target } = await resolveBranch(user, storeId, body?.branchId?.trim() || null);
+  if (user.role === "staff" && !target) return NextResponse.json({ error: STAFF_BRANCH_REQUIRED_MESSAGE }, { status: 409 });
   if (!target) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
 
   // Keep only well-formed rows for products that belong to this store.

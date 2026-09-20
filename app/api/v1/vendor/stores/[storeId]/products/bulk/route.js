@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
 import { products, productVariants, productBranchStock, categories, stores, branches } from "../../../../../../../../lib/db/schema.js";
-import { and, count, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, ilike, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { getUser, canManageStore, isStoreOwner } from "../../../../../../../../lib/auth.js";
 import { validate, bulkProductRowSchema } from "../../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../../lib/pagination.js";
 import { slugify } from "../../../../../../../../lib/slugify.js";
-import { seedBranchStockForNewItem } from "../../../../../../../../lib/inventory.js";
+import { LOW_STOCK_THRESHOLD, seedBranchStockForNewItem } from "../../../../../../../../lib/inventory.js";
 import { getProductLimit } from "../../../../../../../../lib/storePlan.js";
+import { STAFF_BRANCH_REQUIRED_MESSAGE, stockBranchForUser } from "../../../../../../../../lib/stockBranch.js";
 import {
   isProductNameUniqueViolation,
   normalizeProductName,
@@ -48,13 +49,44 @@ export async function GET(req, { params }) {
 
   const requested = sp.get("branchId")?.trim() || null;
   let target;
-  if (user.role === "staff" && user.branchId) target = branchRows.find((b) => b.id === user.branchId);
+  if (user.role === "staff") target = stockBranchForUser(branchRows, user);
   else if (requested) target = branchRows.find((b) => b.id === requested);
   else target = branchRows.find((b) => b.isDefault) || branchRows[0];
+  if (user.role === "staff" && !target) return NextResponse.json({ error: STAFF_BRANCH_REQUIRED_MESSAGE }, { status: 409 });
   if (!target) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
 
   const where = [eq(products.storeId, storeId)];
   if (q) where.push(or(ilike(products.name, `%${q}%`), ilike(products.sku, `%${q}%`)));
+  const categoryId = sp.get("category")?.trim();
+  if (categoryId) where.push(eq(products.categoryId, categoryId));
+
+  const stockValue = productBranchStock.stock;
+  const stockFilter = sp.get("stock")?.trim();
+  if (stockFilter === "in") where.push(or(isNull(stockValue), gt(stockValue, LOW_STOCK_THRESHOLD)));
+  else if (stockFilter === "low") where.push(and(gt(stockValue, 0), lte(stockValue, LOW_STOCK_THRESHOLD)));
+  else if (stockFilter === "out") where.push(eq(stockValue, 0));
+  else if (stockFilter === "oversold") where.push(lt(stockValue, 0));
+
+  const statusFilter = sp.get("status")?.trim();
+  if (statusFilter === "active") where.push(eq(products.isActive, true));
+  else if (statusFilter === "archived") where.push(eq(products.isActive, false));
+
+  const featuredFilter = sp.get("featured")?.trim();
+  if (featuredFilter === "yes") where.push(isNotNull(products.featuredOrder));
+  else if (featuredFilter === "no") where.push(isNull(products.featuredOrder));
+
+  const expiryFilter = sp.get("expiry")?.trim();
+  if (expiryFilter === "soon") where.push(sql`${products.expiryDate} is not null and ${products.expiryDate} >= current_date and ${products.expiryDate} < current_date + 30`);
+  else if (expiryFilter === "expired") where.push(sql`${products.expiryDate} is not null and ${products.expiryDate} < current_date`);
+
+  const sorts = {
+    newest: desc(products.createdAt),
+    oldest: asc(products.createdAt),
+    name: asc(products.name),
+    price_high: desc(products.price),
+    price_low: asc(products.price),
+  };
+  const orderBy = sorts[sp.get("sort")] || sorts.newest;
 
   const variantCountSql = sql`(select count(*)::int from ${productVariants} where ${productVariants.productId} = ${products.id} and ${productVariants.isActive})`;
   const [rows, [{ total }], cats] = await Promise.all([
@@ -74,11 +106,22 @@ export async function GET(req, { params }) {
       })
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))
+      .leftJoin(productBranchStock, and(
+        eq(productBranchStock.productId, products.id),
+        eq(productBranchStock.branchId, target.id),
+        isNull(productBranchStock.variantId),
+      ))
       .where(and(...where))
-      .orderBy(products.name)
+      .orderBy(orderBy)
       .limit(limit)
       .offset(offset),
-    db.select({ total: count() }).from(products).where(and(...where)),
+    db.select({ total: count() }).from(products)
+      .leftJoin(productBranchStock, and(
+        eq(productBranchStock.productId, products.id),
+        eq(productBranchStock.branchId, target.id),
+        isNull(productBranchStock.variantId),
+      ))
+      .where(and(...where)),
     page === 1
       ? db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.storeId, storeId)).orderBy(categories.name)
       : Promise.resolve(null),
@@ -147,15 +190,18 @@ export async function POST(req, { params }) {
     }
   }
 
-  // Every imported product starts stocked at the store's default branch,
-  // same as the single-product create route - without a productBranchStock
+  // Every imported product starts stocked at the staff member's assigned
+  // branch (or the default branch for an owner) - without a productBranchStock
   // row the checkout stock guard treats it as untracked/unlimited, so a
   // CSV "stock" value would silently never be enforced.
-  const [defaultBranch] = await db
-    .select({ id: branches.id })
+  const storeBranches = await db
+    .select({ id: branches.id, isDefault: branches.isDefault })
     .from(branches)
-    .where(and(eq(branches.storeId, storeId), eq(branches.isDefault, true)))
-    .limit(1);
+    .where(eq(branches.storeId, storeId));
+  const initialBranch = stockBranchForUser(storeBranches, user);
+  if (user.role === "staff" && !initialBranch) {
+    return NextResponse.json({ error: STAFF_BRANCH_REQUIRED_MESSAGE }, { status: 409 });
+  }
 
   const categoryCache = new Map();
   const results = [];
@@ -252,12 +298,12 @@ export async function POST(req, { params }) {
             isActive: true,
           })
           .returning();
-        if (defaultBranch) {
+        if (initialBranch) {
           await seedBranchStockForNewItem(tx, {
             storeId,
             productId: product.id,
             variantId: null,
-            initialBranchId: defaultBranch.id,
+            initialBranchId: initialBranch.id,
             initialStock: data.stock ?? null,
           });
         }

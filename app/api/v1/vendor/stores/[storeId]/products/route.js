@@ -8,6 +8,7 @@ import { parsePagination } from "../../../../../../../lib/pagination.js";
 import { seedBranchStockForNewItem, LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 import { getProductLimit } from "../../../../../../../lib/storePlan.js";
+import { STAFF_BRANCH_REQUIRED_MESSAGE, stockBranchForUser } from "../../../../../../../lib/stockBranch.js";
 import {
   isProductNameUniqueViolation,
   normalizeProductName,
@@ -200,15 +201,20 @@ export async function POST(req, { params }) {
   // The `date` column rejects "" - the form sends "" to mean "no date".
   if (productData.expiryDate === "") productData.expiryDate = null;
 
+  const storeBranches = await db
+    .select({ id: branches.id, isDefault: branches.isDefault })
+    .from(branches)
+    .where(eq(branches.storeId, storeId));
+  const initialBranch = stockBranchForUser(storeBranches, user);
+  if (user.role === "staff" && !initialBranch) {
+    return NextResponse.json({ error: STAFF_BRANCH_REQUIRED_MESSAGE }, { status: 409 });
+  }
+
   let created;
   try {
     created = await db.transaction(async (tx) => {
       const [product] = await tx.insert(products).values({ storeId, ...productData }).returning();
 
-    const storeBranches = await tx
-      .select({ id: branches.id, isDefault: branches.isDefault })
-      .from(branches)
-      .where(eq(branches.storeId, storeId));
     const defaultBranch = storeBranches.find((b) => b.isDefault);
 
     // Multi-branch store + a per-branch allocation from the create form -
@@ -226,9 +232,9 @@ export async function POST(req, { params }) {
     // any plain `stock` they sent into that branch and drop every other
     // branch id, so they can never seed stock into a branch they don't
     // run (mirrors the branch-stock PATCH route's staff guard).
-    if (user.role === "staff" && user.branchId && storeBranches.some((b) => b.id === user.branchId)) {
-      const own = stockByBranch?.[user.branchId] ?? productData.stock ?? 0;
-      stockByBranch = { [user.branchId]: own };
+    if (user.role === "staff" && initialBranch) {
+      const own = stockByBranch?.[initialBranch.id] ?? productData.stock ?? 0;
+      stockByBranch = { [initialBranch.id]: own };
     }
 
     if (defaultBranch || stockByBranch) {

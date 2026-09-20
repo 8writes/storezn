@@ -10,6 +10,7 @@ import { deleteStoreProducts, purgeProductAssets } from "../../../../../../../..
 import { setBranchStock } from "../../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
+import { STAFF_BRANCH_REQUIRED_MESSAGE, stockBranchForUser } from "../../../../../../../../lib/stockBranch.js";
 import {
   isProductNameUniqueViolation,
   normalizeProductName,
@@ -93,13 +94,20 @@ export async function PATCH(req, { params }) {
 
   // products.stock is a cached aggregate now, not the source of truth
   // (see lib/inventory.js) - a plain "Stock" field submission (today's
-  // single-branch UI, or a quick edit on a multi-branch store) always
-  // means the default branch specifically, routed through setBranchStock
-  // so the aggregate stays in sync instead of drifting from a direct
-  // write.
+  // single-branch UI, or a quick edit on a multi-branch store) means the
+  // staff member's assigned branch, or the default branch for an owner.
+  // Route it through setBranchStock so the aggregate stays in sync.
   const { stock, ...rest } = result.data;
   // The `date` column rejects "" - "" from the form means "clear the date".
   if (rest.expiryDate === "") rest.expiryDate = null;
+  let stockBranch = null;
+  if (stock !== undefined) {
+    const storeBranches = await db.select({ id: branches.id, isDefault: branches.isDefault }).from(branches).where(eq(branches.storeId, storeId));
+    stockBranch = stockBranchForUser(storeBranches, user);
+    if (user.role === "staff" && !stockBranch) {
+      return NextResponse.json({ error: STAFF_BRANCH_REQUIRED_MESSAGE }, { status: 409 });
+    }
+  }
   let updated;
   try {
     [updated] = await db
@@ -115,9 +123,8 @@ export async function PATCH(req, { params }) {
   }
 
   if (stock !== undefined) {
-    const [defaultBranch] = await db.select({ id: branches.id }).from(branches).where(and(eq(branches.storeId, storeId), eq(branches.isDefault, true))).limit(1);
-    if (defaultBranch) {
-      await db.transaction((tx) => setBranchStock(tx, { productId: id, variantId: null, branchId: defaultBranch.id, stock }));
+    if (stockBranch) {
+      await db.transaction((tx) => setBranchStock(tx, { productId: id, variantId: null, branchId: stockBranch.id, stock }));
       const [refreshed] = await db.select({ stock: products.stock }).from(products).where(eq(products.id, id)).limit(1);
       updated.stock = refreshed.stock;
     }

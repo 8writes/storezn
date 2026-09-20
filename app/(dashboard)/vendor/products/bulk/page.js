@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, X } from "lucide-react";
+import { Plus, Trash2, Search, X, SlidersHorizontal } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
@@ -46,6 +46,12 @@ export default function BulkProductsPage() {
 
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
+  const [expiryFilter, setExpiryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [featuredFilter, setFeaturedFilter] = useState("");
+  const [sort, setSort] = useState("newest");
   const [lastScan, setLastScan] = useState("");
   const tableRef = useRef(null);
 
@@ -60,6 +66,12 @@ export default function BulkProductsPage() {
       const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
       if (bId) params.set("branchId", bId);
       if (query) params.set("q", query);
+      if (categoryFilter) params.set("category", categoryFilter);
+      if (stockFilter) params.set("stock", stockFilter);
+      if (expiryFilter) params.set("expiry", expiryFilter);
+      if (statusFilter) params.set("status", statusFilter);
+      if (featuredFilter) params.set("featured", featuredFilter);
+      if (sort !== "newest") params.set("sort", sort);
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/bulk?${params}`);
 
       setBranchId(data.branchId);
@@ -101,18 +113,22 @@ export default function BulkProductsPage() {
         return [...prev, ...incoming.filter((r) => !seen.has(r.id))];
       });
     },
-    [apiFetch, storeId],
+    [apiFetch, storeId, categoryFilter, stockFilter, expiryFilter, statusFilter, featuredFilter, sort],
   );
 
   // Initial load + branch switch + search all replace the list from page 1.
   useEffect(() => {
     if (!token || !storeId) return;
-    setLoading(true);
-    fetchPage({ page: 1, bId: branchId, query: debouncedQ, append: false })
-      .catch((err) => toast.error(err.message || "Couldn't load products"))
-      .finally(() => setLoading(false));
+    const timer = window.setTimeout(() => {
+      fetchPage({ page: 1, bId: branchId, query: debouncedQ, append: false })
+        .catch((err) => toast.error(err.message || "Couldn't load products"))
+        .finally(() => setLoading(false));
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // branchId is deliberately excluded: owners change it through
+    // changeBranch, while staff are pinned by the API.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, debouncedQ]);
+  }, [token, storeId, debouncedQ, fetchPage]);
 
   const changeBranch = (bId) => {
     setLoading(true);
@@ -285,7 +301,8 @@ export default function BulkProductsPage() {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
-  const canLoadMore = !q && pagination && pagination.page < pagination.totalPages;
+  const canLoadMore = pagination && pagination.page < pagination.totalPages;
+  const activeFilterCount = [categoryFilter, stockFilter, expiryFilter, statusFilter, featuredFilter, sort !== "newest" ? sort : ""].filter(Boolean).length;
 
   return (
     <div className="space-y-4">
@@ -342,6 +359,37 @@ export default function BulkProductsPage() {
             <Plus size={14} /> Add rows
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2 border-y border-slate-200 py-3">
+        <div className="flex items-center gap-2 pr-1 text-sm font-semibold text-slate-700">
+          <SlidersHorizontal size={16} />
+          Filters
+          {activeFilterCount > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-xs text-white">{activeFilterCount}</span>}
+        </div>
+        <div className="min-w-40 flex-1 sm:max-w-52">
+          <Select label="Category" searchable options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]} value={categoryFilter} onChange={setCategoryFilter} />
+        </div>
+        <div className="min-w-36 flex-1 sm:max-w-44">
+          <Select label="Stock" searchable={false} options={[{ value: "", label: "All stock" }, { value: "in", label: "In stock" }, { value: "low", label: "Low stock" }, { value: "out", label: "Out of stock" }, { value: "oversold", label: "Oversold" }]} value={stockFilter} onChange={setStockFilter} />
+        </div>
+        <div className="min-w-36 flex-1 sm:max-w-44">
+          <Select label="Expiry" searchable={false} options={[{ value: "", label: "Any expiry" }, { value: "soon", label: "Expiring soon" }, { value: "expired", label: "Expired" }]} value={expiryFilter} onChange={setExpiryFilter} />
+        </div>
+        <div className="min-w-36 flex-1 sm:max-w-44">
+          <Select label="Status" searchable={false} options={[{ value: "", label: "Any status" }, { value: "active", label: "Live" }, { value: "archived", label: "Archived" }]} value={statusFilter} onChange={setStatusFilter} />
+        </div>
+        <div className="min-w-36 flex-1 sm:max-w-44">
+          <Select label="Featured" searchable={false} options={[{ value: "", label: "Any" }, { value: "yes", label: "Featured" }, { value: "no", label: "Not featured" }]} value={featuredFilter} onChange={setFeaturedFilter} />
+        </div>
+        <div className="min-w-36 flex-1 sm:max-w-44">
+          <Select label="Sort" searchable={false} options={[{ value: "newest", label: "Newest" }, { value: "oldest", label: "Oldest" }, { value: "name", label: "Name" }, { value: "price_high", label: "Price: high" }, { value: "price_low", label: "Price: low" }]} value={sort} onChange={setSort} />
+        </div>
+        {activeFilterCount > 0 && (
+          <button type="button" onClick={() => { setCategoryFilter(""); setStockFilter(""); setExpiryFilter(""); setStatusFilter(""); setFeaturedFilter(""); setSort("newest"); }} className="h-10 px-2 text-sm font-medium text-slate-700 hover:text-slate-900">
+            Clear
+          </button>
+        )}
       </div>
 
       {loading ? (

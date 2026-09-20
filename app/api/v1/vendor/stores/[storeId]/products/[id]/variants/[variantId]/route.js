@@ -7,6 +7,7 @@ import { validate, updateVariantSchema } from "../../../../../../../../../../lib
 import { setBranchStock } from "../../../../../../../../../../lib/inventory.js";
 import { deleteVariants, VariantOrderedError } from "../../../../../../../../../../lib/variants.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
+import { STAFF_BRANCH_REQUIRED_MESSAGE, stockBranchForUser } from "@/lib/stockBranch.js";
 
 async function loadOwnedVariant(user, storeId, productId, variantId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -30,15 +31,23 @@ export async function PATCH(req, { params }) {
   const result = validate(updateVariantSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  // Same aggregate-vs-source-of-truth reasoning as the product PATCH
-  // route - a plain "Stock" field always means the default branch.
+  // Same aggregate-vs-source-of-truth reasoning as the product PATCH:
+  // staff writes target their assigned branch; owner writes target the
+  // default branch.
   const { stock, ...rest } = result.data;
+  let stockBranch = null;
+  if (stock !== undefined) {
+    const storeBranches = await db.select({ id: branches.id, isDefault: branches.isDefault }).from(branches).where(eq(branches.storeId, storeId));
+    stockBranch = stockBranchForUser(storeBranches, user);
+    if (user.role === "staff" && !stockBranch) {
+      return NextResponse.json({ error: STAFF_BRANCH_REQUIRED_MESSAGE }, { status: 409 });
+    }
+  }
   const [updated] = await db.update(productVariants).set(rest).where(eq(productVariants.id, variantId)).returning();
 
   if (stock !== undefined) {
-    const [defaultBranch] = await db.select({ id: branches.id }).from(branches).where(and(eq(branches.storeId, storeId), eq(branches.isDefault, true))).limit(1);
-    if (defaultBranch) {
-      await db.transaction((tx) => setBranchStock(tx, { productId: id, variantId, branchId: defaultBranch.id, stock }));
+    if (stockBranch) {
+      await db.transaction((tx) => setBranchStock(tx, { productId: id, variantId, branchId: stockBranch.id, stock }));
       const [refreshed] = await db.select({ stock: productVariants.stock }).from(productVariants).where(eq(productVariants.id, variantId)).limit(1);
       updated.stock = refreshed.stock;
     }
