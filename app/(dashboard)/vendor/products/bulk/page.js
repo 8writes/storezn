@@ -352,7 +352,7 @@ export default function BulkProductsPage() {
           )}
         </div>
         <BarcodeScanButton onScan={scanFind} className="!py-1.5" />
-        <button type="button" onClick={() => setFiltersOpen(true)} className="relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+        <button type="button" onClick={() => setFiltersOpen(true)} className="relative inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-sm border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
           <SlidersHorizontal size={15} />
           Filters
           {activeFilterCount > 0 && <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-xs font-bold text-white">{activeFilterCount}</span>}

@@ -55,7 +55,7 @@ export function ProductFiltersModal({ categories, categoryId, setCategoryId, sor
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className="fixed inset-0 cursor-pointer bg-black/50" onClick={onClose} />
       <div className="relative flex max-h-[85vh] w-full flex-col rounded-t-sm bg-surface shadow-xl sm:max-w-lg sm:rounded-sm">
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
           <p className="text-sm font-bold text-slate-900">Filters</p>
