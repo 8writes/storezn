@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button.js";
 import { Select } from "@/components/ui/Select.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { BarcodeScanButton } from "@/components/pos/BarcodeScanButton.js";
+import { EXPIRY_LABEL, FEATURED_LABEL, FilterChip, ProductFiltersModal, SORT_LABEL, STATUS_LABEL, STOCK_LABEL } from "@/components/products/ProductFilters.js";
 
 // Spreadsheet-style bulk add / edit. Loads products 20 at a time ("load
 // more"), lets you change price / cost / stock / category / expiry in
@@ -52,6 +53,7 @@ export default function BulkProductsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [featuredFilter, setFeaturedFilter] = useState("");
   const [sort, setSort] = useState("newest");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [lastScan, setLastScan] = useState("");
   const tableRef = useRef(null);
 
@@ -350,6 +352,11 @@ export default function BulkProductsPage() {
           )}
         </div>
         <BarcodeScanButton onScan={scanFind} className="!py-1.5" />
+        <button type="button" onClick={() => setFiltersOpen(true)} className="relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <SlidersHorizontal size={15} />
+          Filters
+          {activeFilterCount > 0 && <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-xs font-bold text-white">{activeFilterCount}</span>}
+        </button>
         <span className="text-xs text-slate-800">
           {q ? `${serverRows.length} match${serverRows.length === 1 ? "" : "es"}` : pagination ? `${serverRows.length} of ${pagination.total}` : ""}
         </span>
@@ -361,36 +368,40 @@ export default function BulkProductsPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2 border-y border-slate-200 py-3">
-        <div className="flex items-center gap-2 pr-1 text-sm font-semibold text-slate-700">
-          <SlidersHorizontal size={16} />
-          Filters
-          {activeFilterCount > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-xs text-white">{activeFilterCount}</span>}
+      {activeFilterCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {statusFilter && <FilterChip label={STATUS_LABEL[statusFilter]} onClear={() => setStatusFilter("")} />}
+          {featuredFilter && <FilterChip label={FEATURED_LABEL[featuredFilter]} onClear={() => setFeaturedFilter("")} />}
+          {stockFilter && <FilterChip label={STOCK_LABEL[stockFilter]} onClear={() => setStockFilter("")} />}
+          {expiryFilter && <FilterChip label={EXPIRY_LABEL[expiryFilter]} onClear={() => setExpiryFilter("")} />}
+          {categoryFilter && <FilterChip label={categories.find((category) => category.id === categoryFilter)?.name || "Category"} onClear={() => setCategoryFilter("")} />}
+          {sort !== "newest" && <FilterChip label={SORT_LABEL[sort]} onClear={() => setSort("newest")} />}
+          <button type="button" onClick={() => { setCategoryFilter(""); setStockFilter(""); setExpiryFilter(""); setStatusFilter(""); setFeaturedFilter(""); setSort("newest"); }} className="cursor-pointer text-slate-800 underline hover:text-slate-900">Clear all</button>
         </div>
-        <div className="min-w-40 flex-1 sm:max-w-52">
-          <Select label="Category" searchable options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]} value={categoryFilter} onChange={setCategoryFilter} />
-        </div>
-        <div className="min-w-36 flex-1 sm:max-w-44">
-          <Select label="Stock" searchable={false} options={[{ value: "", label: "All stock" }, { value: "in", label: "In stock" }, { value: "low", label: "Low stock" }, { value: "out", label: "Out of stock" }, { value: "oversold", label: "Oversold" }]} value={stockFilter} onChange={setStockFilter} />
-        </div>
-        <div className="min-w-36 flex-1 sm:max-w-44">
-          <Select label="Expiry" searchable={false} options={[{ value: "", label: "Any expiry" }, { value: "soon", label: "Expiring soon" }, { value: "expired", label: "Expired" }]} value={expiryFilter} onChange={setExpiryFilter} />
-        </div>
-        <div className="min-w-36 flex-1 sm:max-w-44">
-          <Select label="Status" searchable={false} options={[{ value: "", label: "Any status" }, { value: "active", label: "Live" }, { value: "archived", label: "Archived" }]} value={statusFilter} onChange={setStatusFilter} />
-        </div>
-        <div className="min-w-36 flex-1 sm:max-w-44">
-          <Select label="Featured" searchable={false} options={[{ value: "", label: "Any" }, { value: "yes", label: "Featured" }, { value: "no", label: "Not featured" }]} value={featuredFilter} onChange={setFeaturedFilter} />
-        </div>
-        <div className="min-w-36 flex-1 sm:max-w-44">
-          <Select label="Sort" searchable={false} options={[{ value: "newest", label: "Newest" }, { value: "oldest", label: "Oldest" }, { value: "name", label: "Name" }, { value: "price_high", label: "Price: high" }, { value: "price_low", label: "Price: low" }]} value={sort} onChange={setSort} />
-        </div>
-        {activeFilterCount > 0 && (
-          <button type="button" onClick={() => { setCategoryFilter(""); setStockFilter(""); setExpiryFilter(""); setStatusFilter(""); setFeaturedFilter(""); setSort("newest"); }} className="h-10 px-2 text-sm font-medium text-slate-700 hover:text-slate-900">
-            Clear
-          </button>
-        )}
-      </div>
+      )}
+
+      {filtersOpen && (
+        <ProductFiltersModal
+          categories={categories}
+          categoryId={categoryFilter}
+          setCategoryId={setCategoryFilter}
+          sort={sort}
+          setSort={setSort}
+          stockLevel={stockFilter}
+          setStockLevel={setStockFilter}
+          expiry={expiryFilter}
+          setExpiry={setExpiryFilter}
+          status={statusFilter}
+          setStatus={setStatusFilter}
+          featured={featuredFilter}
+          setFeatured={setFeaturedFilter}
+          branches={branchList || []}
+          branchId={branchId || ""}
+          setBranchId={changeBranch}
+          allowAllBranches={false}
+          onClose={() => setFiltersOpen(false)}
+        />
+      )}
 
       {loading ? (
         <FormSkeleton fields={6} />
