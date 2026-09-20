@@ -81,7 +81,9 @@ export async function DELETE(req) {
   const user = await getUser(req);
   if (!requireRole(user, ["super_admin", "admin"])) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const cutoff = new Date(Date.now() - 60 * 60 * 1000);
+  // The public status page calculates seven-day availability from this
+  // table, so cleanup retains that complete reporting window.
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const deleted = await db
     .delete(apiRequestLogs)
     .where(lt(apiRequestLogs.createdAt, cutoff))

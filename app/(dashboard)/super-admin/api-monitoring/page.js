@@ -65,7 +65,7 @@ export default function SuperAdminApiMonitoringPage() {
   };
 
   const clearOld = async () => {
-    if (!window.confirm("Delete API monitoring records older than 1 hour?")) return;
+    if (!window.confirm("Delete API monitoring records older than 7 days? The latest 7 days are retained for system status history.")) return;
     setClearing(true);
     try {
       const data = await apiFetch("/api/v1/super-admin/api-monitoring", { method: "DELETE" });
@@ -93,7 +93,7 @@ export default function SuperAdminApiMonitoringPage() {
             className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-sm border border-red-200 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
             <Trash2 size={16} />
-            Clear old
+            Clear 7+ days
           </button>
           <button
             type="button"
