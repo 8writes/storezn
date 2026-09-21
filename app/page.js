@@ -33,7 +33,7 @@ const PERKS = [
   { icon: Package, title: "Stock that stays honest", text: "Inventory moves the moment an order comes in - online or in person - so the number you see is the number you have." },
   { icon: TrendingUp, title: "Numbers you can act on", text: "Revenue, best sellers, low stock and expiring items - on the dashboard, not buried in a spreadsheet." },
   { icon: Truck, title: "Shipping, your rules", text: "Rates by state or city, or one flat fee for everything. Set it once and checkout does the maths." },
-  { icon: Percent, title: "You choose who pays the fee", text: "Absorb the platform fee yourself, or pass it to the customer at checkout. Your call, per store." },
+  { icon: Percent, title: "No hidden fees", text: "Payouts are split at checkout, so there's no hidden fees." },
   { icon: ShoppingBag, title: "Bulk catalogue upload", text: "Import your whole range at once from a CSV template instead of adding items one by one." },
   { icon: LayoutDashboard, title: "One calm dashboard", text: "Orders, customers, products, payouts and staff - in one place, without the clutter." },
 ];
