@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 
 const CHANNEL_LABEL = { online: "Online store", pos: "Register (POS)", manual: "Recorded past sales" };
-const TENDER_LABEL = { cash: "Cash", card: "POS / card", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
+const TENDER_LABEL = { cash: "Cash", card: "POS / card", transfer: "Transfer", paystack: "Paystack", wallet: "Wallet", store_credit: "Store credit" };
 const CASH_KIND = { paid_in: "Paid in", paid_out: "Paid out", drop: "Cash drop" };
 
 function lastMonths(n) {

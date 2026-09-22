@@ -60,6 +60,7 @@ export async function GET(req, { params }) {
     byChannel,
     byBranch,
     byTender,
+    [onlinePayment],
     topByRevenue,
     topByQty,
     allProductsSold,
@@ -98,8 +99,12 @@ export async function GET(req, { params }) {
       })
       .from(orderTenders)
       .innerJoin(orders, eq(orders.id, orderTenders.orderId))
-      .where(and(eq(orders.storeId, storeId), gte(orders.createdAt, start), lt(orders.createdAt, end)))
+      .where(and(inMonth, isSale))
       .groupBy(orderTenders.method, orderTenders.provider),
+    db
+      .select({ amount: sql`coalesce(sum(${orders.totalAmount}), 0)`.mapWith(Number) })
+      .from(orders)
+      .where(and(inMonth, isSale, eq(orders.isOffline, false))),
     db
       .select({
         productId: orderItems.productId,
@@ -427,6 +432,26 @@ export async function GET(req, { params }) {
   }
   const perStaff = [...staffMap.values()].sort((a, b) => b.salesValue - a.salesValue);
 
+  // Online storefront payments do not create order_tenders rows because
+  // Paystack is the payment processor and source of truth for those orders.
+  // Add them explicitly so the payment-method section does not incorrectly
+  // look empty when a store has only online sales.
+  const tenderRows = byTender.map((r) => ({
+    method: r.method,
+    provider: r.provider,
+    amount: toNaira(r.amountKobo),
+  }));
+  if ((onlinePayment?.amount || 0) > 0) {
+    tenderRows.push({ method: "paystack", provider: "Paystack", amount: onlinePayment.amount });
+  }
+  const tenderTotals = Object.values(
+    tenderRows.reduce((acc, r) => {
+      acc[r.method] = acc[r.method] || { method: r.method, amount: 0 };
+      acc[r.method].amount += r.amount;
+      return acc;
+    }, {}),
+  );
+
   // ---- reconciliation ----
   const drawerVarianceTotal = toNaira(cashVar?.overShortKobo || 0);
   const discountsTotal = toNaira((totals.discountsKobo || 0) + (lineDiscTotalRow?.[0]?.kobo || 0));
@@ -485,17 +510,11 @@ export async function GET(req, { params }) {
     },
     byChannel: byChannel.map((r) => ({ channel: r.channel, count: r.count, revenue: r.revenue })),
     byBranch: byBranch.map((r) => ({ branch: r.branchName || "Unassigned", count: r.count, revenue: r.revenue })),
-    byTender: Object.values(
-      byTender.reduce((acc, r) => {
-        acc[r.method] = acc[r.method] || { method: r.method, amountKobo: 0 };
-        acc[r.method].amountKobo += r.amountKobo;
-        return acc;
-      }, {}),
-    ).map((r) => ({ method: r.method, amount: toNaira(r.amountKobo) })),
+    byTender: tenderTotals,
     // Full traceability: every non-cash stream by the account it landed in.
-    byAccount: byTender
+    byAccount: tenderRows
       .filter((r) => r.method !== "cash")
-      .map((r) => ({ method: r.method, provider: (r.provider || "").trim() || "Unspecified", amount: toNaira(r.amountKobo) }))
+      .map((r) => ({ method: r.method, provider: (r.provider || "").trim() || "Unspecified", amount: r.amount }))
       .sort((a, b) => b.amount - a.amount),
     topProductsByRevenue: topByRevenue.map((r) => ({ name: r.name, qty: r.qty, revenue: r.revenue })),
     topProductsByQty: topByQty.map((r) => ({ name: r.name, qty: r.qty })),
