@@ -54,6 +54,9 @@ export function Footer({ store, themed = false }) {
         )}
 
         <div className={`flex items-center gap-4 text-xs ${themed ? "text-white" : "text-slate-700"}`}>
+          <a href="/orders" className={`font-medium transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
+            Track an order
+          </a>
           <a href={getPlatformUrl("/signup")} className={`font-medium transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
             Get your own website
           </a>

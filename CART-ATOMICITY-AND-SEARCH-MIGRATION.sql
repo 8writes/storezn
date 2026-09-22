@@ -34,6 +34,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_cart_items_cart_variant
   ON cart_items (cart_id, product_id, variant_id)
   WHERE variant_id IS NOT NULL;
 
+-- Converted carts no longer need their guest cookie identity. Clearing it
+-- prevents a later cart request from colliding with the carts guest-token
+-- uniqueness constraint after checkout has completed.
+UPDATE carts
+SET guest_token = NULL
+WHERE status <> 'active' AND guest_token IS NOT NULL;
+
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_products_store_name_trgm
   ON products USING gin (name gin_trgm_ops);

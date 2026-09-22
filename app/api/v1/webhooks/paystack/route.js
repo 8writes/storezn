@@ -9,6 +9,7 @@ import { formatCurrency } from "../../../../../lib/format.js";
 import { sendPushToStore } from "../../../../../lib/push.js";
 import { LOW_STOCK_THRESHOLD, reserveStock, restockItems, OutOfStockError } from "../../../../../lib/inventory.js";
 import { findCheckoutAttemptByReference, finalizePaidCheckoutAttempt, failCheckoutAttemptAndReleaseStock } from "../../../../../lib/checkoutAttempts.js";
+import { orderConfirmationHtml } from "../../../../../lib/orderNotifications.js";
 import { logAppError } from "../../../../../lib/appErrorLog.js";
 import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 
@@ -63,20 +64,17 @@ async function handleSubscriptionCharge(event) {
 // how the caller below tells these apart from a regular order payment.
 async function handleSubscriptionRenewal(event) {
   const subscriptionCode = event.data?.subscription_code;
-  let storeId = null;
-  if (subscriptionCode) {
-    const [store] = await db.select({ id: stores.id }).from(stores).where(eq(stores.paystackSubscriptionCode, subscriptionCode)).limit(1);
-    storeId = store?.id;
-  }
-  if (!storeId) {
-    const email = event.data?.customer?.email;
-    if (!email) return;
-    const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-    if (!owner) return;
-    const [store] = await db.select({ id: stores.id }).from(stores).where(eq(stores.ownerId, owner.id)).limit(1);
-    storeId = store?.id;
-  }
-  if (!storeId) return;
+  // A renewal must identify the exact Paystack subscription. Falling back to
+  // owner email can attach an ordinary order (or a multi-store owner's
+  // payment) to the wrong store's billing ledger.
+  if (!subscriptionCode) return;
+  const [store] = await db
+    .select({ id: stores.id })
+    .from(stores)
+    .where(eq(stores.paystackSubscriptionCode, subscriptionCode))
+    .limit(1);
+  if (!store) return;
+  const storeId = store.id;
 
   const isNewCharge = await recordSubscriptionTransaction({
     storeId,
@@ -251,7 +249,7 @@ async function handlePost(req) {
   // subscription, so it never carries our "STOREZNSUB-" prefix, but does
   // carry `data.plan` (only present for plan/subscription-linked
   // charges, never a regular storefront order).
-  if (event.data?.plan) {
+  if (event.data?.plan && event.data?.subscription_code) {
     await handleSubscriptionRenewal(event);
     return NextResponse.json({ received: true });
   }
@@ -288,7 +286,7 @@ async function handlePost(req) {
     const order = finalized.order;
     const items = finalized.items;
     const [store] = await db
-      .select({ name: stores.name, ownerId: stores.ownerId, logoUrl: stores.logoUrl, storefrontAccentColor: stores.storefrontAccentColor })
+      .select({ name: stores.name, ownerId: stores.ownerId, logoUrl: stores.logoUrl, storefrontAccentColor: stores.storefrontAccentColor, slug: stores.slug, customDomain: stores.customDomain, domainStatus: stores.domainStatus })
       .from(stores)
       .where(eq(stores.id, order.storeId))
       .limit(1);
@@ -312,13 +310,10 @@ async function handlePost(req) {
     }
 
     if (recipient.email && recipient.notify) {
-      const itemsHtml = items
-        .map((i) => `<tr><td>${escapeHtml(i.productName)}${i.variantLabel ? ` (${escapeHtml(i.variantLabel)})` : ""}</td><td>${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`)
-        .join("");
       await sendMail({
         to: recipient.email,
         subject: `Order confirmation - ${order.orderNumber}`,
-        html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${escapeHtml(store?.name) || "the store"} has been received.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
+        html: orderConfirmationHtml({ order, items, store, recipientEmail: recipient.email }),
         fromName: store?.name,
         brand: store,
         preheader: `Order ${order.orderNumber} has been received`,
@@ -493,7 +488,7 @@ async function handlePost(req) {
   }
 
   const [store] = await db
-    .select({ name: stores.name, ownerId: stores.ownerId, logoUrl: stores.logoUrl, storefrontAccentColor: stores.storefrontAccentColor })
+    .select({ name: stores.name, ownerId: stores.ownerId, logoUrl: stores.logoUrl, storefrontAccentColor: stores.storefrontAccentColor, slug: stores.slug, customDomain: stores.customDomain, domainStatus: stores.domainStatus })
     .from(stores)
     .where(eq(stores.id, order.storeId))
     .limit(1);
@@ -518,13 +513,10 @@ async function handlePost(req) {
   }
 
   if (recipient.email && recipient.notify) {
-    const itemsHtml = items
-      .map((i) => `<tr><td>${escapeHtml(i.productName)}${i.variantLabel ? ` (${escapeHtml(i.variantLabel)})` : ""}</td><td>${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`)
-      .join("");
     after(() => sendMail({
       to: recipient.email,
       subject: `Order confirmation - ${order.orderNumber}`,
-      html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${escapeHtml(store?.name) || "the store"} has been received.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
+      html: orderConfirmationHtml({ order, items, store, recipientEmail: recipient.email }),
       fromName: store?.name,
       brand: store,
       preheader: `Order ${order.orderNumber} has been received`,
