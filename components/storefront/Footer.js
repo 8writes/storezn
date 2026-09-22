@@ -30,14 +30,15 @@ export function Footer({ store, themed = false }) {
 
   return (
     <footer className={themed ? "bg-brand-600" : "border-t border-slate-200 bg-white"}>
-      <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className={`text-sm text-center sm:text-left ${themed ? "text-white" : "text-slate-800"}`}>
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-10">
+        <div className="flex items-start justify-between gap-6">
+          <div className={`min-w-0 text-left text-sm ${themed ? "text-white" : "text-slate-800"}`}>
           <p>© {new Date().getFullYear()} {store?.name}</p>
           {store?.address && <p className={`text-xs mt-0.5 ${themed ? "text-white" : "text-slate-700"}`}>{store.address}</p>}
-        </div>
+          </div>
 
         {hasAnySocial && (
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 flex-wrap justify-end gap-4 pt-0.5">
             {SOCIAL_ICONS.filter(({ key }) => links[key]).map(({ key, Icon, label }) => (
               <a
                 key={key}
@@ -52,15 +53,16 @@ export function Footer({ store, themed = false }) {
             ))}
           </div>
         )}
+        </div>
 
-        <div className={`flex items-center gap-4 text-xs ${themed ? "text-white" : "text-slate-700"}`}>
+        <div className={`mt-6 grid w-full grid-cols-2 gap-x-5 gap-y-3 border-t pt-5 text-xs sm:flex sm:items-center sm:justify-end sm:gap-5 ${themed ? "border-white/25 text-white" : "border-slate-200 text-slate-700"}`}>
           <a href="/orders" className={`font-medium transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
             Track an order
           </a>
-          <a href={getPlatformUrl("/signup")} className={`font-medium transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
+          <a href={getPlatformUrl("/signup")} className={`text-right font-medium transition-colors sm:text-left ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
             Get your own website
           </a>
-          <p>
+          <p className="col-span-2 sm:col-span-1">
             Powered by{" "}
             <a href="https://ozmictech.com" target="_blank" rel="noreferrer" className={`transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
               Ozmictech
