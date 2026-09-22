@@ -69,10 +69,12 @@ async function handleLogin(req) {
   // office / mobile-carrier IP where several people mistype a password
   // isn't collectively locked out by one person's typos.
   const emailKey = typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
-  const ipOk = checkRateLimit(req, "login:ip", { max: 40, windowMs: 60_000 }).allowed;
-  const emailOk = emailKey
-    ? checkRateLimit(req, "login:email", { max: 8, windowMs: 60_000, userId: emailKey }).allowed
-    : true;
+  const [ipLimit, emailLimit] = await Promise.all([
+    checkRateLimit(req, "login:ip", { max: 40, windowMs: 60_000 }),
+    emailKey ? checkRateLimit(req, "login:email", { max: 8, windowMs: 60_000, userId: emailKey }) : null,
+  ]);
+  const ipOk = ipLimit.allowed;
+  const emailOk = emailLimit ? emailLimit.allowed : true;
   if (!ipOk || !emailOk) {
     return NextResponse.json({ error: "Too many sign-in attempts. Please wait a minute and try again." }, { status: 429 });
   }

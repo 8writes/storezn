@@ -6,7 +6,7 @@ import { db } from "../../../../../lib/db/index.js";
 import { stores, platformSettings } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getStorageLimitBytes } from "../../../../../lib/storePlan.js";
-import { recordStoreUpload, getStoreStorageUsage, removeStoreUpload } from "../../../../../lib/storeUploads.js";
+import { reserveStoreUpload, finalizeStoreUpload, releaseStoreUploadReservation, removeStoreUpload, cleanupStaleStoreUploads } from "../../../../../lib/storeUploads.js";
 import { logAppError } from "../../../../../lib/appErrorLog.js";
 import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 
@@ -36,7 +36,7 @@ async function handlePost(req) {
   // legitimately push through a lot of files in one sitting. The hard
   // caps that actually matter are per-file size (below) and the per-store
   // storage quota; this is just a hammering backstop, so it's generous.
-  const limit = checkRateLimit(req, "upload-file", { max: 150, windowMs: 60 * 60_000, userId: user.id });
+  const limit = await checkRateLimit(req, "upload-file", { max: 150, windowMs: 60 * 60_000, userId: user.id, includeIp: true });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many uploads, try again later" }, { status: 429 });
   }
@@ -83,21 +83,25 @@ async function handlePost(req) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeIdForUser)).limit(1);
   const [settings] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
   const limitBytes = getStorageLimitBytes(store, settings || { freeStorageMb: 500, plusStorageMb: 5000 });
-  const usedBytes = await getStoreStorageUsage(storeIdForUser);
-  if (usedBytes + file.size > limitBytes) {
+  await cleanupStaleStoreUploads(storeIdForUser);
+  const reservation = await reserveStoreUpload({ storeId: storeIdForUser, sizeBytes: file.size, limitBytes, purpose });
+  if (!reservation) {
     return NextResponse.json(
       { error: `Storage limit reached (${Math.round(limitBytes / (1024 * 1024))}MB)${store.plan !== "plus" ? " - upgrade to Storezn+ for more space" : ""}` },
       { status: 402 },
     );
   }
 
+  let url;
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const key = generateObjectKey(`${purpose}/${user.id}`, file.name);
-    const url = await uploadPublicFile(buffer, key, file.type);
-    await recordStoreUpload({ storeId: storeIdForUser, url, sizeBytes: file.size, purpose });
+    url = await uploadPublicFile(buffer, key, file.type);
+    await finalizeStoreUpload({ id: reservation.id, url, purpose });
     return NextResponse.json({ url });
   } catch (err) {
+    if (url) await deletePublicFile(url);
+    await releaseStoreUploadReservation(reservation.id).catch(() => {});
     await logAppError(err, {
       req,
       user,

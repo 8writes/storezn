@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { orders, orderItems, carts, cartItems, users, customers, stores, storeSubscriptionTransactions, branches, productBranchStock, platformSettings } from "../../../../../lib/db/schema.js";
 import { and, eq, isNull, ne } from "drizzle-orm";
@@ -521,14 +521,14 @@ async function handlePost(req) {
     const itemsHtml = items
       .map((i) => `<tr><td>${escapeHtml(i.productName)}${i.variantLabel ? ` (${escapeHtml(i.variantLabel)})` : ""}</td><td>${i.quantity}</td><td>${formatCurrency(i.lineTotal)}</td></tr>`)
       .join("");
-    await sendMail({
+    after(() => sendMail({
       to: recipient.email,
       subject: `Order confirmation - ${order.orderNumber}`,
       html: `<h2>Thanks for your order!</h2><p>Order <strong>${order.orderNumber}</strong> from ${escapeHtml(store?.name) || "the store"} has been received.</p><table>${itemsHtml}</table><p>Total: ${formatCurrency(order.totalAmount)}</p>`,
       fromName: store?.name,
       brand: store,
       preheader: `Order ${order.orderNumber} has been received`,
-    }).catch((err) => console.error("sendMail failed (order confirmation):", err));
+    }).catch((err) => console.error("sendMail failed (order confirmation):", err)));
   }
 
   return NextResponse.json({ received: true });

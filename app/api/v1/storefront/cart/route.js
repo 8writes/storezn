@@ -9,6 +9,8 @@ import { resolveCart, getCartWithItems, computeCartTotals, findCartItem, abandon
 import { computeOrderTotals } from "../../../../../lib/orders.js";
 import { resolveShippingFee } from "../../../../../lib/shipping.js";
 import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
+import { checkRateLimit } from "../../../../../lib/rateLimit.js";
+import { sql } from "drizzle-orm";
 
 function withGuestTokenCookie(res, guestToken, isNewToken) {
   if (isNewToken) {
@@ -28,6 +30,8 @@ async function loadStoreForRequest(req) {
 }
 
 async function handleGet(req) {
+  const limit = await checkRateLimit(req, "cart-read", { max: 120, windowMs: 60_000 });
+  if (!limit.allowed) return NextResponse.json({ error: "Too many cart requests, try again shortly" }, { status: 429 });
   const store = await loadStoreForRequest(req);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
@@ -80,6 +84,8 @@ async function computeDisplayFees(store, subtotal, shippingFee) {
 }
 
 async function handlePost(req) {
+  const limit = await checkRateLimit(req, "cart-add", { max: 60, windowMs: 60_000 });
+  if (!limit.allowed) return NextResponse.json({ error: "Too many cart updates, try again shortly" }, { status: 429 });
   const store = await loadStoreForRequest(req);
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
@@ -139,9 +145,14 @@ async function handlePost(req) {
   }
 
   if (existingItem) {
-    await db.update(cartItems).set({ quantity: existingItem.quantity + quantity }).where(eq(cartItems.id, existingItem.id));
+    await db.update(cartItems).set({ quantity: sql`${cartItems.quantity} + ${quantity}` }).where(eq(cartItems.id, existingItem.id));
   } else {
-    await db.insert(cartItems).values({ cartId: cart.id, productId, variantId: variant?.id || null, quantity });
+    try {
+      await db.insert(cartItems).values({ cartId: cart.id, productId, variantId: variant?.id || null, quantity });
+    } catch (err) {
+      if (err?.code !== "23505") throw err;
+      await db.update(cartItems).set({ quantity: sql`${cartItems.quantity} + ${quantity}` }).where(and(eq(cartItems.cartId, cart.id), eq(cartItems.productId, productId), variant?.id ? eq(cartItems.variantId, variant.id) : isNull(cartItems.variantId)));
+    }
   }
 
   const items = await getCartWithItems(cart.id);

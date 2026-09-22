@@ -8,7 +8,7 @@ import { validate, resetPasswordSchema } from "../../../../../lib/validate.js";
 import { sendPushToUser } from "../../../../../lib/push.js";
 
 export async function POST(req) {
-  const limit = checkRateLimit(req, "reset-password", { max: 10, windowMs: 60_000 });
+  const limit = await checkRateLimit(req, "reset-password", { max: 10, windowMs: 60_000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
   }

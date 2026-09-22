@@ -18,7 +18,7 @@ import { recordDeviceUse } from "../../../../../lib/deviceLog.js";
 // requires accepting the terms of service (which the vendor themselves
 // is actually clicking here, unlike the admin-initiated path).
 export async function POST(req) {
-  const limit = checkRateLimit(req, "vendor-signup", { max: 5, windowMs: 60_000 });
+  const limit = await checkRateLimit(req, "vendor-signup", { max: 5, windowMs: 60_000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
   }

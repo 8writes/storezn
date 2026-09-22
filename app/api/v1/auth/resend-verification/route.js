@@ -12,7 +12,7 @@ import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveSt
 // effectively users (vendor/super_admin) on the platform host, or
 // customers scoped to a store on that store's own host.
 export async function POST(req) {
-  const limit = checkRateLimit(req, "resend-verification", { max: 5, windowMs: 60_000 });
+  const limit = await checkRateLimit(req, "resend-verification", { max: 5, windowMs: 60_000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
   }

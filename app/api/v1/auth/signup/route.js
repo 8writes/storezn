@@ -20,7 +20,7 @@ const BANNED = (extra) => NextResponse.json({ error: "Access from this device ha
 // normalizedEmail) uniqueness, the super-admin block-list, and a device
 // ban / auto-ban for abuse (see lib/deviceBan.js + the privacy policy).
 export async function POST(req) {
-  const limit = checkRateLimit(req, "customer-signup", { max: 5, windowMs: 60_000 });
+  const limit = await checkRateLimit(req, "customer-signup", { max: 5, windowMs: 60_000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
   }

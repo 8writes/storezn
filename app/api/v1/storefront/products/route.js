@@ -13,7 +13,7 @@ export async function GET(req) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
   const { searchParams } = new URL(req.url);
-  const page = Math.max(1, parseInt(searchParams.get("page"), 10) || 1);
+  const page = Math.min(1_000, Math.max(1, parseInt(searchParams.get("page"), 10) || 1));
   const q = searchParams.get("q") || undefined;
   const categoryId = searchParams.get("category") || undefined;
   const minPrice = searchParams.get("min") ? Number(searchParams.get("min")) : null;

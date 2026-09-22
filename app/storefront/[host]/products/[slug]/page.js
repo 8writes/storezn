@@ -14,6 +14,8 @@ import { ReviewsSection } from "@/components/storefront/ReviewsSection.js";
 import { ProductGallery } from "@/components/storefront/ProductGallery.js";
 import { ShareButton } from "@/components/storefront/ShareButton.js";
 import { BackButton } from "@/components/storefront/BackButton.js";
+import { ProductRail } from "@/components/storefront/ProductRail.js";
+import { getSimilarStorefrontProducts } from "@/lib/storefrontProducts.js";
 
 async function loadProduct(host, slug) {
   const store = await resolveStoreByHost(decodeURIComponent(host));
@@ -68,10 +70,19 @@ export default async function StorefrontProductPage({ params }) {
   if (!store) return null;
   if (!product) return notFound();
 
-  const variants = await db
-    .select()
-    .from(productVariants)
-    .where(and(eq(productVariants.productId, product.id), eq(productVariants.isActive, true)));
+  const [variants, similarProducts] = await Promise.all([
+    db
+      .select()
+      .from(productVariants)
+      .where(and(eq(productVariants.productId, product.id), eq(productVariants.isActive, true))),
+    getSimilarStorefrontProducts({
+      storeId: store.id,
+      productId: product.id,
+      categoryId: product.categoryId,
+      productType: product.productType,
+      limit: 10,
+    }),
+  ]);
 
   return (
     <div className="pb-24 sm:pb-0">
@@ -144,6 +155,11 @@ export default async function StorefrontProductPage({ params }) {
       </div>
 
       <ReviewsSection productId={product.id} />
+      {similarProducts.length > 0 && (
+        <div className="mt-16">
+          <ProductRail title="You may also like" products={similarProducts} />
+        </div>
+      )}
     </div>
   );
 }

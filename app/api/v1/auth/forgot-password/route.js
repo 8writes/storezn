@@ -9,7 +9,7 @@ import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveSt
 import { emailBrand, emailButton } from "../../../../../lib/email/templates.js";
 
 export async function POST(req) {
-  const limit = checkRateLimit(req, "forgot-password", { max: 5, windowMs: 60_000 });
+  const limit = await checkRateLimit(req, "forgot-password", { max: 5, windowMs: 60_000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
   }

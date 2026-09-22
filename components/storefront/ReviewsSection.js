@@ -58,6 +58,7 @@ export function ReviewsSection({ productId }) {
     try {
       const buffer = await file.arrayBuffer();
       const body = new FormData();
+      body.append("productId", productId);
       body.append("file", new File([buffer], file.name, { type: file.type }));
       const res = await fetch("/api/v1/storefront/reviews/upload", {
         method: "POST",

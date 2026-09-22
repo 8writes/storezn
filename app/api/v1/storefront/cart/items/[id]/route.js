@@ -6,6 +6,7 @@ import { getUser } from "../../../../../../../lib/auth.js";
 import { validate, updateCartItemSchema } from "../../../../../../../lib/validate.js";
 import { getCartWithItems, computeCartTotals, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../../../lib/cart.js";
 import { withApiMonitoring } from "../../../../../../../lib/apiMonitoring.js";
+import { checkRateLimit } from "../../../../../../../lib/rateLimit.js";
 
 // Confirms the cart item belongs to the requester's own cart (by user id
 // or guest token) before allowing it to be touched - otherwise someone
@@ -28,6 +29,8 @@ async function loadOwnedItem(req, itemId) {
 }
 
 async function handlePatch(req, { params }) {
+  const limit = await checkRateLimit(req, "cart-update", { max: 60, windowMs: 60_000 });
+  if (!limit.allowed) return NextResponse.json({ error: "Too many cart updates, try again shortly" }, { status: 429 });
   const { id } = await params;
   const owned = await loadOwnedItem(req, id);
   if (!owned) return NextResponse.json({ error: "Cart item not found" }, { status: 404 });
@@ -58,6 +61,8 @@ async function handlePatch(req, { params }) {
 }
 
 async function handleDelete(req, { params }) {
+  const limit = await checkRateLimit(req, "cart-delete", { max: 60, windowMs: 60_000 });
+  if (!limit.allowed) return NextResponse.json({ error: "Too many cart updates, try again shortly" }, { status: 429 });
   const { id } = await params;
   const owned = await loadOwnedItem(req, id);
   if (!owned) return NextResponse.json({ error: "Cart item not found" }, { status: 404 });

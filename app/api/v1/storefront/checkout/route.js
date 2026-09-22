@@ -118,7 +118,7 @@ async function startCheckoutPayment({ attempt, email, customerName, redirectUrl,
 }
 
 async function handlePost(req) {
-  const limit = checkRateLimit(req, "checkout", { max: 10, windowMs: 60_000 });
+  const limit = await checkRateLimit(req, "checkout", { max: 10, windowMs: 60_000 });
   if (!limit.allowed) {
     return NextResponse.json({ error: "Too many attempts, try again shortly" }, { status: 429 });
   }
