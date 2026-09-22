@@ -207,6 +207,13 @@ async function handlePost(req) {
     feeChargedToCustomer,
     maxCommissionAmount: settings?.maxCommissionAmount,
   });
+  const configuredFlatFee = Math.max(0, Number(settings?.defaultFlatFee) || 0);
+  if (!feeChargedToCustomer && configuredFlatFee > flatFeeAmount + 0.001) {
+    return NextResponse.json(
+      { error: "This order total is too low for the store to absorb the full platform fee. Add more items or choose a different store." },
+      { status: 422 },
+    );
+  }
 
   const orderNumber = generateOrderNumber();
   // "STOREZN-" prefix lets the shared Paystack webhook router (hosted on

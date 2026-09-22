@@ -72,7 +72,7 @@ async function computeDisplayFees(store, subtotal, shippingFee) {
   const [settings] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
   const commissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
   const feeChargedToCustomer = store.feeChargedToCustomer ?? false;
-  const { totalAmount, platformFeeAmount } = computeOrderTotals({
+  const { totalAmount, platformFeeAmount, flatFeeAmount } = computeOrderTotals({
     subtotal,
     shippingFee,
     commissionRatePercent,
@@ -80,7 +80,16 @@ async function computeDisplayFees(store, subtotal, shippingFee) {
     feeChargedToCustomer,
     maxCommissionAmount: settings?.maxCommissionAmount,
   });
-  return { feeChargedToCustomer, platformFee: feeChargedToCustomer ? platformFeeAmount : 0, total: totalAmount };
+  const configuredFlatFee = Math.max(0, Number(settings?.defaultFlatFee) || 0);
+  const platformFeeShortfall = !feeChargedToCustomer
+    ? Math.max(0, configuredFlatFee - flatFeeAmount)
+    : 0;
+  return {
+    feeChargedToCustomer,
+    platformFee: feeChargedToCustomer ? platformFeeAmount : 0,
+    platformFeeShortfall,
+    total: totalAmount,
+  };
 }
 
 async function handlePost(req) {

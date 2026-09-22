@@ -271,13 +271,26 @@ export default function CheckoutPage() {
               <span>{formatCurrency(cart.platformFee)}</span>
             </div>
           )}
+          {!cart.feeChargedToCustomer && cart.platformFeeShortfall > 0 && (!needsShipping || effectiveState) && (
+            <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              This order is too small for the store to absorb its full platform fee. Add more items to continue.
+            </div>
+          )}
           <div className="flex justify-between pt-2 border-t border-slate-100 font-semibold text-slate-900 text-base">
             <span>Total</span>
             <span>{formatCurrency(cart.total ?? cart.subtotal)}</span>
           </div>
         </div>
 
-        <Button type="submit" fullWidth size="lg" loading={submitting}>Pay now</Button>
+        <Button
+          type="submit"
+          fullWidth
+          size="lg"
+          loading={submitting}
+          disabled={cart.platformFeeShortfall > 0 && (!needsShipping || effectiveState)}
+        >
+          Pay now
+        </Button>
         <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
           <Lock size={12} className="shrink-0" />
           Secured by Paystack
