@@ -317,7 +317,7 @@ export default function VendorDashboardPage() {
           {isOwner && store && verification?.approvalStatus === "approved" && (
             <Card className="bg-brand-50! border-brand-100! space-y-1.5">
               <p className="text-sm font-semibold text-slate-900">
-                This is your store&apos;s link
+                This is your website&apos;s link
               </p>
               <p className="text-xs text-slate-800">
                 Anyone who opens it can browse and buy from you, copy it
@@ -344,7 +344,7 @@ export default function VendorDashboardPage() {
             verification.approvalStatus !== "approved" && (
               <Card pad="sm" className="max-w-md border-dashed bg-slate-50!">
                 <p className="text-sm font-semibold text-slate-800">
-                  Your store&apos;s link will appear here
+                  Your website&apos;s link will appear here
                 </p>
                 <p className="text-xs text-slate-800 mt-0.5">
                   Once your identity is verified below, you&apos;ll get a

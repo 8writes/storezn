@@ -280,7 +280,7 @@ export default function VendorSettingsPage() {
                 <InfoTip>
                   Shoppers can discover your products from the Storezn
                   marketplace, outside your own website link. Turning this off
-                  only removes you from the marketplace - your store link keeps
+                  only removes you from the marketplace - your website link keeps
                   working exactly as before.
                 </InfoTip>
               </div>

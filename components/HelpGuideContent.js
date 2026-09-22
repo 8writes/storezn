@@ -98,7 +98,7 @@ const STEPS = [
       "share store link qr code live storefront whatsapp instagram marketplace",
     body: (
       <p>
-        Once you&apos;re verified, your store link (and its <b>QR code</b>) is
+        Once you&apos;re verified, your website link (and its <b>QR code</b>) is
         on your dashboard - share it on WhatsApp status, your Instagram bio,
         anywhere. Your products also appear in the Storezn <b>marketplace</b>{" "}
         unless you turn that off in Store settings.
@@ -131,9 +131,9 @@ const SECTIONS = [
   },
   {
     id: "storefront",
-    label: "Your storefront",
+    label: "Your website",
     cards: [
-      card("Your store link & QR", "Both are on your dashboard once you're verified. The QR is handy for a shop sign, flyer, or receipt."),
+      card("Your website link & QR", "Both are on your dashboard once you're verified. The QR is handy for a shop sign, flyer, or receipt."),
       card("Going offline temporarily", "Store settings → Store status. Turned off, customers see a \"closed\" page instead of your products; your link keeps working, it just isn't taking orders."),
       card("Marketplace listing", "On by default - your products are discoverable in the Storezn marketplace on top of your own link. Turn it off in Store settings; your own website is unaffected."),
       card("Accent colour (Storezn+)", "Store settings → Storefront theme. Pick one colour and your header, buttons, prices and filters all follow it. Free stores use the default green."),
