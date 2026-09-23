@@ -58,7 +58,7 @@ const PRODUCT_FORM_FIELDS = [
   { id: "priceTiers", label: "Wholesale tiers" }, { id: "category", label: "Category" },
   { id: "openingStock", label: "Opening stock" }, { id: "description", label: "Description" },
   { id: "sizeGuide", label: "Size guide" }, { id: "customerFields", label: "Customer details" },
-  { id: "photos", label: "Photos" }, { id: "video", label: "Video" },
+  { id: "photos", label: "Photos" }, { id: "video", label: "Video" }, { id: "variants", label: "Variants" },
 ];
 const DEFAULT_VISIBLE_FORM_FIELDS = PRODUCT_FORM_FIELDS.map((field) => field.id);
 
@@ -134,18 +134,22 @@ export default function VendorProductEditPage({ params }) {
   useEffect(() => {
     if (!token || !storeId) return;
     apiFetch(`/api/v1/vendor/stores/${storeId}/product-form-preferences`)
-      .then((data) => setVisibleFormFields(data.preference?.visibleFields || DEFAULT_VISIBLE_FORM_FIELDS))
+      .then((data) => {
+        if (data.preference && Array.isArray(data.preference.visibleFields)) setVisibleFormFields(data.preference.visibleFields);
+      })
       .catch(() => {});
   }, [token, storeId, apiFetch]);
 
   const hasField = (fieldId) => visibleFormFields.includes(fieldId);
   const toggleFormField = async (fieldId) => {
+    const previous = visibleFormFields;
     const next = hasField(fieldId) ? visibleFormFields.filter((id2) => id2 !== fieldId) : [...visibleFormFields, fieldId];
     setVisibleFormFields(next);
     setSavingFormPreferences(true);
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/product-form-preferences`, { method: "PATCH", body: JSON.stringify({ visibleFields: next }) });
     } catch (err) {
+      setVisibleFormFields(previous);
       toast.error(err.message || "Could not save form preferences");
     } finally {
       setSavingFormPreferences(false);
@@ -357,12 +361,10 @@ export default function VendorProductEditPage({ params }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
           <Input label="URL slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
-              {hasField("sku") && <Input label="SKU / barcode (optional)" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />}
-            </div>
+          {hasField("sku") && <div className="flex items-end gap-2">
+            <div className="flex-1"><Input label="SKU / barcode (optional)" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} /></div>
             <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
-          </div>
+          </div>}
           {hasField("expiryDate") && form.productType === "physical" && (
             <Input
               type="date"
@@ -439,7 +441,7 @@ export default function VendorProductEditPage({ params }) {
         {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
         {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
 
-        <div className="space-y-2">
+        {hasField("photos") && <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Photos</label>
           <p className="text-xs text-slate-800">
             Drag to reorder - the first photo is the cover shown in your store. Up to {MAX_MEDIA} photos and video combined.
@@ -505,9 +507,9 @@ export default function VendorProductEditPage({ params }) {
               </label>
             )}
           </div>
-        </div>
+        </div>}
 
-        <div className="space-y-2">
+        {hasField("video") && <div className="space-y-2">
           <div className="flex items-center gap-1.5">
             <label className="text-sm font-medium text-slate-700">Video (optional)</label>
             <InfoTip>A short clip of the product - up to {MAX_VIDEO_SECONDS}s and {MAX_VIDEO_SIZE / (1024 * 1024)}MB.</InfoTip>
@@ -537,21 +539,21 @@ export default function VendorProductEditPage({ params }) {
           ) : (
             <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
           )}
-        </div>
+        </div>}
 
         <Button type="submit" loading={saving} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>Save changes</Button>
       </form>
 
       <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} onTotalBranches={setBranchCount} />
 
-      <VariantsManager
+      {hasField("variants") && <VariantsManager
         storeId={storeId}
         productId={id}
         apiFetch={apiFetch}
         branchCount={branchCount}
         standardEnabled={form.allowStandardVariant !== false}
         onToggleStandard={(v) => setForm((f) => ({ ...f, allowStandardVariant: v }))}
-      />
+      />}
 
       <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
     </div>

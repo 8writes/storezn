@@ -259,6 +259,11 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [orderDiscount, setOrderDiscount] = useState("");
   const [discountReason, setDiscountReason] = useState("");
   const [buyer, setBuyer] = useState({ name: "", phone: "", note: "" });
+  const [invoiceRequest, setInvoiceRequest] = useState(null);
+  const [invoiceRequestEmail, setInvoiceRequestEmail] = useState("");
+  const [invoiceRequestQuantity, setInvoiceRequestQuantity] = useState(1);
+  const [invoiceRequestAnswers, setInvoiceRequestAnswers] = useState({});
+  const [invoiceRequestSubmitting, setInvoiceRequestSubmitting] = useState(false);
   const [saleKey, setSaleKey] = useState(null);
   const [orderNo, setOrderNo] = useState(null);
   const [editKey, setEditKey] = useState(null);
@@ -520,19 +525,42 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       return [...rows, { key, productId: product.id, variantId: variant?.id || null, quantity: 1, priceOverride: null, lineDiscount: 0 }];
     });
   };
-  const requestInvoice = async (product, variant) => {
+  const requestInvoice = (product, variant) => {
     if (offlineMode) {
       toast.info("Invoice requests need a connection. Keep the product selected and reconnect to request it.");
       return;
     }
+    setInvoiceRequest({ product, variant });
+    setInvoiceRequestEmail("");
+    setInvoiceRequestQuantity(1);
+    setInvoiceRequestAnswers({});
+  };
+  const submitInvoiceRequest = async () => {
+    if (!invoiceRequest) return;
+    const { product, variant } = invoiceRequest;
+    const quantity = Number(invoiceRequestQuantity);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      toast.error("Quantity must be at least 1");
+      return;
+    }
+    setInvoiceRequestSubmitting(true);
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests`, {
         method: "POST",
-        body: JSON.stringify({ buyerName: buyer.name || undefined, buyerPhone: buyer.phone || undefined, items: [{ productId: product.id, variantId: variant?.id || null, quantity: 1 }] }),
+        body: JSON.stringify({
+          guestEmail: invoiceRequestEmail.trim() || undefined,
+          buyerName: buyer.name || undefined,
+          buyerPhone: buyer.phone || undefined,
+          note: buyer.note || undefined,
+          items: [{ productId: product.id, variantId: variant?.id || null, quantity, customerFields: invoiceRequestAnswers }],
+        }),
       });
       toast.success("Invoice request added. Open Invoices to price and send it.");
+      setInvoiceRequest(null);
     } catch (err) {
       toast.error(err.message || "Could not create invoice request");
+    } finally {
+      setInvoiceRequestSubmitting(false);
     }
   };
   const setQty = (key, q) =>
@@ -1028,6 +1056,37 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           submitting={submitting}
           onComplete={completeSale}
         />
+      )}
+
+      {invoiceRequest && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={invoiceRequestSubmitting ? undefined : () => setInvoiceRequest(null)} />
+          <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <div><p className="text-sm font-bold text-slate-900">Request invoice</p><p className="text-xs text-slate-600 mt-0.5">{invoiceRequest.product.name}{invoiceRequest.variant ? ` - ${Object.values(invoiceRequest.variant.options || {}).join(" / ")}` : ""}</p></div>
+              <button type="button" aria-label="Close" disabled={invoiceRequestSubmitting} onClick={() => setInvoiceRequest(null)} className="text-slate-500 hover:text-slate-800 cursor-pointer disabled:cursor-not-allowed"><X size={18} /></button>
+            </div>
+            <div className="p-4 overflow-y-auto space-y-4">
+              <Input type="number" min="1" step="1" label="Quantity" value={invoiceRequestQuantity} onChange={(event) => setInvoiceRequestQuantity(event.target.value)} />
+              <Input type="email" label="Customer email (optional)" value={invoiceRequestEmail} onChange={(event) => setInvoiceRequestEmail(event.target.value)} hint="You can leave this blank and share the payment link by WhatsApp." />
+              {(Array.isArray(invoiceRequest.product.customerFields) ? invoiceRequest.product.customerFields : []).map((field) => (
+                <div key={field.id} className="space-y-1">
+                  {field.type === "checkbox" ? (
+                    <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer"><input type="checkbox" className="mt-0.5" checked={invoiceRequestAnswers[field.id] === true} onChange={(event) => setInvoiceRequestAnswers((current) => ({ ...current, [field.id]: event.target.checked }))} /><span>{field.label}{field.required ? " *" : ""}</span></label>
+                  ) : <>
+                    <label className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</label>
+                    {field.type === "textarea" ? <textarea rows={3} value={invoiceRequestAnswers[field.id] || ""} placeholder={field.placeholder || ""} onChange={(event) => setInvoiceRequestAnswers((current) => ({ ...current, [field.id]: event.target.value }))} className="w-full px-3 py-2 rounded-sm border border-slate-300 bg-surface text-base sm:text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" /> : field.type === "select" ? <select value={invoiceRequestAnswers[field.id] || ""} onChange={(event) => setInvoiceRequestAnswers((current) => ({ ...current, [field.id]: event.target.value }))} className="w-full px-3 py-2 rounded-sm border border-slate-300 bg-surface text-base sm:text-sm text-slate-900 outline-none focus:border-brand-500"><option value="">Select</option>{(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}</select> : <input type={field.type === "number" || field.type === "date" ? field.type : "text"} value={invoiceRequestAnswers[field.id] || ""} placeholder={field.placeholder || ""} onChange={(event) => setInvoiceRequestAnswers((current) => ({ ...current, [field.id]: event.target.value }))} className="w-full px-3 py-2 rounded-sm border border-slate-300 bg-surface text-base sm:text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" />}
+                  </>}
+                  {field.helpText && <p className="text-xs text-slate-600">{field.helpText}</p>}
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-slate-100 flex gap-2">
+              <Button type="button" variant="outline" fullWidth disabled={invoiceRequestSubmitting} onClick={() => setInvoiceRequest(null)}>Cancel</Button>
+              <Button type="button" fullWidth loading={invoiceRequestSubmitting} onClick={submitInvoiceRequest}>Add request</Button>
+            </div>
+          </div>
+        </div>
       )}
       {cashOpen && (
         <CashDrawerModal

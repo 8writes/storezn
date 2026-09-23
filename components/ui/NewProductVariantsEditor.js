@@ -16,7 +16,7 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
   const [dimensions, setDimensions] = useState([emptyDimension()]);
   const [message, setMessage] = useState("");
 
-  const variants = Array.isArray(value) ? value : [];
+  const variants = useMemo(() => (Array.isArray(value) ? value : []), [value]);
   const variantMap = useMemo(() => new Map(variants.map((variant) => [keyFor(variant.options || {}), variant])), [variants]);
 
   const updateDimension = (index, patch) => {
@@ -34,6 +34,11 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
     const names = parsed.map((dimension) => dimension.name.toLowerCase());
     if (new Set(names).size !== names.length) {
       setMessage("Option names must be different.");
+      return;
+    }
+    const combinationCount = parsed.reduce((count, dimension) => count * dimension.values.length, 1);
+    if (combinationCount > 200) {
+      setMessage("Reduce the option values to 200 variant combinations or fewer.");
       return;
     }
     const rows = cartesian(parsed).map((options) => {
@@ -82,7 +87,7 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
         ))}
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setDimensions((current) => [...current, emptyDimension()])} className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800 cursor-pointer">
+        <button type="button" disabled={dimensions.length >= 5} onClick={() => setDimensions((current) => [...current, emptyDimension()])} className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
           <Plus size={15} /> Add option
         </button>
         <button type="button" onClick={generate} className="px-3 py-2 border border-slate-300 rounded-sm text-sm font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer">

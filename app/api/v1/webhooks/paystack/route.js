@@ -255,19 +255,22 @@ async function handlePost(req) {
     if (result.amountMismatch) {
       await logAppError(new Error("Paystack amount mismatch for invoice payment"), { req, source: "paystack.invoice_amount_mismatch", level: "warn", metadata: { paymentReference, amountPaid: transaction.amountPaid } });
     }
+    if (result.invalidInvoiceState) {
+      await logAppError(new Error("Paystack payment received for a non-payable invoice"), { req, source: "paystack.invoice_invalid_state", level: "error", metadata: { paymentReference, invoiceId: result.invoiceId, amountPaid: transaction.amountPaid } });
+    }
     if (result.applied) {
       const [invoice] = await db.select().from(invoices).where(eq(invoices.id, result.invoiceId)).limit(1);
       const [store] = invoice ? await db.select({ name: stores.name, ownerId: stores.ownerId, logoUrl: stores.logoUrl, storefrontAccentColor: stores.storefrontAccentColor }).from(stores).where(eq(stores.id, invoice.storeId)).limit(1) : [];
       if (invoice && store) {
-        sendPushToStore(invoice.storeId, { title: "Invoice payment received", body: `${invoice.invoiceNumber}: ${formatCurrency(result.amountPaid)} paid, ${formatCurrency(result.amountDue)} remaining.`, url: "/vendor/invoices" }).catch((err) => console.error("sendPushToStore failed (invoice payment):", err));
+        after(() => sendPushToStore(invoice.storeId, { title: "Invoice payment received", body: `${invoice.invoiceNumber}: ${formatCurrency(result.amountPaid)} paid, ${formatCurrency(result.amountDue)} remaining.`, url: "/vendor/invoices" }).catch((err) => console.error("sendPushToStore failed (invoice payment):", err)));
         if (store.ownerId) {
           const [owner] = await db.select({ email: users.email, notify: users.emailNotificationsEnabled }).from(users).where(eq(users.id, store.ownerId)).limit(1);
           if (owner?.email && owner.notify !== false) {
-            await sendMail({ to: owner.email, subject: `Invoice payment received - ${invoice.invoiceNumber}`, html: `<p>A payment was received for <strong>${escapeHtml(invoice.invoiceNumber)}</strong>.</p><p>Paid so far: <strong>${escapeHtml(formatCurrency(result.amountPaid))}</strong><br/>Balance: <strong>${escapeHtml(formatCurrency(result.amountDue))}</strong></p>`, fromName: store.name, brand: store, preheader: `Payment received for ${invoice.invoiceNumber}` }).catch((err) => console.error("sendMail failed (invoice payment):", err));
+            after(() => sendMail({ to: owner.email, subject: `Invoice payment received - ${invoice.invoiceNumber}`, html: `<p>A payment was received for <strong>${escapeHtml(invoice.invoiceNumber)}</strong>.</p><p>Paid so far: <strong>${escapeHtml(formatCurrency(result.amountPaid))}</strong><br/>Balance: <strong>${escapeHtml(formatCurrency(result.amountDue))}</strong></p>`, fromName: store.name, brand: store, preheader: `Payment received for ${invoice.invoiceNumber}` }).catch((err) => console.error("sendMail failed (invoice payment):", err)));
           }
         }
         if (invoice.guestEmail) {
-          await sendMail({ to: invoice.guestEmail, subject: `Payment received - ${invoice.invoiceNumber}`, html: `<p>We received your payment for <strong>${escapeHtml(invoice.invoiceNumber)}</strong>.</p><p>Paid so far: <strong>${escapeHtml(formatCurrency(result.amountPaid))}</strong><br/>Balance: <strong>${escapeHtml(formatCurrency(result.amountDue))}</strong></p>`, fromName: store.name, brand: store, preheader: `Payment received for ${invoice.invoiceNumber}` }).catch((err) => console.error("sendMail failed (invoice customer payment):", err));
+          after(() => sendMail({ to: invoice.guestEmail, subject: `Payment received - ${invoice.invoiceNumber}`, html: `<p>We received your payment for <strong>${escapeHtml(invoice.invoiceNumber)}</strong>.</p><p>Paid so far: <strong>${escapeHtml(formatCurrency(result.amountPaid))}</strong><br/>Balance: <strong>${escapeHtml(formatCurrency(result.amountDue))}</strong></p>`, fromName: store.name, brand: store, preheader: `Payment received for ${invoice.invoiceNumber}` }).catch((err) => console.error("sendMail failed (invoice customer payment):", err)));
         }
       }
     }

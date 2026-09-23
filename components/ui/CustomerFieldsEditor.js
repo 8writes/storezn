@@ -54,7 +54,7 @@ export function CustomerFieldsEditor({ value = [], onChange }) {
 
       {fields.length === 0 ? (
         <p className="text-xs text-slate-600">No customer details requested.</p>
-      ) : (
+      ) : expanded ? (
         <div className="space-y-3">
           {fields.map((field, index) => (
             <div key={field.id || index} className="border border-slate-200 rounded-sm p-3 space-y-3">
@@ -80,11 +80,13 @@ export function CustomerFieldsEditor({ value = [], onChange }) {
               </div>
             </div>
           ))}
+          <button type="button" onClick={() => setExpanded(false)} className="text-xs font-medium text-brand-700 hover:text-brand-800 cursor-pointer">Done editing fields</button>
         </div>
-      )}
-
-      {fields.length > 0 && !expanded && (
-        <button type="button" onClick={() => setExpanded(true)} className="text-xs text-brand-700 hover:text-brand-800 cursor-pointer">Edit field details</button>
+      ) : (
+        <button type="button" onClick={() => setExpanded(true)} className="w-full text-left border border-slate-200 rounded-sm p-3 hover:bg-slate-50 cursor-pointer">
+          <span className="block text-sm font-medium text-slate-900">{fields.length} customer field{fields.length === 1 ? "" : "s"}</span>
+          <span className="block text-xs text-slate-600 mt-1">{fields.map((field) => field.label || "Untitled field").join(", ")}</span>
+        </button>
       )}
     </section>
   );

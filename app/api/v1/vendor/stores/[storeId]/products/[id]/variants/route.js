@@ -43,6 +43,9 @@ export async function POST(req, { params }) {
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   const result = validate(createVariantSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+  if (product.saleMode === "invoice_required" && result.data.price != null) {
+    return NextResponse.json({ error: "Invoice-required variants cannot have a fixed price" }, { status: 400 });
+  }
 
   const storeBranches = await db.select({ id: branches.id, isDefault: branches.isDefault }).from(branches).where(eq(branches.storeId, storeId));
   const initialBranch = stockBranchForUser(storeBranches, user);

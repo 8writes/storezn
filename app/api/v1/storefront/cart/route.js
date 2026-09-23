@@ -5,6 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { validate, addCartItemSchema, customerFieldKey, validateCustomerFieldAnswers } from "../../../../../lib/validate.js";
+import { snapshotCustomerFieldAnswers } from "../../../../../lib/customerFields.js";
 import { resolveCart, getCartWithItems, computeCartTotals, findCartItem, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
 import { computeOrderTotals } from "../../../../../lib/orders.js";
 import { resolveShippingFee } from "../../../../../lib/shipping.js";
@@ -166,7 +167,7 @@ async function handlePost(req) {
     await db.update(cartItems).set({ quantity: sql`${cartItems.quantity} + ${quantity}` }).where(eq(cartItems.id, existingItem.id));
   } else {
     try {
-      await db.insert(cartItems).values({ cartId: cart.id, productId, variantId: variant?.id || null, quantity, customerFields: answers.data, customizationKey });
+      await db.insert(cartItems).values({ cartId: cart.id, productId, variantId: variant?.id || null, quantity, customerFields: snapshotCustomerFieldAnswers(product.customerFields, answers.data), customizationKey });
     } catch (err) {
       if (err?.code !== "23505") throw err;
       await db.update(cartItems).set({ quantity: sql`${cartItems.quantity} + ${quantity}` }).where(and(eq(cartItems.cartId, cart.id), eq(cartItems.productId, productId), eq(cartItems.customizationKey, customizationKey), variant?.id ? eq(cartItems.variantId, variant.id) : isNull(cartItems.variantId)));

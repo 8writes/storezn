@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { invoiceItems, invoiceRequests, invoices, orders, stores } from "../../../../../../../../lib/db/schema.js";
+import { invoiceItems, invoicePayments, invoiceRequests, invoices, orders, stores } from "../../../../../../../../lib/db/schema.js";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { releaseInvoiceInventoryHold } from "../../../../../../../../lib/invoiceInventory.js";
 import { withApiMonitoring } from "../../../../../../../../lib/apiMonitoring.js";
@@ -28,14 +28,19 @@ async function handlePatch(req, { params }) {
   if (loaded.error) return loaded.error;
   const body = await req.json().catch(() => null);
   if (body?.action !== "cancel") return NextResponse.json({ error: "Only invoice cancellation is supported" }, { status: 400 });
-  if (["paid", "cancelled"].includes(loaded.invoice.status)) return NextResponse.json({ error: "This invoice cannot be cancelled" }, { status: 409 });
   const now = new Date();
-  await db.transaction(async (tx) => {
-    await releaseInvoiceInventoryHold(tx, loaded.invoice.id);
-    await tx.update(invoices).set({ status: "cancelled", amountDue: 0, updatedAt: now }).where(and(eq(invoices.id, loaded.invoice.id), eq(invoices.status, loaded.invoice.status)));
-    if (loaded.invoice.orderId) await tx.update(orders).set({ status: "cancelled", amountDue: 0, updatedAt: now }).where(eq(orders.id, loaded.invoice.orderId));
-    if (loaded.invoice.requestId) await tx.update(invoiceRequests).set({ status: "cancelled", updatedAt: now }).where(eq(invoiceRequests.id, loaded.invoice.requestId));
+  const cancelled = await db.transaction(async (tx) => {
+    const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, loaded.invoice.id), eq(invoices.storeId, loaded.invoice.storeId))).for("update").limit(1);
+    if (!invoice || invoice.status !== "sent" || invoice.amountPaid > 0) return false;
+    const [pendingPayment] = await tx.select({ id: invoicePayments.id }).from(invoicePayments).where(and(eq(invoicePayments.invoiceId, invoice.id), eq(invoicePayments.status, "pending"))).limit(1);
+    if (pendingPayment) return false;
+    await tx.update(invoices).set({ status: "cancelled", amountDue: 0, updatedAt: now }).where(eq(invoices.id, invoice.id));
+    if (invoice.orderId) await tx.update(orders).set({ status: "cancelled", paymentStatus: "failed", amountDue: 0, updatedAt: now }).where(eq(orders.id, invoice.orderId));
+    if (invoice.requestId) await tx.update(invoiceRequests).set({ status: "cancelled", updatedAt: now }).where(eq(invoiceRequests.id, invoice.requestId));
+    await releaseInvoiceInventoryHold(tx, invoice.id);
+    return true;
   });
+  if (!cancelled) return NextResponse.json({ error: "Only an unpaid invoice without an active payment can be cancelled" }, { status: 409 });
   return NextResponse.json({ ok: true });
 }
 

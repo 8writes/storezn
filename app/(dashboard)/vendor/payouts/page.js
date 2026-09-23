@@ -71,6 +71,7 @@ export default function VendorPayoutsPage() {
     // navigation, which would otherwise fire this fetch with no
     // Authorization header.
     if (!token || !storeId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBanksLoading(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}/payout-account`)
       .then((data) => setBanks(data.banks || []))
@@ -91,12 +92,14 @@ export default function VendorPayoutsPage() {
 
   useEffect(() => {
     if (!token || !storeId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     loadPayouts().finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId, page, channel, q]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
   }, [channel, q, storeId]);
 
@@ -106,6 +109,7 @@ export default function VendorPayoutsPage() {
   // once linked, so this is the one chance to catch a wrong number.
   useEffect(() => {
     clearTimeout(resolveDebounceRef.current);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setResolveError("");
 
     if (payoutForm.accountNumber.length !== 10 || !payoutForm.bankCode) {
@@ -174,7 +178,7 @@ export default function VendorPayoutsPage() {
       await loadPayouts();
       toast[result.updated > 0 ? "success" : "message"](
         result.updated > 0
-          ? `${result.updated} order${result.updated === 1 ? "" : "s"} confirmed settled`
+          ? `${result.updated} transaction${result.updated === 1 ? "" : "s"} confirmed settled`
           : "No new settlements yet",
       );
     } catch (err) {
@@ -430,17 +434,17 @@ export default function VendorPayoutsPage() {
                   <tr
                     key={t.id}
                     onClick={() =>
-                      router.push(`/vendor/orders/${t.id}?storeId=${storeId}`)
+                      router.push(`/vendor/orders/${t.orderId}?storeId=${storeId}`)
                     }
                     className="border-t border-slate-100 cursor-pointer hover:bg-slate-50"
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">
                       <Link
-                        href={`/vendor/orders/${t.id}?storeId=${storeId}`}
+                        href={`/vendor/orders/${t.orderId}?storeId=${storeId}`}
                         onClick={(e) => e.stopPropagation()}
                         className="hover:underline"
                       >
-                        {t.orderNumber}
+                        {t.orderNumber}{t.paymentKind ? ` (${t.paymentKind})` : ""}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-slate-800">

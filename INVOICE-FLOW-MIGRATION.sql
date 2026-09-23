@@ -174,7 +174,13 @@ CREATE TABLE IF NOT EXISTS invoice_inventory_holds (
 );
 CREATE INDEX IF NOT EXISTS idx_invoice_inventory_holds_invoice_id ON invoice_inventory_holds(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_invoice_inventory_holds_active ON invoice_inventory_holds(released_at);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_inventory_holds_line ON invoice_inventory_holds(invoice_id, product_id, variant_id, branch_id);
+DROP INDEX IF EXISTS uq_invoice_inventory_holds_line;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_inventory_holds_base
+  ON invoice_inventory_holds(invoice_id, product_id, branch_id)
+  WHERE variant_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_inventory_holds_variant
+  ON invoice_inventory_holds(invoice_id, product_id, variant_id, branch_id)
+  WHERE variant_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS invoice_payments (
   id text PRIMARY KEY,
@@ -188,10 +194,12 @@ CREATE TABLE IF NOT EXISTS invoice_payments (
   authorization_url text,
   authorization_expires_at timestamp,
   paid_at timestamp,
+  settled_at timestamp,
   metadata jsonb,
   created_at timestamp NOT NULL DEFAULT now(),
   updated_at timestamp NOT NULL DEFAULT now()
 );
+ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS settled_at timestamp;
 
 CREATE INDEX IF NOT EXISTS idx_invoice_payments_invoice_id ON invoice_payments(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_invoice_payments_status ON invoice_payments(status);

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { X, ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/lib/format.js";
+import { customerFieldEntries } from "@/lib/customerFields.js";
 
 // Quick-view for an order line item, opened from an order detail page
 // instead of navigating straight to the product page - keeps the vendor
@@ -22,6 +23,7 @@ export function OrderItemModal({ item, productHref, onClose }) {
   }, [item, onClose]);
 
   if (!item) return null;
+  const customerDetails = customerFieldEntries(item.customerFields);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
@@ -63,6 +65,7 @@ export function OrderItemModal({ item, productHref, onClose }) {
               <dd className="text-slate-900">{formatCurrency(item.lineTotal)}</dd>
             </div>
           </dl>
+          {customerDetails.length > 0 && <dl className="border-t border-slate-100 pt-3 space-y-1.5 text-sm">{customerDetails.map((detail) => <div key={detail.id} className="flex justify-between gap-3"><dt className="text-slate-700">{detail.label}</dt><dd className="text-slate-900 text-right">{detail.value === true ? "Yes" : detail.value === false ? "No" : String(detail.value)}</dd></div>)}</dl>}
           {productHref && (
             <Link
               href={productHref}

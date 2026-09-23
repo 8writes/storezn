@@ -39,6 +39,9 @@ export function AddToCartButton({
   const [useBase, setUseBase] = useState(false);
   const [answers, setAnswers] = useState({});
   const [guestEmail, setGuestEmail] = useState("");
+  const [buyerName, setBuyerName] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
+  const [invoiceQuantity, setInvoiceQuantity] = useState(1);
 
   const optionGroups = useMemo(() => {
     const groups = {};
@@ -121,16 +124,18 @@ export function AddToCartButton({
 
   const handleClick = async () => {
     if (invoiceRequired) {
-      if (!guestEmail.trim()) {
-        toast.error("Enter your email so the seller can send the invoice");
+      if (!token && !guestEmail.trim() && !buyerPhone.trim()) {
+        toast.error("Enter an email or phone number so the seller can contact you");
         return;
       }
+      const quantity = Number(invoiceQuantity);
+      if (!Number.isInteger(quantity) || quantity < 1) return toast.error("Quantity must be at least 1");
       setLoading(true);
       try {
         const res = await fetch("/api/v1/storefront/invoice-requests", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ guestEmail: guestEmail.trim(), items: [{ productId, variantId: matchedVariant?.id || null, quantity: 1, customerFields: answers }] }),
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ guestEmail: guestEmail.trim() || undefined, buyerName: buyerName.trim() || undefined, buyerPhone: buyerPhone.trim() || undefined, items: [{ productId, variantId: matchedVariant?.id || null, quantity, customerFields: answers }] }),
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) throw new Error(data?.error || "Could not submit invoice request");
@@ -284,7 +289,12 @@ export function AddToCartButton({
       {(invoiceRequired || customerFields.length > 0) && (
         <div className="space-y-3 border-t border-slate-200 pt-4">
           <p className="text-sm font-semibold text-slate-900">{invoiceRequired ? "Request an invoice" : "Product details"}</p>
-          {invoiceRequired && <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Your email" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />}
+          {invoiceRequired && <>
+            <input type="number" min="1" step="1" value={invoiceQuantity} onChange={(e) => setInvoiceQuantity(e.target.value)} aria-label="Quantity" placeholder="Quantity" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
+            <input type="text" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Your name (optional)" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
+            <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email (optional)" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
+            <input type="tel" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="WhatsApp or phone (optional)" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
+          </>}
           {customerFields.map((field) => (
             <label key={field.id} className="block space-y-1">
               <span className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</span>

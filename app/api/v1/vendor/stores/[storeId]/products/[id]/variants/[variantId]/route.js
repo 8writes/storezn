@@ -15,7 +15,7 @@ async function loadOwnedVariant(user, storeId, productId, variantId) {
   const [product] = await db.select().from(products).where(and(eq(products.id, productId), eq(products.storeId, storeId))).limit(1);
   if (!product) return null;
   const [variant] = await db.select().from(productVariants).where(and(eq(productVariants.id, variantId), eq(productVariants.productId, productId))).limit(1);
-  return variant || null;
+  return variant ? { product, variant } : null;
 }
 
 export async function PATCH(req, { params }) {
@@ -23,13 +23,17 @@ export async function PATCH(req, { params }) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { storeId, id, variantId } = await params;
-  const variant = await loadOwnedVariant(user, storeId, id, variantId);
-  if (!variant) return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+  const loaded = await loadOwnedVariant(user, storeId, id, variantId);
+  if (!loaded) return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+  const { product, variant } = loaded;
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   const result = validate(updateVariantSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+  if (product.saleMode === "invoice_required" && result.data.price != null) {
+    return NextResponse.json({ error: "Invoice-required variants cannot have a fixed price" }, { status: 400 });
+  }
 
   // Same aggregate-vs-source-of-truth reasoning as the product PATCH:
   // staff writes target their assigned branch; owner writes target the
@@ -69,8 +73,9 @@ export async function DELETE(req, { params }) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { storeId, id, variantId } = await params;
-  const variant = await loadOwnedVariant(user, storeId, id, variantId);
-  if (!variant) return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+  const loaded = await loadOwnedVariant(user, storeId, id, variantId);
+  if (!loaded) return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+  const { variant } = loaded;
 
   try {
     await deleteVariants([variantId]);

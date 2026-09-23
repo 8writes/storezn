@@ -289,7 +289,7 @@ export async function POST(req, { params }) {
             storeId,
             productId: product.id,
             variantId: createdVariant.id,
-            initialBranchId: defaultBranch?.id ?? null,
+            initialBranchId: initialBranch?.id ?? defaultBranch?.id ?? null,
             initialStock: variant.stock ?? null,
           });
         }

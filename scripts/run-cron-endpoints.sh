@@ -7,9 +7,6 @@ STATE_DIR="${HOME:-/home/deploy}/.local/state/storezn"
 LOG_FILE="$STATE_DIR/cron.log"
 
 mkdir -p "$STATE_DIR"
-exec 9>"$STATE_DIR/cron.lock"
-flock -n 9 || exit 0
-
 job="${1:-}"
 case "$job" in
   fail-stale-transactions) endpoint="/api/cron/fail-stale-transactions" ;;
@@ -18,6 +15,12 @@ case "$job" in
   invoice-maintenance) endpoint="/api/cron/invoice-maintenance" ;;
   *) echo "Unknown Storezn cron job: $job" >&2; exit 2 ;;
 esac
+
+# Each endpoint gets its own lock. Several jobs intentionally share the
+# same minute; one global lock silently skipped whichever cron started
+# second, often including invoice maintenance.
+exec 9>"$STATE_DIR/cron-$job.lock"
+flock -n 9 || exit 0
 
 cron_secret=$(cd "$APP_DIR" && env -u CRON_SECRET node -e '
   const { loadEnvConfig } = require("@next/env");

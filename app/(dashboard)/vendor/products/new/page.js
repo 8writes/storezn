@@ -58,6 +58,7 @@ const PRODUCT_FORM_FIELDS = [
   { id: "description", label: "Description" },
   { id: "sizeGuide", label: "Size guide" },
   { id: "customerFields", label: "Customer details" },
+  { id: "variants", label: "Variants" },
   { id: "photos", label: "Photos" },
   { id: "video", label: "Video" },
 ];
@@ -130,7 +131,7 @@ export default function VendorNewProductPage() {
       .catch(() => {});
     apiFetch(`/api/v1/vendor/stores/${storeId}/product-form-preferences`)
       .then((data) => {
-        if (Array.isArray(data.preference?.visibleFields) && data.preference.visibleFields.length > 0) {
+        if (data.preference && Array.isArray(data.preference.visibleFields)) {
           setVisibleFormFields(data.preference.visibleFields);
         }
       })
@@ -389,11 +390,11 @@ export default function VendorNewProductPage() {
             )}
           </div>
 
-          <NewProductVariantsEditor
+          {hasField("variants") && <NewProductVariantsEditor
             value={form.variants}
             invoiceRequired={form.saleMode === "invoice_required"}
             onChange={(variants) => setForm((f) => ({ ...f, variants }))}
-          />
+          />}
 
           {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
 

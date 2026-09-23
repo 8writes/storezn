@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../../../../../../lib/db/index.js";
 import { invoiceInventoryHolds, invoiceItems, invoiceRequestItems, invoiceRequests, invoices, orderItems, orders, platformSettings, productVariants, products, stores } from "../../../../../../../lib/db/schema.js";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
@@ -9,9 +9,12 @@ import { withApiMonitoring } from "../../../../../../../lib/apiMonitoring.js";
 import { sendMail } from "../../../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../../../lib/format.js";
-import { resolveFulfillingBranch, reserveStock } from "../../../../../../../lib/inventory.js";
+import { OutOfStockError, resolveFulfillingBranch, reserveStock } from "../../../../../../../lib/inventory.js";
+import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 
 const invoiceNumber = () => `INV-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+
+class InvoiceConflictError extends Error {}
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -44,7 +47,7 @@ async function handlePost(req, { params }) {
   const productIds = [...new Set(result.data.items.map((item) => item.productId))];
   const variantIds = [...new Set(result.data.items.map((item) => item.variantId).filter(Boolean))];
   const [productRows, variantRows, settingsRows] = await Promise.all([
-    db.select().from(products).where(and(eq(products.storeId, storeId), inArray(products.id, productIds))),
+    db.select().from(products).where(and(eq(products.storeId, storeId), inArray(products.id, productIds), eq(products.isActive, true), isNull(products.suspendedAt))),
     variantIds.length ? db.select().from(productVariants).where(inArray(productVariants.id, variantIds)) : [],
     db.select().from(platformSettings).limit(1),
   ]);
@@ -55,16 +58,15 @@ async function handlePost(req, { params }) {
     const requestItem = requestItemByKey.get(`${item.productId}:${item.variantId || ""}`);
     const product = productById.get(item.productId);
     const variant = item.variantId ? variantById.get(item.variantId) : null;
-    if (!requestItem || !product || product.saleMode !== "invoice_required" || (variant && variant.productId !== product.id)) {
+    if (!requestItem || !product || product.saleMode !== "invoice_required" || (item.variantId && (!variant || variant.productId !== product.id || !variant.isActive))) {
       return NextResponse.json({ error: "Invoice items must come from the selected request" }, { status: 400 });
     }
     if (item.quantity > requestItem.quantity) return NextResponse.json({ error: `Quantity for ${product.name} exceeds the request` }, { status: 400 });
-    lines.push({ product, variant, quantity: item.quantity, unitPrice: item.unitPrice, customerFields: item.customerFields || requestItem.customerFields || {} });
+    lines.push({ product, variant, quantity: item.quantity, unitPrice: item.unitPrice, customerFields: requestItem.customerFields || {} });
   }
   const subtotal = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   if (!Number.isFinite(subtotal) || subtotal <= 0) return NextResponse.json({ error: "Invoice total must be greater than zero" }, { status: 400 });
-  const depositAmount = result.data.plan === "deposit" ? Number(result.data.depositAmount) : subtotal;
-  if (!Number.isFinite(depositAmount) || depositAmount <= 0 || depositAmount > subtotal) return NextResponse.json({ error: "Deposit must be greater than zero and no more than the invoice total" }, { status: 400 });
+  const depositAmount = result.data.plan === "deposit" ? Math.round(subtotal * 50) / 100 : subtotal;
   const settings = settingsRows[0];
   const commissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
   const totals = computeOrderTotals({ subtotal, shippingFee: 0, commissionRatePercent, flatFee: settings?.defaultFlatFee ?? 0, feeChargedToCustomer: false, maxCommissionAmount: settings?.maxCommissionAmount });
@@ -72,6 +74,8 @@ async function handlePost(req, { params }) {
   const orderId = crypto.randomUUID();
   const now = new Date();
   const expiresAt = result.data.expiresAt || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  if (expiresAt.getTime() <= now.getTime()) return NextResponse.json({ error: "Invoice expiry must be in the future" }, { status: 400 });
+  if (expiresAt.getTime() > now.getTime() + 90 * 24 * 60 * 60 * 1000) return NextResponse.json({ error: "Invoice expiry cannot be more than 90 days away" }, { status: 400 });
   const physicalLines = lines.filter((line) => line.product.productType === "physical");
   const invoice = {
     id: invoiceId,
@@ -92,13 +96,13 @@ async function handlePost(req, { params }) {
     note: result.data.note || request.note,
     expiresAt,
     sentAt: now,
-    createdBy: ["vendor", "super_admin"].includes(user.role) ? user.id : null,
+    createdBy: user.id,
   };
   const order = {
     id: orderId,
     storeId,
     orderNumber: generateOrderNumber(),
-    guestEmail: request.guestEmail,
+    guestEmail: invoice.guestEmail,
     buyerName: request.buyerName,
     buyerPhone: request.buyerPhone,
     status: "pending",
@@ -122,38 +126,49 @@ async function handlePost(req, { params }) {
     createdAt: now,
     updatedAt: now,
   };
-  await db.transaction(async (tx) => {
-    let branchId = null;
-    if (physicalLines.length > 0) {
-      branchId = await resolveFulfillingBranch(tx, storeId, physicalLines.map((line) => ({
-        productId: line.product.id,
-        variantId: line.variant?.id || null,
-        quantity: line.quantity,
-        productName: line.product.name,
-      })));
-      await reserveStock(tx, physicalLines.map((line) => ({
-        productId: line.product.id,
-        variantId: line.variant?.id || null,
-        quantity: line.quantity,
-        productName: line.product.name,
-        branchId,
-      })));
-      await tx.insert(invoiceInventoryHolds).values(physicalLines.map((line) => ({
-        invoiceId,
-        productId: line.product.id,
-        variantId: line.variant?.id || null,
-        branchId,
-        quantity: line.quantity,
-      })));
-    }
-    order.branchId = branchId;
-    await tx.insert(invoices).values({ ...invoice, orderId: null });
-    await tx.insert(orders).values(order);
-    await tx.update(invoices).set({ orderId }).where(eq(invoices.id, invoiceId));
-    await tx.insert(invoiceItems).values(lines.map((line) => ({ invoiceId, productId: line.product.id, variantId: line.variant?.id || null, productName: line.product.name, variantLabel: line.variant ? Object.entries(line.variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, quantity: line.quantity, unitPrice: line.unitPrice, lineTotal: line.unitPrice * line.quantity, customerFields: line.customerFields })));
-    await tx.insert(orderItems).values(lines.map((line) => ({ orderId, productId: line.product.id, variantId: line.variant?.id || null, productName: line.product.name, productImage: line.product.images?.[0] || null, variantLabel: line.variant ? Object.entries(line.variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, unitPrice: line.unitPrice, quantity: line.quantity, lineTotal: line.unitPrice * line.quantity, customerFields: line.customerFields })));
-    await tx.update(invoiceRequests).set({ status: "converted", convertedInvoiceId: invoiceId, updatedAt: now }).where(eq(invoiceRequests.id, request.id));
-  });
+  try {
+    await db.transaction(async (tx) => {
+      const [lockedRequest] = await tx.select({ status: invoiceRequests.status }).from(invoiceRequests).where(and(eq(invoiceRequests.id, request.id), eq(invoiceRequests.storeId, storeId))).for("update").limit(1);
+      if (!lockedRequest || ["cancelled", "expired", "converted"].includes(lockedRequest.status)) throw new InvoiceConflictError("This request is no longer open");
+
+      // The invoice must exist before its inventory holds because the hold
+      // rows have a foreign key to invoices.id.
+      await tx.insert(invoices).values({ ...invoice, orderId: null });
+      let branchId = null;
+      if (physicalLines.length > 0) {
+        branchId = await resolveFulfillingBranch(tx, storeId, physicalLines.map((line) => ({
+          productId: line.product.id,
+          variantId: line.variant?.id || null,
+          quantity: line.quantity,
+          productName: line.product.name,
+        })));
+        await reserveStock(tx, physicalLines.map((line) => ({
+          productId: line.product.id,
+          variantId: line.variant?.id || null,
+          quantity: line.quantity,
+          productName: line.product.name,
+          branchId,
+        })));
+        await tx.insert(invoiceInventoryHolds).values(physicalLines.map((line) => ({
+          invoiceId,
+          productId: line.product.id,
+          variantId: line.variant?.id || null,
+          branchId,
+          quantity: line.quantity,
+        })));
+      }
+      order.branchId = branchId;
+      await tx.insert(orders).values(order);
+      await tx.update(invoices).set({ orderId }).where(eq(invoices.id, invoiceId));
+      await tx.insert(invoiceItems).values(lines.map((line) => ({ invoiceId, productId: line.product.id, variantId: line.variant?.id || null, productName: line.product.name, variantLabel: line.variant ? Object.entries(line.variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, quantity: line.quantity, unitPrice: line.unitPrice, lineTotal: line.unitPrice * line.quantity, customerFields: line.customerFields })));
+      await tx.insert(orderItems).values(lines.map((line) => ({ orderId, productId: line.product.id, variantId: line.variant?.id || null, productName: line.product.name, productImage: line.product.images?.[0] || null, variantLabel: line.variant ? Object.entries(line.variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, unitPrice: line.unitPrice, quantity: line.quantity, lineTotal: line.unitPrice * line.quantity, customerFields: line.customerFields })));
+      await tx.update(invoiceRequests).set({ status: "converted", convertedInvoiceId: invoiceId, updatedAt: now }).where(eq(invoiceRequests.id, request.id));
+    });
+  } catch (error) {
+    if (error instanceof InvoiceConflictError || (error?.code === "23505" && error?.constraint === "uq_invoices_request_id")) return NextResponse.json({ error: "This request has already been converted" }, { status: 409 });
+    if (error instanceof OutOfStockError) return NextResponse.json({ error: error.message }, { status: 409 });
+    throw error;
+  }
   const paymentEmail = invoice.guestEmail;
   if (paymentEmail) {
     const link = `${new URL(req.url).origin}/invoice/${invoice.shareToken}`;
@@ -166,6 +181,15 @@ async function handlePost(req, { params }) {
       preheader: `Invoice ${invoice.invoiceNumber} is ready`,
     }).catch((error) => console.error("sendMail failed (invoice):", error)));
   }
+  after(() => logStoreActivity({
+    storeId,
+    actor: user,
+    action: "invoice.create",
+    summary: `Created invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.totalAmount)}`,
+    targetType: "invoice",
+    targetId: invoice.id,
+    metadata: { requestId: request.id, orderId, plan: invoice.plan, totalAmount: invoice.totalAmount, amountDue: invoice.amountDue },
+  }));
   return NextResponse.json({ invoice, order }, { status: 201 });
 }
 

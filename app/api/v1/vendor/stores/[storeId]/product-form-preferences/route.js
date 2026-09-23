@@ -18,7 +18,7 @@ export async function GET(req, { params }) {
   const user = await context(req, storeId);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const [preference] = await db.select().from(vendorProductFormPreferences).where(and(eq(vendorProductFormPreferences.storeId, storeId), eq(vendorProductFormPreferences.userId, user.id))).limit(1);
-  return NextResponse.json({ preference: preference || { visibleFields: [], sectionOrder: [], collapsedSections: [] } });
+  return NextResponse.json({ preference: preference || null });
 }
 
 export async function PATCH(req, { params }) {
@@ -26,11 +26,15 @@ export async function PATCH(req, { params }) {
   const user = await context(req, storeId);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => null);
-  if (!body || !Array.isArray(body.visibleFields) || !Array.isArray(body.sectionOrder) || !Array.isArray(body.collapsedSections)) return NextResponse.json({ error: "Invalid form preferences" }, { status: 400 });
+  if (!body || !Array.isArray(body.visibleFields)) return NextResponse.json({ error: "Invalid form preferences" }, { status: 400 });
+  const [existing] = await db.select().from(vendorProductFormPreferences).where(and(eq(vendorProductFormPreferences.storeId, storeId), eq(vendorProductFormPreferences.userId, user.id))).limit(1);
+  const sectionOrder = body.sectionOrder === undefined ? existing?.sectionOrder || [] : body.sectionOrder;
+  const collapsedSections = body.collapsedSections === undefined ? existing?.collapsedSections || [] : body.collapsedSections;
+  if (!Array.isArray(sectionOrder) || !Array.isArray(collapsedSections)) return NextResponse.json({ error: "Invalid form preferences" }, { status: 400 });
   const values = {
     visibleFields: body.visibleFields.slice(0, MAX_FIELDS).filter((value) => typeof value === "string"),
-    sectionOrder: body.sectionOrder.slice(0, MAX_FIELDS).filter((value) => typeof value === "string"),
-    collapsedSections: body.collapsedSections.slice(0, MAX_FIELDS).filter((value) => typeof value === "string"),
+    sectionOrder: sectionOrder.slice(0, MAX_FIELDS).filter((value) => typeof value === "string"),
+    collapsedSections: collapsedSections.slice(0, MAX_FIELDS).filter((value) => typeof value === "string"),
     updatedAt: new Date(),
   };
   const [preference] = await db.insert(vendorProductFormPreferences).values({ storeId, userId: user.id, ...values }).onConflictDoUpdate({ target: [vendorProductFormPreferences.storeId, vendorProductFormPreferences.userId], set: values }).returning();

@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { products, stores, orderItems, orders, branches } from "../../../../../../../../lib/db/schema.js";
+import { products, productVariants, stores, orderItems, orders, branches } from "../../../../../../../../lib/db/schema.js";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, updateProductSchema } from "../../../../../../../../lib/validate.js";
@@ -128,11 +128,17 @@ export async function PATCH(req, { params }) {
   }
   let updated;
   try {
-    [updated] = await db
-      .update(products)
-      .set({ ...rest, updatedAt: new Date() })
-      .where(eq(products.id, id))
-      .returning();
+    updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(products)
+        .set({ ...rest, updatedAt: new Date() })
+        .where(eq(products.id, id))
+        .returning();
+      if (nextSaleMode === "invoice_required") {
+        await tx.update(productVariants).set({ price: null, updatedAt: new Date() }).where(eq(productVariants.productId, id));
+      }
+      return row;
+    });
   } catch (error) {
     if (isProductNameUniqueViolation(error)) {
       return NextResponse.json({ error: PRODUCT_NAME_TAKEN_MESSAGE }, { status: 409 });

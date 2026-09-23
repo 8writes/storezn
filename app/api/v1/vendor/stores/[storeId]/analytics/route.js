@@ -236,7 +236,7 @@ export async function GET(req, { params }) {
       gmv: summaryRow?.gmv || 0,
       orderCount,
       orderCountChangePercent: pctChange(orderCount, prevOrderCount),
-      averageOrderValue: orderCount > 0 ? revenue / orderCount : 0,
+      averageOrderValue: orderCount > 0 ? (summaryRow?.gmv || 0) / orderCount : 0,
       unitsSold: unitsRow?.units || 0,
       newCustomers: newCustomersRow?.count || 0,
     },
