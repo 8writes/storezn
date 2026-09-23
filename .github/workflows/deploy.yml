@@ -13,4 +13,6 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new deploy@204.168.144.211 "bash /opt/apps/storezn/scripts/deploy.sh"
+          # The server's restricted deploy key accepts only the registered
+          # application name; it rejects arbitrary shell commands.
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new deploy@204.168.144.211 "storezn"
