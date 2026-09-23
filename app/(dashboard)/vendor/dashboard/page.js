@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/Skeleton.js";
 import { formatCurrency, compactCurrency, compactNumber } from "@/lib/format.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
+import { installPwa, usePwaInstall } from "@/lib/pwaInstall.js";
 import {
   pushSupported,
   getPushSubscription,
@@ -48,6 +49,10 @@ function buildSetupSteps({
   stats,
   pushSubscribed,
   onEnablePush,
+  installAvailable,
+  installDone,
+  installIsIos,
+  onInstall,
 }) {
   const steps = [
     {
@@ -91,6 +96,18 @@ function buildSetupSteps({
     });
   }
 
+  if (installAvailable) {
+    steps.push({
+      label: "Install the Storezn app",
+      description: installIsIos
+        ? "Tap Share, then Add to Home Screen for faster access."
+        : "Open Storezn from your home screen for faster access.",
+      done: installDone,
+      cta: installIsIos ? "How to install" : "Install app",
+      onAction: onInstall,
+    });
+  }
+
   return steps;
 }
 
@@ -130,6 +147,7 @@ function SHORTCUTS(storeId, isOwner) {
 
 export default function VendorDashboardPage() {
   const { user, token } = useAuth(true);
+  const installState = usePwaInstall();
   const { apiFetch } = useApi(token);
   const router = useRouter();
   const { stores, storeId, loading, updateStore } = useVendorStore();
@@ -168,6 +186,14 @@ export default function VendorDashboardPage() {
     await subscribeToPush(token);
     setPushSubscribed(true);
     toast.success("Notifications enabled");
+  };
+
+  const handleInstallApp = async () => {
+    if (installState.isIos) {
+      toast.info("Tap Share, then Add to Home Screen.");
+      return;
+    }
+    await installPwa();
   };
 
   // Quick "your store is closed - reopen it" toggle. The full status
@@ -229,6 +255,13 @@ export default function VendorDashboardPage() {
           stats,
           pushSubscribed,
           onEnablePush: handleEnablePush,
+          installAvailable:
+            installState.ready &&
+            installState.isPlatformHost &&
+            (installState.standalone || installState.isIos || !!installState.deferredPrompt),
+          installDone: installState.standalone,
+          installIsIos: installState.isIos,
+          onInstall: handleInstallApp,
         })
       : [];
   const allStepsDone = steps.length > 0 && steps.every((s) => s.done);

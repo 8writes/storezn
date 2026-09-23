@@ -56,7 +56,24 @@ export async function GET(req, { params }) {
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
   const includeVariants = searchParams.get("includeVariants") === "true";
   const conditions = [eq(products.storeId, storeId)];
-  if (q) conditions.push(or(ilike(products.name, `%${q}%`), ilike(products.sku, `%${q}%`)));
+  if (q) {
+    const searchTerm = `%${q}%`;
+    conditions.push(
+      or(
+        ilike(products.name, searchTerm),
+        ilike(products.sku, searchTerm),
+        // A barcode often belongs to a sellable variant rather than its
+        // parent product. Return that parent so the POS can select the
+        // exact variant instead of treating the barcode as unknown.
+        sql`exists (
+          select 1 from ${productVariants}
+          where ${productVariants.productId} = ${products.id}
+            and ${productVariants.isActive}
+            and ${productVariants.sku} ilike ${searchTerm}
+        )`,
+      ),
+    );
+  }
   if (categoryId) conditions.push(eq(products.categoryId, categoryId));
 
   // A selected branch makes that branch's base-product stock authoritative

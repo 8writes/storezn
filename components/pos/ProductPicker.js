@@ -15,6 +15,16 @@ function isNetErr(err) {
   return !err || !!networkErrorMessage(err);
 }
 
+function hasActiveVariants(product) {
+  return Number(product?.variantCount) > 0 || product?.offlineVariants?.length > 0;
+}
+
+function variantMatchingSku(product, sku) {
+  const wanted = (sku || "").trim().toLowerCase();
+  if (!wanted) return null;
+  return product?.offlineVariants?.find((variant) => (variant.sku || "").trim().toLowerCase() === wanted) || null;
+}
+
 // Shared product search + grid for both the manual offline form and the
 // live till. Handles: DB-backed paged search, a scanner fast-path (an
 // exact SKU match adds qty 1 with no results list - works whether or not
@@ -46,7 +56,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
     const myReq = ++reqRef.current;
     const setBusy = pageNum === 1 ? setLoading : setLoadingMore;
     setBusy(true);
-    const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE) });
+    const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE), status: "active" });
     if (q?.trim()) params.set("q", q.trim());
 
     // Do not wait for fetch() to reject when the browser already knows the
@@ -131,7 +141,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
   // product that actually has options pauses to load them.
   const tapProduct = async (product) => {
     if (loadingVariantsFor) return;
-    if (!product.variantCount) {
+    if (!hasActiveVariants(product)) {
       onAdd(product, null);
       return;
     }
@@ -149,7 +159,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
       searchRef.current?.focus();
       return;
     }
-    if (!hit.variantCount) {
+    if (!hasActiveVariants(hit)) {
       onAdd(hit, null);
       setSearch("");
       searchRef.current?.focus();
@@ -192,10 +202,13 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
     try {
       let hit = null;
       try {
-        const params = new URLSearchParams({ page: "1", pageSize: "5", q: term });
+        const params = new URLSearchParams({ page: "1", pageSize: "5", q: term, status: "active", includeVariants: "true" });
         const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
-        const exact = data.products.find((p) => (p.sku || "").toLowerCase() === low);
-        hit = exact || (data.products.length === 1 ? data.products[0] : null);
+        const exactProduct = data.products.find((p) => (p.sku || "").toLowerCase() === low);
+        const variantProduct = data.products.find((p) => variantMatchingSku(p, term));
+        hit = variantProduct
+          ? { ...variantProduct, _matchedVariant: variantMatchingSku(variantProduct, term) }
+          : exactProduct || (data.products.length === 1 ? data.products[0] : null);
       } catch (err) {
         if (!isNetErr(err)) throw err;
       }
@@ -281,7 +294,9 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {list.map((p) => {
             const cartQty = cartCountByProduct?.get(p.id) || 0;
-            const out = p.productType === "physical" && p.stock === 0;
+            // Parent stock does not decide availability for a product with
+            // variants; each variant owns its own tracked/unlimited stock.
+            const out = p.productType === "physical" && !hasActiveVariants(p) && p.stock === 0;
             const low = p.productType === "physical" && p.stock != null && p.stock > 0 && p.stock <= lowStock;
             const busy = loadingVariantsFor === p.id;
             return (

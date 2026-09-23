@@ -425,7 +425,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         const fetchPage = async (page) => {
           for (let attempt = 0; ; attempt++) {
             try {
-              return await apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${page}&pageSize=100&includeVariants=true`);
+              return await apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${page}&pageSize=100&includeVariants=true&status=active`);
             } catch (err) {
               if (attempt >= 2) throw err;
               await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
