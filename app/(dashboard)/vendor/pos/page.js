@@ -288,6 +288,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false });
   const [offlineSetupOpen, setOfflineSetupOpen] = useState(false);
   const [networkOffline, setNetworkOffline] = useState(false);
+  const catalogSessionRef = useRef("");
 
   useEffect(() => {
     Promise.resolve().then(() => setNetworkOffline(isOffline()));
@@ -458,17 +459,25 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
   useEffect(() => {
     if (!openSession) return;
+    const sessionKey = `${storeId}:${openSession.session.id}`;
+    const firstSyncForSession = catalogSessionRef.current !== sessionKey;
+    if (firstSyncForSession && typeof navigator !== "undefined" && navigator.onLine !== false) {
+      catalogSessionRef.current = sessionKey;
+    }
     listQueuedSales(storeId).then((q) => { setQueuedSales(q); setPendingSync(q.length); }).catch(() => {});
-    // Catalogue synchronization updates state after its first await.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    syncCatalog();
+    // Force one catalogue revalidation when this register session is first
+    // opened. Later renders of the same shift use the normal 30-minute
+    // freshness window instead of downloading the entire catalogue again.
+    syncCatalog(firstSyncForSession && typeof navigator !== "undefined" && navigator.onLine !== false);
     // In "work offline" mode nothing auto-syncs - the cashier drives it
     // with the Sync button. The catalogue still refreshes (read-only).
     if (offlineMode) return;
     syncNow();
     const onOnline = () => {
       syncNow();
-      syncCatalog();
+      const needsSessionRefresh = catalogSessionRef.current !== sessionKey;
+      if (needsSessionRefresh) catalogSessionRef.current = sessionKey;
+      syncCatalog(needsSessionRefresh);
     };
     window.addEventListener("online", onOnline);
     const iv = setInterval(() => {
