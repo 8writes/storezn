@@ -19,6 +19,10 @@ import {
 
 const MAX_ROWS = 500;
 
+function isSkuUniqueViolation(error) {
+  return error?.code === "23505" && error?.constraint_name === "uq_products_store_sku";
+}
+
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
   return store;
@@ -316,7 +320,11 @@ export async function POST(req, { params }) {
         row: rowNumber,
         name: data.name,
         status: "error",
-        error: isProductNameUniqueViolation(err) ? PRODUCT_NAME_TAKEN_MESSAGE : err.message || "Failed to create this row",
+        error: isProductNameUniqueViolation(err)
+          ? PRODUCT_NAME_TAKEN_MESSAGE
+          : isSkuUniqueViolation(err)
+            ? "A product with that SKU already exists in this store"
+            : err.message || "Failed to create this row",
       });
     }
   }

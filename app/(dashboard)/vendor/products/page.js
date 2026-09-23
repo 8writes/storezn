@@ -67,10 +67,11 @@ function expiryChip(iso) {
   return { text: `Expires ${d.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`, tone: "slate" };
 }
 
-const BULK_HEADERS = ["name", "price", "sku", "description", "productType", "condition", "stock", "expiryDate", "categoryName"];
+const BULK_HEADERS = ["name", "price", "costPrice", "sku", "description", "productType", "condition", "stock", "expiryDate", "categoryName"];
 const BULK_TEMPLATE_ROW = {
   name: "Red Tote Bag",
   price: "15000",
+  costPrice: "8500",
   sku: "BAG-RED-01",
   description: "Spacious everyday tote in red canvas",
   productType: "physical",
@@ -79,6 +80,13 @@ const BULK_TEMPLATE_ROW = {
   expiryDate: "",
   categoryName: "Bags",
 };
+const BULK_HEADER_ALIASES = Object.fromEntries(
+  BULK_HEADERS.flatMap((header) => [
+    [header.toLowerCase(), header],
+    [header.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`), header],
+  ]),
+);
+const MAX_BULK_FILE_BYTES = 5 * 1024 * 1024;
 
 export default function VendorProductsPage() {
   const router = useRouter();
@@ -196,11 +204,13 @@ export default function VendorProductsPage() {
   const [bulkFileName, setBulkFileName] = useState("");
   const [bulkResults, setBulkResults] = useState(null);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const bulkFileInputRef = useRef(null);
 
   const resetBulk = () => {
     setBulkRows([]);
     setBulkFileName("");
     setBulkResults(null);
+    if (bulkFileInputRef.current) bulkFileInputRef.current.value = "";
   };
 
   const loadProducts = () => {
@@ -283,24 +293,48 @@ export default function VendorProductsPage() {
 
   const downloadTemplate = () => downloadCsv("products-import-template.csv", BULK_HEADERS, [BULK_TEMPLATE_ROW]);
 
-  const handleBulkFile = async (e) => {
-    const file = e.target.files?.[0];
+  const processBulkFile = async (file) => {
     if (!file) return;
     setBulkResults(null);
     setBulkFileName(file.name);
     try {
+      if (file.size > MAX_BULK_FILE_BYTES) {
+        throw new Error("That CSV is larger than 5 MB");
+      }
       const text = await file.text();
-      const rows = parseCsv(text);
+      const rows = parseCsv(text).map((row) =>
+        Object.fromEntries(
+          Object.entries(row).map(([key, value]) => [BULK_HEADER_ALIASES[key.trim().toLowerCase()] || key.trim(), value]),
+        ),
+      );
       if (rows.length === 0) {
         toast.error("No rows found in that file");
         setBulkRows([]);
         return;
       }
+      const headers = new Set(Object.keys(rows[0]));
+      const missing = ["name", "price"].filter((header) => !headers.has(header));
+      if (missing.length > 0) {
+        toast.error(`Missing required column${missing.length === 1 ? "" : "s"}: ${missing.join(", ")}`);
+        setBulkRows([]);
+        return;
+      }
       setBulkRows(rows);
     } catch {
-      toast.error("Couldn't read that file");
+      toast.error("Couldn't read that file. Check that it is a valid CSV under 5 MB.");
       setBulkRows([]);
     }
+  };
+
+  const handleBulkFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    processBulkFile(file);
+  };
+
+  const handleBulkDrop = (e) => {
+    e.preventDefault();
+    processBulkFile(e.dataTransfer.files?.[0]);
   };
 
   const handleBulkImport = async () => {
@@ -388,13 +422,17 @@ export default function VendorProductsPage() {
               </Button>
             </div>
 
-            <label className="flex flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-slate-300 px-4 py-8 text-center cursor-pointer hover:border-brand-400 hover:bg-slate-50 transition-colors">
+            <label
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleBulkDrop}
+              className="flex flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-slate-300 px-4 py-8 text-center cursor-pointer hover:border-brand-400 hover:bg-slate-50 transition-colors"
+            >
               <Upload size={20} className="text-slate-400" />
               <span className="text-sm text-slate-600">
                 {bulkFileName ? <span className="font-medium text-slate-900">{bulkFileName}</span> : "Choose a .csv file"}
               </span>
               <span className="text-xs text-slate-400">or drag it here</span>
-              <input type="file" accept=".csv,text/csv" onChange={handleBulkFile} className="hidden" />
+              <input ref={bulkFileInputRef} type="file" accept=".csv,text/csv" onChange={handleBulkFile} className="hidden" />
             </label>
 
             {bulkRows.length > 0 && !bulkResults && (

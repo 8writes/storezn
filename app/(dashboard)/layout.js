@@ -505,7 +505,7 @@ export default function DashboardLayout({ children }) {
   // stores[0] - that's what let the sidebar switcher actually affect every
   // page, not just the one it was clicked on.
   return isVendor ? (
-    <VendorStoreProvider token={token} apiFetch={apiFetch}>
+    <VendorStoreProvider token={token} userId={user.id} apiFetch={apiFetch}>
       {layout}
     </VendorStoreProvider>
   ) : (
