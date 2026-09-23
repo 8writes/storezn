@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { products, productVariants, productBranchStock, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
-import { and, asc, count, desc, eq, gt, ilike, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, ilike, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createProductSchema } from "../../../../../../../lib/validate.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
