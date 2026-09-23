@@ -56,7 +56,9 @@ export function OfflineNavGuard() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-1.5 bg-amber-500 px-3 py-1.5 text-center text-xs font-medium text-white">
       <WifiOff size={13} className="shrink-0" />
-      Offline - register only. Sales are saved and sync when you&apos;re back online.
+      Offline - register only. Saved catalogue search and sales work; navigation,
+      live stock updates, cash movements, register closing, and sync wait for
+      the connection to return.
     </div>
   );
 }

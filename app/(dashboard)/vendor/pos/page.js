@@ -830,7 +830,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
-        <ProductPicker storeId={storeId} token={token} onAdd={addToCart} cartCountByProduct={countByProduct} />
+        <ProductPicker storeId={storeId} token={token} onAdd={addToCart} cartCountByProduct={countByProduct} offlineMode={offlineMode} />
 
         <div className="space-y-3 lg:sticky lg:top-4">
           <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">

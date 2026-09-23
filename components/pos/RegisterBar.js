@@ -66,6 +66,11 @@ export function RegisterBar({
           </button>
         )}
       </span>
+      {offlineMode && (
+        <span className="basis-full text-xs font-medium text-amber-800" role="status">
+          Search uses the saved catalogue first. Sales queue on this device; cash movements and register closing still need a connection.
+        </span>
+      )}
 
       <span className="text-slate-800">
         Open since {formatClockTime(session.openedAt)}

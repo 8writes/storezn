@@ -446,12 +446,8 @@ export default function DashboardLayout({ children }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         <header
-          onClick={() => {
-            if (!navOffline) setDrawerOpen(true);
-          }}
-          className={`sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 shrink-0 ${
-            navOffline ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-          } ${
+          onClick={() => setDrawerOpen(true)}
+          className={`sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 shrink-0 cursor-pointer ${
             isVendor ? "bg-surface border-b border-slate-200 text-slate-900" : "bg-brand-900 text-white"
           }`}
         >
@@ -461,7 +457,7 @@ export default function DashboardLayout({ children }) {
           ) : (
             <Image src="/storezn-logo.png" alt="Storezn" width={110} height={27} priority unoptimized />
           )}
-          <button type="button" aria-label="Open menu" disabled={navOffline} className="cursor-pointer shrink-0 disabled:cursor-not-allowed">
+          <button type="button" aria-label="Open menu" className="cursor-pointer shrink-0">
             <Menu size={22} />
           </button>
         </header>
