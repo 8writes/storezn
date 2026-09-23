@@ -6,6 +6,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { networkErrorMessage } from "@/lib/fetchError.js";
+import { isOffline, onConnectivityChange } from "@/lib/connectivity.js";
 import { searchCatalog, findBySku, getCatalogProduct } from "@/lib/posOffline.js";
 
 const PAGE_SIZE = 12;
@@ -20,7 +21,7 @@ function isNetErr(err) {
 // the search box is focused), the per-product variant picker, and a
 // fall-back to the locally cached catalogue when the network is down.
 // Calls onAdd(product, variantOrNull).
-export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
+export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offlineMode = false }) {
   const { apiFetch } = useApi(token);
   const [products, setProducts] = useState([]);
   const [cache, setCache] = useState({});
@@ -35,12 +36,14 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
   const [loadingVariantsFor, setLoadingVariantsFor] = useState(null);
   const [picker, setPicker] = useState(null);
   const [scanning, setScanning] = useState(false);
-  const [offline, setOffline] = useState(false);
+  const [offline, setOffline] = useState(() => isOffline());
   const searchRef = useRef(null);
   // Guards against a slow request for an earlier term resolving after a
   // newer one and overwriting the results (very visible when the DB is
   // waking from idle and a search takes several seconds).
   const reqRef = useRef(0);
+
+  useEffect(() => onConnectivityChange(setOffline), []);
 
   const load = async (pageNum, q) => {
     const myReq = ++reqRef.current;
@@ -48,6 +51,23 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
     setBusy(true);
     const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE) });
     if (q?.trim()) params.set("q", q.trim());
+
+    // Do not wait for fetch() to reject when the browser already knows the
+    // uplink is down. The catalogue snapshot is the source for this screen
+    // until connectivity returns.
+    if (offlineMode || isOffline()) {
+      const rows = await searchCatalog(storeId, q, q ? 200 : 100).catch(() => []);
+      if (myReq === reqRef.current) {
+        setProducts(rows);
+        setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
+        setPagination(null);
+        setPage(1);
+        if (isOffline()) setOffline(true);
+      }
+      if (myReq === reqRef.current) setBusy(false);
+      return;
+    }
+
     try {
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
       if (myReq !== reqRef.current) return; // superseded
@@ -88,12 +108,13 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
     if (!token || !storeId) return;
     Promise.resolve().then(() => load(1, debounced));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, debounced]);
+  }, [token, storeId, debounced, offlineMode]);
 
   const ensureVariants = async (productId) => {
     if (variantsBy[productId]) return variantsBy[productId];
     setLoadingVariantsFor(productId);
     try {
+      if (offlineMode || isOffline()) throw new Error("offline");
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants?active=true`);
       setVariantsBy((v) => ({ ...v, [productId]: data.variants }));
       return data.variants;
@@ -101,7 +122,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
       const cachedProduct = cache[productId] || await getCatalogProduct(storeId, productId);
       const cachedVariants = cachedProduct?.offlineVariants;
       if (Array.isArray(cachedVariants) && cachedVariants.length > 0) {
-        setOffline(true);
+        if (isOffline()) setOffline(true);
         setVariantsBy((v) => ({ ...v, [productId]: cachedVariants }));
         return cachedVariants;
       }
@@ -166,6 +187,11 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
       (await findBySku(storeId, term).catch(() => null));
     if (local) {
       await acceptHit(local);
+      return;
+    }
+
+    if (offlineMode || isOffline()) {
+      toast.error(`Nothing matches "${term}" in the saved catalogue`);
       return;
     }
 
@@ -252,10 +278,12 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct }) {
         </span>
       </div>
 
-      {offline && (
+      {(offline || offlineMode) && (
         <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-sm px-2.5 py-1.5">
           <WifiOff size={13} />
-          Offline - searching your saved catalogue. Sales still work and will sync when you&apos;re back.
+          {offlineMode
+            ? "Working offline - searching your saved catalogue first. Sales are queued here; cash movements and register closing still need a connection."
+            : "Offline - searching your saved catalogue. Sales still work and will sync when you&apos;re back. Cash movements and register closing are unavailable."}
         </p>
       )}
 

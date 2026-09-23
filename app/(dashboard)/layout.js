@@ -231,11 +231,10 @@ function NavLinkHint() {
 // Vendor/staff get a calmer, low-contrast nav (light sidebar, thin accent
 // instead of a solid fill) - super_admin keeps the original dark sidebar
 // untouched, see DashboardLayout's isVendor split.
-// While offline, every dashboard page except the register needs the
-// network to load anything - a click just lands on a blank/broken screen
-// and (with a POS session active) OfflineNavGuard yanks you back anyway.
-// So when `offline`, everything but the POS link renders inert.
-const OFFLINE_OK_HREF = "/vendor/pos";
+// While offline, dashboard navigation must stay completely inert. The POS
+// screen is already on the page and continues working from its local
+// catalogue/queue; even clicking its active link would needlessly start a
+// route transition and can interrupt a cashier mid-sale.
 
 function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false, collapsed = false }) {
   return (
@@ -256,7 +255,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
           {group.items.map(({ href, label, icon: Icon }) => {
             const base = `flex items-center gap-3 text-sm font-medium ${collapsed ? "px-0 py-2.5 justify-center" : "px-4 py-2.5"}`;
 
-            if (offline && href !== OFFLINE_OK_HREF) {
+            if (offline) {
               return (
                 <span
                   key={href}
@@ -308,7 +307,7 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [offline, setOffline] = useState(false);
+  const [offline, setOffline] = useState(() => isOffline());
   // Desktop sidebar collapse (icons only). Remembered per browser.
   const [navCollapsed, setNavCollapsed] = useState(false);
   useEffect(() => {
@@ -345,7 +344,6 @@ export default function DashboardLayout({ children }) {
   // real request fails, not only when the OS drops the interface, so a
   // dead uplink on live Wi-Fi is caught too.
   useEffect(() => {
-    setOffline(isOffline());
     return onConnectivityChange(setOffline);
   }, []);
 
@@ -448,8 +446,12 @@ export default function DashboardLayout({ children }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         <header
-          onClick={() => setDrawerOpen(true)}
-          className={`sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 shrink-0 cursor-pointer ${
+          onClick={() => {
+            if (!navOffline) setDrawerOpen(true);
+          }}
+          className={`sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 shrink-0 ${
+            navOffline ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+          } ${
             isVendor ? "bg-surface border-b border-slate-200 text-slate-900" : "bg-brand-900 text-white"
           }`}
         >
@@ -459,7 +461,7 @@ export default function DashboardLayout({ children }) {
           ) : (
             <Image src="/storezn-logo.png" alt="Storezn" width={110} height={27} priority unoptimized />
           )}
-          <button type="button" aria-label="Open menu" className="cursor-pointer shrink-0">
+          <button type="button" aria-label="Open menu" disabled={navOffline} className="cursor-pointer shrink-0 disabled:cursor-not-allowed">
             <Menu size={22} />
           </button>
         </header>

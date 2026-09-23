@@ -57,10 +57,29 @@ function activityCopy(row) {
           return `${method}${tender.provider ? ` (${tender.provider})` : ""}: ${formatKobo(tender.amountKobo || 0)}`;
         }).join(" + ")
       : null;
+    const adjustmentDetails = Array.isArray(meta.priceAdjustments)
+      ? meta.priceAdjustments.map((adjustment) => {
+          const priceChanged = adjustment.catalogueUnitKobo !== adjustment.adjustedUnitKobo;
+          const priceText = priceChanged
+            ? `price ${formatKobo(adjustment.catalogueUnitKobo || 0)} to ${formatKobo(adjustment.adjustedUnitKobo || 0)}`
+            : null;
+          const discountText = adjustment.lineDiscountKobo > 0
+            ? `${formatKobo(adjustment.lineDiscountKobo)} line discount`
+            : null;
+          return `${adjustment.productName}: ${[priceText, discountText].filter(Boolean).join(", ")}`;
+        }).join("; ")
+      : null;
+    const orderDiscount = meta.discountKobo > 0
+      ? `Order discount: ${formatKobo(meta.discountKobo)}${meta.discountReason ? ` (${meta.discountReason})` : ""}`
+      : null;
     return {
       title: `Completed sale${meta.orderNumber ? ` ${meta.orderNumber}` : ""}`,
       detail: `${meta.itemCount || 0} item${meta.itemCount === 1 ? "" : "s"} sold for ${formatKobo(meta.totalKobo || 0)}`,
-      extra: payments ? `Payment received: ${payments}` : null,
+      extra: [
+        payments ? `Payment received: ${payments}` : null,
+        adjustmentDetails ? `Adjustments: ${adjustmentDetails}` : null,
+        orderDiscount,
+      ].filter(Boolean).join(" · ") || null,
     };
   }
   if (row.action === "pos.return") {

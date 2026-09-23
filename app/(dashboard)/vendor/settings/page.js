@@ -362,9 +362,9 @@ export default function VendorSettingsPage() {
         </div>
       )}
 
-      {loading || !form ? (
+      {isOwner && (loading || !form) ? (
         <FormSkeleton fields={4} />
-      ) : (
+      ) : isOwner && form ? (
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             {isPlus ? (
@@ -824,7 +824,7 @@ export default function VendorSettingsPage() {
             </Button>
           </div>
         </form>
-      )}
+      ) : null}
 
       <ImageCropModal
         open={!!cropSrc}

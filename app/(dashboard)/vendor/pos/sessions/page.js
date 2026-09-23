@@ -1,16 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Select } from "@/components/ui/Select.js";
 import { BackLink } from "@/components/ui/BackLink.js";
-import { Pagination } from "@/components/ui/Pagination.js";
 import { formatKobo } from "@/lib/money.js";
 import { formatDateTime } from "@/lib/format.js";
 
 export default function SessionsPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const [stores, setStores] = useState([]);
@@ -19,6 +20,7 @@ export default function SessionsPage() {
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -32,18 +34,35 @@ export default function SessionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  useEffect(() => setPage(1), [storeId]);
+  useEffect(() => {
+    setPage(1);
+    setSessions([]);
+    setPagination(null);
+  }, [storeId]);
 
   useEffect(() => {
     if (!storeId) return;
-    setLoading(true);
-    apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions?page=${page}&pageSize=20`)
+    const requestedPage = page;
+    let active = true;
+    if (requestedPage === 1) setLoading(true);
+    else setLoadingMore(true);
+    apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions?page=${requestedPage}&pageSize=20`)
       .then((data) => {
-        setSessions(data.sessions);
+        if (!active) return;
+        setSessions((current) => requestedPage === 1 ? data.sessions : [...current, ...data.sessions]);
         setPagination(data.pagination || null);
       })
-      .catch((err) => toast.error(err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (active) toast.error(err.message);
+      })
+      .finally(() => {
+        if (!active) return;
+        if (requestedPage === 1) setLoading(false);
+        else setLoadingMore(false);
+      });
+    return () => {
+      active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, page]);
 
@@ -83,11 +102,23 @@ export default function SessionsPage() {
               </tr>
             ) : (
               sessions.map((s) => (
-                <tr key={s.id} className="hover:bg-slate-50">
+                <tr
+                  key={s.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => router.push(`/vendor/pos/sessions/${s.id}?storeId=${storeId}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      router.push(`/vendor/pos/sessions/${s.id}?storeId=${storeId}`);
+                    }
+                  }}
+                  className="hover:bg-slate-50 focus:outline-none focus-visible:bg-brand-50 cursor-pointer"
+                >
                   <td className="px-4 py-2.5">
-                    <Link href={`/vendor/pos/sessions/${s.id}?storeId=${storeId}`} className="font-medium text-slate-900 hover:text-brand-700">
+                    <span className="font-medium text-slate-900">
                       {s.registerName}
-                    </Link>
+                    </span>
                   </td>
                   <td className="px-4 py-2.5 text-slate-600">{formatDateTime(s.openedAt)}</td>
                   <td className="px-4 py-2.5">
@@ -120,7 +151,24 @@ export default function SessionsPage() {
             )}
           </tbody>
         </table>
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        {pagination && pagination.total > 0 && (
+          <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-700 sm:flex-row sm:text-sm">
+            <span className="tabular-nums">
+              Showing {sessions.length.toLocaleString()} of {pagination.total.toLocaleString()}
+            </span>
+            {page < pagination.totalPages && (
+              <button
+                type="button"
+                onClick={() => setPage((current) => current + 1)}
+                disabled={loadingMore}
+                className="inline-flex min-h-9 items-center gap-2 rounded-sm border border-slate-300 bg-surface px-3 py-1.5 font-medium text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              >
+                {loadingMore && <Loader2 size={15} className="animate-spin" />}
+                {loadingMore ? "Loading sessions..." : "Load more sessions"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

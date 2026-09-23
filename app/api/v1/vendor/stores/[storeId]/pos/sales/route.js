@@ -394,6 +394,17 @@ async function handlePost(req, { params }) {
         })
         .join(" + ");
       const changeKobo = tendersKobo.reduce((s, t) => s + t.changeGiven, 0);
+      const priceAdjustments = resolved
+        .filter((line) => line.overridden || line.lineDiscountKobo > 0)
+        .map((line) => ({
+          productId: line.product.id,
+          variantId: line.variant?.id || null,
+          productName: line.product.name,
+          quantity: line.quantity,
+          catalogueUnitKobo: line.catalogueUnitKobo,
+          adjustedUnitKobo: line.unitKobo,
+          lineDiscountKobo: line.lineDiscountKobo,
+        }));
       after(() =>
         logStoreActivity({
           storeId,
@@ -413,7 +424,9 @@ async function handlePost(req, { params }) {
             totalKobo,
             itemCount,
             discountKobo: discountAmountKobo,
+            discountReason: data.discountReason || null,
             overridden: resolved.some((r) => r.overridden),
+            priceAdjustments,
             offlinePriceDrift,
             priceDriftLines,
             rehomed: settleSessionId !== data.sessionId,
