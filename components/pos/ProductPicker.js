@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Search, ImageOff, Loader2, Barcode, WifiOff } from "lucide-react";
+import { Search, ImageOff, Loader2, Barcode } from "lucide-react";
 import { useApi } from "@/hooks/useApi.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { networkErrorMessage } from "@/lib/fetchError.js";
-import { isOffline, onConnectivityChange } from "@/lib/connectivity.js";
+import { isOffline } from "@/lib/connectivity.js";
 import { searchCatalog, findBySku, getCatalogProduct } from "@/lib/posOffline.js";
 
 const PAGE_SIZE = 12;
@@ -36,14 +36,11 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
   const [loadingVariantsFor, setLoadingVariantsFor] = useState(null);
   const [picker, setPicker] = useState(null);
   const [scanning, setScanning] = useState(false);
-  const [offline, setOffline] = useState(() => isOffline());
   const searchRef = useRef(null);
   // Guards against a slow request for an earlier term resolving after a
   // newer one and overwriting the results (very visible when the DB is
   // waking from idle and a search takes several seconds).
   const reqRef = useRef(0);
-
-  useEffect(() => onConnectivityChange(setOffline), []);
 
   const load = async (pageNum, q) => {
     const myReq = ++reqRef.current;
@@ -62,7 +59,6 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
         setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
         setPagination(null);
         setPage(1);
-        if (isOffline()) setOffline(true);
       }
       if (myReq === reqRef.current) setBusy(false);
       return;
@@ -75,7 +71,6 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
       setCache((prev) => ({ ...prev, ...Object.fromEntries(data.products.map((p) => [p.id, p])) }));
       setPagination(data.pagination || null);
       setPage(pageNum);
-      setOffline(false);
       if (data.lowStockThreshold != null) setLowStock(data.lowStockThreshold);
     } catch (err) {
       if (myReq !== reqRef.current) return;
@@ -90,7 +85,6 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
         setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
         setPagination(null);
         setPage(1);
-        setOffline(true);
       } else {
         toast.error(err.message || "Failed to load products");
       }
@@ -122,7 +116,6 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
       const cachedProduct = cache[productId] || await getCatalogProduct(storeId, productId);
       const cachedVariants = cachedProduct?.offlineVariants;
       if (Array.isArray(cachedVariants) && cachedVariants.length > 0) {
-        if (isOffline()) setOffline(true);
         setVariantsBy((v) => ({ ...v, [productId]: cachedVariants }));
         return cachedVariants;
       }
@@ -203,10 +196,8 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
         const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
         const exact = data.products.find((p) => (p.sku || "").toLowerCase() === low);
         hit = exact || (data.products.length === 1 ? data.products[0] : null);
-        setOffline(false);
       } catch (err) {
         if (!isNetErr(err)) throw err;
-        setOffline(true);
       }
       if (hit) {
         await acceptHit(hit);
@@ -277,15 +268,6 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
           {scanning ? <Loader2 size={15} className="animate-spin" /> : <Barcode size={15} />}
         </span>
       </div>
-
-      {(offline || offlineMode) && (
-        <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-sm px-2.5 py-1.5">
-          <WifiOff size={13} />
-          {offlineMode
-            ? "Working offline - searching your saved catalogue first. Sales are queued here; cash movements and register closing still need a connection."
-            : "Offline - searching your saved catalogue. Sales still work and will sync when you&apos;re back. Cash movements and register closing are unavailable."}
-        </p>
-      )}
 
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
