@@ -27,14 +27,18 @@ export function AddToCartButton({
   baseDiscountPercent,
   baseStock,
   productType,
+  saleMode = "fixed_price",
   variants = [],
   allowStandardVariant = true,
   sizeGuide = null,
+  customerFields = [],
 }) {
   const { token, loading: authLoading } = useCustomerAuth();
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState({});
   const [useBase, setUseBase] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [guestEmail, setGuestEmail] = useState("");
 
   const optionGroups = useMemo(() => {
     const groups = {};
@@ -102,6 +106,7 @@ export function AddToCartButton({
   };
 
   const needsSelection = variants.length > 0;
+  const invoiceRequired = saleMode === "invoice_required";
   const showStandard = allowStandardVariant !== false;
   const hasChosen = useBase || !!matchedVariant;
   const price = matchedVariant ? (matchedVariant.price ?? basePrice) : getEffectivePrice(basePrice, baseDiscountPercent);
@@ -115,6 +120,28 @@ export function AddToCartButton({
   const pickedSizeRow = sizeGroupName && selected[sizeGroupName] ? sizeRow(selected[sizeGroupName]) : null;
 
   const handleClick = async () => {
+    if (invoiceRequired) {
+      if (!guestEmail.trim()) {
+        toast.error("Enter your email so the seller can send the invoice");
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await fetch("/api/v1/storefront/invoice-requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ guestEmail: guestEmail.trim(), items: [{ productId, variantId: matchedVariant?.id || null, quantity: 1, customerFields: answers }] }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.error || "Could not submit invoice request");
+        toast.success("Request sent. The seller will send your invoice.");
+      } catch (err) {
+        toast.error(err.message || "Could not submit invoice request");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     if (authLoading) return;
     setLoading(true);
     try {
@@ -144,10 +171,12 @@ export function AddToCartButton({
   // discount doesn't carry over to it.
   const showDiscount = !matchedVariant && baseDiscountPercent > 0;
 
-  const cta =
-    needsSelection && !hasChosen ? (
-      <Button disabled fullWidth size="lg" variant="secondary">Select an option</Button>
-    ) : !inStock ? (
+  const cta = needsSelection && !hasChosen ? (
+    <Button disabled fullWidth size="lg" variant="secondary">Select an option</Button>
+  ) : invoiceRequired ? (
+    <Button onClick={handleClick} loading={loading || authLoading} disabled={authLoading} fullWidth size="lg">Request a quote</Button>
+  ) :
+    !inStock ? (
       <Button disabled fullWidth size="lg" variant="secondary">Out of stock</Button>
     ) : (
       <Button onClick={handleClick} loading={loading || authLoading} fullWidth size="lg">Add to cart</Button>
@@ -156,7 +185,7 @@ export function AddToCartButton({
   return (
     <div className="space-y-5">
       <div className="flex items-baseline gap-2.5">
-        <p className="text-2xl font-medium text-slate-900">{formatCurrency(price)}</p>
+        <p className="text-2xl font-medium text-slate-900">{invoiceRequired ? "Price on request" : formatCurrency(price)}</p>
         {showDiscount && (
           <>
             <p className="text-base text-slate-400 line-through">{formatCurrency(basePrice)}</p>
@@ -251,6 +280,23 @@ export function AddToCartButton({
         <p className="text-sm text-slate-700">{stock} in stock</p>
       )}
 
+      {invoiceRequired && (
+        <div className="space-y-3 border-t border-slate-200 pt-4">
+          <p className="text-sm font-semibold text-slate-900">Request an invoice</p>
+          <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Your email" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
+          {customerFields.map((field) => (
+            <label key={field.id} className="block space-y-1">
+              <span className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</span>
+              {field.type === "textarea" ? <textarea rows={3} value={answers[field.id] || ""} onChange={(e) => setAnswers((a) => ({ ...a, [field.id]: e.target.value }))} placeholder={field.placeholder || ""} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
+                : field.type === "select" ? <select value={answers[field.id] || ""} onChange={(e) => setAnswers((a) => ({ ...a, [field.id]: e.target.value }))} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm"><option value="">Select...</option>{(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                  : field.type === "checkbox" ? <input type="checkbox" checked={answers[field.id] === true} onChange={(e) => setAnswers((a) => ({ ...a, [field.id]: e.target.checked }))} />
+                    : <input type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"} value={answers[field.id] || ""} onChange={(e) => setAnswers((a) => ({ ...a, [field.id]: e.target.value }))} placeholder={field.placeholder || ""} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />}
+              {field.helpText && <span className="block text-xs text-slate-600">{field.helpText}</span>}
+            </label>
+          ))}
+        </div>
+      )}
+
       {/* Inline on desktop; on mobile the CTA moves into a sticky bar
           pinned to the bottom of the viewport so it's always reachable
           while scrolling the description/reviews. */}
@@ -261,7 +307,7 @@ export function AddToCartButton({
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         <div className="shrink-0">
-          <p className="text-lg font-semibold text-slate-900 leading-none">{formatCurrency(price)}</p>
+          <p className="text-lg font-semibold text-slate-900 leading-none">{invoiceRequired ? "Quote" : formatCurrency(price)}</p>
           {showDiscount && (
             <p className="text-xs text-slate-400 line-through leading-none mt-0.5">{formatCurrency(basePrice)}</p>
           )}

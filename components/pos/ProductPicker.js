@@ -31,7 +31,7 @@ function variantMatchingSku(product, sku) {
 // the search box is focused), the per-product variant picker, and a
 // fall-back to the locally cached catalogue when the network is down.
 // Calls onAdd(product, variantOrNull).
-export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offlineMode = false }) {
+export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCountByProduct, offlineMode = false }) {
   const { apiFetch } = useApi(token);
   const [products, setProducts] = useState([]);
   const [cache, setCache] = useState({});
@@ -141,6 +141,11 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
   // product that actually has options pauses to load them.
   const tapProduct = async (product) => {
     if (loadingVariantsFor) return;
+    if (product.saleMode === "invoice_required") {
+      if (onInvoiceRequest) onInvoiceRequest(product, null);
+      else toast.info("This product requires an invoice. Add it from the invoice workflow when connected.");
+      return;
+    }
     if (!hasActiveVariants(product)) {
       onAdd(product, null);
       return;
@@ -153,6 +158,11 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
 
   const acceptHit = async (hit) => {
     setCache((prev) => ({ ...prev, [hit.id]: hit }));
+    if (hit.saleMode === "invoice_required") {
+      if (onInvoiceRequest) onInvoiceRequest(hit, hit._matchedVariant || null);
+      else toast.info("This product requires an invoice. Add it from the invoice workflow when connected.");
+      return;
+    }
     if (hit._matchedVariant) {
       onAdd(hit, hit._matchedVariant);
       setSearch("");
@@ -296,7 +306,8 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
             const cartQty = cartCountByProduct?.get(p.id) || 0;
             // Parent stock does not decide availability for a product with
             // variants; each variant owns its own tracked/unlimited stock.
-            const out = p.productType === "physical" && !hasActiveVariants(p) && p.stock === 0;
+            const invoiceRequired = p.saleMode === "invoice_required";
+            const out = !invoiceRequired && p.productType === "physical" && !hasActiveVariants(p) && p.stock === 0;
             const low = p.productType === "physical" && p.stock != null && p.stock > 0 && p.stock <= lowStock;
             const busy = loadingVariantsFor === p.id;
             return (
@@ -323,6 +334,11 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
                       <Loader2 size={20} className="text-brand-600 animate-spin" />
                     </div>
                   )}
+                  {invoiceRequired && (
+                    <div className="absolute inset-0 bg-surface/80 flex items-center justify-center">
+                      <span className="text-xs font-semibold text-brand-700">Invoice required</span>
+                    </div>
+                  )}
                   {out && (
                     <div className="absolute inset-0 bg-surface/80 flex items-center justify-center">
                       <span className="text-xs font-semibold text-red-600">Out of stock</span>
@@ -331,7 +347,7 @@ export function ProductPicker({ storeId, token, onAdd, cartCountByProduct, offli
                 </div>
                 <div className="p-2 space-y-0.5">
                   <p className="text-xs font-medium text-slate-900 line-clamp-2 leading-tight">{p.name}</p>
-                  <p className="text-sm font-semibold text-brand-700">{formatCurrency(getEffectivePrice(p.price, p.discountPercent))}</p>
+                  <p className="text-sm font-semibold text-brand-700">{invoiceRequired ? "Price on request" : formatCurrency(getEffectivePrice(p.price, p.discountPercent))}</p>
                   {low && <p className="text-[11px] text-amber-600 font-medium">{p.stock} left</p>}
                 </div>
               </button>

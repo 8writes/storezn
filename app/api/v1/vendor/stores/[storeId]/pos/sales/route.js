@@ -111,6 +111,12 @@ async function handlePost(req, { params }) {
     if (!product.isActive || product.suspendedAt) {
       return NextResponse.json({ error: `${product.name} is not available for sale` }, { status: 409 });
     }
+    if (product.saleMode === "invoice_required") {
+      return NextResponse.json(
+        { error: `${product.name} requires an invoice and cannot be sold as a fixed-price POS sale`, code: "INVOICE_REQUIRED" },
+        { status: 409 },
+      );
+    }
     const variant = item.variantId ? variantById.get(item.variantId) : null;
     if (item.variantId && (!variant || variant.productId !== product.id)) {
       return NextResponse.json({ error: `${product.name}: that option doesn't exist` }, { status: 404 });
@@ -275,6 +281,8 @@ async function handlePost(req, { params }) {
             discountAmount: discountAmountKobo,
             discountReason: data.discountReason || null,
             paymentReference,
+            amountPaid: totals.totalAmount,
+            amountDue: 0,
             paidAt: now,
             deliveredAt: now,
             createdAt: now,

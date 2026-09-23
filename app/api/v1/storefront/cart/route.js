@@ -111,6 +111,12 @@ async function handlePost(req) {
     .where(and(eq(products.id, productId), eq(products.storeId, store.id), eq(products.isActive, true), isNull(products.suspendedAt)))
     .limit(1);
   if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  if (product.saleMode === "invoice_required") {
+    return NextResponse.json(
+      { error: "This product requires a quote and cannot be added to the fixed-price cart", code: "INVOICE_REQUIRED" },
+      { status: 409 },
+    );
+  }
 
   // A null variantId is valid even for a product that has variants - the
   // storefront offers the product's own base price/stock as its own

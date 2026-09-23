@@ -144,6 +144,8 @@ export default async function StorefrontProductPage({ params }) {
               baseDiscountPercent={product.discountPercent}
               baseStock={product.stock}
               productType={product.productType}
+              saleMode={product.saleMode}
+              customerFields={product.customerFields}
               variants={variants}
               allowStandardVariant={product.allowStandardVariant}
               sizeGuide={product.sizeGuide}

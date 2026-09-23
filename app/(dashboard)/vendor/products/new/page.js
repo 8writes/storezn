@@ -16,6 +16,8 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
+import { NewProductVariantsEditor } from "@/components/ui/NewProductVariantsEditor.js";
+import { CustomerFieldsEditor } from "@/components/ui/CustomerFieldsEditor.js";
 import { uploadFile, deleteUploadedFile, getVideoDuration } from "@/lib/clientUpload.js";
 import { slugify } from "@/lib/slugify.js";
 import { formatCurrency } from "@/lib/format.js";
@@ -32,13 +34,18 @@ const PRODUCT_TYPE_OPTIONS = [
   { value: "physical", label: "Physical (needs shipping)" },
 ];
 
+const SALE_MODE_OPTIONS = [
+  { value: "fixed_price", label: "Fixed price" },
+  { value: "invoice_required", label: "Request invoice (price agreed later)" },
+];
+
 const CONDITION_OPTIONS = [
   { value: "new", label: "Brand New" },
   { value: "fairly_used", label: "Fairly Used" },
   { value: "used", label: "Used" },
 ];
 
-const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "" };
+const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", saleMode: "fixed_price", customerFields: [], condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "", variants: [] };
 const EMPTY_CATEGORY = { name: "", slug: "" };
 
 export default function VendorNewProductPage() {
@@ -250,10 +257,13 @@ export default function VendorNewProductPage() {
       const payload = {
         name: form.name,
         slug: form.slug || slugify(form.name),
-        price: Number(form.price),
+        price: form.saleMode === "invoice_required" ? 0 : Number(form.price),
         productType: form.productType,
+        saleMode: form.saleMode,
+        customerFields: form.customerFields,
         condition: form.condition,
         images: form.images,
+        variants: form.variants,
       };
       if (myBranch) {
         const s = form.branchStock[myBranch.id];
@@ -329,12 +339,21 @@ export default function VendorNewProductPage() {
               }}
               required
             />
-            <PriceInput label="Price" placeholder="0.00" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />
+            <Select label="Selling method" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
+            {form.saleMode === "fixed_price" && <PriceInput label="Price" placeholder="0.00" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />}
             <Select label="Type" options={PRODUCT_TYPE_OPTIONS} value={form.productType} onChange={(v) => setForm((f) => ({ ...f, productType: v }))} />
             {form.productType === "physical" && (
               <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
             )}
           </div>
+
+          <NewProductVariantsEditor
+            value={form.variants}
+            invoiceRequired={form.saleMode === "invoice_required"}
+            onChange={(variants) => setForm((f) => ({ ...f, variants }))}
+          />
+
+          <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />
 
           <button
             type="button"

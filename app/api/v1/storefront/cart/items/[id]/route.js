@@ -46,6 +46,12 @@ async function handlePatch(req, { params }) {
   // Friendly pre-check only (same reasoning as the add-to-cart route) -
   // the real, race-safe limit is enforced at checkout via reserveStock.
   const [product] = await db.select().from(products).where(eq(products.id, owned.item.productId)).limit(1);
+  if (product?.saleMode === "invoice_required") {
+    return NextResponse.json(
+      { error: "This product requires a quote and cannot be checked out in the fixed-price cart", code: "INVOICE_REQUIRED" },
+      { status: 409 },
+    );
+  }
   const variant = owned.item.variantId
     ? (await db.select().from(productVariants).where(eq(productVariants.id, owned.item.variantId)).limit(1))[0]
     : null;

@@ -74,6 +74,12 @@ export async function POST(req, { params }) {
   for (const item of items) {
     const product = productById.get(item.productId);
     if (!product) return NextResponse.json({ error: "One or more products were not found in this store" }, { status: 404 });
+    if (product.saleMode === "invoice_required") {
+      return NextResponse.json(
+        { error: `${product.name} requires an invoice and cannot be recorded as a fixed-price offline order`, code: "INVOICE_REQUIRED" },
+        { status: 409 },
+      );
+    }
     const variant = item.variantId ? variantById.get(item.variantId) : null;
     if (item.variantId && (!variant || variant.productId !== product.id)) {
       return NextResponse.json({ error: `${product.name}: selected option not found` }, { status: 404 });
@@ -146,6 +152,8 @@ export async function POST(req, { params }) {
           buyerPhone: buyerPhone || null,
           status: delivered ? "delivered" : "processing",
           paymentStatus: "paid",
+          amountPaid: totalAmount,
+          amountDue: 0,
           subtotal,
           shippingFee: 0,
           totalAmount,

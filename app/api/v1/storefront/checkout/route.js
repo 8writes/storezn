@@ -165,6 +165,12 @@ async function handlePost(req) {
     if (!item.product.isActive || item.product.suspendedAt || (item.variant && !item.variant.isActive)) {
       return NextResponse.json({ error: `${item.product.name} is no longer available` }, { status: 409 });
     }
+    if (item.product.saleMode === "invoice_required") {
+      return NextResponse.json(
+        { error: `${item.product.name} requires a quote. Remove it from this cart and submit an invoice request instead`, code: "INVOICE_REQUIRED" },
+        { status: 409 },
+      );
+    }
     const stock = item.variant ? item.variant.stock : item.product.stock;
     if (item.product.productType === "physical" && stock != null && stock < item.quantity) {
       return NextResponse.json({ error: `Not enough stock for ${item.product.name}` }, { status: 409 });

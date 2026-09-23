@@ -40,6 +40,7 @@ import {
   MonitorSmartphone,
   Bug,
   Activity,
+  FileText,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -150,6 +151,7 @@ const NAV_BY_ROLE = {
         { href: "/vendor/products", label: "Products", icon: Package },
         { href: "/vendor/categories", label: "Categories", icon: Tags },
         { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
+        { href: "/vendor/invoices", label: "Invoices", icon: FileText },
         { href: "/vendor/pos", label: "Sell (POS)", icon: Calculator },
         { href: "/vendor/customers", label: "Customers", icon: Users },
       ],
@@ -202,6 +204,7 @@ const NAV_BY_ROLE = {
         { href: "/vendor/products", label: "Products", icon: Package },
         { href: "/vendor/categories", label: "Categories", icon: Tags },
         { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
+        { href: "/vendor/invoices", label: "Invoices", icon: FileText },
         { href: "/vendor/pos", label: "Sell (POS)", icon: Calculator },
         { href: "/vendor/customers", label: "Customers", icon: Users },
         { href: "/vendor/settings", label: "Store settings", icon: Settings },

@@ -98,6 +98,24 @@ export async function PATCH(req, { params }) {
   // staff member's assigned branch, or the default branch for an owner.
   // Route it through setBranchStock so the aggregate stays in sync.
   const { stock, ...rest } = result.data;
+  const nextSaleMode = rest.saleMode ?? product.saleMode ?? "fixed_price";
+  const nextPrice = rest.price ?? product.price;
+  if (nextSaleMode === "fixed_price" && Number(nextPrice) <= 0) {
+    return NextResponse.json({ error: "Price must be greater than 0 for fixed-price products" }, { status: 400 });
+  }
+  if (nextSaleMode === "invoice_required") {
+    if ("price" in rest && Number(nextPrice) !== 0) {
+      return NextResponse.json({ error: "Invoice-required products cannot have a fixed price" }, { status: 400 });
+    }
+    if (rest.discountPercent != null || rest.priceTiers?.length) {
+      return NextResponse.json({ error: "Invoice-required products cannot use fixed-price discounts or tiers" }, { status: 400 });
+    }
+    // A product switching into invoice mode must not retain a price that
+    // an older client omitted from its PATCH body.
+    rest.price = 0;
+    rest.discountPercent = null;
+    rest.priceTiers = null;
+  }
   // The `date` column rejects "" - "" from the form means "clear the date".
   if (rest.expiryDate === "") rest.expiryDate = null;
   let stockBranch = null;

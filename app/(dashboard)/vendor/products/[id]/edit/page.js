@@ -17,6 +17,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
+import { CustomerFieldsEditor } from "@/components/ui/CustomerFieldsEditor.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { uploadFile, getVideoDuration } from "@/lib/clientUpload.js";
 import { formatCurrency } from "@/lib/format.js";
@@ -44,6 +45,11 @@ const CONDITION_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: "true", label: "Live (visible in store)" },
   { value: "false", label: "Hidden (draft)" },
+];
+
+const SALE_MODE_OPTIONS = [
+  { value: "fixed_price", label: "Fixed price" },
+  { value: "invoice_required", label: "Request invoice (price agreed later)" },
 ];
 
 export default function VendorProductEditPage({ params }) {
@@ -90,6 +96,8 @@ export default function VendorProductEditPage({ params }) {
           description: product.description || "",
           sizeGuide: product.sizeGuide || null,
           price: String(product.price),
+          saleMode: product.saleMode || "fixed_price",
+          customerFields: Array.isArray(product.customerFields) ? product.customerFields : [],
           discountPercent: product.discountPercent != null ? String(product.discountPercent) : "",
           costPrice: product.costPrice != null ? String(product.costPrice) : "",
           priceTiers: Array.isArray(product.priceTiers) ? product.priceTiers : null,
@@ -253,10 +261,12 @@ export default function VendorProductEditPage({ params }) {
         name: form.name,
         slug: form.slug,
         sku: form.sku || undefined,
-        price: Number(form.price),
-        discountPercent: form.discountPercent !== "" ? Number(form.discountPercent) : null,
+        price: form.saleMode === "invoice_required" ? 0 : Number(form.price),
+        saleMode: form.saleMode,
+        customerFields: form.customerFields,
+        discountPercent: form.saleMode === "invoice_required" ? null : (form.discountPercent !== "" ? Number(form.discountPercent) : null),
         costPrice: form.costPrice !== "" ? Number(form.costPrice) : null,
-        priceTiers: cleanTiers.length ? cleanTiers : null,
+        priceTiers: form.saleMode === "invoice_required" ? null : (cleanTiers.length ? cleanTiers : null),
         productType: form.productType,
         condition: form.condition,
         categoryId: form.categoryId || null,
@@ -324,8 +334,9 @@ export default function VendorProductEditPage({ params }) {
               onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
             />
           )}
-          <PriceInput label="Price" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />
-          <div>
+          <Select label="Selling method" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
+          {form.saleMode === "fixed_price" && <PriceInput label="Price" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />}
+          {form.saleMode === "fixed_price" && <div>
             <div className="flex items-center gap-1.5 mb-1">
               <label className="text-sm font-medium text-slate-700">Discount %</label>
               <InfoTip>Reduces what&apos;s actually charged, e.g. a ₦5,000 product with a 20% discount charges ₦4,000 and shows &ldquo;was ₦5,000, now ₦4,000&rdquo;. Leave blank for no discount.</InfoTip>
@@ -338,7 +349,7 @@ export default function VendorProductEditPage({ params }) {
               value={form.discountPercent}
               onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))}
             />
-          </div>
+          </div>}
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <label className="text-sm font-medium text-slate-700">Cost price</label>
@@ -385,10 +396,11 @@ export default function VendorProductEditPage({ params }) {
           />
         </div>
 
-        <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />
+        {form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />}
 
         <Textarea label="Description" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
         <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />
+        <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Photos</label>

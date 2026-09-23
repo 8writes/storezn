@@ -213,10 +213,21 @@ export async function POST(req, { params }) {
   if (existingName) return NextResponse.json({ error: PRODUCT_NAME_TAKEN_MESSAGE }, { status: 409 });
   if (existingSlug) return NextResponse.json({ error: "That product slug already exists" }, { status: 409 });
 
-  const { branchStock, ...productData } = result.data;
+  const { branchStock, variants: requestedVariants, ...productData } = result.data;
   productData.name = normalizedName;
   // The `date` column rejects "" - the form sends "" to mean "no date".
   if (productData.expiryDate === "") productData.expiryDate = null;
+
+  const variants = Array.isArray(requestedVariants) ? requestedVariants : [];
+  const variantKeys = new Set();
+  for (const variant of variants) {
+    const key = Object.entries(variant.options).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join("|");
+    if (variantKeys.has(key)) return NextResponse.json({ error: "Duplicate variant options are not allowed" }, { status: 409 });
+    variantKeys.add(key);
+    if (productData.saleMode === "invoice_required" && variant.price != null) {
+      return NextResponse.json({ error: "Invoice-required variants cannot have a fixed price" }, { status: 400 });
+    }
+  }
 
   const storeBranches = await db
     .select({ id: branches.id, isDefault: branches.isDefault })
@@ -254,16 +265,35 @@ export async function POST(req, { params }) {
       stockByBranch = { [initialBranch.id]: own };
     }
 
-    if (defaultBranch || stockByBranch) {
-      await seedBranchStockForNewItem(tx, {
+      if (defaultBranch || stockByBranch) {
+        await seedBranchStockForNewItem(tx, {
         storeId,
         productId: product.id,
         variantId: null,
         initialBranchId: defaultBranch?.id ?? null,
         initialStock: productData.stock ?? null,
-        stockByBranch,
-      });
-    }
+          stockByBranch,
+        });
+      }
+      for (const variant of variants) {
+        const [createdVariant] = await tx.insert(productVariants).values({
+          productId: product.id,
+          options: variant.options,
+          sku: variant.sku || null,
+          price: variant.price ?? null,
+          stock: variant.stock ?? null,
+          isActive: variant.isActive ?? true,
+        }).returning();
+        if (defaultBranch || stockByBranch) {
+          await seedBranchStockForNewItem(tx, {
+            storeId,
+            productId: product.id,
+            variantId: createdVariant.id,
+            initialBranchId: defaultBranch?.id ?? null,
+            initialStock: variant.stock ?? null,
+          });
+        }
+      }
       return product;
     });
   } catch (error) {

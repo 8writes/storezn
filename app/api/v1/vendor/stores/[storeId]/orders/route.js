@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { orders, orderTenders, stores } from "../../../../../../../lib/db/schema.js";
-import { and, count, desc, eq, ilike, inArray } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
 
@@ -23,7 +23,7 @@ export async function GET(req, { params }) {
   const status = searchParams.get("status");
   const q = searchParams.get("q")?.trim();
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
-  const conditions = [eq(orders.storeId, storeId), eq(orders.paymentStatus, "paid")];
+  const conditions = [eq(orders.storeId, storeId), or(eq(orders.paymentStatus, "paid"), eq(orders.paymentStatus, "partially_paid"))];
   if (status) conditions.push(eq(orders.status, status));
   if (q) conditions.push(ilike(orders.orderNumber, `%${q}%`));
   // A branch-scoped staff member only sees their own branch's orders -

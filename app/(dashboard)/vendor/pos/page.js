@@ -520,6 +520,21 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       return [...rows, { key, productId: product.id, variantId: variant?.id || null, quantity: 1, priceOverride: null, lineDiscount: 0 }];
     });
   };
+  const requestInvoice = async (product, variant) => {
+    if (offlineMode) {
+      toast.info("Invoice requests need a connection. Keep the product selected and reconnect to request it.");
+      return;
+    }
+    try {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests`, {
+        method: "POST",
+        body: JSON.stringify({ buyerName: buyer.name || undefined, buyerPhone: buyer.phone || undefined, items: [{ productId: product.id, variantId: variant?.id || null, quantity: 1 }] }),
+      });
+      toast.success("Invoice request added. Open Invoices to price and send it.");
+    } catch (err) {
+      toast.error(err.message || "Could not create invoice request");
+    }
+  };
   const setQty = (key, q) =>
     setCart((rows) => (q <= 0 ? rows.filter((r) => r.key !== key) : rows.map((r) => (r.key === key ? { ...r, quantity: q } : r))));
   const patchLine = (key, patch) => setCart((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -839,7 +854,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
-        <ProductPicker storeId={storeId} token={token} onAdd={addToCart} cartCountByProduct={countByProduct} offlineMode={offlineMode} />
+        <ProductPicker storeId={storeId} token={token} onAdd={addToCart} onInvoiceRequest={requestInvoice} cartCountByProduct={countByProduct} offlineMode={offlineMode} />
 
         <div className="space-y-3 lg:sticky lg:top-4">
           <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
