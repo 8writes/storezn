@@ -52,6 +52,16 @@ const SALE_MODE_OPTIONS = [
   { value: "invoice_required", label: "Request invoice (price agreed later)" },
 ];
 
+const PRODUCT_FORM_FIELDS = [
+  { id: "sku", label: "SKU / barcode" }, { id: "expiryDate", label: "Expiry date" },
+  { id: "costPrice", label: "Cost price" }, { id: "discount", label: "Discount" },
+  { id: "priceTiers", label: "Wholesale tiers" }, { id: "category", label: "Category" },
+  { id: "openingStock", label: "Opening stock" }, { id: "description", label: "Description" },
+  { id: "sizeGuide", label: "Size guide" }, { id: "customerFields", label: "Customer details" },
+  { id: "photos", label: "Photos" }, { id: "video", label: "Video" },
+];
+const DEFAULT_VISIBLE_FORM_FIELDS = PRODUCT_FORM_FIELDS.map((field) => field.id);
+
 export default function VendorProductEditPage({ params }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
@@ -80,6 +90,8 @@ export default function VendorProductEditPage({ params }) {
   // branch would it even mean?), so it's disabled in favor of the panel.
   const [branchCount, setBranchCount] = useState(1);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [visibleFormFields, setVisibleFormFields] = useState(DEFAULT_VISIBLE_FORM_FIELDS);
+  const [savingFormPreferences, setSavingFormPreferences] = useState(false);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -118,6 +130,27 @@ export default function VendorProductEditPage({ params }) {
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId, id]);
+
+  useEffect(() => {
+    if (!token || !storeId) return;
+    apiFetch(`/api/v1/vendor/stores/${storeId}/product-form-preferences`)
+      .then((data) => setVisibleFormFields(data.preference?.visibleFields || DEFAULT_VISIBLE_FORM_FIELDS))
+      .catch(() => {});
+  }, [token, storeId, apiFetch]);
+
+  const hasField = (fieldId) => visibleFormFields.includes(fieldId);
+  const toggleFormField = async (fieldId) => {
+    const next = hasField(fieldId) ? visibleFormFields.filter((id2) => id2 !== fieldId) : [...visibleFormFields, fieldId];
+    setVisibleFormFields(next);
+    setSavingFormPreferences(true);
+    try {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/product-form-preferences`, { method: "PATCH", body: JSON.stringify({ visibleFields: next }) });
+    } catch (err) {
+      toast.error(err.message || "Could not save form preferences");
+    } finally {
+      setSavingFormPreferences(false);
+    }
+  };
 
   // Every photo action (add/remove/reorder) saves straight to the product,
   // rather than only touching local form state and waiting for the
@@ -317,16 +350,20 @@ export default function VendorProductEditPage({ params }) {
       )}
 
       <form onSubmit={handleSave} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+        <div className="border border-slate-200 rounded-sm p-3 space-y-2">
+          <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold text-slate-900">Form fields</p><p className="text-xs text-slate-600">Choose which optional fields stay visible for you.</p></div>{savingFormPreferences && <span className="text-xs text-slate-600">Saving...</span>}</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{PRODUCT_FORM_FIELDS.map((field) => <label key={field.id} className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" checked={hasField(field.id)} onChange={() => toggleFormField(field.id)} />{field.label}</label>)}</div>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
           <Input label="URL slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />
           <div className="flex items-end gap-2">
             <div className="flex-1">
-              <Input label="SKU / barcode (optional)" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
+              {hasField("sku") && <Input label="SKU / barcode (optional)" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />}
             </div>
             <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
           </div>
-          {form.productType === "physical" && (
+          {hasField("expiryDate") && form.productType === "physical" && (
             <Input
               type="date"
               label="Expiry / use-by date (optional)"
@@ -336,7 +373,7 @@ export default function VendorProductEditPage({ params }) {
           )}
           <Select label="Selling method" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
           {form.saleMode === "fixed_price" && <PriceInput label="Price" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />}
-          {form.saleMode === "fixed_price" && <div>
+          {hasField("discount") && form.saleMode === "fixed_price" && <div>
             <div className="flex items-center gap-1.5 mb-1">
               <label className="text-sm font-medium text-slate-700">Discount %</label>
               <InfoTip>Reduces what&apos;s actually charged, e.g. a ₦5,000 product with a 20% discount charges ₦4,000 and shows &ldquo;was ₦5,000, now ₦4,000&rdquo;. Leave blank for no discount.</InfoTip>
@@ -350,7 +387,7 @@ export default function VendorProductEditPage({ params }) {
               onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))}
             />
           </div>}
-          <div>
+          {hasField("costPrice") && <div>
             <div className="flex items-center gap-1.5 mb-1">
               <label className="text-sm font-medium text-slate-700">Cost price</label>
               <InfoTip>What you paid for it. Only you see this, it&apos;s used for profit/margin figures, never shown to customers.</InfoTip>
@@ -369,12 +406,12 @@ export default function VendorProductEditPage({ params }) {
                 {Math.round(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100)}%)
               </p>
             )}
-          </div>
+          </div>}
           <Select label="Type" options={PRODUCT_TYPE_OPTIONS} value={form.productType} onChange={(v) => setForm((f) => ({ ...f, productType: v }))} />
           {form.productType === "physical" && (
             <>
               <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
-              <div>
+              {hasField("openingStock") && <div>
                 <Input
                   label="Stock"
                   type="number"
@@ -384,10 +421,10 @@ export default function VendorProductEditPage({ params }) {
                   disabled={branchCount > 1}
                 />
                 {branchCount > 1 && <p className="text-xs font-medium text-amber-600 mt-1">Use Stock by branch below instead.</p>}
-              </div>
+              </div>}
             </>
           )}
-          <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />
+          {hasField("category") && <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />}
           <Select
             label="Status"
             options={STATUS_OPTIONS}
@@ -396,11 +433,11 @@ export default function VendorProductEditPage({ params }) {
           />
         </div>
 
-        {form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />}
+        {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />}
 
-        <Textarea label="Description" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-        <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />
-        <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />
+        {hasField("description") && <Textarea label="Description" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
+        {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
+        {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Photos</label>

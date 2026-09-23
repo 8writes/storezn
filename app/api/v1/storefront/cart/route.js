@@ -4,7 +4,7 @@ import { products, productVariants, cartItems, platformSettings } from "../../..
 import { and, eq, isNull } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { resolveStoreByHost } from "../../../../../lib/resolveStore.js";
-import { validate, addCartItemSchema } from "../../../../../lib/validate.js";
+import { validate, addCartItemSchema, customerFieldKey, validateCustomerFieldAnswers } from "../../../../../lib/validate.js";
 import { resolveCart, getCartWithItems, computeCartTotals, findCartItem, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
 import { computeOrderTotals } from "../../../../../lib/orders.js";
 import { resolveShippingFee } from "../../../../../lib/shipping.js";
@@ -103,7 +103,7 @@ async function handlePost(req) {
 
   const result = validate(addCartItemSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  const { productId, variantId, quantity } = result.data;
+  const { productId, variantId, quantity, customerFields } = result.data;
 
   const [product] = await db
     .select()
@@ -117,6 +117,9 @@ async function handlePost(req) {
       { status: 409 },
     );
   }
+  const answers = validateCustomerFieldAnswers(product.customerFields, customerFields);
+  if (!answers.ok) return NextResponse.json({ error: answers.error }, { status: 400 });
+  const customizationKey = customerFieldKey(answers.data);
 
   // A null variantId is valid even for a product that has variants - the
   // storefront offers the product's own base price/stock as its own
@@ -145,7 +148,7 @@ async function handlePost(req) {
   const cart = await resolveCart({ storeId: store.id, userId: user?.id, guestToken });
   await abandonPendingCheckoutForCart(cart.id);
 
-  const existingItem = await findCartItem(cart.id, productId, variant?.id || null);
+  const existingItem = await findCartItem(cart.id, productId, variant?.id || null, customizationKey);
 
   // Checked against the *combined* quantity (already-in-cart + this add),
   // not just what's being added now - otherwise adding 3 more to an
@@ -163,10 +166,10 @@ async function handlePost(req) {
     await db.update(cartItems).set({ quantity: sql`${cartItems.quantity} + ${quantity}` }).where(eq(cartItems.id, existingItem.id));
   } else {
     try {
-      await db.insert(cartItems).values({ cartId: cart.id, productId, variantId: variant?.id || null, quantity });
+      await db.insert(cartItems).values({ cartId: cart.id, productId, variantId: variant?.id || null, quantity, customerFields: answers.data, customizationKey });
     } catch (err) {
       if (err?.code !== "23505") throw err;
-      await db.update(cartItems).set({ quantity: sql`${cartItems.quantity} + ${quantity}` }).where(and(eq(cartItems.cartId, cart.id), eq(cartItems.productId, productId), variant?.id ? eq(cartItems.variantId, variant.id) : isNull(cartItems.variantId)));
+      await db.update(cartItems).set({ quantity: sql`${cartItems.quantity} + ${quantity}` }).where(and(eq(cartItems.cartId, cart.id), eq(cartItems.productId, productId), eq(cartItems.customizationKey, customizationKey), variant?.id ? eq(cartItems.variantId, variant.id) : isNull(cartItems.variantId)));
     }
   }
 

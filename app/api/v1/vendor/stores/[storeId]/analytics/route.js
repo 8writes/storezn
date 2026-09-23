@@ -66,31 +66,34 @@ export async function GET(req, { params }) {
   if (channel === "online") scopeConditions.push(eq(orders.isOffline, false));
   if (channel === "offline") scopeConditions.push(eq(orders.isOffline, true));
 
-  const revenueConditions = [...scopeConditions, sql`${orders.paymentStatus} = 'paid' and ${orders.status} != 'refunded'`];
+  const revenueConditions = [...scopeConditions, sql`${orders.paymentStatus} in ('paid', 'partially_paid') and ${orders.amountPaid} > 0 and ${orders.status} != 'refunded'`];
+  const receivedRevenue = sql`case when ${orders.totalAmount} > 0 then ${orders.vendorPayoutAmount} * least(${orders.amountPaid} / ${orders.totalAmount}, 1) else 0 end`;
+  const receivedGmv = sql`coalesce(${orders.amountPaid}, 0)`;
+  const receivedAt = sql`coalesce(${orders.paidAt}, ${orders.updatedAt})`;
   const inRange = (col, f, t) => sql`${col}::date >= ${toDateOnly(f)} and ${col}::date <= ${toDateOnly(t)}`;
 
   const [summaryRow] = await db
     .select({
-      revenue: sql`coalesce(sum(${orders.vendorPayoutAmount}), 0)`.mapWith(Number),
-      gmv: sql`coalesce(sum(${orders.totalAmount}), 0)`.mapWith(Number),
+      revenue: sql`coalesce(sum(${receivedRevenue}), 0)`.mapWith(Number),
+      gmv: sql`coalesce(sum(${receivedGmv}), 0)`.mapWith(Number),
       orderCount: sql`count(*)`.mapWith(Number),
     })
     .from(orders)
-    .where(and(...revenueConditions, inRange(orders.paidAt, from, to)));
+    .where(and(...revenueConditions, inRange(receivedAt, from, to)));
 
   const [prevSummaryRow] = await db
     .select({
-      revenue: sql`coalesce(sum(${orders.vendorPayoutAmount}), 0)`.mapWith(Number),
+      revenue: sql`coalesce(sum(${receivedRevenue}), 0)`.mapWith(Number),
       orderCount: sql`count(*)`.mapWith(Number),
     })
     .from(orders)
-    .where(and(...revenueConditions, inRange(orders.paidAt, prevFrom, prevTo)));
+    .where(and(...revenueConditions, inRange(receivedAt, prevFrom, prevTo)));
 
   const [unitsRow] = await db
     .select({ units: sql`coalesce(sum(${orderItems.quantity}), 0)`.mapWith(Number) })
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
-    .where(and(...revenueConditions, inRange(orders.paidAt, from, to)));
+    .where(and(...revenueConditions, inRange(receivedAt, from, to)));
 
   const [newCustomersRow] = await db
     .select({ count: sql`count(*)`.mapWith(Number) })
@@ -105,10 +108,10 @@ export async function GET(req, { params }) {
   const dailyRows = await db.execute(sql`
     select
       d::date as day,
-      coalesce(sum(o.vendor_payout_amount), 0)::float as revenue,
+      coalesce(sum(case when o.total_amount > 0 then o.vendor_payout_amount * least(o.amount_paid / o.total_amount, 1) else 0 end), 0)::float as revenue,
       count(o.id)::int as order_count
     from generate_series(${toDateOnly(from)}::date, ${toDateOnly(to)}::date, interval '1 day') as d
-    left join ${orders} o on o.store_id = ${storeId} and o.payment_status = 'paid' and o.status != 'refunded' and o.paid_at::date = d::date${branchFilterSql}${channelFilterSql}
+    left join ${orders} o on o.store_id = ${storeId} and o.payment_status in ('paid', 'partially_paid') and o.amount_paid > 0 and o.status != 'refunded' and coalesce(o.paid_at, o.updated_at)::date = d::date${branchFilterSql}${channelFilterSql}
     group by d
     order by d
   `);
@@ -122,9 +125,9 @@ export async function GET(req, { params }) {
     .groupBy(orders.status);
 
   const channelRows = await db
-    .select({ isOffline: orders.isOffline, revenue: sql`coalesce(sum(${orders.vendorPayoutAmount}), 0)`.mapWith(Number), count: sql`count(*)`.mapWith(Number) })
+    .select({ isOffline: orders.isOffline, revenue: sql`coalesce(sum(${receivedRevenue}), 0)`.mapWith(Number), count: sql`count(*)`.mapWith(Number) })
     .from(orders)
-    .where(and(...revenueConditions, inRange(orders.paidAt, from, to)))
+    .where(and(...revenueConditions, inRange(receivedAt, from, to)))
     .groupBy(orders.isOffline);
 
   const topProducts = await db
@@ -132,43 +135,43 @@ export async function GET(req, { params }) {
       productId: orderItems.productId,
       name: sql`max(${orderItems.productName})`,
       image: sql`max(${orderItems.productImage})`,
-      revenue: sql`coalesce(sum(${orderItems.lineTotal}), 0)`.mapWith(Number),
+      revenue: sql`coalesce(sum(case when ${orders.totalAmount} > 0 then ${orderItems.lineTotal} * least(${orders.amountPaid} / ${orders.totalAmount}, 1) else 0 end), 0)`.mapWith(Number),
       units: sql`coalesce(sum(${orderItems.quantity}), 0)`.mapWith(Number),
     })
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
-    .where(and(...revenueConditions, inRange(orders.paidAt, from, to)))
+    .where(and(...revenueConditions, inRange(receivedAt, from, to)))
     .groupBy(orderItems.productId)
-    .orderBy(desc(sql`coalesce(sum(${orderItems.lineTotal}), 0)`))
+    .orderBy(desc(sql`coalesce(sum(case when ${orders.totalAmount} > 0 then ${orderItems.lineTotal} * least(${orders.amountPaid} / ${orders.totalAmount}, 1) else 0 end), 0)`))
     .limit(10);
 
   const categoryBreakdown = await db
     .select({
       categoryId: categories.id,
       name: sql`coalesce(${categories.name}, 'Uncategorized')`,
-      revenue: sql`coalesce(sum(${orderItems.lineTotal}), 0)`.mapWith(Number),
+      revenue: sql`coalesce(sum(case when ${orders.totalAmount} > 0 then ${orderItems.lineTotal} * least(${orders.amountPaid} / ${orders.totalAmount}, 1) else 0 end), 0)`.mapWith(Number),
     })
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
     .innerJoin(products, eq(orderItems.productId, products.id))
     .leftJoin(categories, eq(products.categoryId, categories.id))
-    .where(and(...revenueConditions, inRange(orders.paidAt, from, to)))
+    .where(and(...revenueConditions, inRange(receivedAt, from, to)))
     .groupBy(categories.id, categories.name)
-    .orderBy(desc(sql`coalesce(sum(${orderItems.lineTotal}), 0)`))
+    .orderBy(desc(sql`coalesce(sum(case when ${orders.totalAmount} > 0 then ${orderItems.lineTotal} * least(${orders.amountPaid} / ${orders.totalAmount}, 1) else 0 end), 0)`))
     .limit(8);
 
   const branchBreakdown = await db
     .select({
       branchId: branches.id,
       name: branches.name,
-      revenue: sql`coalesce(sum(${orders.vendorPayoutAmount}), 0)`.mapWith(Number),
+      revenue: sql`coalesce(sum(${receivedRevenue}), 0)`.mapWith(Number),
       count: sql`count(${orders.id})`.mapWith(Number),
     })
     .from(branches)
-    .leftJoin(orders, and(eq(orders.branchId, branches.id), ...revenueConditions, inRange(orders.paidAt, from, to)))
+    .leftJoin(orders, and(eq(orders.branchId, branches.id), ...revenueConditions, inRange(receivedAt, from, to)))
     .where(eq(branches.storeId, storeId))
     .groupBy(branches.id, branches.name)
-    .orderBy(desc(sql`coalesce(sum(${orders.vendorPayoutAmount}), 0)`));
+    .orderBy(desc(sql`coalesce(sum(${receivedRevenue}), 0)`));
 
   // Registered customers only - a guest/offline buyer has no persistent
   // identity to rank across orders (see orders.userId's own comment).
@@ -177,14 +180,14 @@ export async function GET(req, { params }) {
       customerId: customers.id,
       name: sql`trim(coalesce(${customers.firstName}, '') || ' ' || coalesce(${customers.lastName}, ''))`,
       email: customers.email,
-      revenue: sql`coalesce(sum(${orders.vendorPayoutAmount}), 0)`.mapWith(Number),
+      revenue: sql`coalesce(sum(${receivedRevenue}), 0)`.mapWith(Number),
       orderCount: sql`count(${orders.id})`.mapWith(Number),
     })
     .from(orders)
     .innerJoin(customers, eq(orders.userId, customers.id))
-    .where(and(...revenueConditions, inRange(orders.paidAt, from, to)))
+    .where(and(...revenueConditions, inRange(receivedAt, from, to)))
     .groupBy(customers.id, customers.firstName, customers.lastName, customers.email)
-    .orderBy(desc(sql`coalesce(sum(${orders.vendorPayoutAmount}), 0)`))
+    .orderBy(desc(sql`coalesce(sum(${receivedRevenue}), 0)`))
     .limit(10);
 
   const [refundRow] = await db

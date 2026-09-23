@@ -244,6 +244,7 @@ async function handlePost(req) {
     unitPrice: i.unitPrice,
     quantity: i.quantity,
     lineTotal: i.lineTotal,
+    customerFields: i.customerFields || {},
   }));
 
   let attempt;

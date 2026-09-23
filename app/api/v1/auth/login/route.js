@@ -187,11 +187,11 @@ async function handleLogin(req) {
           await Promise.all([abandonPendingCheckoutForCart(guestCart.id), abandonPendingCheckoutForCart(userCart.id)]);
           const guestItems = await db.select().from(cartItems).where(eq(cartItems.cartId, guestCart.id));
           for (const item of guestItems) {
-            const existing = await findCartItem(userCart.id, item.productId, item.variantId);
+            const existing = await findCartItem(userCart.id, item.productId, item.variantId, item.customizationKey || "");
             if (existing) {
               await db.update(cartItems).set({ quantity: existing.quantity + item.quantity }).where(eq(cartItems.id, existing.id));
             } else {
-              await db.insert(cartItems).values({ cartId: userCart.id, productId: item.productId, variantId: item.variantId, quantity: item.quantity });
+              await db.insert(cartItems).values({ cartId: userCart.id, productId: item.productId, variantId: item.variantId, quantity: item.quantity, customerFields: item.customerFields || {}, customizationKey: item.customizationKey || "" });
             }
           }
           await db.update(carts).set({ status: "abandoned", updatedAt: new Date() }).where(eq(carts.id, guestCart.id));

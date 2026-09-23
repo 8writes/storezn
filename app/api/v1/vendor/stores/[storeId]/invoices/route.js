@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../../../../../../../lib/db/index.js";
-import { invoiceItems, invoiceRequestItems, invoiceRequests, invoices, orderItems, orders, platformSettings, productVariants, products, stores } from "../../../../../../../lib/db/schema.js";
+import { invoiceInventoryHolds, invoiceItems, invoiceRequestItems, invoiceRequests, invoices, orderItems, orders, platformSettings, productVariants, products, stores } from "../../../../../../../lib/db/schema.js";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createInvoiceSchema } from "../../../../../../../lib/validate.js";
 import { computeOrderTotals, generateOrderNumber } from "../../../../../../../lib/orders.js";
@@ -9,6 +9,7 @@ import { withApiMonitoring } from "../../../../../../../lib/apiMonitoring.js";
 import { sendMail } from "../../../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../../../lib/format.js";
+import { resolveFulfillingBranch, reserveStock } from "../../../../../../../lib/inventory.js";
 
 const invoiceNumber = () => `INV-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
@@ -71,6 +72,7 @@ async function handlePost(req, { params }) {
   const orderId = crypto.randomUUID();
   const now = new Date();
   const expiresAt = result.data.expiresAt || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const physicalLines = lines.filter((line) => line.product.productType === "physical");
   const invoice = {
     id: invoiceId,
     storeId,
@@ -113,6 +115,7 @@ async function handlePost(req, { params }) {
     note: invoice.note,
     isOffline: false,
     channel: "online",
+    branchId: null,
     amountPaid: 0,
     amountDue: subtotal,
     invoiceId,
@@ -120,6 +123,30 @@ async function handlePost(req, { params }) {
     updatedAt: now,
   };
   await db.transaction(async (tx) => {
+    let branchId = null;
+    if (physicalLines.length > 0) {
+      branchId = await resolveFulfillingBranch(tx, storeId, physicalLines.map((line) => ({
+        productId: line.product.id,
+        variantId: line.variant?.id || null,
+        quantity: line.quantity,
+        productName: line.product.name,
+      })));
+      await reserveStock(tx, physicalLines.map((line) => ({
+        productId: line.product.id,
+        variantId: line.variant?.id || null,
+        quantity: line.quantity,
+        productName: line.product.name,
+        branchId,
+      })));
+      await tx.insert(invoiceInventoryHolds).values(physicalLines.map((line) => ({
+        invoiceId,
+        productId: line.product.id,
+        variantId: line.variant?.id || null,
+        branchId,
+        quantity: line.quantity,
+      })));
+    }
+    order.branchId = branchId;
     await tx.insert(invoices).values({ ...invoice, orderId: null });
     await tx.insert(orders).values(order);
     await tx.update(invoices).set({ orderId }).where(eq(invoices.id, invoiceId));

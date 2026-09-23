@@ -14,6 +14,7 @@ export default function VendorInvoicesPage() {
   const { apiFetch } = useApi(token);
   const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [requests, setRequests] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [prices, setPrices] = useState({});
   const [plan, setPlan] = useState("full");
@@ -24,8 +25,11 @@ export default function VendorInvoicesPage() {
 
   useEffect(() => {
     if (!token || !storeId) return;
-    apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests`)
-      .then((data) => setRequests(data.requests || []))
+    Promise.all([
+      apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests`),
+      apiFetch(`/api/v1/vendor/stores/${storeId}/invoices`),
+    ])
+      .then(([requestData, invoiceData]) => { setRequests(requestData.requests || []); setInvoices(invoiceData.invoices || []); })
       .catch((err) => toast.error(err.message || "Failed to load invoice requests"))
       .finally(() => setLoading(false));
   }, [token, storeId, apiFetch]);
@@ -54,10 +58,21 @@ export default function VendorInvoicesPage() {
     }
   };
 
+  const cancelInvoice = async (invoiceId) => {
+    try {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/invoices/${invoiceId}`, { method: "PATCH", body: JSON.stringify({ action: "cancel" }) });
+      setInvoices((rows) => rows.map((row) => row.id === invoiceId ? { ...row, status: "cancelled" } : row));
+      toast.success("Invoice cancelled and any held stock was released");
+    } catch (err) {
+      toast.error(err.message || "Could not cancel invoice");
+    }
+  };
+
   if (!storesLoading && stores.length === 0) return <p className="text-sm text-slate-700">No store set up yet.</p>;
   return (
     <div className="space-y-6 max-w-5xl">
       <div><h1 className="text-xl font-bold text-slate-900">Invoices</h1><p className="text-sm text-slate-600 mt-1">Review quote requests and send a secure payment link.</p></div>
+      {invoices.length > 0 && <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200"><div className="p-4"><h2 className="font-semibold text-slate-900">Sent invoices</h2></div>{invoices.map((invoice) => <div key={invoice.id} className="p-4 flex flex-wrap items-center justify-between gap-3"><div><p className="font-medium text-slate-900">{invoice.invoiceNumber}</p><p className="text-sm text-slate-600">{invoice.guestEmail || "No email"} · {invoice.status}</p></div><div className="flex items-center gap-3"><p className="text-sm font-semibold text-slate-900">{formatCurrency(invoice.amountPaid)} / {formatCurrency(invoice.totalAmount)}</p>{["sent", "partially_paid"].includes(invoice.status) && <Button size="sm" variant="secondary" onClick={() => cancelInvoice(invoice.id)}>Cancel</Button>}</div></div>)}</section>}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-5">
         <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200">
           {loading ? <p className="p-4 text-sm text-slate-600">Loading requests...</p> : requests.length === 0 ? <p className="p-4 text-sm text-slate-600">No invoice requests yet.</p> : requests.map(({ request, items }) => (

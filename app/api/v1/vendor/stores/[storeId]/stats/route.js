@@ -23,8 +23,8 @@ export async function GET(req, { params }) {
       // Excludes refunded orders the same way payouts/analytics do -
       // paymentStatus stays "paid" after a refund (see DOCUMENTATION.md),
       // so this needs its own status check to not keep counting them.
-      totalRevenue: sql`coalesce(sum(${orders.vendorPayoutAmount}) filter (where ${orders.paymentStatus} = 'paid' and ${orders.status} != 'refunded'), 0)`.mapWith(Number),
-      totalOrders: sql`count(*) filter (where ${orders.paymentStatus} = 'paid' and ${orders.status} != 'refunded')`.mapWith(Number),
+      totalRevenue: sql`coalesce(sum(case when ${orders.totalAmount} > 0 then ${orders.vendorPayoutAmount} * least(${orders.amountPaid} / ${orders.totalAmount}, 1) else 0 end) filter (where ${orders.paymentStatus} in ('paid', 'partially_paid') and ${orders.amountPaid} > 0 and ${orders.status} != 'refunded'), 0)`.mapWith(Number),
+      totalOrders: sql`count(*) filter (where ${orders.paymentStatus} in ('paid', 'partially_paid') and ${orders.amountPaid} > 0 and ${orders.status} != 'refunded')`.mapWith(Number),
     })
     .from(orders)
     .where(eq(orders.storeId, storeId));

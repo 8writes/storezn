@@ -44,6 +44,17 @@ ALTER TABLE orders
 ALTER TABLE order_items
   ADD COLUMN IF NOT EXISTS customer_fields jsonb NOT NULL DEFAULT '{}'::jsonb;
 
+ALTER TABLE cart_items
+  ADD COLUMN IF NOT EXISTS customer_fields jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS customization_key text NOT NULL DEFAULT '';
+
+DROP INDEX IF EXISTS uq_cart_items_cart_product_variant;
+DROP INDEX IF EXISTS uq_cart_items_cart_product_base;
+DROP INDEX IF EXISTS uq_cart_items_cart_variant;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cart_items_cart_product_variant ON cart_items(cart_id, product_id, variant_id, customization_key);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cart_items_cart_product_base ON cart_items(cart_id, product_id, customization_key) WHERE variant_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cart_items_cart_variant ON cart_items(cart_id, product_id, variant_id, customization_key) WHERE variant_id IS NOT NULL;
+
 UPDATE orders
 SET amount_paid = CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END,
     amount_due = CASE WHEN payment_status = 'paid' THEN 0 ELSE total_amount END
@@ -111,11 +122,13 @@ CREATE TABLE IF NOT EXISTS invoices (
   created_at timestamp NOT NULL DEFAULT now(),
   updated_at timestamp NOT NULL DEFAULT now()
 );
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS last_reminder_at timestamp;
 
 CREATE INDEX IF NOT EXISTS idx_invoices_store_id ON invoices(store_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_order_id ON invoices(order_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
 CREATE INDEX IF NOT EXISTS idx_invoices_expires_at ON invoices(expires_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoices_request_id ON invoices(request_id);
 
 DO $$ BEGIN
   ALTER TABLE invoice_requests
@@ -148,6 +161,20 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
+
+CREATE TABLE IF NOT EXISTS invoice_inventory_holds (
+  id text PRIMARY KEY,
+  invoice_id text NOT NULL REFERENCES invoices(id),
+  product_id text NOT NULL REFERENCES products(id),
+  variant_id text REFERENCES product_variants(id),
+  branch_id text NOT NULL REFERENCES branches(id),
+  quantity integer NOT NULL CHECK (quantity > 0),
+  released_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_invoice_inventory_holds_invoice_id ON invoice_inventory_holds(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_inventory_holds_active ON invoice_inventory_holds(released_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_inventory_holds_line ON invoice_inventory_holds(invoice_id, product_id, variant_id, branch_id);
 
 CREATE TABLE IF NOT EXISTS invoice_payments (
   id text PRIMARY KEY,

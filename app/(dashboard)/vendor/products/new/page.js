@@ -47,6 +47,21 @@ const CONDITION_OPTIONS = [
 
 const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", saleMode: "fixed_price", customerFields: [], condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "", variants: [] };
 const EMPTY_CATEGORY = { name: "", slug: "" };
+const PRODUCT_FORM_FIELDS = [
+  { id: "sku", label: "SKU / barcode" },
+  { id: "expiryDate", label: "Expiry date" },
+  { id: "costPrice", label: "Cost price" },
+  { id: "discount", label: "Discount" },
+  { id: "priceTiers", label: "Wholesale tiers" },
+  { id: "category", label: "Category" },
+  { id: "openingStock", label: "Opening stock" },
+  { id: "description", label: "Description" },
+  { id: "sizeGuide", label: "Size guide" },
+  { id: "customerFields", label: "Customer details" },
+  { id: "photos", label: "Photos" },
+  { id: "video", label: "Video" },
+];
+const DEFAULT_VISIBLE_FORM_FIELDS = PRODUCT_FORM_FIELDS.map((field) => field.id);
 
 export default function VendorNewProductPage() {
   const searchParams = useSearchParams();
@@ -74,6 +89,8 @@ export default function VendorNewProductPage() {
   // branch, not the whole list (which they can't see).
   const [myBranch, setMyBranch] = useState(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [visibleFormFields, setVisibleFormFields] = useState(DEFAULT_VISIBLE_FORM_FIELDS);
+  const [savingFormPreferences, setSavingFormPreferences] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -111,8 +128,33 @@ export default function VendorNewProductPage() {
         setMyBranch(data.myBranch || null);
       })
       .catch(() => {});
+    apiFetch(`/api/v1/vendor/stores/${storeId}/product-form-preferences`)
+      .then((data) => {
+        if (Array.isArray(data.preference?.visibleFields) && data.preference.visibleFields.length > 0) {
+          setVisibleFormFields(data.preference.visibleFields);
+        }
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId]);
+
+  const hasField = (field) => visibleFormFields.includes(field);
+  const toggleFormField = async (field) => {
+    const next = hasField(field) ? visibleFormFields.filter((value) => value !== field) : [...visibleFormFields, field];
+    setVisibleFormFields(next);
+    setSavingFormPreferences(true);
+    try {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/product-form-preferences`, {
+        method: "PATCH",
+        body: JSON.stringify({ visibleFields: next, sectionOrder: [], collapsedSections: [] }),
+      });
+    } catch (err) {
+      setVisibleFormFields(visibleFormFields);
+      toast.error(err.message || "Could not save form preference");
+    } finally {
+      setSavingFormPreferences(false);
+    }
+  };
 
   const categoryOptions = [{ value: "", label: "No category" }, ...categories.map((c) => ({ value: c.id, label: c.name }))];
 
@@ -353,7 +395,7 @@ export default function VendorNewProductPage() {
             onChange={(variants) => setForm((f) => ({ ...f, variants }))}
           />
 
-          <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />
+          {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
 
           <button
             type="button"
@@ -363,6 +405,24 @@ export default function VendorNewProductPage() {
             <ChevronDown size={16} className={`transition-transform ${showOptional ? "rotate-180" : ""}`} />
             {showOptional ? "Hide optional fields" : "Show optional fields"}
           </button>
+
+          <div className="border border-slate-200 rounded-sm p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Form fields</p>
+                <p className="text-xs text-slate-600">Choose which optional fields stay visible for you.</p>
+              </div>
+              {savingFormPreferences && <span className="text-xs text-slate-600">Saving...</span>}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {PRODUCT_FORM_FIELDS.map((field) => (
+                <label key={field.id} className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={hasField(field.id)} onChange={() => toggleFormField(field.id)} />
+                  {field.label}
+                </label>
+              ))}
+            </div>
+          </div>
 
           {showOptional && (
             <div className="space-y-4 pt-1">
@@ -375,13 +435,13 @@ export default function VendorNewProductPage() {
                     setForm((f) => ({ ...f, slug: e.target.value }));
                   }}
                 />
-                <div className="flex items-end gap-2">
+                {hasField("sku") && <div className="flex items-end gap-2">
                   <div className="flex-1">
                     <Input label="SKU / barcode" placeholder="e.g. RTB-001" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
                   </div>
                   <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
-                </div>
-                {form.productType === "physical" && (
+                </div>}
+                {hasField("expiryDate") && form.productType === "physical" && (
                   <Input
                     type="date"
                     label="Expiry / use-by date (optional)"
@@ -389,7 +449,7 @@ export default function VendorNewProductPage() {
                     onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
                   />
                 )}
-                {form.productType === "physical" &&
+                {hasField("openingStock") && form.productType === "physical" &&
                   (myBranch ? (
                     <div>
                       <label className="text-sm font-medium text-slate-700">Opening stock, {myBranch.name}</label>
@@ -443,8 +503,8 @@ export default function VendorNewProductPage() {
                       {branchCount > 1 && <p className="text-xs font-medium text-amber-600 mt-1">Set per branch after creating.</p>}
                     </div>
                   ))}
-                <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />
-                <div>
+                {hasField("category") && <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />}
+                {hasField("discount") && <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <label className="text-sm font-medium text-slate-700">Discount %</label>
                     <InfoTip>Reduces what&apos;s actually charged, e.g. a ₦5,000 product with a 20% discount charges ₦4,000 and shows &ldquo;was ₦5,000, now ₦4,000&rdquo;. Leave blank for no discount.</InfoTip>
@@ -457,8 +517,8 @@ export default function VendorNewProductPage() {
                     value={form.discountPercent}
                     onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))}
                   />
-                </div>
-                <div>
+                </div>}
+                {hasField("costPrice") && <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <label className="text-sm font-medium text-slate-700">Cost price</label>
                     <InfoTip>What you paid for it. Only you see this, it&apos;s used for profit/margin figures, never shown to customers.</InfoTip>
@@ -477,15 +537,15 @@ export default function VendorNewProductPage() {
                       {Math.round(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100)}%)
                     </p>
                   )}
-                </div>
+                </div>}
               </div>
-              <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />
-              <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-              <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />
+              {hasField("priceTiers") && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />}
+              {hasField("description") && <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
+              {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
             </div>
           )}
 
-          <div className="space-y-2">
+          {hasField("photos") && <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Photos</label>
             <p className="text-xs text-slate-800">
               Drag to reorder - the first photo is the cover shown in your store. Up to {MAX_MEDIA} photos and video combined.
@@ -545,9 +605,9 @@ export default function VendorNewProductPage() {
                 </label>
               )}
             </div>
-          </div>
+          </div>}
 
-          <div className="space-y-2">
+          {hasField("video") && <div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-medium text-slate-700">Video (optional)</label>
               <InfoTip>A short clip of the product - up to {MAX_VIDEO_SECONDS}s and {MAX_VIDEO_SIZE / (1024 * 1024)}MB.</InfoTip>
@@ -577,7 +637,7 @@ export default function VendorNewProductPage() {
             ) : (
               <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
             )}
-          </div>
+          </div>}
 
           <Button type="submit" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>Create product</Button>
         </form>

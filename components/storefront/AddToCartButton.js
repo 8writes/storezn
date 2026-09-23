@@ -147,6 +147,7 @@ export function AddToCartButton({
     try {
       const body = { productId, quantity: 1 };
       if (matchedVariant) body.variantId = matchedVariant.id;
+      if (customerFields.length > 0) body.customerFields = answers;
       const res = await fetch("/api/v1/storefront/cart", {
         method: "POST",
         headers: {
@@ -280,10 +281,10 @@ export function AddToCartButton({
         <p className="text-sm text-slate-700">{stock} in stock</p>
       )}
 
-      {invoiceRequired && (
+      {(invoiceRequired || customerFields.length > 0) && (
         <div className="space-y-3 border-t border-slate-200 pt-4">
-          <p className="text-sm font-semibold text-slate-900">Request an invoice</p>
-          <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Your email" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
+          <p className="text-sm font-semibold text-slate-900">{invoiceRequired ? "Request an invoice" : "Product details"}</p>
+          {invoiceRequired && <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Your email" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />}
           {customerFields.map((field) => (
             <label key={field.id} className="block space-y-1">
               <span className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</span>
