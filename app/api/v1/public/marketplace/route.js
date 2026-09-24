@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMarketplaceProducts } from "../../../../../lib/marketplace.js";
+import { parsePagination } from "../../../../../lib/pagination.js";
 
 const PAGE_SIZE = 20;
 
@@ -9,12 +10,13 @@ const PAGE_SIZE = 20;
 // is hit for page 2+ and whenever a filter changes after that.
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const page = Math.max(1, parseInt(searchParams.get("page"), 10) || 1);
+  const { page, pageSize } = parsePagination(searchParams);
   const q = searchParams.get("q") || undefined;
   const categoryName = searchParams.get("category") || undefined;
   const minPrice = searchParams.get("min") ? Number(searchParams.get("min")) : null;
   const maxPrice = searchParams.get("max") ? Number(searchParams.get("max")) : null;
   const sort = searchParams.get("sort") || "newest";
-  const { list, total } = await getMarketplaceProducts({ page, pageSize: PAGE_SIZE, q, categoryName, minPrice, maxPrice, sort });
-  return NextResponse.json({ products: list, total });
+  const effectivePageSize = Math.min(PAGE_SIZE, pageSize);
+  const { list, total } = await getMarketplaceProducts({ page, pageSize: effectivePageSize, q, categoryName, minPrice, maxPrice, sort });
+  return NextResponse.json({ products: list, total, pagination: { page, pageSize: effectivePageSize, totalPages: Math.max(1, Math.ceil(total / effectivePageSize)) } });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { getStorefrontProducts } from "../../../../../lib/storefrontProducts.js";
+import { parsePagination } from "../../../../../lib/pagination.js";
 
 const PAGE_SIZE = 20;
 
@@ -13,7 +14,7 @@ export async function GET(req) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
   const { searchParams } = new URL(req.url);
-  const page = Math.min(1_000, Math.max(1, parseInt(searchParams.get("page"), 10) || 1));
+  const { page, pageSize } = parsePagination(searchParams);
   const q = searchParams.get("q") || undefined;
   const categoryId = searchParams.get("category") || undefined;
   const minPrice = searchParams.get("min") ? Number(searchParams.get("min")) : null;
@@ -21,6 +22,6 @@ export async function GET(req) {
   const sort = searchParams.get("sort") || "newest";
   const discountedOnly = searchParams.get("discounted") === "1";
 
-  const { list, total } = await getStorefrontProducts({ storeId: store.id, page, pageSize: PAGE_SIZE, q, categoryId, minPrice, maxPrice, sort, discountedOnly });
-  return NextResponse.json({ products: list, total });
+  const { list, total } = await getStorefrontProducts({ storeId: store.id, page, pageSize: Math.min(PAGE_SIZE, pageSize), q, categoryId, minPrice, maxPrice, sort, discountedOnly });
+  return NextResponse.json({ products: list, total, pagination: { page, pageSize: Math.min(PAGE_SIZE, pageSize), totalPages: Math.max(1, Math.ceil(total / Math.min(PAGE_SIZE, pageSize))) } });
 }
