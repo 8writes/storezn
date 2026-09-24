@@ -5,7 +5,11 @@ import "fake-indexeddb/auto";
 import {
   catalogMeta,
   clearCatalog,
+  enqueueSale,
   findBySku,
+  flushQueue,
+  listQueuedSales,
+  removeQueuedSale,
   saveCatalog,
   searchCatalogPage,
 } from "../lib/posOffline.js";
@@ -79,4 +83,60 @@ test("offline setup reset removes old products before saving the replacement", a
   const newSearch = await searchCatalogPage(STORE_ID, "Replacement", { branchId: BRANCH_ID });
   assert.equal(oldSearch.total, 0);
   assert.deepEqual(newSearch.products.map((product) => product.id), ["replacement-product"]);
+});
+
+test("offline sale queue is durable and keyed by stable operation id", async () => {
+  await deleteTestDatabase();
+  const storeId = "offline-queue-store";
+  const payload = {
+    sessionId: "session-1",
+    idempotencyKey: "offline-op-1",
+    orderNumber: "ORD-OFFLINE-1",
+    soldAt: "2026-09-24T12:00:00.000Z",
+    offlineReplay: true,
+    items: [{ productId: "product-1", quantity: 1, capturedLineTotal: 1000 }],
+    tenders: [{ method: "cash", amount: 1000 }],
+  };
+
+  await enqueueSale(storeId, payload, "cashier-1");
+  await enqueueSale(storeId, { ...payload, buyerName: "Retry overwrite" }, "cashier-1");
+
+  const queuedAfterReopen = await listQueuedSales(storeId);
+  assert.equal(queuedAfterReopen.length, 1);
+  assert.equal(queuedAfterReopen[0].id, "offline-op-1");
+  assert.equal(queuedAfterReopen[0].payload.buyerName, "Retry overwrite");
+
+  await removeQueuedSale("offline-op-1");
+  assert.equal((await listQueuedSales(storeId)).length, 0);
+});
+
+test("offline queue flush removes a sale only after server acknowledgement", async () => {
+  await deleteTestDatabase();
+  const storeId = "offline-flush-store";
+  const payload = {
+    sessionId: "session-1",
+    idempotencyKey: "offline-op-2",
+    orderNumber: "ORD-OFFLINE-2",
+    soldAt: "2026-09-24T12:00:00.000Z",
+    offlineReplay: true,
+    items: [{ productId: "product-1", quantity: 1, capturedLineTotal: 1000 }],
+    tenders: [{ method: "cash", amount: 1000 }],
+  };
+  await enqueueSale(storeId, payload, "cashier-1");
+
+  await flushQueue(storeId, async () => {
+    throw new TypeError("Failed to fetch");
+  }, { actorId: "cashier-1", force: true });
+  assert.equal((await listQueuedSales(storeId)).length, 1);
+
+  const sent = [];
+  const result = await flushQueue(storeId, async (url, options) => {
+    sent.push({ url, body: JSON.parse(options.body) });
+    return { ok: true };
+  }, { actorId: "cashier-1", force: true });
+
+  assert.equal(result.synced, 1);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].body.idempotencyKey, "offline-op-2");
+  assert.equal((await listQueuedSales(storeId)).length, 0);
 });

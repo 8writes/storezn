@@ -11,8 +11,8 @@
 // Strategy:
 //  - /_next/static/*, /_next/image, fonts, images  -> cache-first
 //    (immutable, content-hashed; safe to keep forever, trimmed by count)
-//  - navigations + RSC fetches + other same-origin GET -> network-first,
-//    fall back to the cached copy, then to a minimal offline page
+//  - navigations + RSC fetches + other same-origin GET -> network-first
+//    with a short cached fallback, then to a minimal offline page
 //  - POST/PUT/etc, cross-origin, and /api/*  -> passed straight through.
 //    API failures offline are handled by the app itself (the register's
 //    IndexedDB sale queue + catalogue snapshot, see lib/posOffline.js).
@@ -21,10 +21,11 @@
 // changed sw.js is byte-compared by the browser and the new worker
 // activates on its own (skipWaiting + clients.claim below).
 
-const VERSION = "v2";
+const VERSION = "v3";
 const STATIC_CACHE = `storezn-static-${VERSION}`;
 const PAGES_CACHE = `storezn-pages-${VERSION}`;
 const STATIC_MAX = 300;
+const PAGE_FALLBACK_MS = 2500;
 
 const PRECACHE = ["/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
@@ -86,17 +87,28 @@ function offlinePage() {
   );
 }
 
+function timeout(ms) {
+  return new Promise((_, reject) => {
+    const err = new Error("timeout");
+    err.name = "TimeoutError";
+    setTimeout(() => reject(err), ms);
+  });
+}
+
 async function networkFirst(request) {
   const cache = await caches.open(PAGES_CACHE);
-  try {
-    const res = await fetch(request);
+  const network = fetch(request).then((res) => {
     if (res && res.ok) cache.put(request, res.clone());
     return res;
+  });
+  try {
+    return await Promise.race([network, timeout(PAGE_FALLBACK_MS)]);
   } catch (err) {
     const hit = await cache.match(request);
     if (hit) return hit;
+    if (err?.name === "TimeoutError") return network.catch(() => (request.mode === "navigate" ? offlinePage() : Promise.reject(err)));
     if (request.mode === "navigate") return offlinePage();
-    throw err;
+    return network;
   }
 }
 

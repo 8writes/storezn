@@ -635,7 +635,7 @@ export default function VendorNewProductPage() {
           {hasField("video") && <div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <label className="text-sm font-medium text-slate-700">Video (optional)</label>
-              <InfoTip>A short clip of the product - up to {MAX_VIDEO_MAX_SECONDS}s and {formatUploadSize(PRODUCT_VIDEO_MAX_BYTES)}.</InfoTip>
+              <InfoTip>A short clip of the product - up to {PRODUCT_VIDEO_MAX_SECONDS}s and {formatUploadSize(PRODUCT_VIDEO_MAX_BYTES)}.</InfoTip>
             </div>
             {form.videoUrl ? (
               <div className="relative w-40">

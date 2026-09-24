@@ -78,7 +78,7 @@ function storageJson(key, fallback = null) {
   }
 }
 
-async function timedApiFetch(apiFetch, url, options = {}, timeoutMs = 15_000) {
+async function timedApiFetch(apiFetch, url, options = {}, timeoutMs = 6_000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -148,12 +148,20 @@ export default function SellPage() {
 
   useEffect(() => {
     if (!token) return;
+    const cached = storageJson("pos_stores", []);
+    if (Array.isArray(cached) && cached.length) {
+      Promise.resolve().then(() => {
+        setStores(cached);
+        setStoreId((current) => current || cached[0].id);
+        setLoading(false);
+      });
+    }
     timedApiFetch(apiFetch, "/api/v1/vendor/stores")
       .then((data) => {
         const rows = Array.isArray(data?.stores) ? data.stores : [];
         storageSet("pos_stores", JSON.stringify(rows));
         setStores(rows);
-        if (rows.length > 0) setStoreId(rows[0].id);
+        if (rows.length > 0) setStoreId((current) => current || rows[0].id);
         else setLoading(false);
       })
       .catch((err) => {
@@ -176,6 +184,11 @@ export default function SellPage() {
   const loadRegisters = useCallback((forceNetwork = false) => {
     if (!token || !storeId) return;
     setRegError(false);
+    const cached = !forceNetwork ? storageJson(regCacheKey) : null;
+    if (Array.isArray(cached)) {
+      setRegisters(cached);
+      setLoading(false);
+    }
     return timedApiFetch(apiFetch, `/api/v1/vendor/stores/${storeId}/pos/registers`)
       .then((data) => {
         const rows = Array.isArray(data?.registers) ? data.registers : [];
@@ -186,12 +199,11 @@ export default function SellPage() {
         // Keep the till usable offline: reuse the last-seen register list
         // only for a real network failure. An HTTP error or a forced stale-
         // session refresh must not resurrect an obsolete session id.
-        if (forceNetwork || error?.status) {
+        if (forceNetwork || (error?.status && !Array.isArray(cached))) {
           setRegisters([]);
           setRegError(true);
           return;
         }
-        const cached = storageJson(regCacheKey);
         if (Array.isArray(cached)) setRegisters(cached);
         else setRegError(true);
       })
@@ -362,6 +374,12 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
   const fetchSession = useCallback(
     async (sessionId) => {
+      const cached = storageJson(sessionCacheKey(sessionId));
+      if (cached?.session?.id === sessionId && cached.session.status === "open") {
+        setSessionData(cached);
+        setChecking(false);
+        await loadLocalHeld(sessionId);
+      }
       try {
         const data = await timedApiFetch(apiFetch, `/api/v1/vendor/stores/${storeId}/pos/sessions/${sessionId}`);
         setSessionData(data);
@@ -388,7 +406,6 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           // An offline reload has no API response to rebuild the till
           // from. Reuse the last authenticated snapshot for this exact
           // shift; all writes still queue against its server-issued ID.
-          const cached = storageJson(sessionCacheKey(sessionId));
           if (cached?.session?.id === sessionId && cached.session.status === "open") {
             setSessionData(cached);
             await loadLocalHeld(sessionId);
