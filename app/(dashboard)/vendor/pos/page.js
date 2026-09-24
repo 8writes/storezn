@@ -41,7 +41,50 @@ import {
 } from "@/lib/posOffline.js";
 import { Minus, Plus, Trash2, ShoppingCart, Pause, RotateCcw, X } from "lucide-react";
 
-const isNetErr = (err) => !err || !!networkErrorMessage(err);
+const isNetErr = (err) => !err || (!err?.status && !!networkErrorMessage(err));
+
+function storageGet(key, fallback = null) {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function storageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function storageRemove(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Storage availability must never decide whether the register opens.
+  }
+}
+
+function storageJson(key, fallback = null) {
+  try {
+    return JSON.parse(storageGet(key, "null"));
+  } catch {
+    return fallback;
+  }
+}
+
+async function timedApiFetch(apiFetch, url, options = {}, timeoutMs = 15_000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await apiFetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // Catalogue pricing for one cart line, before any line discount. An
 // owner price override and a variant's own price are flat (unit x qty);
@@ -103,28 +146,21 @@ export default function SellPage() {
 
   useEffect(() => {
     if (!token) return;
-    apiFetch("/api/v1/vendor/stores")
+    timedApiFetch(apiFetch, "/api/v1/vendor/stores")
       .then((data) => {
-        try {
-          localStorage.setItem("pos_stores", JSON.stringify(data.stores));
-        } catch {
-          /* private mode */
-        }
-        setStores(data.stores);
-        if (data.stores.length > 0) setStoreId(data.stores[0].id);
+        const rows = Array.isArray(data?.stores) ? data.stores : [];
+        storageSet("pos_stores", JSON.stringify(rows));
+        setStores(rows);
+        if (rows.length > 0) setStoreId(rows[0].id);
         else setLoading(false);
       })
       .catch((err) => {
         // Offline cold start: fall back to the last store list we saw.
-        try {
-          const cached = JSON.parse(localStorage.getItem("pos_stores") || "[]");
-          if (cached.length) {
-            setStores(cached);
-            setStoreId(cached[0].id);
-            return;
-          }
-        } catch {
-          /* ignore */
+        const cached = isNetErr(err) ? storageJson("pos_stores", []) : [];
+        if (Array.isArray(cached) && cached.length) {
+          setStores(cached);
+          setStoreId(cached[0].id);
+          return;
         }
         toast.error(err.message || "Failed to load your store");
         setLoading(false);
@@ -138,14 +174,11 @@ export default function SellPage() {
   const loadRegisters = useCallback((forceNetwork = false) => {
     if (!token || !storeId) return;
     setRegError(false);
-    return apiFetch(`/api/v1/vendor/stores/${storeId}/pos/registers`)
+    return timedApiFetch(apiFetch, `/api/v1/vendor/stores/${storeId}/pos/registers`)
       .then((data) => {
-        setRegisters(data.registers);
-        try {
-          localStorage.setItem(regCacheKey, JSON.stringify(data.registers));
-        } catch {
-          /* ignore */
-        }
+        const rows = Array.isArray(data?.registers) ? data.registers : [];
+        setRegisters(rows);
+        storageSet(regCacheKey, JSON.stringify(rows));
       })
       .catch((error) => {
         // Keep the till usable offline: reuse the last-seen register list
@@ -156,13 +189,8 @@ export default function SellPage() {
           setRegError(true);
           return;
         }
-        let cached = null;
-        try {
-          cached = JSON.parse(localStorage.getItem(regCacheKey) || "null");
-        } catch {
-          cached = null;
-        }
-        if (cached) setRegisters(cached);
+        const cached = storageJson(regCacheKey);
+        if (Array.isArray(cached)) setRegisters(cached);
         else setRegError(true);
       })
       .finally(() => setLoading(false));
@@ -287,9 +315,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   // Persisted per device so it survives a reload / cold open.
   const offlineKey = `pos_force_offline_${storeId}`;
   const [offlineMode, setOfflineMode] = useState(
-    () => typeof window !== "undefined" && localStorage.getItem(offlineKey) === "1",
+    () => typeof window !== "undefined" && storageGet(offlineKey) === "1",
   );
-  const [pendingSync, setPendingSync] = useState(0);
   const [queuedSales, setQueuedSales] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [offlineReceipt, setOfflineReceipt] = useState(null);
@@ -298,6 +325,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   useModalScrollLock(!!invoiceRequest || !!offlineReceipt || tenderOpen || cashOpen || closeOpen || xOpen || heldOpen || holdPromptOpen || offlineSetupOpen);
   const [networkOffline, setNetworkOffline] = useState(false);
   const catalogSessionRef = useRef("");
+  const catalogSyncRef = useRef(null);
 
   useEffect(() => {
     Promise.resolve().then(() => setNetworkOffline(isOffline()));
@@ -306,6 +334,11 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
   const openSession = sessionData?.session?.status === "open" ? sessionData : null;
   const registerBranchId = openSession?.register?.branchId || null;
+  const sessionQueuedSales = useMemo(
+    () => openSession ? queuedSales.filter((sale) => sale.payload?.sessionId === openSession.session.id) : [],
+    [queuedSales, openSession],
+  );
+  const pendingSync = sessionQueuedSales.length;
 
   const loadLocalHeld = useCallback(async (sessionId) => {
     const rows = await listHeldSales(storeId, sessionId).catch(() => []);
@@ -313,27 +346,21 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     return rows;
   }, [storeId]);
 
-  // Find the register we should try to run: the last one used on this
-  // device, else the first that already has an open session, else none.
+  // Resume only the register this device remembers. Automatically joining
+  // an arbitrary open register can put an owner on another branch's till.
+  // Unknown devices choose explicitly from the open-register panel.
   const resolveActiveRegister = useCallback(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem(lsKey) : null;
-    const withOpen = registers.find((r) => r.openSession);
+    const saved = typeof window !== "undefined" ? storageGet(lsKey) : null;
     const savedRegister = registers.find((r) => r.id === saved);
-    // A remembered but currently closed register must not hide another
-    // register's open overnight shift.
-    return (savedRegister?.openSession ? savedRegister : null) || withOpen || savedRegister || null;
+    return savedRegister || null;
   }, [registers, lsKey]);
 
   const fetchSession = useCallback(
     async (sessionId) => {
       try {
-        const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions/${sessionId}`);
+        const data = await timedApiFetch(apiFetch, `/api/v1/vendor/stores/${storeId}/pos/sessions/${sessionId}`);
         setSessionData(data);
-        try {
-          localStorage.setItem(sessionCacheKey(sessionId), JSON.stringify(data));
-        } catch {
-          /* private mode */
-        }
+        storageSet(sessionCacheKey(sessionId), JSON.stringify(data));
         // One-time migration for carts held by the previous server-backed
         // implementation. Persist locally before deleting the server row.
         for (const held of data.heldSales || []) {
@@ -349,22 +376,18 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       } catch (error) {
         if (error?.status === 404 || error?.status === 409) {
           setSessionData(null);
-          localStorage.removeItem(lsKey);
-          localStorage.removeItem(sessionCacheKey(sessionId));
+          storageRemove(lsKey);
+          storageRemove(sessionCacheKey(sessionId));
           reloadRegisters(true).catch(() => {});
         } else if (isNetErr(error)) {
           // An offline reload has no API response to rebuild the till
           // from. Reuse the last authenticated snapshot for this exact
           // shift; all writes still queue against its server-issued ID.
-          try {
-            const cached = JSON.parse(localStorage.getItem(sessionCacheKey(sessionId)) || "null");
-            if (cached?.session?.id === sessionId && cached.session.status === "open") {
-              setSessionData(cached);
-              await loadLocalHeld(sessionId);
-              return;
-            }
-          } catch {
-            /* malformed/blocked storage */
+          const cached = storageJson(sessionCacheKey(sessionId));
+          if (cached?.session?.id === sessionId && cached.session.status === "open") {
+            setSessionData(cached);
+            await loadLocalHeld(sessionId);
+            return;
           }
           setSessionData(null);
           toast.error("This register was not prepared for an offline reload. Reconnect once to restore it.");
@@ -401,7 +424,6 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       const res = await flushQueue(storeId, apiFetch, { force: force === true, actorId });
       const queue = await listQueuedSales(storeId).catch(() => []);
       setQueuedSales(queue);
-      setPendingSync(queue.length);
       if (res.synced > 0) {
         toast.success(`${res.synced} offline sale${res.synced === 1 ? "" : "s"} synced`);
         refresh();
@@ -419,7 +441,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   // barcode lookup keep working with no network. Skips if a snapshot
   // under 30 min old already exists (unless forced from the "Update now"
   // button).
-  const syncCatalog = useCallback(
+  const runCatalogSync = useCallback(
     async (force = false) => {
       const meta = await catalogMeta(storeId, registerBranchId).catch(() => null);
       if (meta) setCatalog((c) => ({ ...c, count: meta.count, savedAt: meta.savedAt }));
@@ -460,13 +482,18 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     [storeId, registerBranchId, apiFetch],
   );
 
+  const syncCatalog = useCallback((force = false) => {
+    if (catalogSyncRef.current) return catalogSyncRef.current;
+    const task = runCatalogSync(force).finally(() => {
+      if (catalogSyncRef.current === task) catalogSyncRef.current = null;
+    });
+    catalogSyncRef.current = task;
+    return task;
+  }, [runCatalogSync]);
+
   const toggleOfflineMode = (on) => {
     setOfflineMode(on);
-    try {
-      localStorage.setItem(offlineKey, on ? "1" : "0");
-    } catch {
-      /* private mode */
-    }
+    storageSet(offlineKey, on ? "1" : "0");
     if (!on) syncNow(true); // turning it off means "I'm back - push everything"
   };
 
@@ -477,7 +504,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     if (firstSyncForSession && typeof navigator !== "undefined" && navigator.onLine !== false) {
       catalogSessionRef.current = sessionKey;
     }
-    listQueuedSales(storeId).then((q) => { setQueuedSales(q); setPendingSync(q.length); }).catch(() => {});
+    listQueuedSales(storeId).then(setQueuedSales).catch(() => {});
     // Force one catalogue revalidation when this register session is first
     // opened. Later renders of the same shift use the normal 30-minute
     // freshness window instead of downloading the entire catalogue again.
@@ -510,7 +537,20 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         method: "POST",
         body: JSON.stringify({ registerId, openingFloat }),
       });
-      localStorage.setItem(lsKey, registerId);
+      const register = registers.find((row) => row.id === registerId);
+      const bootstrap = {
+        session: data.session,
+        register: {
+          id: registerId,
+          name: register?.name || "Register",
+          branchId: register?.branchId || null,
+        },
+        summary: null,
+        heldSales: [],
+      };
+      storageSet(lsKey, registerId);
+      storageSet(sessionCacheKey(data.session.id), JSON.stringify(bootstrap));
+      setSessionData(bootstrap);
       await fetchSession(data.session.id);
       reloadRegisters();
       toast.success("Register open");
@@ -518,6 +558,17 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       toast.error(err.message || "Couldn't open the register");
     } finally {
       setOpening(false);
+    }
+  };
+
+  const handleResume = async ({ registerId, sessionId }) => {
+    setChecking(true);
+    storageSet(lsKey, registerId);
+    try {
+      await fetchSession(sessionId);
+      reloadRegisters();
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -715,7 +766,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       setTenderOpen(false);
       resetSale();
       setOfflineReceipt({ ...receipt, pending: true });
-      listQueuedSales(storeId).then((q) => { setQueuedSales(q); setPendingSync(q.length); }).catch(() => {});
+      listQueuedSales(storeId).then(setQueuedSales).catch(() => {});
       toast.warning(msg);
       setSubmitting(false);
       return true;
@@ -806,7 +857,6 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     await removeQueuedSale(id);
     const queue = await listQueuedSales(storeId);
     setQueuedSales(queue);
-    setPendingSync(queue.length);
   };
 
   const discardHeld = async (id) => {
@@ -836,8 +886,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       if (err?.status === 404 || (err?.status === 409 && /session is closed|already closed/i.test(err.message || ""))) {
         setCashOpen(false);
         setSessionData(null);
-        localStorage.removeItem(lsKey);
-        localStorage.removeItem(sessionCacheKey(openSession.session.id));
+        storageRemove(lsKey);
+        storageRemove(sessionCacheKey(openSession.session.id));
         reloadRegisters(true).catch(() => {});
       }
       toast.error(err.message || "Couldn't record that");
@@ -853,16 +903,16 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         method: "POST",
         body: JSON.stringify({ ...payload, pendingSyncCount: pendingSync }),
       });
-      localStorage.removeItem(sessionCacheKey(openSession.session.id));
-      localStorage.removeItem(lsKey);
+      storageRemove(sessionCacheKey(openSession.session.id));
+      storageRemove(lsKey);
       reloadRegisters();
       return data.zReport;
     } catch (error) {
       if (error?.status === 404 || (error?.status === 409 && /session is closed|already closed/i.test(error.message || ""))) {
         await reloadRegisters(true).catch(() => {});
         setSessionData(null);
-        localStorage.removeItem(sessionCacheKey(openSession.session.id));
-        localStorage.removeItem(lsKey);
+        storageRemove(sessionCacheKey(openSession.session.id));
+        storageRemove(lsKey);
         setCloseOpen(false);
       }
       toast.error(error.message || "Could not close the register");
@@ -879,6 +929,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         isOwner={isOwner}
         opening={opening}
         onOpen={handleOpen}
+        onResume={handleResume}
       />
     );
   }
@@ -1154,7 +1205,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           branchId={registerBranchId}
           catalog={catalog}
           pendingSync={pendingSync}
-          queuedSales={queuedSales}
+          queuedSales={sessionQueuedSales}
           syncing={syncing}
           onSync={() => syncNow(true)}
           onDiscard={discardQueued}

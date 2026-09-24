@@ -31,6 +31,21 @@ async function handlePost(req, { params }) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   const data = result.data;
 
+  const paymentReference = `POS-${data.idempotencyKey}`;
+
+  // Check idempotency before session-age/access rules. If the server
+  // committed a sale but its response was lost, even a much later retry
+  // must acknowledge that existing order so the device can clear it.
+  const [existing] = await db.select().from(orders).where(and(eq(orders.paymentReference, paymentReference), eq(orders.storeId, storeId))).limit(1);
+  if (existing) {
+    const lines = await db.select().from(orderItems).where(eq(orderItems.orderId, existing.id));
+    return NextResponse.json({ order: existing, items: lines, orderNumber: existing.orderNumber, replayed: true });
+  }
+  const [foreignReference] = await db.select({ id: orders.id }).from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+  if (foreignReference) {
+    return NextResponse.json({ error: "That sale reference has already been used" }, { status: 409 });
+  }
+
   // A sale posted well after it was rung up is a queued offline replay
   // (a live ring-up reaches the server in seconds). Those get lenient
   // session handling below - the sale really happened, so a shift that
@@ -70,20 +85,6 @@ async function handlePost(req, { params }) {
 
   const settleSessionId = sessionRow.session.id;
   const branchId = sessionRow.register.branchId;
-
-  const paymentReference = `POS-${data.idempotencyKey}`;
-
-  // Idempotent replay - the sale already went through on an earlier
-  // attempt with this key.
-  const [existing] = await db.select().from(orders).where(and(eq(orders.paymentReference, paymentReference), eq(orders.storeId, storeId))).limit(1);
-  if (existing) {
-    const lines = await db.select().from(orderItems).where(eq(orderItems.orderId, existing.id));
-    return NextResponse.json({ order: existing, items: lines, orderNumber: existing.orderNumber, replayed: true });
-  }
-  const [foreignReference] = await db.select({ id: orders.id }).from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
-  if (foreignReference) {
-    return NextResponse.json({ error: "That sale reference has already been used" }, { status: 409 });
-  }
 
   // Price overrides and any markdown are owner-only until the P2 manager
   // override lands (see the spec's phasing).

@@ -14,7 +14,7 @@ import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 const PAGE_SIZE = 24;
 
 function isNetErr(err) {
-  return !err || !!networkErrorMessage(err);
+  return !err || (!err?.status && !!networkErrorMessage(err));
 }
 
 function hasActiveVariants(product) {
@@ -60,7 +60,7 @@ export function ProductPicker({ storeId, branchId, token, onAdd, onInvoiceReques
     const myReq = ++reqRef.current;
     const setBusy = pageNum === 1 ? setLoading : setLoadingMore;
     setBusy(true);
-    const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE), status: "active", sellable: "true" });
+    const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE), status: "active", sellable: "true", includeVariants: "true" });
     if (q?.trim()) params.set("q", q.trim());
     if (branchId) params.set("branch", branchId);
 
@@ -84,6 +84,10 @@ export function ProductPicker({ storeId, branchId, token, onAdd, onInvoiceReques
       if (myReq !== reqRef.current) return; // superseded
       setProducts((prev) => (pageNum === 1 ? data.products : [...prev, ...data.products]));
       setCache((prev) => ({ ...prev, ...Object.fromEntries(data.products.map((p) => [p.id, p])) }));
+      setVariantsBy((prev) => ({
+        ...prev,
+        ...Object.fromEntries(data.products.filter((product) => Array.isArray(product.offlineVariants)).map((product) => [product.id, product.offlineVariants])),
+      }));
       setPagination(data.pagination || null);
       setPage(pageNum);
       if (data.lowStockThreshold != null) setLowStock(data.lowStockThreshold);
@@ -121,6 +125,11 @@ export function ProductPicker({ storeId, branchId, token, onAdd, onInvoiceReques
 
   const ensureVariants = async (productId) => {
     if (variantsBy[productId]) return variantsBy[productId];
+    const embedded = cache[productId]?.offlineVariants;
+    if (Array.isArray(embedded)) {
+      setVariantsBy((current) => ({ ...current, [productId]: embedded }));
+      return embedded;
+    }
     setLoadingVariantsFor(productId);
     try {
       if (offlineMode || isOffline()) throw new Error("offline");
@@ -265,10 +274,10 @@ export function ProductPicker({ storeId, branchId, token, onAdd, onInvoiceReques
       if (el === searchRef.current) return;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
       const now = Date.now();
-      if (e.key === "Enter") {
+      if (e.key === "Enter" || e.key === "Tab") {
         const code = buf.chars;
         buf.chars = "";
-        if (code.length >= 4) {
+        if (code.length >= 3) {
           e.preventDefault();
           handleScanRef.current?.(code);
         }
@@ -298,9 +307,9 @@ export function ProductPicker({ storeId, branchId, token, onAdd, onInvoiceReques
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" || e.key === "Tab") {
               e.preventDefault();
-              handleScan();
+              handleScan(e.currentTarget.value);
             }
           }}
           placeholder="Scan a barcode, or search by name / SKU"

@@ -151,7 +151,7 @@ export default function VendorInvoicesPage() {
 
   if (!storesLoading && stores.length === 0) return <p className="text-sm text-slate-700">No store set up yet.</p>;
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-xl font-bold text-slate-900">Invoices</h1><p className="text-sm text-slate-600 mt-1">Review quote requests and share secure payment links by email, WhatsApp, or anywhere else.</p></div><Button onClick={() => setManualOpen(true)}>New offline quote</Button></div>
 
       <div className="flex flex-col sm:flex-row gap-3">
