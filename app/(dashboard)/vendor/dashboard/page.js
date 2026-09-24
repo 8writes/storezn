@@ -466,7 +466,7 @@ export default function VendorDashboardPage() {
                 0;
               return (
                 <div
-                  className={`grid grid-cols-2 gap-3 ${showExpiry ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-4"}`}
+                  className={`grid grid-cols-2 gap-3 ${showExpiry ? "sm:grid-cols-3 lg:grid-cols-3" : "sm:grid-cols-3"}`}
                 >
                   <StatCard
                     icon={Wallet}
