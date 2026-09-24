@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../../../../../../lib/db/index.js";
 import { invoiceInventoryHolds, invoiceItems, invoiceRequestItems, invoiceRequests, invoices, orderItems, orders, platformSettings, productVariants, products, stores } from "../../../../../../../lib/db/schema.js";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
@@ -12,6 +12,7 @@ import { formatCurrency } from "../../../../../../../lib/format.js";
 import { OutOfStockError, resolveFulfillingBranch, reserveStock } from "../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 import { buildPublicAppUrl } from "../../../../../../../lib/requestUrl.js";
+import { parsePagination } from "../../../../../../../lib/pagination.js";
 
 const invoiceNumber = () => `INV-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
@@ -27,17 +28,21 @@ export async function GET(req, { params }) {
   const { storeId } = await params;
   const store = await loadStore(storeId);
   if (!user || !store || !canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const [rows, settingsRows] = await Promise.all([
+  const { page, pageSize, limit, offset } = parsePagination(new URL(req.url).searchParams);
+  const [rows, [{ total }], settingsRows] = await Promise.all([
     db
       .select({ invoice: invoices, order: orders })
       .from(invoices)
       .leftJoin(orders, eq(orders.id, invoices.orderId))
       .where(eq(invoices.storeId, storeId))
       .orderBy(desc(invoices.createdAt))
-      .limit(100),
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: count() }).from(invoices).where(eq(invoices.storeId, storeId)),
     db.select().from(platformSettings).limit(1),
   ]);
   const settings = settingsRows[0];
+  const totalNumber = Number(total) || 0;
   return NextResponse.json({
     invoices: rows.map(({ invoice, order }) => ({
       ...invoice,
@@ -48,6 +53,7 @@ export async function GET(req, { params }) {
       vendorPayoutAmount: order?.vendorPayoutAmount ?? invoice.totalAmount,
       feeChargedToCustomer: order?.feeChargedToCustomer ?? false,
     })),
+    pagination: { page, pageSize, total: totalNumber, totalPages: Math.max(1, Math.ceil(totalNumber / pageSize)) },
     feePolicy: {
       commissionRatePercent: store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5,
       flatFee: settings?.defaultFlatFee ?? 0,

@@ -15,6 +15,7 @@ import { customerFieldEntries } from "@/lib/customerFields.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
+import { Pagination } from "@/components/ui/Pagination.js";
 
 export default function VendorInvoicesPage() {
   const { token } = useAuth(true);
@@ -22,6 +23,8 @@ export default function VendorInvoicesPage() {
   const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [invoices, setInvoices] = useState([]);
   const [requestCount, setRequestCount] = useState(0);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [manualOpen, setManualOpen] = useState(false);
@@ -32,14 +35,15 @@ export default function VendorInvoicesPage() {
     if (!token || !storeId) return;
     Promise.all([
       apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests`),
-      apiFetch(`/api/v1/vendor/stores/${storeId}/invoices`),
+      apiFetch(`/api/v1/vendor/stores/${storeId}/invoices?page=${page}&pageSize=20`),
     ])
       .then(([requestData, invoiceData]) => {
         setRequestCount(Number(requestData.total) || (requestData.requests || []).length);
         setInvoices(invoiceData.invoices || []);
+        setPagination(invoiceData.pagination || null);
       })
       .catch((err) => toast.error(err.message || "Failed to load invoice requests"))
-  }, [token, storeId, apiFetch]);
+  }, [token, storeId, page, apiFetch]);
 
   useEffect(() => {
     const timer = setTimeout(loadData, 0);
@@ -98,6 +102,7 @@ export default function VendorInvoicesPage() {
               </div>
             </div>
           ))}
+          <Pagination pagination={pagination} onPageChange={setPage} />
         </section>
       )}
 
@@ -128,7 +133,7 @@ function ManualQuoteModal({ storeId, apiFetch, confirm, onClose, onCreated }) {
         let page = 1;
         let totalPages = 1;
         do {
-          const params = new URLSearchParams({ page: String(page), pageSize: "100", status: "active", sellable: "true", saleMode: "invoice_required", includeVariants: "true" });
+          const params = new URLSearchParams({ page: String(page), pageSize: "20", status: "active", sellable: "true", saleMode: "invoice_required", includeVariants: "true" });
           const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
           loaded.push(...(data.products || []));
           totalPages = Math.max(1, Number(data.pagination?.totalPages) || 1);

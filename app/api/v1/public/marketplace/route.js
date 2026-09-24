@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getMarketplaceProducts } from "../../../../../lib/marketplace.js";
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 20;
 
 // Backs "Load more" and filter changes on /marketplace (see
 // app/marketplace/page.js's client-side MarketplaceGrid/MarketplaceFilters) -

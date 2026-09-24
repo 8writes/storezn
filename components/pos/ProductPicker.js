@@ -11,7 +11,7 @@ import { searchCatalog, findBySku, getCatalogProduct } from "@/lib/posOffline.js
 import { barcodeMatches, normalizeBarcode } from "@/lib/barcode.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 20;
 
 function isNetErr(err) {
   return !err || (!err?.status && !!networkErrorMessage(err));

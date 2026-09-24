@@ -14,6 +14,7 @@ import { customerFieldEntries } from "@/lib/customerFields.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
 import { computeOrderTotals } from "@/lib/orders.js";
+import { Pagination } from "@/components/ui/Pagination.js";
 
 export default function VendorInvoiceRequestsPage() {
   const { token } = useAuth(true);
@@ -21,6 +22,8 @@ export default function VendorInvoiceRequestsPage() {
   const { stores, storeId, loading: storesLoading } = useVendorStore();
   const [requests, setRequests] = useState([]);
   const [requestTotal, setRequestTotal] = useState(0);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState("");
   const [prices, setPrices] = useState({});
   const [plan, setPlan] = useState("full");
@@ -36,17 +39,18 @@ export default function VendorInvoiceRequestsPage() {
     if (!token || !storeId) return;
     setLoading(true);
     Promise.all([
-      apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests`),
+      apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests?page=${page}&pageSize=20`),
       apiFetch(`/api/v1/vendor/stores/${storeId}/invoices`),
     ])
       .then(([requestData, invoiceData]) => {
         setRequests(requestData.requests || []);
         setRequestTotal(Number(requestData.total) || (requestData.requests || []).length);
+        setPagination(requestData.pagination || null);
         setFeePolicy(invoiceData.feePolicy || null);
       })
       .catch((err) => toast.error(err.message || "Failed to load quote requests"))
       .finally(() => setLoading(false));
-  }, [token, storeId, apiFetch]);
+  }, [token, storeId, page, apiFetch]);
 
   useEffect(() => {
     const timer = setTimeout(loadData, 0);
@@ -156,6 +160,7 @@ export default function VendorInvoiceRequestsPage() {
               <p className="text-xs text-slate-600 mt-1">{items.length} item{items.length === 1 ? "" : "s"} - {request.status}</p>
             </button><Button size="sm" variant="secondary" onClick={() => cancelRequest(request)}>Cancel</Button></div>
           ))}
+          <Pagination pagination={pagination} onPageChange={setPage} />
         </section>
 
         <section className="bg-surface border border-slate-200 rounded-sm p-5">

@@ -10,7 +10,7 @@ import { StorefrontProductGrid } from "@/components/storefront/StorefrontProduct
 import { ProductRail } from "@/components/storefront/ProductRail.js";
 import { StickyStoreSearch } from "@/components/storefront/StickyStoreSearch.js";
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 20;
 
 export default async function StorefrontHomePage({ params, searchParams }) {
   const { host } = await params;

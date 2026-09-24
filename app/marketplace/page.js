@@ -6,7 +6,7 @@ import { MarketplaceFilters } from "@/components/MarketplaceFilters.js";
 import { MarketplaceGrid } from "@/components/MarketplaceGrid.js";
 import { getMarketplaceProducts, getMarketplaceCategoryNames } from "@/lib/marketplace.js";
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 20;
 
 // Scoped to this page only - the rest of the marketing site (landing,
 // pricing) stays on the calmer layered-depth look, this directory gets a

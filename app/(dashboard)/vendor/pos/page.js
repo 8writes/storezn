@@ -449,14 +449,14 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       if (!force && meta && Date.now() - new Date(meta.savedAt).getTime() < 30 * 60 * 1000) return true;
       setCatalog((c) => ({ ...c, syncing: true, error: null }));
       try {
-        // pageSize is capped at 100 server-side (lib/pagination.js), so
-        // ask for exactly that - up to 50k SKUs. Each page gets a couple
+        // pageSize is capped at 20 server-side (lib/pagination.js), so walk
+        // the bounded pages to build the complete offline catalogue. Each page gets a couple
         // of retries so one flaky request doesn't abandon the whole sync
         // and leave the offline catalogue stale/incomplete.
         const fetchPage = async (page) => {
           for (let attempt = 0; ; attempt++) {
             try {
-              const params = new URLSearchParams({ page: String(page), pageSize: "100", includeVariants: "true", status: "active", sellable: "true" });
+              const params = new URLSearchParams({ page: String(page), pageSize: "20", includeVariants: "true", status: "active", sellable: "true" });
               if (registerBranchId) params.set("branch", registerBranchId);
               return await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
             } catch (err) {

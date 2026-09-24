@@ -7,22 +7,25 @@ import { validate, createInvoiceRequestSchema, validateCustomerFieldAnswers } fr
 import { snapshotCustomerFieldAnswers } from "../../../../../../../lib/customerFields.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 import { stockBranchForUser, STAFF_BRANCH_REQUIRED_MESSAGE } from "../../../../../../../lib/stockBranch.js";
+import { parsePagination } from "../../../../../../../lib/pagination.js";
 
 export async function GET(req, { params }) {
   const user = await getUser(req);
   const { storeId } = await params;
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
   if (!user || !store || !canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { page, pageSize, limit, offset } = parsePagination(new URL(req.url).searchParams);
   const requestCondition = and(eq(invoiceRequests.storeId, storeId), inArray(invoiceRequests.status, ["new", "reviewing", "quoted"]));
   const [requests, [{ total }]] = await Promise.all([
-    db.select().from(invoiceRequests).where(requestCondition).orderBy(desc(invoiceRequests.createdAt)).limit(100),
+    db.select().from(invoiceRequests).where(requestCondition).orderBy(desc(invoiceRequests.createdAt)).limit(limit).offset(offset),
     db.select({ total: count() }).from(invoiceRequests).where(requestCondition),
   ]);
   const rows = requests.length ? await db.select().from(invoiceRequestItems).where(inArray(invoiceRequestItems.requestId, requests.map((request) => request.id))) : [];
   const itemsByRequest = new Map();
   for (const item of rows) itemsByRequest.set(item.requestId, [...(itemsByRequest.get(item.requestId) || []), item]);
   const full = requests.map((request) => ({ request, items: itemsByRequest.get(request.id) || [] }));
-  return NextResponse.json({ requests: full, total: Number(total) || 0 });
+  const totalNumber = Number(total) || 0;
+  return NextResponse.json({ requests: full, total: totalNumber, pagination: { page, pageSize, total: totalNumber, totalPages: Math.max(1, Math.ceil(totalNumber / pageSize)) } });
 }
 
 export async function POST(req, { params }) {

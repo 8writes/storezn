@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { getStorefrontProducts } from "../../../../../lib/storefrontProducts.js";
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 20;
 
 // Backs "Load more" and filter changes on a store's own home page (see
 // app/storefront/[host]/page.js's client-side StorefrontProductGrid) -
