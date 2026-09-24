@@ -18,10 +18,11 @@ import { InfoTip } from "@/components/ui/InfoTip.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { NewProductVariantsEditor } from "@/components/ui/NewProductVariantsEditor.js";
 import { CustomerFieldsEditor } from "@/components/ui/CustomerFieldsEditor.js";
+import { ProductFormFieldsButton } from "@/components/ui/ProductFormFieldsButton.js";
 import { uploadFile, deleteUploadedFile, getVideoDuration } from "@/lib/clientUpload.js";
 import { slugify } from "@/lib/slugify.js";
 import { formatCurrency } from "@/lib/format.js";
-import { X, ImagePlus, Loader2, GripVertical, ChevronDown, Video } from "lucide-react";
+import { X, ImagePlus, Loader2, GripVertical, Video } from "lucide-react";
 
 // Photos and video share one combined cap - a video eats one of the 10
 // slots, same as a photo would.
@@ -48,6 +49,7 @@ const CONDITION_OPTIONS = [
 const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", saleMode: "fixed_price", customerFields: [], condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "", variants: [] };
 const EMPTY_CATEGORY = { name: "", slug: "" };
 const PRODUCT_FORM_FIELDS = [
+  { id: "slug", label: "URL slug" },
   { id: "sku", label: "SKU / barcode" },
   { id: "expiryDate", label: "Expiry date" },
   { id: "costPrice", label: "Cost price" },
@@ -75,7 +77,6 @@ export default function VendorNewProductPage() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [showOptional, setShowOptional] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [pendingUploads, setPendingUploads] = useState([]);
@@ -365,12 +366,19 @@ export default function VendorNewProductPage() {
       <h1 className="text-xl font-bold text-slate-900">Add product</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <form onSubmit={handleCreate} className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+        <form onSubmit={handleCreate} className={`${hasField("category") ? "lg:col-span-2" : "lg:col-span-3"} bg-surface border border-slate-200 rounded-sm p-5 space-y-4`}>
           {stores.length > 1 && (
             <div className="max-w-xs">
               <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
             </div>
           )}
+
+          <ProductFormFieldsButton
+            fields={PRODUCT_FORM_FIELDS}
+            visibleFields={visibleFormFields}
+            onToggle={toggleFormField}
+            saving={savingFormPreferences}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
@@ -398,44 +406,16 @@ export default function VendorNewProductPage() {
 
           {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
 
-          <button
-            type="button"
-            onClick={() => setShowOptional((v) => !v)}
-            className="flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700 cursor-pointer"
-          >
-            <ChevronDown size={16} className={`transition-transform ${showOptional ? "rotate-180" : ""}`} />
-            {showOptional ? "Hide optional fields" : "Show optional fields"}
-          </button>
-
-          <div className="border border-slate-200 rounded-sm p-3 space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Form fields</p>
-                <p className="text-xs text-slate-600">Choose which optional fields stay visible for you.</p>
-              </div>
-              {savingFormPreferences && <span className="text-xs text-slate-600">Saving...</span>}
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {PRODUCT_FORM_FIELDS.map((field) => (
-                <label key={field.id} className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={hasField(field.id)} onChange={() => toggleFormField(field.id)} />
-                  {field.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {showOptional && (
-            <div className="space-y-4 pt-1">
+          <div className="space-y-4 pt-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
+                {hasField("slug") && <Input
                   label="URL slug"
                   value={form.slug}
                   onChange={(e) => {
                     setSlugTouched(true);
                     setForm((f) => ({ ...f, slug: e.target.value }));
                   }}
-                />
+                />}
                 {hasField("sku") && <div className="flex items-end gap-2">
                   <div className="flex-1">
                     <Input label="SKU / barcode" placeholder="e.g. RTB-001" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
@@ -505,7 +485,7 @@ export default function VendorNewProductPage() {
                     </div>
                   ))}
                 {hasField("category") && <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />}
-                {hasField("discount") && <div>
+                {hasField("discount") && form.saleMode === "fixed_price" && <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <label className="text-sm font-medium text-slate-700">Discount %</label>
                     <InfoTip>Reduces what&apos;s actually charged, e.g. a ₦5,000 product with a 20% discount charges ₦4,000 and shows &ldquo;was ₦5,000, now ₦4,000&rdquo;. Leave blank for no discount.</InfoTip>
@@ -540,11 +520,10 @@ export default function VendorNewProductPage() {
                   )}
                 </div>}
               </div>
-              {hasField("priceTiers") && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />}
+              {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />}
               {hasField("description") && <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
               {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
-            </div>
-          )}
+          </div>
 
           {hasField("photos") && <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Photos</label>
@@ -643,7 +622,7 @@ export default function VendorNewProductPage() {
           <Button type="submit" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>Create product</Button>
         </form>
 
-        <form onSubmit={handleAddCategory} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+        {hasField("category") && <form onSubmit={handleAddCategory} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
           <p className="text-sm font-semibold text-slate-700">Add a category</p>
           <Input
             label="Name"
@@ -664,7 +643,7 @@ export default function VendorNewProductPage() {
             required
           />
           <Button type="submit" variant="outline" size="sm" loading={addingCategory}>Add category</Button>
-        </form>
+        </form>}
       </div>
 
       <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />

@@ -18,6 +18,7 @@ import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
 import { CustomerFieldsEditor } from "@/components/ui/CustomerFieldsEditor.js";
+import { ProductFormFieldsButton } from "@/components/ui/ProductFormFieldsButton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { uploadFile, getVideoDuration } from "@/lib/clientUpload.js";
 import { formatCurrency } from "@/lib/format.js";
@@ -53,7 +54,7 @@ const SALE_MODE_OPTIONS = [
 ];
 
 const PRODUCT_FORM_FIELDS = [
-  { id: "sku", label: "SKU / barcode" }, { id: "expiryDate", label: "Expiry date" },
+  { id: "slug", label: "URL slug" }, { id: "sku", label: "SKU / barcode" }, { id: "expiryDate", label: "Expiry date" },
   { id: "costPrice", label: "Cost price" }, { id: "discount", label: "Discount" },
   { id: "priceTiers", label: "Wholesale tiers" }, { id: "category", label: "Category" },
   { id: "openingStock", label: "Opening stock" }, { id: "description", label: "Description" },
@@ -98,8 +99,9 @@ export default function VendorProductEditPage({ params }) {
     Promise.all([
       apiFetch(`/api/v1/vendor/stores/${storeId}/products/${id}`),
       apiFetch(`/api/v1/vendor/stores/${storeId}/categories`),
+      apiFetch(`/api/v1/vendor/stores/${storeId}`),
     ])
-      .then(([{ product }, categoriesData]) => {
+      .then(([{ product }, categoriesData, storeData]) => {
         imagesRef.current = product.images || [];
         setForm({
           name: product.name,
@@ -125,6 +127,7 @@ export default function VendorProductEditPage({ params }) {
         });
         setSuspension(product.suspendedAt ? { reason: product.suspendedReason } : null);
         setCategories(categoriesData.categories);
+        setBranchCount(storeData.branchCount || 1);
       })
       .catch((err) => toast.error(err.message || "Failed to load product"))
       .finally(() => setLoading(false));
@@ -354,13 +357,15 @@ export default function VendorProductEditPage({ params }) {
       )}
 
       <form onSubmit={handleSave} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
-        <div className="border border-slate-200 rounded-sm p-3 space-y-2">
-          <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold text-slate-900">Form fields</p><p className="text-xs text-slate-600">Choose which optional fields stay visible for you.</p></div>{savingFormPreferences && <span className="text-xs text-slate-600">Saving...</span>}</div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{PRODUCT_FORM_FIELDS.map((field) => <label key={field.id} className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" checked={hasField(field.id)} onChange={() => toggleFormField(field.id)} />{field.label}</label>)}</div>
-        </div>
+        <ProductFormFieldsButton
+          fields={PRODUCT_FORM_FIELDS}
+          visibleFields={visibleFormFields}
+          onToggle={toggleFormField}
+          saving={savingFormPreferences}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
-          <Input label="URL slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />
+          {hasField("slug") && <Input label="URL slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />}
           {hasField("sku") && <div className="flex items-end gap-2">
             <div className="flex-1"><Input label="SKU / barcode (optional)" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} /></div>
             <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
@@ -544,7 +549,7 @@ export default function VendorProductEditPage({ params }) {
         <Button type="submit" loading={saving} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>Save changes</Button>
       </form>
 
-      <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} onTotalBranches={setBranchCount} />
+      {hasField("openingStock") && <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} onTotalBranches={setBranchCount} />}
 
       {hasField("variants") && <VariantsManager
         storeId={storeId}

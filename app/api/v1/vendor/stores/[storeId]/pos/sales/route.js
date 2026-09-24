@@ -97,12 +97,17 @@ async function handlePost(req, { params }) {
 
   const productIds = [...new Set(data.items.map((i) => i.productId))];
   const variantIds = [...new Set(data.items.map((i) => i.variantId).filter(Boolean))];
-  const [productRows, variantRows] = await Promise.all([
+  const [productRows, variantRows, activeVariantProducts] = await Promise.all([
     db.select().from(products).where(and(eq(products.storeId, storeId), inArray(products.id, productIds))),
     variantIds.length ? db.select().from(productVariants).where(inArray(productVariants.id, variantIds)) : [],
+    db.selectDistinct({ productId: productVariants.productId }).from(productVariants).where(and(
+      inArray(productVariants.productId, productIds),
+      eq(productVariants.isActive, true),
+    )),
   ]);
   const productById = new Map(productRows.map((p) => [p.id, p]));
   const variantById = new Map(variantRows.map((v) => [v.id, v]));
+  const productsWithActiveVariants = new Set(activeVariantProducts.map((row) => row.productId));
 
   const resolved = [];
   for (const item of data.items) {
@@ -118,8 +123,11 @@ async function handlePost(req, { params }) {
       );
     }
     const variant = item.variantId ? variantById.get(item.variantId) : null;
-    if (item.variantId && (!variant || variant.productId !== product.id)) {
+    if (item.variantId && (!variant || variant.productId !== product.id || !variant.isActive)) {
       return NextResponse.json({ error: `${product.name}: that option doesn't exist` }, { status: 404 });
+    }
+    if (!item.variantId && product.allowStandardVariant === false && productsWithActiveVariants.has(product.id)) {
+      return NextResponse.json({ error: `${product.name}: choose an available option` }, { status: 409 });
     }
 
     // Catalogue price for this line. A variant carries its own flat unit
@@ -149,6 +157,7 @@ async function handlePost(req, { params }) {
       variant,
       quantity: item.quantity,
       unitKobo,
+      catalogueUnitKobo,
       capturedLineKobo: baseLineKobo,
       catalogueLineKobo,
       lineDiscountKobo,

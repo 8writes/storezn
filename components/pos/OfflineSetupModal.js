@@ -29,7 +29,7 @@ function StepRow({ state, title, detail }) {
 // One-tap "make this device ready to sell offline": caches the register
 // screen + its files through the service worker, and pulls the whole
 // catalogue into local storage.
-export function OfflineSetupModal({ storeId, catalog, pendingSync = 0, queuedSales = [], syncing, onSync, onDiscard, onSyncCatalog, onClose }) {
+export function OfflineSetupModal({ storeId, branchId, catalog, pendingSync = 0, queuedSales = [], syncing, onSync, onDiscard, onSyncCatalog, onClose }) {
   const [phase, setPhase] = useState("idle"); // idle | running | done
   const [shell, setShell] = useState({ state: "pending", detail: "" });
   const [cat, setCat] = useState({
@@ -55,8 +55,9 @@ export function OfflineSetupModal({ storeId, catalog, pendingSync = 0, queuedSal
 
     setCat({ state: "working", detail: "" });
     try {
-      await onSyncCatalog();
-      const meta = await catalogMeta(storeId).catch(() => null);
+      const synced = await onSyncCatalog();
+      if (synced === false) throw new Error("Catalogue update failed");
+      const meta = await catalogMeta(storeId, branchId).catch(() => null);
       setCat(
         meta?.count
           ? { state: "ok", detail: `${meta.count.toLocaleString()} products saved` }

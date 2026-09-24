@@ -8,8 +8,9 @@ import { getEffectivePrice } from "@/lib/pricing.js";
 import { networkErrorMessage } from "@/lib/fetchError.js";
 import { isOffline } from "@/lib/connectivity.js";
 import { searchCatalog, findBySku, getCatalogProduct } from "@/lib/posOffline.js";
+import { barcodeMatches, normalizeBarcode } from "@/lib/barcode.js";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 24;
 
 function isNetErr(err) {
   return !err || !!networkErrorMessage(err);
@@ -20,9 +21,8 @@ function hasActiveVariants(product) {
 }
 
 function variantMatchingSku(product, sku) {
-  const wanted = (sku || "").trim().toLowerCase();
-  if (!wanted) return null;
-  return product?.offlineVariants?.find((variant) => (variant.sku || "").trim().toLowerCase() === wanted) || null;
+  if (!normalizeBarcode(sku)) return null;
+  return product?.offlineVariants?.find((variant) => barcodeMatches(variant.sku, sku)) || null;
 }
 
 // Shared product search + grid for both the manual offline form and the
@@ -31,7 +31,7 @@ function variantMatchingSku(product, sku) {
 // the search box is focused), the per-product variant picker, and a
 // fall-back to the locally cached catalogue when the network is down.
 // Calls onAdd(product, variantOrNull).
-export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCountByProduct, offlineMode = false }) {
+export function ProductPicker({ storeId, branchId, token, onAdd, onInvoiceRequest, cartCountByProduct, offlineMode = false, catalogVersion = null }) {
   const { apiFetch } = useApi(token);
   const [products, setProducts] = useState([]);
   const [cache, setCache] = useState({});
@@ -47,6 +47,8 @@ export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCou
   const [picker, setPicker] = useState(null);
   const [scanning, setScanning] = useState(false);
   const searchRef = useRef(null);
+  const handleScanRef = useRef(null);
+  const scanInFlightRef = useRef(false);
   // Guards against a slow request for an earlier term resolving after a
   // newer one and overwriting the results (very visible when the DB is
   // waking from idle and a search takes several seconds).
@@ -56,14 +58,15 @@ export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCou
     const myReq = ++reqRef.current;
     const setBusy = pageNum === 1 ? setLoading : setLoadingMore;
     setBusy(true);
-    const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE), status: "active" });
+    const params = new URLSearchParams({ page: String(pageNum), pageSize: String(PAGE_SIZE), status: "active", sellable: "true" });
     if (q?.trim()) params.set("q", q.trim());
+    if (branchId) params.set("branch", branchId);
 
     // Do not wait for fetch() to reject when the browser already knows the
     // uplink is down. The catalogue snapshot is the source for this screen
     // until connectivity returns.
     if (offlineMode || isOffline()) {
-      const rows = await searchCatalog(storeId, q, q ? 200 : 100).catch(() => []);
+      const rows = await searchCatalog(storeId, q, q ? 200 : 100, branchId).catch(() => []);
       if (myReq === reqRef.current) {
         setProducts(rows);
         setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
@@ -89,7 +92,7 @@ export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCou
         // Whole catalogue is cached; cap the grid so a 4k-SKU store
         // doesn't try to render every card, but a real search term
         // narrows it well within this anyway.
-        const rows = await searchCatalog(storeId, q, q ? 200 : 100).catch(() => []);
+        const rows = await searchCatalog(storeId, q, q ? 200 : 100, branchId).catch(() => []);
         if (myReq !== reqRef.current) return;
         setProducts(rows);
         setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
@@ -112,18 +115,20 @@ export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCou
     if (!token || !storeId) return;
     Promise.resolve().then(() => load(1, debounced));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, debounced, offlineMode]);
+  }, [token, storeId, branchId, debounced, offlineMode, catalogVersion]);
 
   const ensureVariants = async (productId) => {
     if (variantsBy[productId]) return variantsBy[productId];
     setLoadingVariantsFor(productId);
     try {
       if (offlineMode || isOffline()) throw new Error("offline");
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants?active=true`);
+      const params = new URLSearchParams({ active: "true" });
+      if (branchId) params.set("branch", branchId);
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants?${params}`);
       setVariantsBy((v) => ({ ...v, [productId]: data.variants }));
       return data.variants;
     } catch (error) {
-      const cachedProduct = cache[productId] || await getCatalogProduct(storeId, productId);
+      const cachedProduct = cache[productId] || await getCatalogProduct(storeId, productId, branchId);
       const cachedVariants = cachedProduct?.offlineVariants;
       if (Array.isArray(cachedVariants) && cachedVariants.length > 0) {
         setVariantsBy((v) => ({ ...v, [productId]: cachedVariants }));
@@ -190,35 +195,43 @@ export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCou
   // rows, then the offline catalogue snapshot) so a scan adds with no
   // network at all; only an unknown code hits the API.
   const handleScan = async (rawTerm) => {
-    const term = (rawTerm ?? search).trim();
-    if (!term) return;
-    const low = term.toLowerCase();
-
-    const local =
-      products.find((p) => (p.sku || "").toLowerCase() === low) ||
-      Object.values(cache).find((p) => (p.sku || "").toLowerCase() === low) ||
-      (await findBySku(storeId, term).catch(() => null));
-    if (local) {
-      await acceptHit(local);
-      return;
-    }
-
-    if (offlineMode || isOffline()) {
-      toast.error(`Nothing matches "${term}" in the saved catalogue`);
-      return;
-    }
-
+    const term = normalizeBarcode(rawTerm ?? search);
+    if (!term || scanInFlightRef.current) return;
+    scanInFlightRef.current = true;
     setScanning(true);
     try {
+      const localRows = [...products, ...Object.values(cache)];
       let hit = null;
+      for (const product of localRows) {
+        const matchedVariant = variantMatchingSku(product, term);
+        if (matchedVariant) {
+          hit = { ...product, _matchedVariant: matchedVariant };
+          break;
+        }
+        if (barcodeMatches(product.sku, term)) {
+          hit = product;
+          break;
+        }
+      }
+      if (!hit) hit = await findBySku(storeId, term, branchId).catch(() => null);
+      if (hit) {
+        await acceptHit(hit);
+        return;
+      }
+
+      if (offlineMode || isOffline()) {
+        toast.error(`Nothing matches "${term}" in this branch's saved catalogue`);
+        return;
+      }
+
       try {
-        const params = new URLSearchParams({ page: "1", pageSize: "5", q: term, status: "active", includeVariants: "true" });
+        const params = new URLSearchParams({ page: "1", pageSize: "5", sku: term, status: "active", sellable: "true", includeVariants: "true" });
+        if (branchId) params.set("branch", branchId);
         const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
-        const exactProduct = data.products.find((p) => (p.sku || "").toLowerCase() === low);
         const variantProduct = data.products.find((p) => variantMatchingSku(p, term));
         hit = variantProduct
           ? { ...variantProduct, _matchedVariant: variantMatchingSku(variantProduct, term) }
-          : exactProduct || (data.products.length === 1 ? data.products[0] : null);
+          : data.products.find((p) => barcodeMatches(p.sku, term)) || null;
       } catch (err) {
         if (!isNetErr(err)) throw err;
       }
@@ -231,8 +244,13 @@ export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCou
       toast.error(err.message || "Scan failed");
     } finally {
       setScanning(false);
+      scanInFlightRef.current = false;
     }
   };
+
+  useEffect(() => {
+    handleScanRef.current = handleScan;
+  });
 
   // A wedge scanner types the barcode as fast keystrokes then Enter. When
   // the search box has focus its own onKeyDown handles it; otherwise this
@@ -250,7 +268,7 @@ export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCou
         buf.chars = "";
         if (code.length >= 4) {
           e.preventDefault();
-          handleScan(code);
+          handleScanRef.current?.(code);
         }
         return;
       }
@@ -261,7 +279,6 @@ export function ProductPicker({ storeId, token, onAdd, onInvoiceRequest, cartCou
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId]);
 
   // The server (or the offline catalogue) already filtered by the search

@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../../../lib/db/index.js";
-import { products, productVariants, stores, branches } from "../../../../../../../../../lib/db/schema.js";
-import { and, eq, inArray } from "drizzle-orm";
+import { products, productVariants, productBranchStock, stores, branches } from "../../../../../../../../../lib/db/schema.js";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../../lib/auth.js";
 import { validate, createVariantSchema } from "../../../../../../../../../lib/validate.js";
 import { seedBranchStockForNewItem } from "../../../../../../../../../lib/inventory.js";
@@ -25,9 +25,24 @@ export async function GET(req, { params }) {
   if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
   const activeOnly = new URL(req.url).searchParams.get("active") === "true";
+  const requestedBranchId = new URL(req.url).searchParams.get("branch")?.trim();
+  const storeBranches = await db.select({ id: branches.id }).from(branches).where(eq(branches.storeId, storeId));
+  const selectedBranch = user.role === "staff" && user.branchId
+    ? storeBranches.find((branch) => branch.id === user.branchId) || null
+    : storeBranches.find((branch) => branch.id === requestedBranchId) || null;
   const conditions = [eq(productVariants.productId, id)];
   if (activeOnly) conditions.push(eq(productVariants.isActive, true));
-  const variants = await db.select().from(productVariants).where(and(...conditions)).orderBy(productVariants.createdAt);
+  const rows = await db
+    .select({ variant: productVariants, branchStock: selectedBranch ? productBranchStock.stock : productVariants.stock })
+    .from(productVariants)
+    .leftJoin(productBranchStock, and(
+      eq(productBranchStock.productId, productVariants.productId),
+      eq(productBranchStock.variantId, productVariants.id),
+      selectedBranch ? eq(productBranchStock.branchId, selectedBranch.id) : sql`false`,
+    ))
+    .where(and(...conditions))
+    .orderBy(productVariants.createdAt);
+  const variants = rows.map((row) => ({ ...row.variant, stock: row.branchStock }));
   return NextResponse.json({ variants });
 }
 

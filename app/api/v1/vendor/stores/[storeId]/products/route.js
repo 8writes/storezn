@@ -16,6 +16,7 @@ import {
   productNameKeyExpression,
   PRODUCT_NAME_TAKEN_MESSAGE,
 } from "../../../../../../../lib/productName.js";
+import { barcodeCandidates } from "../../../../../../../lib/barcode.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -51,6 +52,7 @@ export async function GET(req, { params }) {
     ? allowedBranches[0] || null
     : allowedBranches.find((branch) => branch.id === requestedBranchId) || null;
   const q = searchParams.get("q")?.trim();
+  const exactSku = searchParams.get("sku")?.trim();
   const categoryId = searchParams.get("category")?.trim();
   const orderBy = SORTS[searchParams.get("sort")] || SORTS.newest;
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
@@ -74,6 +76,22 @@ export async function GET(req, { params }) {
       ),
     );
   }
+  if (exactSku) {
+    const candidates = barcodeCandidates(exactSku);
+    if (candidates.length === 0) {
+      conditions.push(sql`false`);
+    } else {
+      conditions.push(or(...candidates.map((candidate) => or(
+        sql`lower(btrim(${products.sku})) = ${candidate}`,
+        sql`exists (
+          select 1 from ${productVariants}
+          where ${productVariants.productId} = ${products.id}
+            and ${productVariants.isActive}
+            and lower(btrim(${productVariants.sku})) = ${candidate}
+        )`,
+      ))));
+    }
+  }
   if (categoryId) conditions.push(eq(products.categoryId, categoryId));
 
   // A selected branch makes that branch's base-product stock authoritative
@@ -95,6 +113,7 @@ export async function GET(req, { params }) {
   const statusFilter = searchParams.get("status")?.trim();
   if (statusFilter === "active") conditions.push(eq(products.isActive, true));
   else if (statusFilter === "archived") conditions.push(eq(products.isActive, false));
+  if (searchParams.get("sellable") === "true") conditions.push(isNull(products.suspendedAt));
 
   // Featured filter - on/off the storefront's Featured rail
   // (products.featuredOrder is null vs set).
@@ -143,14 +162,24 @@ export async function GET(req, { params }) {
 
   // Offline POS catalogue sync asks for variants alongside each product.
   // One batched query per page avoids an N+1 request storm for large stores.
-  const variants = includeVariants && rows.length
-    ? await db.select().from(productVariants).where(and(
-      inArray(productVariants.productId, rows.map((row) => row.product.id)),
-      eq(productVariants.isActive, true),
-    )).orderBy(productVariants.createdAt)
+  const variantRows = includeVariants && rows.length
+    ? await db
+      .select({ variant: productVariants, branchStock: selectedBranch ? productBranchStock.stock : productVariants.stock })
+      .from(productVariants)
+      .leftJoin(productBranchStock, and(
+        eq(productBranchStock.productId, productVariants.productId),
+        eq(productBranchStock.variantId, productVariants.id),
+        selectedBranch ? eq(productBranchStock.branchId, selectedBranch.id) : sql`false`,
+      ))
+      .where(and(
+        inArray(productVariants.productId, rows.map((row) => row.product.id)),
+        eq(productVariants.isActive, true),
+      ))
+      .orderBy(productVariants.createdAt)
     : [];
   const variantsByProduct = new Map();
-  for (const variant of variants) {
+  for (const row of variantRows) {
+    const variant = { ...row.variant, stock: row.branchStock };
     const list = variantsByProduct.get(variant.productId) || [];
     list.push(variant);
     variantsByProduct.set(variant.productId, list);

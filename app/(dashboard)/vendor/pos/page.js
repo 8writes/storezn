@@ -290,7 +290,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [queuedSales, setQueuedSales] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [offlineReceipt, setOfflineReceipt] = useState(null);
-  const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false });
+  const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false, error: null });
   const [offlineSetupOpen, setOfflineSetupOpen] = useState(false);
   const [networkOffline, setNetworkOffline] = useState(false);
   const catalogSessionRef = useRef("");
@@ -301,6 +301,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   }, []);
 
   const openSession = sessionData?.session?.status === "open" ? sessionData : null;
+  const registerBranchId = openSession?.register?.branchId || null;
 
   const loadLocalHeld = useCallback(async (sessionId) => {
     const rows = await listHeldSales(storeId, sessionId).catch(() => []);
@@ -376,7 +377,6 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     const reg = resolveActiveRegister();
     if (reg?.openSession) {
       // The callback owns the async state transition for this register.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchSession(reg.openSession.id).finally(() => setChecking(false));
     } else {
       setSessionData(null);
@@ -417,11 +417,11 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   // button).
   const syncCatalog = useCallback(
     async (force = false) => {
-      const meta = await catalogMeta(storeId).catch(() => null);
+      const meta = await catalogMeta(storeId, registerBranchId).catch(() => null);
       if (meta) setCatalog((c) => ({ ...c, count: meta.count, savedAt: meta.savedAt }));
-      if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-      if (!force && meta && Date.now() - new Date(meta.savedAt).getTime() < 30 * 60 * 1000) return;
-      setCatalog((c) => ({ ...c, syncing: true }));
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+      if (!force && meta && Date.now() - new Date(meta.savedAt).getTime() < 30 * 60 * 1000) return true;
+      setCatalog((c) => ({ ...c, syncing: true, error: null }));
       try {
         // pageSize is capped at 100 server-side (lib/pagination.js), so
         // ask for exactly that - up to 50k SKUs. Each page gets a couple
@@ -430,7 +430,9 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         const fetchPage = async (page) => {
           for (let attempt = 0; ; attempt++) {
             try {
-              return await apiFetch(`/api/v1/vendor/stores/${storeId}/products?page=${page}&pageSize=100&includeVariants=true&status=active`);
+              const params = new URLSearchParams({ page: String(page), pageSize: "100", includeVariants: "true", status: "active", sellable: "true" });
+              if (registerBranchId) params.set("branch", registerBranchId);
+              return await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
             } catch (err) {
               if (attempt >= 2) throw err;
               await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
@@ -443,13 +445,15 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           all.push(...data.products);
           if (!data.pagination || all.length >= data.pagination.total || data.products.length === 0) break;
         }
-        await saveCatalog(storeId, all);
-        setCatalog({ count: all.length, savedAt: new Date().toISOString(), syncing: false });
-      } catch {
-        setCatalog((c) => ({ ...c, syncing: false }));
+        await saveCatalog(storeId, all, registerBranchId);
+        setCatalog({ count: all.length, savedAt: new Date().toISOString(), syncing: false, error: null });
+        return true;
+      } catch (error) {
+        setCatalog((c) => ({ ...c, syncing: false, error: error?.message || "Catalogue update failed" }));
+        return false;
       }
     },
-    [storeId, apiFetch],
+    [storeId, registerBranchId, apiFetch],
   );
 
   const toggleOfflineMode = (on) => {
@@ -882,7 +886,17 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
-        <ProductPicker storeId={storeId} token={token} onAdd={addToCart} onInvoiceRequest={requestInvoice} cartCountByProduct={countByProduct} offlineMode={offlineMode} />
+        <ProductPicker
+          key={`${storeId}:${registerBranchId || "all"}:${catalog.savedAt || "empty"}`}
+          storeId={storeId}
+          branchId={registerBranchId}
+          token={token}
+          onAdd={addToCart}
+          onInvoiceRequest={requestInvoice}
+          cartCountByProduct={countByProduct}
+          offlineMode={offlineMode}
+          catalogVersion={catalog.savedAt}
+        />
 
         <div className="space-y-3 lg:sticky lg:top-4">
           <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
@@ -1114,6 +1128,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       {offlineSetupOpen && (
         <OfflineSetupModal
           storeId={storeId}
+          branchId={registerBranchId}
           catalog={catalog}
           pendingSync={pendingSync}
           queuedSales={queuedSales}

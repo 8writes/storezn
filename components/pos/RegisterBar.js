@@ -88,6 +88,8 @@ export function RegisterBar({
         <Database size={12} className={catalog?.syncing ? "animate-pulse text-brand-600" : ""} />
         {catalog?.syncing
           ? "saving catalogue…"
+          : catalog?.error
+            ? "catalogue update failed"
           : catalog?.count
             ? `offline ready · ${ago(catalog.savedAt)}`
             : "set up offline"}
