@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
+import { FormSection } from "@/components/ui/FormSection.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
@@ -355,13 +356,14 @@ export default function VendorProductEditPage({ params }) {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+      <form onSubmit={handleSave} className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-5 space-y-4">
         <ProductFormFieldsButton
           fields={PRODUCT_FORM_FIELDS}
           visibleFields={visibleFormFields}
           onToggle={toggleFormField}
           saving={savingFormPreferences}
         />
+        <FormSection title="Basics" description="Keep the product identity, selling method, price, and status easy to review.">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
           {hasField("slug") && <Input label="URL slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />}
@@ -438,13 +440,17 @@ export default function VendorProductEditPage({ params }) {
             onChange={(v) => setForm((f) => ({ ...f, isActive: v === "true" }))}
           />
         </div>
+        </FormSection>
 
+        {(hasField("priceTiers") || hasField("description") || hasField("sizeGuide") || hasField("customerFields")) && <FormSection title="Details customers see" description="Add buying guidance, sizing, wholesale tiers, or custom information customers must provide.">
         {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />}
 
         {hasField("description") && <Textarea label="Description" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
         {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
         {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
+        </FormSection>}
 
+        {(hasField("photos") || hasField("video")) && <FormSection title="Media" description="Refresh photos and videos without losing the rest of the product edits.">
         {hasField("photos") && <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Photos</label>
           <p className="text-xs text-slate-800">
@@ -544,8 +550,11 @@ export default function VendorProductEditPage({ params }) {
             <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
           )}
         </div>}
+        </FormSection>}
 
-        <Button type="submit" loading={saving} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>Save changes</Button>
+        <div className="flex justify-end pt-2">
+          <Button type="submit" loading={saving} disabled={pendingUploads.length > 0 || uploadingVideo} className="w-full sm:w-auto">Save changes</Button>
+        </div>
       </form>
 
       {hasField("openingStock") && <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} onTotalBranches={setBranchCount} />}

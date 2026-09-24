@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
+import { FormSection } from "@/components/ui/FormSection.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
@@ -366,7 +367,7 @@ export default function VendorNewProductPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <form onSubmit={handleCreate} className={`${hasField("category") ? "lg:col-span-2" : "lg:col-span-3"} bg-surface border border-slate-200 rounded-sm p-2 space-y-4`}>
+        <form onSubmit={handleCreate} className={`${hasField("category") ? "lg:col-span-2" : "lg:col-span-3"} bg-surface border border-slate-200 rounded-sm p-3 sm:p-5 space-y-4`}>
           {stores.length > 1 && (
             <div className="max-w-xs">
               <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
@@ -380,6 +381,7 @@ export default function VendorNewProductPage() {
             saving={savingFormPreferences}
           />
 
+          <FormSection title="Basics" description="Name the product, choose how it sells, and set the core price information.">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Name"
@@ -397,7 +399,9 @@ export default function VendorNewProductPage() {
               <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
             )}
           </div>
+          </FormSection>
 
+          {(hasField("variants") || hasField("customerFields")) && <FormSection title="Options customers choose" description="Add variants or extra customer questions when the product needs more than a simple quantity.">
           {hasField("variants") && <NewProductVariantsEditor
             value={form.variants}
             invoiceRequired={form.saleMode === "invoice_required"}
@@ -405,8 +409,10 @@ export default function VendorNewProductPage() {
           />}
 
           {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
+          </FormSection>}
 
-          <div className="space-y-4 pt-1">
+          <FormSection title="Inventory and details" description="Organize the item, track stock, and add information customers need before buying.">
+          <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {hasField("slug") && <Input
                   label="URL slug"
@@ -524,7 +530,9 @@ export default function VendorNewProductPage() {
               {hasField("description") && <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
               {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
           </div>
+          </FormSection>
 
+          {(hasField("photos") || hasField("video")) && <FormSection title="Media" description="Show the product clearly. The first photo becomes the storefront cover.">
           {hasField("photos") && <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Photos</label>
             <p className="text-xs text-slate-800">
@@ -618,8 +626,11 @@ export default function VendorNewProductPage() {
               <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
             )}
           </div>}
+          </FormSection>}
 
-          <Button type="submit" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>Create product</Button>
+          <div className="flex justify-end pt-2">
+            <Button type="submit" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} className="w-full sm:w-auto">Create product</Button>
+          </div>
         </form>
 
         {hasField("category") && <form onSubmit={handleAddCategory} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
@@ -642,7 +653,9 @@ export default function VendorNewProductPage() {
             }}
             required
           />
-          <Button type="submit" variant="outline" size="sm" loading={addingCategory}>Add category</Button>
+          <div className="flex justify-end">
+            <Button type="submit" variant="outline" size="sm" loading={addingCategory} className="w-full sm:w-auto">Add category</Button>
+          </div>
         </form>}
         
       </div>
