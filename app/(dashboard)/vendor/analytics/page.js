@@ -196,7 +196,7 @@ export default function VendorAnalyticsPage() {
 
       {loading || !data ? (
         <>
-          <StatGridSkeleton count={5} />
+          <StatGridSkeleton count={6} />
           <Skeleton className="h-72 w-full" />
         </>
       ) : (
