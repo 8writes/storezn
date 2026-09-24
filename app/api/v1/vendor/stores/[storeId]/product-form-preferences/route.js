@@ -5,6 +5,7 @@ import { stores, vendorProductFormPreferences } from "../../../../../../../lib/d
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 
 const MAX_FIELDS = 30;
+const CURRENT_FIELDS_VERSION = 2;
 
 async function context(req, storeId) {
   const user = await getUser(req);
@@ -17,7 +18,17 @@ export async function GET(req, { params }) {
   const { storeId } = await params;
   const user = await context(req, storeId);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const [preference] = await db.select().from(vendorProductFormPreferences).where(and(eq(vendorProductFormPreferences.storeId, storeId), eq(vendorProductFormPreferences.userId, user.id))).limit(1);
+  let [preference] = await db.select().from(vendorProductFormPreferences).where(and(eq(vendorProductFormPreferences.storeId, storeId), eq(vendorProductFormPreferences.userId, user.id))).limit(1);
+  if (preference && preference.visibleFieldsVersion < CURRENT_FIELDS_VERSION) {
+    const visibleFields = preference.visibleFields.includes("condition")
+      ? preference.visibleFields
+      : [...preference.visibleFields, "condition"];
+    [preference] = await db
+      .update(vendorProductFormPreferences)
+      .set({ visibleFields, visibleFieldsVersion: CURRENT_FIELDS_VERSION, updatedAt: new Date() })
+      .where(eq(vendorProductFormPreferences.id, preference.id))
+      .returning();
+  }
   return NextResponse.json({ preference: preference || null });
 }
 
@@ -33,6 +44,7 @@ export async function PATCH(req, { params }) {
   if (!Array.isArray(sectionOrder) || !Array.isArray(collapsedSections)) return NextResponse.json({ error: "Invalid form preferences" }, { status: 400 });
   const values = {
     visibleFields: body.visibleFields.slice(0, MAX_FIELDS).filter((value) => typeof value === "string"),
+    visibleFieldsVersion: CURRENT_FIELDS_VERSION,
     sectionOrder: sectionOrder.slice(0, MAX_FIELDS).filter((value) => typeof value === "string"),
     collapsedSections: collapsedSections.slice(0, MAX_FIELDS).filter((value) => typeof value === "string"),
     updatedAt: new Date(),

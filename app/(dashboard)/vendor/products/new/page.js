@@ -56,6 +56,7 @@ const PRODUCT_FORM_FIELDS = [
   { id: "discount", label: "Discount" },
   { id: "priceTiers", label: "Wholesale tiers" },
   { id: "category", label: "Category" },
+  { id: "condition", label: "Condition" },
   { id: "openingStock", label: "Opening stock" },
   { id: "description", label: "Description" },
   { id: "sizeGuide", label: "Size guide" },
@@ -393,7 +394,7 @@ export default function VendorNewProductPage() {
             <Select label="Selling method" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
             {form.saleMode === "fixed_price" && <PriceInput label="Price" placeholder="0.00" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />}
             <Select label="Type" options={PRODUCT_TYPE_OPTIONS} value={form.productType} onChange={(v) => setForm((f) => ({ ...f, productType: v }))} />
-            {form.productType === "physical" && (
+            {hasField("condition") && form.productType === "physical" && (
               <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
             )}
           </div>

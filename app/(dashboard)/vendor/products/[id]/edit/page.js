@@ -57,7 +57,7 @@ const PRODUCT_FORM_FIELDS = [
   { id: "slug", label: "URL slug" }, { id: "sku", label: "SKU / barcode" }, { id: "expiryDate", label: "Expiry date" },
   { id: "costPrice", label: "Cost price" }, { id: "discount", label: "Discount" },
   { id: "priceTiers", label: "Wholesale tiers" }, { id: "category", label: "Category" },
-  { id: "openingStock", label: "Opening stock" }, { id: "description", label: "Description" },
+  { id: "condition", label: "Condition" }, { id: "openingStock", label: "Opening stock" }, { id: "description", label: "Description" },
   { id: "sizeGuide", label: "Size guide" }, { id: "customerFields", label: "Customer details" },
   { id: "photos", label: "Photos" }, { id: "video", label: "Video" }, { id: "variants", label: "Variants" },
 ];
@@ -417,7 +417,7 @@ export default function VendorProductEditPage({ params }) {
           <Select label="Type" options={PRODUCT_TYPE_OPTIONS} value={form.productType} onChange={(v) => setForm((f) => ({ ...f, productType: v }))} />
           {form.productType === "physical" && (
             <>
-              <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
+              {hasField("condition") && <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />}
               {hasField("openingStock") && <div>
                 <Input
                   label="Stock"
