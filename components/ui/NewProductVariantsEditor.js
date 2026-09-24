@@ -79,7 +79,7 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
               className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
             />
             {dimensions.length > 1 ? (
-              <button type="button" onClick={() => setDimensions((current) => current.filter((_, i) => i !== index))} aria-label="Remove option" className="h-10 w-10 inline-flex items-center justify-center text-slate-600 hover:text-red-600 cursor-pointer">
+              <button type="button" onClick={() => setDimensions((current) => current.filter((_, i) => i !== index))} aria-label="Remove option" className="h-10 w-10 inline-flex items-center justify-center text-slate-600 hover:text-red-600 cursor-pointer ml-auto">
                 <Trash2 size={16} />
               </button>
             ) : <span />}

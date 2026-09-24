@@ -358,15 +358,15 @@ export default function VendorNewProductPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <BackLink href="/vendor/products" label="Back to products" />
       <PageHeader
         title="Add product"
-        description="Create a sellable item, choose the fields you need, and add variants or customer questions when required."
+        description="Create a sellable item."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <form onSubmit={handleCreate} className={`${hasField("category") ? "lg:col-span-2" : "lg:col-span-3"} bg-surface border border-slate-200 rounded-sm p-5 space-y-4`}>
+        <form onSubmit={handleCreate} className={`${hasField("category") ? "lg:col-span-2" : "lg:col-span-3"} bg-surface border border-slate-200 rounded-sm p-2 space-y-4`}>
           {stores.length > 1 && (
             <div className="max-w-xs">
               <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
@@ -644,6 +644,7 @@ export default function VendorNewProductPage() {
           />
           <Button type="submit" variant="outline" size="sm" loading={addingCategory}>Add category</Button>
         </form>}
+        
       </div>
 
       <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />

@@ -29,7 +29,9 @@ export function CustomerFieldsEditor({ value = [], onChange }) {
   const fields = Array.isArray(value) ? value : [];
 
   const update = (index, patch) => {
-    onChange(fields.map((field, i) => (i === index ? { ...field, ...patch } : field)));
+    onChange(
+      fields.map((field, i) => (i === index ? { ...field, ...patch } : field)),
+    );
   };
 
   const add = () => {
@@ -44,50 +46,125 @@ export function CustomerFieldsEditor({ value = [], onChange }) {
     <section className="border-t border-slate-200 pt-4 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Customer details</h2>
-          <p className="text-xs text-slate-600 mt-0.5">Ask buyers for information needed to prepare this product.</p>
+          <h2 className="text-sm font-semibold text-slate-900">
+            Customer details
+          </h2>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Ask buyers for information needed to prepare this product.
+          </p>
         </div>
-        <button type="button" onClick={add} disabled={fields.length >= 20} className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed">
-          <Plus size={16} /> Add field
-        </button>
       </div>
 
       {fields.length === 0 ? (
-        <p className="text-xs text-slate-600">No customer details requested.</p>
+        <p className="text-xs text-slate-600">No details requested.</p>
       ) : expanded ? (
         <div className="space-y-3">
           {fields.map((field, index) => (
-            <div key={field.id || index} className="border border-slate-200 rounded-sm p-3 space-y-3">
+            <div
+              key={field.id || index}
+              className="border border-slate-200 rounded-sm p-3 space-y-3"
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input label="Label" value={field.label || ""} onChange={(e) => update(index, { label: e.target.value })} placeholder="e.g. Measurements" required />
-                <Select label="Answer type" options={TYPES} value={field.type || "text"} onChange={(type) => update(index, { type, options: type === "select" ? field.options || [] : [] })} />
+                <Input
+                  label="Label"
+                  value={field.label || ""}
+                  onChange={(e) => update(index, { label: e.target.value })}
+                  placeholder="e.g. Measurements"
+                  required
+                />
+                <Select
+                  label="Answer type"
+                  options={TYPES}
+                  value={field.type || "text"}
+                  onChange={(type) =>
+                    update(index, {
+                      type,
+                      options: type === "select" ? field.options || [] : [],
+                    })
+                  }
+                />
               </div>
               {field.type === "select" && (
-                <Input label="Options" value={(field.options || []).join(", ")} onChange={(e) => update(index, { options: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) })} placeholder="Small, Medium, Large" />
+                <Input
+                  label="Options"
+                  value={(field.options || []).join(", ")}
+                  onChange={(e) =>
+                    update(index, {
+                      options: e.target.value
+                        .split(",")
+                        .map((v) => v.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder="Small, Medium, Large"
+                />
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input label="Placeholder (optional)" value={field.placeholder || ""} onChange={(e) => update(index, { placeholder: e.target.value })} />
-                <Input label="Help text (optional)" value={field.helpText || ""} onChange={(e) => update(index, { helpText: e.target.value })} />
+                <Input
+                  label="Placeholder (optional)"
+                  value={field.placeholder || ""}
+                  onChange={(e) =>
+                    update(index, { placeholder: e.target.value })
+                  }
+                />
+                <Input
+                  label="Help text (optional)"
+                  value={field.helpText || ""}
+                  onChange={(e) => update(index, { helpText: e.target.value })}
+                />
               </div>
               <div className="flex items-center justify-between gap-3">
                 <label className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={field.required === true} onChange={(e) => update(index, { required: e.target.checked })} />
+                  <input
+                    type="checkbox"
+                    checked={field.required === true}
+                    onChange={(e) =>
+                      update(index, { required: e.target.checked })
+                    }
+                  />
                   Required
                 </label>
-                <button type="button" onClick={() => remove(index)} aria-label="Remove customer field" className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-700 cursor-pointer">
+                <button
+                  type="button"
+                  onClick={() => remove(index)}
+                  aria-label="Remove customer field"
+                  className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-700 cursor-pointer"
+                >
                   <Trash2 size={15} /> Remove
                 </button>
               </div>
             </div>
           ))}
-          <button type="button" onClick={() => setExpanded(false)} className="text-xs font-medium text-brand-700 hover:text-brand-800 cursor-pointer">Done editing fields</button>
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="text-xs font-medium text-brand-700 hover:text-brand-800 cursor-pointer ml-auto"
+          >
+            Collapse fields
+          </button>
         </div>
       ) : (
-        <button type="button" onClick={() => setExpanded(true)} className="w-full text-left border border-slate-200 rounded-sm p-3 hover:bg-slate-50 cursor-pointer">
-          <span className="block text-sm font-medium text-slate-900">{fields.length} customer field{fields.length === 1 ? "" : "s"}</span>
-          <span className="block text-xs text-slate-600 mt-1">{fields.map((field) => field.label || "Untitled field").join(", ")}</span>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="w-full text-left border border-slate-200 rounded-sm p-3 hover:bg-slate-50 cursor-pointer"
+        >
+          <span className="block text-sm font-medium text-slate-900">
+            {fields.length} customer field{fields.length === 1 ? "" : "s"}
+          </span>
+          <span className="block text-xs text-slate-600 mt-1">
+            {fields.map((field) => field.label || "Untitled field").join(", ")}
+          </span>
         </button>
       )}
+      <button
+        type="button"
+        onClick={add}
+        disabled={fields.length >= 20}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+      >
+        <Plus size={16} /> Add new field
+      </button>
     </section>
   );
 }
