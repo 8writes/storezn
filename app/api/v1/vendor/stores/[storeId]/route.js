@@ -101,6 +101,7 @@ export async function PATCH(req, { params }) {
 
   const result = validate(updateVendorStoreSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+  if (Object.keys(result.data).length === 0) return NextResponse.json({ error: "At least one store setting is required" }, { status: 400 });
 
   // Only block when a free store is actually trying to SET a color - a
   // plain "" (the settings form always sends this field, even to clear
