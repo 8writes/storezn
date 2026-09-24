@@ -61,6 +61,7 @@ export async function PATCH(req) {
 
   const result = validate(updateProfileAndNotificationsSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+  if (Object.keys(result.data).length === 0) return NextResponse.json({ error: "At least one profile setting is required" }, { status: 400 });
 
   // An empty phone field means "remove it", not "".
   const patch = { ...result.data };
