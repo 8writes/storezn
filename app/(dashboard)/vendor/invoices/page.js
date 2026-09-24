@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Minus, Plus, Search, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronRight, Minus, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -18,6 +19,7 @@ import { getPlatformUrl } from "@/lib/storeUrl.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 
 export default function VendorInvoicesPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const { stores, storeId, loading: storesLoading } = useVendorStore();
@@ -93,12 +95,25 @@ export default function VendorInvoicesPage() {
         <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200">
           <div className="p-4"><h2 className="font-semibold text-slate-900">Sent invoices</h2></div>
           {visibleInvoices.map((invoice) => (
-            <div key={invoice.id} className="p-4 flex flex-wrap items-center justify-between gap-3">
+            <div
+              key={invoice.id}
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(`/vendor/invoices/${invoice.id}?storeId=${storeId}`)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  router.push(`/vendor/invoices/${invoice.id}?storeId=${storeId}`);
+                }
+              }}
+              className="p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-slate-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
+            >
               <div><p className="font-medium text-slate-900">{invoice.invoiceNumber}</p><p className="text-sm text-slate-600">{invoice.guestEmail || invoice.buyerPhone || "Share by link"} - {invoice.status}</p></div>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-semibold text-slate-900 mr-1">{formatCurrency(invoice.amountPaid)} / {formatCurrency(invoice.totalAmount)}</p>
-                <Button size="sm" variant="outline" onClick={() => copyInvoiceLink(invoice.shareToken)}>Copy link</Button>
-                {invoice.status === "sent" && <Button size="sm" variant="secondary" onClick={() => cancelInvoice(invoice.id)}>Cancel</Button>}
+                <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); copyInvoiceLink(invoice.shareToken); }}>Copy link</Button>
+                {invoice.status === "sent" && <Button size="sm" variant="secondary" onClick={(event) => { event.stopPropagation(); cancelInvoice(invoice.id); }}>Cancel</Button>}
+                <ChevronRight size={17} className="text-slate-400" aria-hidden="true" />
               </div>
             </div>
           ))}

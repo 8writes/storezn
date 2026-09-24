@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../../../../../../../lib/db/index.js";
 import { invoiceItems, invoicePayments, invoiceRequests, invoices, orders, stores } from "../../../../../../../../lib/db/schema.js";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
@@ -23,8 +23,14 @@ async function load(req, params) {
 async function handleGet(req, { params }) {
   const loaded = await load(req, params);
   if (loaded.error) return loaded.error;
-  const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, loaded.invoice.id));
-  return NextResponse.json({ invoice: loaded.invoice, items });
+  const [items, payments, orderRows] = await Promise.all([
+    db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, loaded.invoice.id)).orderBy(invoiceItems.createdAt),
+    db.select().from(invoicePayments).where(eq(invoicePayments.invoiceId, loaded.invoice.id)).orderBy(desc(invoicePayments.createdAt)),
+    loaded.invoice.orderId
+      ? db.select().from(orders).where(and(eq(orders.id, loaded.invoice.orderId), eq(orders.storeId, loaded.invoice.storeId))).limit(1)
+      : Promise.resolve([]),
+  ]);
+  return NextResponse.json({ invoice: loaded.invoice, items, payments, order: orderRows[0] || null });
 }
 
 async function handlePatch(req, { params }) {
