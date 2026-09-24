@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../../../../../lib/db/index.js";
 import { invoiceItems, invoicePayments, invoices, orders, stores } from "../../../../../../lib/db/schema.js";
-import { initializeTransaction, isValidSubAccountCode } from "../../../../../../lib/paystack.js";
+import { initializeTransaction, isValidSubAccountCode, verifyTransaction } from "../../../../../../lib/paystack.js";
 import { withApiMonitoring } from "../../../../../../lib/apiMonitoring.js";
 import { checkRateLimit } from "../../../../../../lib/rateLimit.js";
 import { z } from "zod";
 import { buildPublicAppUrl } from "../../../../../../lib/requestUrl.js";
+import { isInvoicePaymentAuthorizationExpired, reconcileInvoicePayment } from "../../../../../../lib/invoicePayments.js";
+import { sendInvoicePaymentNotifications } from "../../../../../../lib/invoiceNotifications.js";
 
 const paymentEmailSchema = z.string().trim().toLowerCase().email("Enter a valid email address");
 
@@ -74,23 +76,53 @@ async function handlePost(req, { params }) {
   const [order] = await db.select().from(orders).where(eq(orders.id, invoice.orderId)).limit(1);
   if (!order || invoice.amountDue <= 0) return NextResponse.json({ error: "This invoice is already paid" }, { status: 409 });
   let reference = `INV-${invoice.invoiceNumber}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-  const prepared = await db.transaction(async (tx) => {
-    const [lockedInvoice] = await tx.select().from(invoices).where(eq(invoices.id, invoice.id)).for("update").limit(1);
-    if (!lockedInvoice || !["sent", "partially_paid"].includes(lockedInvoice.status) || (lockedInvoice.status === "sent" && lockedInvoice.expiresAt && new Date(lockedInvoice.expiresAt).getTime() <= Date.now())) return { unavailable: true };
-    if (!lockedInvoice.guestEmail) {
-      await tx.update(invoices).set({ guestEmail: paymentEmail, updatedAt: new Date() }).where(eq(invoices.id, lockedInvoice.id));
-      await tx.update(orders).set({ guestEmail: paymentEmail, updatedAt: new Date() }).where(eq(orders.id, order.id));
+  let prepared;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    prepared = await db.transaction(async (tx) => {
+      const [lockedInvoice] = await tx.select().from(invoices).where(eq(invoices.id, invoice.id)).for("update").limit(1);
+      if (!lockedInvoice || !["sent", "partially_paid"].includes(lockedInvoice.status) || (lockedInvoice.status === "sent" && lockedInvoice.expiresAt && new Date(lockedInvoice.expiresAt).getTime() <= Date.now())) return { unavailable: true };
+      if (!lockedInvoice.guestEmail) {
+        await tx.update(invoices).set({ guestEmail: paymentEmail, updatedAt: new Date() }).where(eq(invoices.id, lockedInvoice.id));
+        await tx.update(orders).set({ guestEmail: paymentEmail, updatedAt: new Date() }).where(eq(orders.id, order.id));
+      }
+      const [existing] = await tx.select().from(invoicePayments).where(and(eq(invoicePayments.invoiceId, invoice.id), eq(invoicePayments.status, "pending"))).limit(1);
+      // A Paystack authorization URL can remain payable after our local
+      // polling window. Reuse it until Verify Transaction explicitly says
+      // the attempt failed, otherwise two live links could charge twice.
+      if (existing?.authorizationUrl) {
+        return isInvoicePaymentAuthorizationExpired(existing) ? { expiredExisting: existing } : { existing };
+      }
+      if (existing && new Date(existing.createdAt).getTime() > Date.now() - 5 * 60 * 1000) return { preparing: true };
+      if (existing) await tx.update(invoicePayments).set({ status: "failed", updatedAt: new Date(), metadata: { ...(existing.metadata || {}), reason: "initialization_interrupted" } }).where(eq(invoicePayments.id, existing.id));
+      const [payment] = await tx.insert(invoicePayments).values({ invoiceId: invoice.id, orderId: order.id, paymentReference: reference, kind: lockedInvoice.amountPaid > 0 ? "balance" : lockedInvoice.plan === "deposit" ? "deposit" : "full", status: "pending", amount: lockedInvoice.amountDue }).returning();
+      return { payment };
+    });
+    if (!prepared.expiredExisting) break;
+
+    try {
+      const transaction = await verifyTransaction(prepared.expiredExisting.paymentReference);
+      if (transaction.paymentStatus === "PAID") {
+        const result = await reconcileInvoicePayment({
+          reference: prepared.expiredExisting.paymentReference,
+          amountPaid: transaction.amountPaid,
+          paidAt: new Date(),
+        });
+        if (result.applied) await sendInvoicePaymentNotifications(result);
+        if (result.fullyPaid) return NextResponse.json({ error: "This invoice is already paid" }, { status: 409 });
+        continue;
+      }
+      if (transaction.paymentStatus === "FAILED") {
+        await db.update(invoicePayments).set({ status: "failed", updatedAt: new Date(), metadata: { ...(prepared.expiredExisting.metadata || {}), reason: "authorization_failed_after_expiry" } }).where(and(eq(invoicePayments.id, prepared.expiredExisting.id), eq(invoicePayments.status, "pending")));
+        reference = `INV-${invoice.invoiceNumber}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+        continue;
+      }
+    } catch {
+      // If Paystack cannot be reached, keep returning the single existing
+      // link rather than risk creating two payable links for one invoice.
     }
-    const [existing] = await tx.select().from(invoicePayments).where(and(eq(invoicePayments.invoiceId, invoice.id), eq(invoicePayments.status, "pending"))).limit(1);
-    // A Paystack authorization URL can remain payable after our local
-    // polling window. Reuse it until Verify Transaction explicitly says
-    // the attempt failed, otherwise two live links could charge twice.
-    if (existing?.authorizationUrl) return { existing };
-    if (existing && new Date(existing.createdAt).getTime() > Date.now() - 5 * 60 * 1000) return { preparing: true };
-    if (existing) await tx.update(invoicePayments).set({ status: "failed", updatedAt: new Date(), metadata: { ...(existing.metadata || {}), reason: "initialization_interrupted" } }).where(eq(invoicePayments.id, existing.id));
-    const [payment] = await tx.insert(invoicePayments).values({ invoiceId: invoice.id, orderId: order.id, paymentReference: reference, kind: lockedInvoice.amountPaid > 0 ? "balance" : lockedInvoice.plan === "deposit" ? "deposit" : "full", status: "pending", amount: lockedInvoice.amountDue }).returning();
-    return { payment };
-  });
+    prepared = { existing: prepared.expiredExisting };
+    break;
+  }
   if (prepared.unavailable) return NextResponse.json({ error: "This invoice is no longer payable" }, { status: 409 });
   if (prepared.preparing) return NextResponse.json({ error: "Payment is already being prepared. Try again shortly." }, { status: 409 });
   if (prepared.existing) return NextResponse.json({ authorizationUrl: prepared.existing.authorizationUrl, reference: prepared.existing.paymentReference });

@@ -83,10 +83,10 @@ export async function GET(req, { params }) {
       : (!!email && email === attempt.guestEmail?.toLowerCase()) || paymentReferenceMatches(attempt, reference);
     if (!ownsAttempt) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-    if (attempt.paymentStatus === "pending" && paymentReferenceMatches(attempt, reference)) {
+    if (["pending", "failed"].includes(attempt.paymentStatus) && paymentReferenceMatches(attempt, reference)) {
       const transaction = await verifyTransaction(reference);
       if (transaction.paymentStatus === "PAID" && transaction.amountPaid >= attempt.totalAmount - 0.5) {
-        const finalized = await finalizePaidCheckoutAttempt({ attempt, paymentReference: reference });
+        const finalized = await finalizePaidCheckoutAttempt({ attempt, paymentReference: reference, recoverReleasedStock: true });
         if (finalized?.order) {
           if (finalized.created) {
             await sendOnlineOrderNotifications(finalized.order, finalized.items);

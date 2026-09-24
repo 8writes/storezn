@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { failStaleTransactions, reconcilePendingCheckoutPayments } from "../../../../lib/failStaleTransactions.js";
+import { failStaleTransactions, reconcilePendingCheckoutPayments, reconcileReleasedCheckoutPayments } from "../../../../lib/failStaleTransactions.js";
 
 // Triggered by an external scheduler (not a Vercel cron - see the
 // platform owner's call not to configure any cron in vercel.json, same
@@ -18,6 +18,7 @@ export async function GET(req) {
   }
 
   const reconciled = await reconcilePendingCheckoutPayments();
+  const recoveredReleased = await reconcileReleasedCheckoutPayments();
   const stale = await failStaleTransactions();
-  return NextResponse.json({ ok: true, reconciled, stale });
+  return NextResponse.json({ ok: true, reconciled, recoveredReleased, stale });
 }

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createInvoiceRequestSchema, createInvoiceSchema, createProductSchema, updateProductSchema, validateCustomerFieldAnswers } from "../lib/validate.js";
+import { isInvoicePaymentAuthorizationExpired } from "../lib/invoicePayments.js";
 
 const fields = [
   { id: "size", label: "Size", type: "select", required: true, options: ["Small", "Large"] },
@@ -82,4 +83,11 @@ test("invoice creation rejects duplicate product options", () => {
     ],
   });
   assert.equal(result.success, false);
+});
+
+test("invoice payment links expire only after their stored authorization window", () => {
+  const now = new Date("2026-09-24T12:00:00.000Z");
+  assert.equal(isInvoicePaymentAuthorizationExpired({ authorizationExpiresAt: new Date("2026-09-24T11:59:59.000Z") }, now), true);
+  assert.equal(isInvoicePaymentAuthorizationExpired({ authorizationExpiresAt: new Date("2026-09-24T12:01:00.000Z") }, now), false);
+  assert.equal(isInvoicePaymentAuthorizationExpired({ authorizationExpiresAt: null }, now), false);
 });

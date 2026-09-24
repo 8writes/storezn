@@ -299,6 +299,7 @@ async function handlePost(req) {
       attempt,
       paymentReference,
       paidAt: event.data?.paid_at ? new Date(event.data.paid_at) : new Date(),
+      recoverReleasedStock: true,
     });
     if (!finalized?.created || !finalized.order) return NextResponse.json({ received: true });
 
@@ -316,6 +317,23 @@ async function handlePost(req) {
         body: `Order ${order.orderNumber} for ${formatCurrency(order.totalAmount)} just came in.`,
         url: "/vendor/orders",
       }).catch((err) => console.error("sendPushToStore failed (new order):", err));
+      if (finalized.oversold) {
+        sendPushToStore(order.storeId, {
+          title: "Stock issue on a paid order",
+          body: `Order ${order.orderNumber} was paid after its reservation expired, but its stock is no longer available - check it before fulfilling.`,
+          url: "/vendor/orders",
+        }).catch((err) => console.error("sendPushToStore failed (recovered attempt oversold):", err));
+      }
+    }
+
+    if (finalized.oversold) {
+      await logAppError(new Error("Paid checkout attempt recovered without enough stock"), {
+        req,
+        source: "paystack.recovered_attempt_oversold",
+        level: "warn",
+        storeId: order.storeId,
+        metadata: { orderId: order.id, orderNumber: order.orderNumber, paymentReference, checkoutAttemptId: attempt.id },
+      });
     }
 
     let recipient = { email: order.guestEmail, notify: true };
