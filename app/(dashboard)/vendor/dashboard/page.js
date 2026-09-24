@@ -123,7 +123,6 @@ function SHORTCUTS(storeId, isOwner) {
     { label: "Record order", icon: ClipboardList, href: "/vendor/orders/new" },
     { label: "Customers", icon: Users, href: "/vendor/customers" },
     { label: "Shipping", icon: Truck, href: "/vendor/shipping" },
-    { label: "Help", icon: HelpCircle, href: "/vendor/help" },
   ];
   // Payouts, store settings, verification, and the setup guide are all
   // owner-only concerns (see isOwner above) - left out of a staff
@@ -498,15 +497,6 @@ export default function VendorDashboardPage() {
                     color={stats.products.lowStock > 0 ? "amber" : "brand"}
                     href="/vendor/products?stock=low"
                   />
-                  <StatCard
-                    className="col-span-2"
-                    icon={ClipboardList}
-                    label="Invoice requests"
-                    value={stats.invoiceRequests?.open || 0}
-                    sub="Awaiting pricing"
-                    color={stats.invoiceRequests?.open > 0 ? "accent" : "brand"}
-                    href="/vendor/invoices/requests"
-                  />
                   {showExpiry && (
                     <StatCard
                       className="col-span-2 sm:col-span-1"
@@ -530,6 +520,15 @@ export default function VendorDashboardPage() {
                       href={`/vendor/products?expiry=${stats.products.expired > 0 ? "expired" : "soon"}`}
                     />
                   )}
+                  <StatCard
+                    className="col-span-2"
+                    icon={ClipboardList}
+                    label="Invoice requests"
+                    value={stats.invoiceRequests?.open || 0}
+                    sub="Awaiting pricing"
+                    color={stats.invoiceRequests?.open > 0 ? "accent" : "brand"}
+                    href="/vendor/invoices/requests"
+                  />
                 </div>
               );
             })()
