@@ -62,12 +62,6 @@ export function Footer({ store, themed = false }) {
           <a href={getPlatformUrl("/signup")} className={`text-right font-medium transition-colors sm:text-left ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
             Get your own website
           </a>
-          <p className="col-span-2 sm:col-span-1">
-            Powered by{" "}
-            <a href="https://ozmictech.com" target="_blank" rel="noreferrer" className={`transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
-              Ozmictech
-            </a>
-          </p>
         </div>
       </div>
     </footer>

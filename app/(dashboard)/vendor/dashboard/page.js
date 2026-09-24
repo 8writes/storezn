@@ -457,7 +457,7 @@ export default function VendorDashboardPage() {
           )}
 
           {statsLoading || !stats ? (
-            <StatGridSkeleton count={5} />
+            <StatGridSkeleton count={6} />
           ) : (
             (() => {
               const showExpiry =
