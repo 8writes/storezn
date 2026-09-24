@@ -7,7 +7,7 @@ import { formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { networkErrorMessage } from "@/lib/fetchError.js";
 import { isOffline } from "@/lib/connectivity.js";
-import { searchCatalog, findBySku, getCatalogProduct } from "@/lib/posOffline.js";
+import { searchCatalogPage, findBySku, getCatalogProduct } from "@/lib/posOffline.js";
 import { barcodeMatches, normalizeBarcode } from "@/lib/barcode.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
@@ -68,12 +68,17 @@ export function ProductPicker({ storeId, branchId, token, onAdd, onInvoiceReques
     // uplink is down. The catalogue snapshot is the source for this screen
     // until connectivity returns.
     if (offlineMode || isOffline()) {
-      const rows = await searchCatalog(storeId, q, q ? 200 : 100, branchId).catch(() => []);
+      const local = await searchCatalogPage(storeId, q, { page: pageNum, pageSize: PAGE_SIZE, branchId }).catch(() => null);
       if (myReq === reqRef.current) {
-        setProducts(rows);
+        const rows = local?.products || [];
+        setProducts((prev) => (pageNum === 1 ? rows : [...prev, ...rows]));
         setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
-        setPagination(null);
-        setPage(1);
+        setVariantsBy((prev) => ({
+          ...prev,
+          ...Object.fromEntries(rows.filter((product) => Array.isArray(product.offlineVariants)).map((product) => [product.id, product.offlineVariants])),
+        }));
+        setPagination(local ? { page: local.page, pageSize: local.pageSize, total: local.total, totalPages: local.totalPages } : null);
+        setPage(pageNum);
       }
       if (myReq === reqRef.current) setBusy(false);
       return;
@@ -95,15 +100,17 @@ export function ProductPicker({ storeId, branchId, token, onAdd, onInvoiceReques
       if (myReq !== reqRef.current) return;
       if (isNetErr(err)) {
         // No connection - search the catalogue snapshot instead.
-        // Whole catalogue is cached; cap the grid so a 4k-SKU store
-        // doesn't try to render every card, but a real search term
-        // narrows it well within this anyway.
-        const rows = await searchCatalog(storeId, q, q ? 200 : 100, branchId).catch(() => []);
+        const local = await searchCatalogPage(storeId, q, { page: pageNum, pageSize: PAGE_SIZE, branchId }).catch(() => null);
         if (myReq !== reqRef.current) return;
-        setProducts(rows);
+        const rows = local?.products || [];
+        setProducts((prev) => (pageNum === 1 ? rows : [...prev, ...rows]));
         setCache((prev) => ({ ...prev, ...Object.fromEntries(rows.map((p) => [p.id, p])) }));
-        setPagination(null);
-        setPage(1);
+        setVariantsBy((prev) => ({
+          ...prev,
+          ...Object.fromEntries(rows.filter((product) => Array.isArray(product.offlineVariants)).map((product) => [product.id, product.offlineVariants])),
+        }));
+        setPagination(local ? { page: local.page, pageSize: local.pageSize, total: local.total, totalPages: local.totalPages } : null);
+        setPage(pageNum);
       } else {
         toast.error(err.message || "Failed to load products");
       }

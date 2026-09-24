@@ -466,10 +466,15 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           }
         };
         const all = [];
+        let expectedTotal = null;
         for (let page = 1; page <= 500; page++) {
           const data = await fetchPage(page);
+          if (data.pagination && expectedTotal == null) expectedTotal = Number(data.pagination.total);
           all.push(...data.products);
           if (!data.pagination || all.length >= data.pagination.total || data.products.length === 0) break;
+        }
+        if (expectedTotal != null && all.length < expectedTotal) {
+          throw new Error("The product catalogue did not finish downloading. Reconnect and try again.");
         }
         await saveCatalog(storeId, all, registerBranchId);
         setCatalog({ count: all.length, savedAt: new Date().toISOString(), syncing: false, error: null });
