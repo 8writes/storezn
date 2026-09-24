@@ -521,7 +521,7 @@ export default function VendorDashboardPage() {
                     />
                   )}
                   <StatCard
-                    className="col-span-2"
+                    className="col-span-2 sm:col-span-1"
                     icon={ClipboardList}
                     label="Invoice requests"
                     value={stats.invoiceRequests?.open || 0}
