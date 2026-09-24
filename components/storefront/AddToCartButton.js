@@ -152,6 +152,7 @@ export function AddToCartButton({
       title: "Send quote request?",
       description: `The seller will receive your contact details and a request for ${quantity} item${quantity === 1 ? "" : "s"}.`,
       confirmLabel: "Send request",
+      storefront: true,
     });
     if (!approved) return;
     setLoading(true);

@@ -266,6 +266,31 @@ body {
   display: none;
 }
 
+/* Sonner's default width is tight once the close control and icon are
+   present, which can collapse a useful message into a tall word stack. */
+[data-sonner-toaster] {
+  --width: min(26rem, calc(100vw - 1.5rem));
+}
+[data-sonner-toast] {
+  width: var(--width) !important;
+  max-width: calc(100vw - 1.5rem) !important;
+  align-items: flex-start !important;
+}
+[data-sonner-toast] [data-content] {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+[data-sonner-toast] [data-title],
+[data-sonner-toast] [data-description] {
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.4 !important;
+}
+[data-sonner-toast] [data-close-button] {
+  flex: 0 0 auto !important;
+}
+
 /* Platform typography (Inter). `.font-ui` is set on the dashboard + auth
    shells; the storefront is untouched. */
 .font-ui {

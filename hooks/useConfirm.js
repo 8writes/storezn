@@ -53,6 +53,7 @@ export function useConfirm() {
       variant={options?.variant}
       requireReason={options?.requireReason}
       reasonLabel={options?.reasonLabel}
+      storefront={options?.storefront}
       onConfirm={handleConfirm}
       onCancel={handleCancel}
     />
