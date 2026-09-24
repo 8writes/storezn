@@ -41,6 +41,22 @@ export function OfflineSetupModal({ storeId, branchId, catalog, pendingSync = 0,
   const run = async () => {
     setPhase("running");
 
+    // Reset and rebuild the product catalogue first. The parent callback
+    // clears every old snapshot before requesting page 1 from the server.
+    setCat({ state: "working", detail: "Clearing old products..." });
+    try {
+      const synced = await onSyncCatalog();
+      if (synced === false) throw new Error("Catalogue update failed");
+      const meta = await catalogMeta(storeId, branchId).catch(() => null);
+      setCat(
+        meta?.complete
+          ? { state: "ok", detail: `${Number(meta.actualCount ?? meta.count).toLocaleString()} products saved` }
+          : { state: "warn", detail: "Catalogue didn't save completely - check your connection" },
+      );
+    } catch {
+      setCat({ state: "warn", detail: "Catalogue didn't save" });
+    }
+
     setShell({ state: "working", detail: "" });
     try {
       const r = await prepareOfflineShell();
@@ -51,20 +67,6 @@ export function OfflineSetupModal({ storeId, branchId, catalog, pendingSync = 0,
       );
     } catch {
       setShell({ state: "warn", detail: "Couldn't cache the app" });
-    }
-
-    setCat({ state: "working", detail: "" });
-    try {
-      const synced = await onSyncCatalog();
-      if (synced === false) throw new Error("Catalogue update failed");
-      const meta = await catalogMeta(storeId, branchId).catch(() => null);
-      setCat(
-        meta?.count
-          ? { state: "ok", detail: `${meta.count.toLocaleString()} products saved` }
-          : { state: "warn", detail: "Catalogue didn't save - check your connection" },
-      );
-    } catch {
-      setCat({ state: "warn", detail: "Catalogue didn't save" });
     }
 
     setPhase("done");

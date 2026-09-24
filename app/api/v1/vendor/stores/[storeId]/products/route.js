@@ -25,11 +25,11 @@ async function loadStore(storeId) {
 
 // Vendor list ordering - defaults to newest-added first.
 const SORTS = {
-  newest: desc(products.createdAt),
-  oldest: asc(products.createdAt),
-  name: asc(products.name),
-  price_high: desc(products.price),
-  price_low: asc(products.price),
+  newest: [desc(products.createdAt), desc(products.id)],
+  oldest: [asc(products.createdAt), asc(products.id)],
+  name: [asc(products.name), asc(products.id)],
+  price_high: [desc(products.price), asc(products.id)],
+  price_low: [asc(products.price), asc(products.id)],
 };
 
 export async function GET(req, { params }) {
@@ -150,7 +150,10 @@ export async function GET(req, { params }) {
         isNull(productBranchStock.variantId),
       ))
       .where(and(...conditions))
-      .orderBy(orderBy)
+      // Every paged order needs a unique tiebreaker. Bulk-created products
+      // commonly share the same timestamp; without the id ordering, adjacent
+      // pages can repeat one row and skip another during offline catalogue sync.
+      .orderBy(...orderBy)
       .limit(limit)
       .offset(offset),
     db.select({ total: count() }).from(products)

@@ -35,6 +35,7 @@ import {
   listQueuedSales,
   removeHeldSale,
   removeQueuedSale,
+  clearCatalog,
   saveCatalog,
   saveHeldSale,
   catalogMeta,
@@ -444,9 +445,9 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const runCatalogSync = useCallback(
     async (force = false) => {
       const meta = await catalogMeta(storeId, registerBranchId).catch(() => null);
-      if (meta) setCatalog((c) => ({ ...c, count: meta.count, savedAt: meta.savedAt }));
+      if (meta) setCatalog((c) => ({ ...c, count: meta.actualCount ?? meta.count, savedAt: meta.savedAt }));
       if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
-      if (!force && meta && Date.now() - new Date(meta.savedAt).getTime() < 30 * 60 * 1000) return true;
+      if (!force && meta?.complete && Date.now() - new Date(meta.savedAt).getTime() < 30 * 60 * 1000) return true;
       setCatalog((c) => ({ ...c, syncing: true, error: null }));
       try {
         // pageSize is capped at 20 server-side (lib/pagination.js), so walk
@@ -465,15 +466,26 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
             }
           }
         };
-        const all = [];
+        const byId = new Map();
         let expectedTotal = null;
-        for (let page = 1; page <= 500; page++) {
+        let expectedPages = 1;
+        for (let page = 1; page <= expectedPages; page++) {
           const data = await fetchPage(page);
-          if (data.pagination && expectedTotal == null) expectedTotal = Number(data.pagination.total);
-          all.push(...data.products);
-          if (!data.pagination || all.length >= data.pagination.total || data.products.length === 0) break;
+          const rows = Array.isArray(data?.products) ? data.products : [];
+          if (data.pagination) {
+            const responseTotal = Number(data.pagination.total);
+            if (expectedTotal == null) {
+              expectedTotal = responseTotal;
+              expectedPages = Math.max(1, Number(data.pagination.totalPages) || Math.ceil(responseTotal / 20));
+            } else if (responseTotal !== expectedTotal) {
+              throw new Error("The product catalogue changed while downloading. Updating it again will pick up the latest products.");
+            }
+          }
+          for (const product of rows) byId.set(product.id, product);
+          if (!data.pagination || rows.length === 0) break;
         }
-        if (expectedTotal != null && all.length < expectedTotal) {
+        const all = [...byId.values()];
+        if (expectedTotal != null && all.length !== expectedTotal) {
           throw new Error("The product catalogue did not finish downloading. Reconnect and try again.");
         }
         await saveCatalog(storeId, all, registerBranchId);
@@ -496,7 +508,22 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     return task;
   }, [runCatalogSync]);
 
+  const rebuildOfflineCatalog = useCallback(async () => {
+    // Let any current writer finish before removing every old snapshot for
+    // this store. The forced sync then starts at server page 1.
+    if (catalogSyncRef.current) await catalogSyncRef.current.catch(() => {});
+    await clearCatalog(storeId);
+    setCatalog({ count: 0, savedAt: null, syncing: true, error: null });
+    return syncCatalog(true);
+  }, [storeId, syncCatalog]);
+
   const toggleOfflineMode = (on) => {
+    // Manual offline mode can still be enabled while the device has an
+    // uplink. Refresh first so newly added products and barcodes are not
+    // hidden behind a snapshot that was considered fresh moments earlier.
+    if (on && typeof navigator !== "undefined" && navigator.onLine !== false) {
+      syncCatalog(true);
+    }
     setOfflineMode(on);
     storageSet(offlineKey, on ? "1" : "0");
     if (!on) syncNow(true); // turning it off means "I'm back - push everything"
@@ -514,24 +541,25 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     // opened. Later renders of the same shift use the normal 30-minute
     // freshness window instead of downloading the entire catalogue again.
     syncCatalog(firstSyncForSession && typeof navigator !== "undefined" && navigator.onLine !== false);
-    // In "work offline" mode nothing auto-syncs - the cashier drives it
-    // with the Sync button. The catalogue still refreshes (read-only).
-    if (offlineMode) return;
-    syncNow();
     const onOnline = () => {
-      syncNow();
       const needsSessionRefresh = catalogSessionRef.current !== sessionKey;
       if (needsSessionRefresh) catalogSessionRef.current = sessionKey;
-      syncCatalog(needsSessionRefresh);
+      // Connectivity may return after products changed while this register
+      // was disconnected, so do not trust the previous freshness window.
+      syncCatalog(true);
+      if (!offlineMode) syncNow();
     };
     window.addEventListener("online", onOnline);
-    const iv = setInterval(() => {
+    const catalogIv = setInterval(() => syncCatalog(), 25_000);
+    let salesIv = null;
+    if (!offlineMode) {
       syncNow();
-      syncCatalog();
-    }, 25_000);
+      salesIv = setInterval(() => syncNow(), 25_000);
+    }
     return () => {
       window.removeEventListener("online", onOnline);
-      clearInterval(iv);
+      clearInterval(catalogIv);
+      if (salesIv) clearInterval(salesIv);
     };
   }, [openSession, storeId, offlineMode, syncNow, syncCatalog]);
 
@@ -1214,7 +1242,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           syncing={syncing}
           onSync={() => syncNow(true)}
           onDiscard={discardQueued}
-          onSyncCatalog={() => syncCatalog(true)}
+          onSyncCatalog={rebuildOfflineCatalog}
           onClose={() => setOfflineSetupOpen(false)}
         />
       )}
