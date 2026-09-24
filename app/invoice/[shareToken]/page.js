@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button.js";
 import { Input } from "@/components/ui/Input.js";
+import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 import { customerFieldEntries } from "@/lib/customerFields.js";
 import { generateBrandShades } from "@/lib/colorShades.js";
@@ -61,6 +62,9 @@ export default function PublicInvoicePage({ params }) {
           {items.map((item) => { const details = customerFieldEntries(item.customerFields); return <div key={item.id} className="flex justify-between gap-4 text-sm"><div><p className="text-slate-700">{item.productName}{item.variantLabel ? ` - ${item.variantLabel}` : ""} x {item.quantity}</p>{details.map((detail) => <p key={detail.id} className="text-xs text-slate-600 mt-1">{detail.label}: {detail.value === true ? "Yes" : detail.value === false ? "No" : String(detail.value)}</p>)}</div><span className="font-medium text-slate-900">{formatCurrency(item.lineTotal)}</span></div>; })}
         </div>
         <div className="border-t border-slate-200 pt-4 space-y-2">
+          {invoice.feeChargedToCustomer && <div className="flex justify-between text-sm text-slate-700"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal)}</span></div>}
+          {invoice.commissionAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Platform fee ({invoice.commissionRatePercent}%)</span><span>{formatCurrency(invoice.commissionAmount)}</span></div>}
+          {invoice.flatFeeAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Flat fee</span><span>{formatCurrency(invoice.flatFeeAmount)}</span></div>}
           <div className="flex justify-between font-semibold text-slate-900"><span>Total</span><span>{formatCurrency(invoice.totalAmount)}</span></div>
           <div className="flex justify-between text-sm text-slate-700"><span>Paid</span><span>{formatCurrency(invoice.amountPaid)}</span></div>
           <div className="flex justify-between text-sm font-semibold text-brand-700"><span>Due now</span><span>{formatCurrency(invoice.amountDue)}</span></div>
@@ -73,6 +77,7 @@ export default function PublicInvoicePage({ params }) {
             {invoice.requiresPaymentEmail && <Input type="email" label="Email for payment receipt" value={email} onChange={(event) => setEmail(event.target.value)} required />}
             {paymentError && <p className="text-sm text-red-700">{paymentError}</p>}
             <Button onClick={pay} loading={paying} fullWidth>Pay {formatCurrency(invoice.amountDue)}</Button>
+            <p className="text-center text-xs text-slate-500">Powered by <Link href="/" className="font-semibold text-slate-700 hover:text-brand-700">Storezn</Link></p>
           </>}
         </div>
       </div>

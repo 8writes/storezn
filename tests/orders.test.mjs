@@ -28,3 +28,18 @@ test("flat fee is added to the customer charge when the customer pays platform f
     vendorPayoutAmount: 11_000,
   });
 });
+
+test("a 50/50 invoice deposit includes half of customer-paid percentage and flat fees", () => {
+  const totals = computeOrderTotals({ ...base, shippingFee: 0, feeChargedToCustomer: true });
+
+  assert.equal(totals.totalAmount, 11_000);
+  assert.equal(Math.round(totals.totalAmount * 50) / 100, 5_500);
+  assert.equal(totals.vendorPayoutAmount, 10_000);
+});
+
+test("an absorbed invoice fee does not increase the customer total", () => {
+  const totals = computeOrderTotals({ ...base, shippingFee: 0, feeChargedToCustomer: false });
+
+  assert.equal(totals.totalAmount, 10_000);
+  assert.equal(totals.vendorPayoutAmount, 9_000);
+});

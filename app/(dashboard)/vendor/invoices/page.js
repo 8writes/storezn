@@ -14,6 +14,7 @@ import { customerFieldEntries } from "@/lib/customerFields.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
+import { computeOrderTotals } from "@/lib/orders.js";
 
 export default function VendorInvoicesPage() {
   const { token } = useAuth(true);
@@ -30,6 +31,7 @@ export default function VendorInvoicesPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [manualOpen, setManualOpen] = useState(false);
+  const [feePolicy, setFeePolicy] = useState(null);
   const { confirm, confirmDialog } = useConfirm();
   useModalScrollLock(manualOpen);
 
@@ -43,6 +45,7 @@ export default function VendorInvoicesPage() {
       .then(([requestData, invoiceData]) => {
         setRequests(requestData.requests || []);
         setInvoices(invoiceData.invoices || []);
+        setFeePolicy(invoiceData.feePolicy || null);
       })
       .catch((err) => toast.error(err.message || "Failed to load invoice requests"))
       .finally(() => setLoading(false));
@@ -58,6 +61,14 @@ export default function VendorInvoicesPage() {
     () => (selected?.items || []).reduce((sum, item) => sum + (Number(prices[`${item.productId}:${item.variantId || ""}`]) || 0) * item.quantity, 0),
     [selected, prices],
   );
+  const invoiceTotals = useMemo(() => computeOrderTotals({
+    subtotal: total,
+    shippingFee: 0,
+    commissionRatePercent: feePolicy?.commissionRatePercent ?? 0,
+    flatFee: feePolicy?.flatFee ?? 0,
+    feeChargedToCustomer: feePolicy?.feeChargedToCustomer ?? false,
+    maxCommissionAmount: feePolicy?.maxCommissionAmount,
+  }), [total, feePolicy]);
   const normalizedSearch = search.trim().toLowerCase();
   const visibleRequests = useMemo(() => requests.filter(({ request, items }) => {
     if (status !== "all" && request.status !== status) return false;
@@ -86,7 +97,7 @@ export default function VendorInvoicesPage() {
     }
     const approved = await confirm({
       title: "Create and send this invoice?",
-      description: `${formatCurrency(total)} will be sent with the ${plan === "deposit" ? "50/50" : "full payment"} plan.`,
+      description: `${formatCurrency(invoiceTotals.totalAmount)} will be sent with the ${plan === "deposit" ? "50/50" : "full payment"} plan.`,
       confirmLabel: "Create invoice",
     });
     if (!approved) return;
@@ -198,9 +209,13 @@ export default function VendorInvoicesPage() {
               })}
             </div>
             <div className="border-t border-slate-200 pt-4 space-y-3">
-              <div className="flex justify-between text-sm"><span>Quote total</span><strong>{formatCurrency(total)}</strong></div>
+              <div className="flex justify-between text-sm"><span>Quote subtotal</span><strong>{formatCurrency(total)}</strong></div>
+              {feePolicy?.feeChargedToCustomer && invoiceTotals.commissionAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Platform fee ({feePolicy.commissionRatePercent}%)</span><strong>{formatCurrency(invoiceTotals.commissionAmount)}</strong></div>}
+              {feePolicy?.feeChargedToCustomer && invoiceTotals.flatFeeAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Flat fee</span><strong>{formatCurrency(invoiceTotals.flatFeeAmount)}</strong></div>}
+              <div className="flex justify-between text-sm"><span>Customer total</span><strong>{formatCurrency(invoiceTotals.totalAmount)}</strong></div>
+              {!feePolicy?.feeChargedToCustomer && invoiceTotals.platformFeeAmount > 0 && <p className="text-xs text-slate-600">Your store absorbs {formatCurrency(invoiceTotals.platformFeeAmount)} in platform fees.</p>}
               <Select label="Payment plan" options={[{ value: "full", label: "Full payment" }, { value: "deposit", label: "50/50 deposit" }]} value={plan} onChange={setPlan} />
-              {plan === "deposit" && <div className="flex justify-between text-sm text-slate-700"><span>First payment (50%)</span><strong>{formatCurrency(Math.round(total * 50) / 100)}</strong></div>}
+              {plan === "deposit" && <div className="flex justify-between text-sm text-slate-700"><span>First payment (50%)</span><strong>{formatCurrency(Math.round(invoiceTotals.totalAmount * 50) / 100)}</strong></div>}
               <Button onClick={createInvoice} loading={sending} fullWidth>Create invoice and copy link</Button>
             </div>
           </div>}
@@ -213,7 +228,6 @@ export default function VendorInvoicesPage() {
 }
 
 function ManualQuoteModal({ storeId, apiFetch, confirm, onClose, onCreated }) {
-  const [query, setQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [productLoading, setProductLoading] = useState(true);
   const [selectedKey, setSelectedKey] = useState("");
@@ -226,23 +240,36 @@ function ManualQuoteModal({ storeId, apiFetch, confirm, onClose, onCreated }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    let cancelled = false;
+    const loadProducts = async () => {
       setProductLoading(true);
-      const params = new URLSearchParams({ pageSize: "50", status: "active", sellable: "true", saleMode: "invoice_required", includeVariants: "true" });
-      if (query.trim()) params.set("q", query.trim());
-      apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`)
-        .then((data) => setProducts(data.products || []))
-        .catch((error) => toast.error(error.message || "Could not load quote products"))
-        .finally(() => setProductLoading(false));
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [apiFetch, storeId, query]);
+      try {
+        const loaded = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const params = new URLSearchParams({ page: String(page), pageSize: "100", status: "active", sellable: "true", saleMode: "invoice_required", includeVariants: "true" });
+          const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products?${params}`);
+          loaded.push(...(data.products || []));
+          totalPages = Math.max(1, Number(data.pagination?.totalPages) || 1);
+          page += 1;
+        } while (page <= totalPages && !cancelled);
+        if (!cancelled) setProducts(loaded);
+      } catch (error) {
+        if (!cancelled) toast.error(error.message || "Could not load quote products");
+      } finally {
+        if (!cancelled) setProductLoading(false);
+      }
+    };
+    loadProducts();
+    return () => { cancelled = true; };
+  }, [apiFetch, storeId]);
 
   const choices = useMemo(() => products.flatMap((product) => {
     const variants = product.offlineVariants || [];
     const options = [];
-    if (product.allowStandardVariant !== false || variants.length === 0) options.push({ value: `${product.id}:`, label: variants.length ? `${product.name} - Standard` : product.name, product, variant: null });
-    for (const variant of variants) options.push({ value: `${product.id}:${variant.id}`, label: `${product.name} - ${Object.values(variant.options || {}).join(" / ")}`, product, variant });
+    if (product.allowStandardVariant !== false || variants.length === 0) options.push({ value: `${product.id}:`, label: variants.length ? `${product.name} - Standard` : product.name, searchText: product.sku || "", product, variant: null });
+    for (const variant of variants) options.push({ value: `${product.id}:${variant.id}`, label: `${product.name} - ${Object.values(variant.options || {}).join(" / ")}`, searchText: `${product.sku || ""} ${variant.sku || ""}`, product, variant });
     return options;
   }), [products]);
   const selected = choices.find((choice) => choice.value === selectedKey) || null;
@@ -282,8 +309,7 @@ function ManualQuoteModal({ storeId, apiFetch, confirm, onClose, onCreated }) {
       <div className="relative w-full sm:max-w-lg max-h-[92dvh] flex flex-col bg-surface rounded-t-sm sm:rounded-sm shadow-xl">
         <div className="p-4 border-b border-slate-200 flex items-start justify-between gap-3"><div><h2 className="font-semibold text-slate-900">New offline quote</h2><p className="text-sm text-slate-600 mt-1">For a walk-in, phone, or WhatsApp customer.</p></div><button type="button" onClick={onClose} disabled={submitting} aria-label="Close" className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"><X size={19} /></button></div>
         <div className="p-4 overflow-y-auto overscroll-contain space-y-4">
-          <Input label="Find invoice product" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search product name or SKU" />
-          <Select label="Product or variant" value={selectedKey} onChange={(value) => { setSelectedKey(value); setAnswers({}); }} options={choices.map(({ value, label }) => ({ value, label }))} placeholder={productLoading ? "Loading products..." : "Select product"} loading={productLoading} />
+          <Select label="Product or variant" value={selectedKey} onChange={(value) => { setSelectedKey(value); setAnswers({}); }} options={choices.map(({ value, label, searchText }) => ({ value, label, searchText }))} placeholder={productLoading ? "Loading products..." : "Select product"} loading={productLoading} />
           <div className="space-y-1"><p className="text-sm font-medium text-slate-700">Quantity</p><div className="inline-grid grid-cols-[2.75rem_4rem_2.75rem] h-11 border border-slate-300 rounded-sm overflow-hidden"><button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Decrease quantity" className="grid place-items-center text-brand-700 hover:bg-brand-50 cursor-pointer"><Minus size={17} /></button><output className="grid place-items-center border-x border-slate-300 text-sm font-semibold tabular-nums">{quantity}</output><button type="button" onClick={() => setQuantity((value) => Math.min(100000, value + 1))} aria-label="Increase quantity" className="grid place-items-center text-brand-700 hover:bg-brand-50 cursor-pointer"><Plus size={17} /></button></div></div>
           <Input label="Customer name" required value={buyerName} onChange={(event) => setBuyerName(event.target.value)} />
           <Input label="Customer email" type="email" required value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} />

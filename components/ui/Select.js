@@ -90,14 +90,17 @@ export function Select({
   }, [open]);
 
   useEffect(() => {
-    if (!open) setQuery("");
-    else if (searchable) setTimeout(() => searchRef.current?.focus(), 0);
+    const timer = setTimeout(() => {
+      if (!open) setQuery("");
+      else if (searchable) searchRef.current?.focus();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [open, searchable]);
 
   const selected = options.find((o) => o.value === value);
   const visibleOptions =
     searchable && query.trim()
-      ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
+      ? options.filter((o) => `${o.label} ${o.searchText || ""}`.toLowerCase().includes(query.trim().toLowerCase()))
       : options;
 
   // Panel goes in a <body> portal (so no table `overflow` can clip it and

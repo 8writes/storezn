@@ -20,7 +20,14 @@ export async function GET(req, { params }) {
   const row = await loadInvoice(shareToken);
   if (!row) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, row.invoice.id));
-  const [order] = row.invoice.orderId ? await db.select({ status: orders.status }).from(orders).where(eq(orders.id, row.invoice.orderId)).limit(1) : [];
+  const [order] = row.invoice.orderId ? await db.select({
+    status: orders.status,
+    subtotal: orders.subtotal,
+    commissionRatePercent: orders.commissionRatePercent,
+    commissionAmount: orders.commissionAmount,
+    flatFeeAmount: orders.flatFeeAmount,
+    feeChargedToCustomer: orders.feeChargedToCustomer,
+  }).from(orders).where(eq(orders.id, row.invoice.orderId)).limit(1) : [];
   return NextResponse.json({
     invoice: {
       invoiceNumber: row.invoice.invoiceNumber,
@@ -29,6 +36,11 @@ export async function GET(req, { params }) {
       totalAmount: row.invoice.totalAmount,
       amountPaid: row.invoice.amountPaid,
       amountDue: row.invoice.amountDue,
+      subtotal: order?.subtotal ?? row.invoice.totalAmount,
+      commissionRatePercent: order?.commissionRatePercent ?? 0,
+      commissionAmount: order?.feeChargedToCustomer ? order.commissionAmount : 0,
+      flatFeeAmount: order?.feeChargedToCustomer ? order.flatFeeAmount : 0,
+      feeChargedToCustomer: order?.feeChargedToCustomer ?? false,
       currency: row.invoice.currency,
       buyerName: row.invoice.buyerName,
       note: row.invoice.note,

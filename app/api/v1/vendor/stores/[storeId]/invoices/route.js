@@ -27,8 +27,34 @@ export async function GET(req, { params }) {
   const { storeId } = await params;
   const store = await loadStore(storeId);
   if (!user || !store || !canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const rows = await db.select().from(invoices).where(eq(invoices.storeId, storeId)).orderBy(desc(invoices.createdAt)).limit(100);
-  return NextResponse.json({ invoices: rows });
+  const [rows, settingsRows] = await Promise.all([
+    db
+      .select({ invoice: invoices, order: orders })
+      .from(invoices)
+      .leftJoin(orders, eq(orders.id, invoices.orderId))
+      .where(eq(invoices.storeId, storeId))
+      .orderBy(desc(invoices.createdAt))
+      .limit(100),
+    db.select().from(platformSettings).limit(1),
+  ]);
+  const settings = settingsRows[0];
+  return NextResponse.json({
+    invoices: rows.map(({ invoice, order }) => ({
+      ...invoice,
+      subtotal: order?.subtotal ?? invoice.totalAmount,
+      commissionRatePercent: order?.commissionRatePercent ?? 0,
+      commissionAmount: order?.commissionAmount ?? 0,
+      flatFeeAmount: order?.flatFeeAmount ?? 0,
+      vendorPayoutAmount: order?.vendorPayoutAmount ?? invoice.totalAmount,
+      feeChargedToCustomer: order?.feeChargedToCustomer ?? false,
+    })),
+    feePolicy: {
+      commissionRatePercent: store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5,
+      flatFee: settings?.defaultFlatFee ?? 0,
+      maxCommissionAmount: settings?.maxCommissionAmount ?? null,
+      feeChargedToCustomer: store.feeChargedToCustomer ?? false,
+    },
+  });
 }
 
 async function handlePost(req, { params }) {
@@ -67,10 +93,18 @@ async function handlePost(req, { params }) {
   }
   const subtotal = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   if (!Number.isFinite(subtotal) || subtotal <= 0) return NextResponse.json({ error: "Invoice total must be greater than zero" }, { status: 400 });
-  const depositAmount = result.data.plan === "deposit" ? Math.round(subtotal * 50) / 100 : subtotal;
   const settings = settingsRows[0];
   const commissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
-  const totals = computeOrderTotals({ subtotal, shippingFee: 0, commissionRatePercent, flatFee: settings?.defaultFlatFee ?? 0, feeChargedToCustomer: false, maxCommissionAmount: settings?.maxCommissionAmount });
+  const feeChargedToCustomer = store.feeChargedToCustomer ?? false;
+  const totals = computeOrderTotals({ subtotal, shippingFee: 0, commissionRatePercent, flatFee: settings?.defaultFlatFee ?? 0, feeChargedToCustomer, maxCommissionAmount: settings?.maxCommissionAmount });
+  const configuredFlatFee = Math.max(0, Number(settings?.defaultFlatFee) || 0);
+  if (!feeChargedToCustomer && configuredFlatFee > totals.flatFeeAmount + 0.001) {
+    return NextResponse.json(
+      { error: "This invoice total is too low for the store to absorb the full platform fee. Increase the quoted price before creating the invoice." },
+      { status: 422 },
+    );
+  }
+  const depositAmount = result.data.plan === "deposit" ? Math.round(totals.totalAmount * 50) / 100 : totals.totalAmount;
   const invoiceId = crypto.randomUUID();
   const orderId = crypto.randomUUID();
   const now = new Date();
@@ -87,7 +121,7 @@ async function handlePost(req, { params }) {
     shareToken: `${crypto.randomUUID()}${crypto.randomUUID().replaceAll("-", "")}`,
     status: "sent",
     plan: result.data.plan,
-    totalAmount: subtotal,
+    totalAmount: totals.totalAmount,
     amountPaid: 0,
     amountDue: depositAmount,
     depositAmount: result.data.plan === "deposit" ? depositAmount : null,
@@ -112,18 +146,18 @@ async function handlePost(req, { params }) {
     subtotal,
     shippingFee: 0,
     shippingFeeTBD: false,
-    totalAmount: subtotal,
+    totalAmount: totals.totalAmount,
     commissionRatePercent,
     commissionAmount: totals.commissionAmount,
     flatFeeAmount: totals.flatFeeAmount,
     vendorPayoutAmount: totals.vendorPayoutAmount,
-    feeChargedToCustomer: false,
+    feeChargedToCustomer,
     note: invoice.note,
     isOffline: !!request.createdBy,
     channel: request.createdBy ? "manual" : "online",
     branchId: request.branchId || null,
     amountPaid: 0,
-    amountDue: subtotal,
+    amountDue: totals.totalAmount,
     invoiceId,
     createdAt: now,
     updatedAt: now,
@@ -192,7 +226,18 @@ async function handlePost(req, { params }) {
     targetId: invoice.id,
     metadata: { requestId: request.id, orderId, plan: invoice.plan, totalAmount: invoice.totalAmount, amountDue: invoice.amountDue },
   }));
-  return NextResponse.json({ invoice, order }, { status: 201 });
+  return NextResponse.json({
+    invoice: {
+      ...invoice,
+      subtotal,
+      commissionRatePercent,
+      commissionAmount: totals.commissionAmount,
+      flatFeeAmount: totals.flatFeeAmount,
+      vendorPayoutAmount: totals.vendorPayoutAmount,
+      feeChargedToCustomer,
+    },
+    order,
+  }, { status: 201 });
 }
 
 export const POST = withApiMonitoring(handlePost, { source: "vendor.invoice.create" });

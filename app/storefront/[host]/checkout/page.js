@@ -291,9 +291,10 @@ export default function CheckoutPage() {
         >
           Pay now
         </Button>
-        <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
-          <Lock size={12} className="shrink-0" />
-          Secured by Paystack
+        <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500">
+          <span>Powered by <strong className="font-semibold text-slate-700">Storezn</strong></span>
+          <span aria-hidden="true">&middot;</span>
+          <span className="inline-flex items-center gap-1.5"><Lock size={12} className="shrink-0" /> Secured by Paystack</span>
         </p>
       </form>
     </div>
