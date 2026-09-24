@@ -552,7 +552,7 @@ export default function VendorProductEditPage({ params }) {
         </div>}
         </FormSection>}
 
-        <div className="flex justify-end pt-2">
+        <div className="sticky bottom-0 z-20 -mx-3 -mb-3 flex justify-end border-t border-slate-200 bg-surface/95 px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">
           <Button type="submit" loading={saving} disabled={pendingUploads.length > 0 || uploadingVideo} className="w-full sm:w-auto">Save changes</Button>
         </div>
       </form>
@@ -827,13 +827,6 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
     <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-slate-700">Variants</p>
-        <p className="text-xs text-slate-800">
-          e.g. Size: Large, Color: Red - each with its own price/stock. Leave
-          empty to sell this product as-is. Adding variants doesn&apos;t
-          replace the product&apos;s own price/stock above - customers can
-          still buy it as &quot;Standard&quot; alongside whatever variants
-          you add.
-        </p>
       </div>
 
       {!loading && variants.length > 0 && (
@@ -952,11 +945,11 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
                     disabled={branchCount > 1}
                     placeholder={branchCount > 1 ? "Set per branch" : undefined}
                   />
-                  <div className="flex gap-2">
-                    <Button type="button" size="sm" onClick={() => handleSaveEdit(v.id)} loading={savingEdit}>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <Button type="button" size="sm" onClick={() => handleSaveEdit(v.id)} loading={savingEdit} className="w-full sm:w-auto">
                       Save
                     </Button>
-                    <Button type="button" size="sm" variant="outline" onClick={cancelEdit} disabled={savingEdit}>
+                    <Button type="button" size="sm" variant="outline" onClick={cancelEdit} disabled={savingEdit} className="w-full sm:w-auto">
                       Cancel
                     </Button>
                   </div>
@@ -1008,11 +1001,11 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
             )}
           </div>
         ))}
-        <div className="flex flex-wrap items-center gap-4">
-          <button type="button" onClick={addDim} className="text-sm font-medium text-brand-600 hover:underline cursor-pointer">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <button type="button" onClick={addDim} className="inline-flex justify-center text-sm font-medium text-brand-600 hover:underline cursor-pointer">
             + Add another option
           </button>
-          <Button type="submit" size="sm" variant="primary" loading={generating} className="w-fit sm:ml-auto">
+          <Button type="submit" size="sm" variant="primary" loading={generating} className="w-full sm:w-auto">
             Generate variants
           </Button>
         </div>

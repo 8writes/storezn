@@ -135,13 +135,15 @@ export function CustomerFieldsEditor({ value = [], onChange }) {
               </div>
             </div>
           ))}
-          <button
-            type="button"
-            onClick={() => setExpanded(false)}
-            className="text-xs font-medium text-brand-700 hover:text-brand-800 cursor-pointer ml-auto"
-          >
-            Collapse fields
-          </button>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="text-xs font-medium text-brand-700 hover:text-brand-800 cursor-pointer"
+            >
+              Collapse fields
+            </button>
+          </div>
         </div>
       ) : (
         <button
@@ -157,14 +159,16 @@ export function CustomerFieldsEditor({ value = [], onChange }) {
           </span>
         </button>
       )}
-      <button
-        type="button"
-        onClick={add}
-        disabled={fields.length >= 20}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-      >
-        <Plus size={16} /> Add new field
-      </button>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={add}
+          disabled={fields.length >= 20}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+        >
+          <Plus size={16} /> Add new field
+        </button>
+      </div>
     </section>
   );
 }
