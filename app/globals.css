@@ -266,31 +266,49 @@ body {
   display: none;
 }
 
-/* Keep short toasts on one line, while allowing genuinely long messages to
-   wrap once the toast reaches its readable maximum width. */
+/* Keep short toasts compact, while keeping long messages inside the viewport. */
 [data-sonner-toaster] {
-  --width: min(32rem, calc(100vw - 1.5rem));
+  --width: min(32rem, calc(100vw - 2rem));
+  box-sizing: border-box;
+  max-width: calc(100vw - 2rem);
 }
 [data-sonner-toast] {
+  box-sizing: border-box !important;
   width: fit-content !important;
-  max-width: var(--width) !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
   align-items: flex-start !important;
 }
 [data-sonner-toast] [data-content] {
   flex: 0 1 auto !important;
-  width: max-content !important;
+  width: auto !important;
   max-width: 100% !important;
   min-width: 0 !important;
 }
 [data-sonner-toast] [data-title],
 [data-sonner-toast] [data-description] {
   white-space: normal !important;
-  word-break: normal !important;
-  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
   line-height: 1.4 !important;
 }
 [data-sonner-toast] [data-close-button] {
   flex: 0 0 auto !important;
+}
+
+@media (max-width: 600px) {
+  [data-sonner-toaster] {
+    left: 1rem !important;
+    right: 1rem !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  [data-sonner-toaster] [data-sonner-toast] {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
 }
 
 /* Platform typography (Inter). `.font-ui` is set on the dashboard + auth

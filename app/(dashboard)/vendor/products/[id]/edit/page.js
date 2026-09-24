@@ -27,7 +27,6 @@ import { X, Trash2, ImagePlus, Loader2, GripVertical, Video, Pencil, Check } fro
 // Photos and video share one combined cap - a video eats one of the 10
 // slots, same as a photo would.
 const MAX_MEDIA = 10;
-const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
 const MAX_VIDEO_SECONDS = 30;
 
@@ -186,12 +185,8 @@ export default function VendorProductEditPage({ params }) {
       return;
     }
 
-    const oversized = files.filter((f) => f.size > MAX_IMAGE_SIZE);
-    if (oversized.length > 0) toast.error(`${oversized.length} photo${oversized.length === 1 ? "" : "s"} skipped - each must be under 3MB`);
-    const sized = files.filter((f) => f.size <= MAX_IMAGE_SIZE);
-
-    const toUpload = sized.slice(0, room);
-    if (sized.length > toUpload.length) toast.error(`Only added ${toUpload.length} - max ${MAX_MEDIA} photos and video combined`);
+    const toUpload = files.slice(0, room);
+    if (files.length > toUpload.length) toast.error(`Only added ${toUpload.length} - max ${MAX_MEDIA} photos and video combined`);
     if (toUpload.length === 0) return;
 
     const entries = toUpload.map((file) => ({ key: `${Date.now()}-${Math.random()}`, file, localUrl: URL.createObjectURL(file) }));

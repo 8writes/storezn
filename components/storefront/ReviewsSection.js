@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { formatDate } from "@/lib/format.js";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
+import { compressImageForUpload } from "@/lib/clientUpload.js";
 
 function Stars({ value, onChange }) {
   return (
@@ -50,16 +51,16 @@ export function ReviewsSection({ productId }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error("Image must be smaller than 3MB");
-      return;
-    }
     setUploading(true);
     try {
-      const buffer = await file.arrayBuffer();
+      const preparedFile = await compressImageForUpload(file);
+      if (preparedFile.size > 3 * 1024 * 1024) {
+        throw new Error("Image could not be compressed below 3MB");
+      }
+      const buffer = await preparedFile.arrayBuffer();
       const body = new FormData();
       body.append("productId", productId);
-      body.append("file", new File([buffer], file.name, { type: file.type }));
+      body.append("file", new File([buffer], preparedFile.name, { type: preparedFile.type }));
       const res = await fetch("/api/v1/storefront/reviews/upload", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
