@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { Button } from "@/components/ui/Button.js";
 import { CopyButton } from "@/components/ui/CopyButton.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
-import { customerFieldEntries } from "@/lib/customerFields.js";
+import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
 
@@ -34,13 +34,6 @@ function label(value) {
   return String(value || "").replaceAll("_", " ");
 }
 
-function answerValue(value) {
-  if (value === true) return "Yes";
-  if (value === false) return "No";
-  if (value == null || value === "") return "Not provided";
-  return String(value);
-}
-
 export default function VendorInvoiceDetailPage({ params }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
@@ -52,6 +45,7 @@ export default function VendorInvoiceDetailPage({ params }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [activeItem, setActiveItem] = useState(null);
 
   const load = useCallback(() => {
     if (!token || !storeId || !id) return;
@@ -143,31 +137,27 @@ export default function VendorInvoiceDetailPage({ params }) {
 
       <section className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
         <p className="text-sm font-semibold text-slate-900">Items</p>
-        {items.map((item) => {
-          const answers = customerFieldEntries(item.customerFields);
-          return (
-            <div key={item.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0 space-y-2">
-              <div className="flex items-start justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-900">{item.productName}</p>
-                  {item.variantLabel && <p className="text-xs text-slate-600">{item.variantLabel}</p>}
-                  <p className="text-xs text-slate-600">{item.quantity} x {formatCurrency(item.unitPrice)}</p>
-                </div>
-                <p className="font-semibold text-slate-900 shrink-0">{formatCurrency(item.lineTotal)}</p>
-              </div>
-              {answers.length > 0 && (
-                <dl className="grid sm:grid-cols-2 gap-x-4 gap-y-1 rounded-sm bg-slate-50 p-3 text-xs">
-                  {answers.map((answer) => (
-                    <div key={answer.id} className="min-w-0">
-                      <dt className="text-slate-600">{answer.label}</dt>
-                      <dd className="text-slate-900 break-words">{answerValue(answer.value)}</dd>
-                    </div>
-                  ))}
-                </dl>
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveItem(item)}
+            className="flex items-center justify-between gap-3 text-sm text-slate-700 w-full text-left cursor-pointer hover:text-slate-900"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              {item.productImage ? (
+                <img src={item.productImage} alt="" className="w-10 h-10 rounded-sm object-cover border border-slate-200 shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded-sm bg-slate-100 shrink-0" />
               )}
+              <span className="truncate">
+                {item.productName}
+                {item.variantLabel ? ` (${item.variantLabel})` : ""} x {item.quantity}
+              </span>
             </div>
-          );
-        })}
+            <span className="font-semibold text-slate-900 shrink-0">{formatCurrency(item.lineTotal)}</span>
+          </button>
+        ))}
       </section>
 
       <section className="bg-surface border border-slate-200 rounded-sm p-5 space-y-2 text-sm">
@@ -219,6 +209,12 @@ export default function VendorInvoiceDetailPage({ params }) {
           <Button variant="danger" onClick={cancelInvoice} loading={cancelling}>Cancel invoice</Button>
         </div>
       )}
+
+      <OrderItemModal
+        item={activeItem}
+        productHref={activeItem?.productId ? `/vendor/products/${activeItem.productId}?storeId=${storeId}` : null}
+        onClose={() => setActiveItem(null)}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../../../../../../../lib/db/index.js";
-import { invoiceItems, invoicePayments, invoiceRequests, invoices, orders, stores } from "../../../../../../../../lib/db/schema.js";
+import { invoiceItems, invoicePayments, invoiceRequests, invoices, orders, products, stores } from "../../../../../../../../lib/db/schema.js";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { releaseInvoiceInventoryHold } from "../../../../../../../../lib/invoiceInventory.js";
 import { withApiMonitoring } from "../../../../../../../../lib/apiMonitoring.js";
@@ -23,13 +23,19 @@ async function load(req, params) {
 async function handleGet(req, { params }) {
   const loaded = await load(req, params);
   if (loaded.error) return loaded.error;
-  const [items, payments, orderRows] = await Promise.all([
-    db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, loaded.invoice.id)).orderBy(invoiceItems.createdAt),
+  const [itemRows, payments, orderRows] = await Promise.all([
+    db
+      .select({ item: invoiceItems, productImages: products.images })
+      .from(invoiceItems)
+      .leftJoin(products, eq(products.id, invoiceItems.productId))
+      .where(eq(invoiceItems.invoiceId, loaded.invoice.id))
+      .orderBy(invoiceItems.createdAt),
     db.select().from(invoicePayments).where(eq(invoicePayments.invoiceId, loaded.invoice.id)).orderBy(desc(invoicePayments.createdAt)),
     loaded.invoice.orderId
       ? db.select().from(orders).where(and(eq(orders.id, loaded.invoice.orderId), eq(orders.storeId, loaded.invoice.storeId))).limit(1)
       : Promise.resolve([]),
   ]);
+  const items = itemRows.map(({ item, productImages }) => ({ ...item, productImage: productImages?.[0] || null }));
   return NextResponse.json({ invoice: loaded.invoice, items, payments, order: orderRows[0] || null });
 }
 
