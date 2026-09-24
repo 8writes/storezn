@@ -25,10 +25,10 @@ const POP = "#ff7a1a";
 // a shared cart/checkout (see MarketplaceGrid's ProductCard href and
 // components/storefront/MarketplaceBanner.js on the receiving end).
 //
-// Only page 1 is server-rendered (for first-paint/SEO); filter changes
-// and "Load more" beyond that are client-side (see MarketplaceFilters/
-// MarketplaceGrid), backed by /api/v1/public/marketplace.
-export const revalidate = 60;
+// Page 1 is rendered at request time because the product feed is database-
+// backed; filter changes and "Load more" beyond that are client-side (see
+// MarketplaceFilters/MarketplaceGrid), backed by /api/v1/public/marketplace.
+export const dynamic = "force-dynamic";
 
 export default async function MarketplacePage({ searchParams }) {
   const sp = await searchParams;

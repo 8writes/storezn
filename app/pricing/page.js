@@ -9,10 +9,9 @@ import { formatCurrency } from "@/lib/format.js";
 
 const SUPPORT_EMAIL = "support@ozmictech.com";
 
-// Pricing/limits are admin-editable (see /super-admin/settings) - revalidate
-// periodically rather than baking them into the static build, same
-// reasoning as tixzn's FAQ page.
-export const revalidate = 300;
+// Pricing/limits are admin-editable (see /super-admin/settings), so read
+// them at request time instead of making `next build` depend on Postgres.
+export const dynamic = "force-dynamic";
 
 async function getSettings() {
   const [row] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);

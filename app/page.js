@@ -51,7 +51,7 @@ const CHANNELS = [
   { icon: MessageCircle, title: "Phone & WhatsApp", text: "Log an order taken off-platform so stock and takings still line up." },
 ];
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const { list: featuredProducts } = await getMarketplaceProducts({ page: 1, pageSize: 3 });
