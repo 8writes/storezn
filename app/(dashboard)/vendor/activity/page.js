@@ -8,10 +8,12 @@ import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Select } from "@/components/ui/Select.js";
 import { Pagination } from "@/components/ui/Pagination.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDateTime } from "@/lib/format.js";
 import { formatKobo } from "@/lib/money.js";
-import { Check, Flag, Search } from "lucide-react";
+import { Check, Flag, History, Search } from "lucide-react";
 
 const GROUPS = [
   { value: "", label: "All activity" },
@@ -182,14 +184,12 @@ export default function VendorActivityPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Activity log</h1>
-        <p className="text-sm text-slate-800 mt-1">
-          Every important action on your store: who rang up which sale, cash-drawer moves, returns, price and stock changes, staff changes.
-        </p>
-      </div>
+      <PageHeader
+        title="Activity log"
+        description="Every important action on your store: sales, cash-drawer moves, returns, price and stock changes, and staff changes."
+      />
 
-      <div className="flex items-end gap-3 flex-wrap rounded-sm border border-slate-300 bg-slate-100 p-3">
+      <div className="flex items-end gap-3 flex-wrap rounded-sm border border-slate-200 bg-surface p-3 sm:p-4">
         <form
           className="w-full sm:max-w-sm"
           onSubmit={(event) => {
@@ -252,7 +252,14 @@ export default function VendorActivityPage() {
               <TableRowSkeleton cols={5} />
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">Nothing logged for this filter yet</td>
+                <td colSpan={5} className="px-4 py-6">
+                  <EmptyState
+                    icon={History}
+                    title="Nothing logged for this filter yet"
+                    description="Try a different activity group, search term, or review filter."
+                    className="border-0 bg-transparent py-8"
+                  />
+                </td>
               </tr>
             ) : (
               rows.map((r) => {

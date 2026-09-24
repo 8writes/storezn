@@ -13,6 +13,7 @@ import { SizeGuideEditor, normalizeSizeGuide } from "@/components/ui/SizeGuideEd
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
@@ -359,7 +360,10 @@ export default function VendorNewProductPage() {
   return (
     <div className="space-y-6">
       <BackLink href="/vendor/products" label="Back to products" />
-      <h1 className="text-xl font-bold text-slate-900">Add product</h1>
+      <PageHeader
+        title="Add product"
+        description="Create a sellable item, choose the fields you need, and add variants or customer questions when required."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <form onSubmit={handleCreate} className={`${hasField("category") ? "lg:col-span-2" : "lg:col-span-3"} bg-surface border border-slate-200 rounded-sm p-5 space-y-4`}>

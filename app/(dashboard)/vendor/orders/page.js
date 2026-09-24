@@ -13,7 +13,9 @@ import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton, CardListSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
-import { Plus } from "lucide-react";
+import { Plus, ShoppingBag } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", abandoned: "slate", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 
@@ -85,20 +87,25 @@ export default function VendorOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-bold text-slate-900">Orders</h1>
-        <Link href="/vendor/orders/new">
-          <Button type="button" size="sm" variant="outline">
-            <Plus size={14} /> Record a past sale
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Orders"
+        description="Review online and offline orders, update fulfillment, and open each order for customer and payment details."
+        actions={
+          <Link href="/vendor/orders/new">
+            <Button type="button" size="sm" variant="outline">
+              <Plus size={14} /> Record a past sale
+            </Button>
+          </Link>
+        }
+      />
 
-      <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+      <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(14rem,18rem)_minmax(14rem,20rem)] sm:items-end">
         <div className="w-full sm:max-w-xs">
           <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
         </div>
         <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="w-full sm:max-w-xs" />
+        </div>
       </div>
 
       {/* Mobile: stacked cards - the table needs horizontal scrolling on a
@@ -107,9 +114,11 @@ export default function VendorOrdersPage() {
         {loading ? (
           <CardListSkeleton count={5} />
         ) : orders.length === 0 ? (
-          <p className="bg-surface border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
-            {q ? "No orders match your search" : "No orders yet"}
-          </p>
+          <EmptyState
+            icon={ShoppingBag}
+            title={q || status ? "No matching orders" : "No orders yet"}
+            description={q || status ? "Try a different search or status filter." : "Orders from your storefront, POS, and recorded sales will appear here."}
+          />
         ) : (
           orders.map((o) => (
             <div

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Minus, Plus, Search, X } from "lucide-react";
+import { ChevronRight, FileText, Minus, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -17,6 +17,9 @@ import { useConfirm } from "@/hooks/useConfirm.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
 import { Pagination } from "@/components/ui/Pagination.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
+import { SearchInput } from "@/components/ui/SearchInput.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
 
 export default function VendorInvoicesPage() {
   const router = useRouter();
@@ -84,14 +87,25 @@ export default function VendorInvoicesPage() {
   if (!storesLoading && stores.length === 0) return <p className="text-sm text-slate-700">No store set up yet.</p>;
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-xl font-bold text-slate-900">Invoices</h1><p className="text-sm text-slate-600 mt-1">Share secure payment links by email, WhatsApp, or anywhere else.</p></div><div className="flex flex-wrap gap-2"><Link href="/vendor/invoices/requests"><Button variant="secondary">Quote requests{requestCount > 0 ? ` (${requestCount})` : ""}</Button></Link><Button onClick={() => setManualOpen(true)}>New offline quote</Button></div></div>
+      <PageHeader
+        title="Invoices"
+        description="Share secure payment links by email, WhatsApp, or anywhere else, then track partial and full payments."
+        actions={
+          <>
+            <Link href="/vendor/invoices/requests"><Button variant="secondary">Quote requests{requestCount > 0 ? ` (${requestCount})` : ""}</Button></Link>
+            <Button onClick={() => setManualOpen(true)}>New offline quote</Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search number, customer, phone, email, or product" className="w-full border border-slate-300 rounded-sm bg-surface pl-9 pr-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" /></div>
+      <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+        <SearchInput value={search} onSearch={setSearch} placeholder="Search number, customer, phone, email, or product" className="flex-1" />
         <div className="sm:w-52"><Select value={status} onChange={setStatus} options={[{ value: "all", label: "All statuses" }, { value: "sent", label: "Sent" }, { value: "partially_paid", label: "Partially paid" }, { value: "paid", label: "Paid" }, { value: "cancelled", label: "Cancelled" }, { value: "expired", label: "Expired" }]} /></div>
+        </div>
       </div>
 
-      {visibleInvoices.length > 0 && (
+      {visibleInvoices.length > 0 ? (
         <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200">
           <div className="p-4"><h2 className="font-semibold text-slate-900">Sent invoices</h2></div>
           {visibleInvoices.map((invoice) => (
@@ -119,6 +133,13 @@ export default function VendorInvoicesPage() {
           ))}
           <Pagination pagination={pagination} onPageChange={setPage} />
         </section>
+      ) : (
+        <EmptyState
+          icon={FileText}
+          title={search || status !== "all" ? "No matching invoices" : "No invoices yet"}
+          description={search || status !== "all" ? "Try another search or status filter." : "Create an offline quote or prepare invoices from quote requests."}
+          action={<Button type="button" onClick={() => setManualOpen(true)}>New offline quote</Button>}
+        />
       )}
 
       {manualOpen && <ManualQuoteModal storeId={storeId} apiFetch={apiFetch} confirm={confirm} onClose={() => setManualOpen(false)} onCreated={() => { setManualOpen(false); loadData(); }} />}

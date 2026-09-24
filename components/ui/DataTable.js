@@ -12,14 +12,15 @@ import { Pagination } from "./Pagination.js";
 //   </DataTable>
 export function DataTable({ children, pagination, onPageChange, footer, dense = false, className = "" }) {
   return (
-    <div className={`bg-surface border border-slate-200 rounded-sm shadow-xs overflow-hidden ${className}`}>
+    <div className={`bg-surface border border-slate-200/90 rounded-sm shadow-xs overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
         <table
-          className={`w-full text-sm text-slate-700
+          className={`w-full min-w-full text-sm text-slate-700
             [&_thead_th]:bg-slate-50 [&_thead_th]:text-slate-800 [&_thead_th]:font-medium [&_thead_th]:text-left [&_thead_th]:whitespace-nowrap
             [&_thead_th]:border-b [&_thead_th]:border-slate-200
             [&_tbody_tr]:border-t [&_tbody_tr]:border-slate-100
             [&_tbody_tr:hover]:bg-slate-50/60
+            [&_td]:align-middle
             ${dense ? "[&_th]:px-3 [&_th]:py-2 [&_td]:px-3 [&_td]:py-2" : "[&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3"}`}
         >
           {children}

@@ -8,6 +8,7 @@ import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { Button } from "@/components/ui/Button.js";
 import { Select } from "@/components/ui/Select.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { BarcodeScanButton } from "@/components/pos/BarcodeScanButton.js";
 import { EXPIRY_LABEL, FEATURED_LABEL, FilterChip, ProductFiltersModal, SORT_LABEL, STATUS_LABEL, STOCK_LABEL } from "@/components/products/ProductFilters.js";
@@ -310,15 +311,16 @@ export default function BulkProductsPage() {
     <div className="space-y-4">
       <BackLink href="/vendor/products" label="Back to products" />
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Bulk edit products</h1>
-          <p className="text-sm text-slate-800 mt-0.5">
+      <PageHeader
+        title="Bulk edit products"
+        description={
+          <>
             Edit price, cost, stock, category and expiry in place, or add new products as rows. Stock changes apply to{" "}
             <span className="font-medium text-slate-700">{branchName || "the default branch"}</span>.
-          </p>
-        </div>
-        <div className="flex items-end gap-2">
+          </>
+        }
+        actions={
+          <>
           {branchList && branchList.length > 1 && (
             <div className="w-48">
               <Select
@@ -333,8 +335,9 @@ export default function BulkProductsPage() {
           <Button type="button" onClick={save} loading={saving} disabled={changeCount === 0}>
             Save {changeCount ? `(${changeCount})` : "changes"}
           </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full sm:w-72">

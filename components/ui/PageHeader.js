@@ -15,12 +15,16 @@ export function PageHeader({ title, description, actions, backHref, backLabel = 
           <ChevronLeft size={15} /> {backLabel}
         </Link>
       )}
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h1>
-          {description && <p className="mt-1 text-sm text-slate-800 max-w-2xl">{description}</p>}
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">{title}</h1>
+          {description && <p className="mt-1 text-sm text-slate-700 max-w-2xl leading-5">{description}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+        {actions && (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:shrink-0 [&>a]:w-full sm:[&>a]:w-auto [&_button]:w-full sm:[&_button]:w-auto">
+            {actions}
+          </div>
+        )}
       </div>
     </div>
   );

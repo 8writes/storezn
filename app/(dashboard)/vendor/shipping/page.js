@@ -8,6 +8,7 @@ import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Select } from "@/components/ui/Select.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Button } from "@/components/ui/Button.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
@@ -63,7 +64,10 @@ export default function VendorShippingPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-bold text-slate-900">Shipping</h1>
+      <PageHeader
+        title="Shipping"
+        description="Set default delivery pricing and add fixed rates for locations where you already know the cost."
+      />
 
       {loading || !form ? (
         <FormSkeleton fields={3} />

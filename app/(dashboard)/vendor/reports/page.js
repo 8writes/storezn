@@ -8,6 +8,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 
 const CHANNEL_LABEL = { online: "Online store", pos: "Register (POS)", manual: "Recorded past sales" };
@@ -167,12 +168,12 @@ export default function VendorReportsPage() {
         .report-sheet { box-shadow: none !important; border: 0 !important; padding: 0 !important; }
       }`}</style>
 
-      <div className="flex flex-wrap items-end justify-between gap-3 no-print">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Monthly report</h1>
-          <p className="text-sm text-slate-800 mt-1">Sales, tenders, top products, cash variance and staff activity for a calendar month.</p>
-        </div>
-        <div className="flex items-end gap-2">
+      <div className="no-print">
+        <PageHeader
+          title="Monthly report"
+          description="Sales, tenders, top products, cash variance and staff activity for a calendar month."
+          actions={
+            <>
           <div className="w-48">
             <Select label="Month" options={months} value={month} onChange={setMonth} />
           </div>
@@ -182,7 +183,9 @@ export default function VendorReportsPage() {
               <Printer size={15} /> Print
             </Button>
           )}
-        </div>
+            </>
+          }
+        />
       </div>
 
       {loading && !report && <div className="h-64 bg-slate-100 rounded-sm animate-pulse" />}

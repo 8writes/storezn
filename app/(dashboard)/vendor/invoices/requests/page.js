@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -15,6 +15,9 @@ import { useConfirm } from "@/hooks/useConfirm.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
 import { computeOrderTotals } from "@/lib/orders.js";
 import { Pagination } from "@/components/ui/Pagination.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
+import { SearchInput } from "@/components/ui/SearchInput.js";
 
 export default function VendorInvoiceRequestsPage() {
   const { token } = useAuth(true);
@@ -140,20 +143,30 @@ export default function VendorInvoiceRequestsPage() {
   if (!storesLoading && stores.length === 0) return <p className="text-sm text-slate-700">No store set up yet.</p>;
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h1 className="text-xl font-bold text-slate-900">Quote requests</h1><p className="text-sm text-slate-600 mt-1">Set a price for customer requests and send a secure invoice.</p></div>
-        <Link href="/vendor/invoices"><Button variant="outline">Back to invoices</Button></Link>
-      </div>
+      <PageHeader
+        title="Quote requests"
+        description="Set a price for customer requests and send a secure invoice."
+        actions={<Link href="/vendor/invoices"><Button variant="outline">Back to invoices</Button></Link>}
+      />
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search request, customer, phone, email, or product" className="w-full border border-slate-300 rounded-sm bg-surface pl-9 pr-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20" /></div>
+      <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+        <SearchInput value={search} onSearch={setSearch} placeholder="Search request, customer, phone, email, or product" className="flex-1" />
         <div className="sm:w-52"><Select value={status} onChange={setStatus} options={[{ value: "all", label: "All statuses" }, { value: "new", label: "New" }, { value: "reviewing", label: "Reviewing" }, { value: "quoted", label: "Quoted" }]} /></div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-5">
         <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200">
           <div className="p-4"><h2 className="font-semibold text-slate-900">Open requests ({requestTotal})</h2></div>
-          {loading ? <p className="p-4 text-sm text-slate-600">Loading requests...</p> : visibleRequests.length === 0 ? <p className="p-4 text-sm text-slate-600">No matching quote requests.</p> : visibleRequests.map(({ request, items }) => (
+          {loading ? <p className="p-4 text-sm text-slate-600">Loading requests...</p> : visibleRequests.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title={search || status !== "all" ? "No matching quote requests" : "No quote requests yet"}
+              description={search || status !== "all" ? "Try another search or status filter." : "Customer quote requests and offline quote requests will appear here."}
+              className="border-0 bg-transparent py-10"
+            />
+          ) : visibleRequests.map(({ request, items }) => (
             <div key={request.id} className={`flex items-start gap-2 p-4 hover:bg-slate-50 ${selectedId === request.id ? "bg-brand-50" : ""}`}><button type="button" onClick={() => selectRequest(request, items)} className="flex-1 min-w-0 text-left cursor-pointer">
               <div className="flex items-center justify-between gap-3"><span className="font-semibold text-slate-900">{request.requestNumber}</span><span className="text-xs text-slate-600">{formatDate(request.createdAt)}</span></div>
               <p className="text-sm text-slate-700 mt-1">{request.buyerName || request.guestEmail || request.buyerPhone || "Guest buyer"}</p>

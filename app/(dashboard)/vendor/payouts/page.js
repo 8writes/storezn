@@ -7,9 +7,9 @@ import {
   Wallet,
   Calendar,
   Landmark,
-  Info,
   RefreshCw,
   Loader2,
+  Receipt,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -22,6 +22,8 @@ import { InfoTip } from "@/components/ui/InfoTip.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { StatCard } from "@/components/ui/StatCard.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import {
   Skeleton,
   StatGridSkeleton,
@@ -205,7 +207,10 @@ export default function VendorPayoutsPage() {
   if (loading || !data) {
     return (
       <div className="space-y-6">
-        <h1 className="text-xl font-bold text-slate-900">Payouts</h1>
+        <PageHeader
+          title="Payouts"
+          description="Track Paystack settlement, offline collections, platform fees, and the money due to your store."
+        />
         <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="h-18 w-full max-w-md rounded-sm" />
@@ -224,7 +229,10 @@ export default function VendorPayoutsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-slate-900">Payouts</h1>
+      <PageHeader
+        title="Payouts"
+        description="Track Paystack settlement, offline collections, platform fees, and the money due to your store."
+      />
 
       <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
         <div className="flex items-center gap-2">
@@ -385,6 +393,7 @@ export default function VendorPayoutsPage() {
         </div>
       )}
 
+      <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
       <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="max-w-xs">
           <Select
@@ -400,6 +409,7 @@ export default function VendorPayoutsPage() {
           placeholder="Search by order number..."
           className="max-w-xs"
         />
+      </div>
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -422,9 +432,14 @@ export default function VendorPayoutsPage() {
               <tr>
                 <td
                   colSpan={7}
-                  className="px-4 py-6 text-center text-slate-700"
+                  className="px-4 py-6"
                 >
-                  {q ? "No payouts match your search" : "No payouts yet"}
+                  <EmptyState
+                    icon={Receipt}
+                    title={q || channel ? "No matching payouts" : "No payouts yet"}
+                    description={q || channel ? "Try another order number or transaction filter." : "Paid online orders and recorded offline collections will appear here."}
+                    className="border-0 bg-transparent py-8"
+                  />
                 </td>
               </tr>
             ) : (

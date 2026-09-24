@@ -9,7 +9,10 @@ import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
+import { Users } from "lucide-react";
 
 export default function VendorCustomersPage() {
   const router = useRouter();
@@ -53,9 +56,14 @@ export default function VendorCustomersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-slate-900">Customers</h1>
+      <PageHeader
+        title="Customers"
+        description="See who buys from your store, how often they order, and their lifetime spend."
+      />
 
-      <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="max-w-sm" />
+      <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
+        <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="w-full sm:max-w-sm" />
+      </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
@@ -75,7 +83,14 @@ export default function VendorCustomersPage() {
               <TableRowSkeleton cols={7} />
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-700">{q ? "No customers match your search" : "No customers yet"}</td>
+                <td colSpan={7} className="px-4 py-6">
+                  <EmptyState
+                    icon={Users}
+                    title={q ? "No matching customers" : "No customers yet"}
+                    description={q ? "Try searching another name or email." : "Customer profiles will appear here after people place orders."}
+                    className="border-0 bg-transparent py-8"
+                  />
+                </td>
               </tr>
             ) : (
               customers.map((c) => (

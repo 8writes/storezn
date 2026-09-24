@@ -2,11 +2,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { History, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Select } from "@/components/ui/Select.js";
 import { BackLink } from "@/components/ui/BackLink.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { formatKobo } from "@/lib/money.js";
 import { formatDateTime } from "@/lib/format.js";
 
@@ -69,7 +71,10 @@ export default function SessionsPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <BackLink href="/vendor/pos/registers" label="Back to registers" />
-      <h1 className="text-xl font-bold text-slate-900">Register sessions</h1>
+      <PageHeader
+        title="Register sessions"
+        description="Review register openings, closings, cash differences, and Z report history."
+      />
 
       {stores.length > 1 && (
         <div className="w-52">
@@ -96,8 +101,13 @@ export default function SessionsPage() {
               </tr>
             ) : sessions.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-slate-800 text-center">
-                  No sessions yet
+                <td colSpan={4} className="px-4 py-6">
+                  <EmptyState
+                    icon={History}
+                    title="No sessions yet"
+                    description="Register sessions will appear here after a till is opened and closed."
+                    className="border-0 bg-transparent py-8"
+                  />
                 </td>
               </tr>
             ) : (

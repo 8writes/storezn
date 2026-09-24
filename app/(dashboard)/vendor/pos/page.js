@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { formatCurrency, formatClockTime } from "@/lib/format.js";
 import { formatKobo } from "@/lib/money.js";
 import { isEnterpriseStore } from "@/lib/storePlan.js";
@@ -205,14 +206,17 @@ export default function SellPage() {
   }, [loadRegisters]);
 
   const header = (
-    <div className="flex items-center justify-between gap-3 flex-wrap">
-      <h1 className="text-xl font-bold text-slate-900">Sell</h1>
-      {stores.length > 1 && (
-        <div className="w-44">
-          <Select options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
-        </div>
-      )}
-    </div>
+    <PageHeader
+      title="Sell"
+      description="Open a register, search products, take payments, and keep offline sales queued safely."
+      actions={
+        stores.length > 1 ? (
+          <div className="w-44">
+            <Select options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+          </div>
+        ) : null
+      }
+    />
   );
 
   if (!loading && stores.length === 0) {

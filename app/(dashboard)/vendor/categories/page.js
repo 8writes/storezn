@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Tags, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
@@ -10,6 +10,8 @@ import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { slugify } from "@/lib/slugify.js";
 
@@ -126,12 +128,10 @@ export default function VendorCategoriesPage() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <BackLink onClick={() => router.back()} label="Back" />
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Categories</h1>
-        <p className="text-sm text-slate-800 mt-1">
-          Shared across every product and used as the category filter on your storefront.
-        </p>
-      </div>
+      <PageHeader
+        title="Categories"
+        description="Shared across every product and used as the category filter on your storefront."
+      />
 
       {loading ? (
         <FormSkeleton fields={3} />
@@ -181,7 +181,12 @@ export default function VendorCategoriesPage() {
 
           <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
             {categories.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-slate-700">No categories yet.</p>
+              <EmptyState
+                icon={Tags}
+                title="No categories yet"
+                description="Add categories to keep product forms faster and storefront filters easier to scan."
+                className="border-0 bg-transparent py-10"
+              />
             ) : (
               <ul className="divide-y divide-slate-100">
                 {categories.slice(0, visible).map((c) => (

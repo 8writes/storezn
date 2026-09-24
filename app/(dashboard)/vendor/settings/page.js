@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { PushNotificationToggle } from "@/components/ui/PushNotificationToggle.js";
 import { CustomDomainSettings } from "@/components/ui/CustomDomainSettings.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { ImageCropModal } from "@/components/ui/ImageCropModal.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
@@ -226,7 +227,10 @@ export default function VendorSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-bold text-slate-900">Store settings</h1>
+      <PageHeader
+        title="Store settings"
+        description="Manage your storefront identity, availability, policies, domain, and notification preferences."
+      />
 
       <PushNotificationToggle token={token} />
 

@@ -10,6 +10,8 @@ import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 
 const EMPTY_FORM = { name: "", address: "" };
@@ -86,12 +88,10 @@ export default function VendorBranchesPage() {
   return (
     <div className="space-y-6">
       {confirmDialog}
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Branches</h1>
-        <p className="text-sm text-slate-800 mt-1">
-          Track stock and staff separately per physical location. Buyers never see this - your storefront looks the same either way.
-        </p>
-      </div>
+      <PageHeader
+        title="Branches"
+        description="Track stock and staff separately per physical location. Buyers never see this - your storefront looks the same either way."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -108,7 +108,14 @@ export default function VendorBranchesPage() {
                 <TableRowSkeleton cols={3} />
               ) : branches.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-slate-400">No branches yet</td>
+                  <td colSpan={3} className="px-4 py-6">
+                    <EmptyState
+                      icon={Plus}
+                      title="No branches yet"
+                      description="Add a branch when you need separate staff, registers, or stock locations."
+                      className="border-0 bg-transparent py-8"
+                    />
+                  </td>
                 </tr>
               ) : (
                 branches.map((branch) => (

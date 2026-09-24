@@ -14,6 +14,7 @@ import { SizeGuideEditor, normalizeSizeGuide } from "@/components/ui/SizeGuideEd
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
@@ -342,7 +343,10 @@ export default function VendorProductEditPage({ params }) {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <BackLink href={`/vendor/products/${id}?storeId=${storeId}`} label="Back to product" />
-      <h1 className="text-xl font-bold text-slate-900">Edit product</h1>
+      <PageHeader
+        title="Edit product"
+        description="Update product details, stock settings, variants, media, and customer-facing fields."
+      />
 
       {suspension && (
         <div className="bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">

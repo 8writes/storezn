@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { StatCard } from "@/components/ui/StatCard.js";
 import { Chart } from "@/components/ui/Chart.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { StatGridSkeleton, Skeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, compactCurrency } from "@/lib/format.js";
 import {
@@ -129,7 +130,10 @@ export default function VendorAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-slate-900">Analytics</h1>
+      <PageHeader
+        title="Analytics"
+        description="Track revenue, orders, customers, invoice performance, stock health, and channel trends."
+      />
 
       {/* ---- Filters ---- */}
       <div className="bg-surface border border-slate-200 rounded-sm p-4 space-y-3">

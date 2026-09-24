@@ -6,6 +6,7 @@ import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 import { Sparkles, Building2, CalendarClock, Receipt, Check } from "lucide-react";
@@ -173,7 +174,10 @@ export default function VendorPlusPage() {
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
-      <h1 className="text-xl font-bold text-slate-900">Plans</h1>
+      <PageHeader
+        title="Plans"
+        description="Compare Storezn+ and Enterprise features, manage your subscription, and review billing activity."
+      />
 
       {loading || !store ? (
         <FormSkeleton fields={3} />

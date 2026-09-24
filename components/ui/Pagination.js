@@ -11,12 +11,12 @@ export function Pagination({ pagination, onPageChange }) {
   const { page, totalPages, total } = pagination;
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 text-xs sm:text-sm text-slate-800">
+    <div className="flex flex-col items-stretch gap-3 px-4 py-3 border-t border-slate-200 text-xs text-slate-700 sm:flex-row sm:items-center sm:justify-between sm:text-sm">
       <span className="tabular-nums">
         Page {page} of {totalPages}
         <span className="hidden sm:inline"> · {total.toLocaleString()} total</span>
       </span>
-      <div className="flex gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex">
         <button type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className={btn}>
           <ChevronLeft size={14} /> Prev
         </button>

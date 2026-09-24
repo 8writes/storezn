@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { UserPlus, Trash2 } from "lucide-react";
+import { Trash2, UserPlus, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/Input.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { TableRowSkeleton } from "@/components/ui/Skeleton.js";
 import { formatDate } from "@/lib/format.js";
 
@@ -110,12 +112,10 @@ export default function VendorStaffPage() {
   return (
     <div className="space-y-6">
       {confirmDialog}
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Staff</h1>
-        <p className="text-sm text-slate-800 mt-1">
-          Invite people to help run your store. They get their own login, scoped to this store - everything except your payout account and this staff list.
-        </p>
-      </div>
+      <PageHeader
+        title="Staff"
+        description="Invite people to help run your store. They get their own login, scoped to this store - everything except your payout account and this staff list."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -134,7 +134,14 @@ export default function VendorStaffPage() {
                 <TableRowSkeleton cols={branches.length > 1 ? 5 : 4} />
               ) : staff.length === 0 ? (
                 <tr>
-                  <td colSpan={branches.length > 1 ? 5 : 4} className="px-4 py-6 text-center text-slate-400">No staff yet</td>
+                  <td colSpan={branches.length > 1 ? 5 : 4} className="px-4 py-6">
+                    <EmptyState
+                      icon={Users}
+                      title="No staff yet"
+                      description="Invite team members when you want them to manage products, orders, customers, or POS work."
+                      className="border-0 bg-transparent py-8"
+                    />
+                  </td>
                 </tr>
               ) : (
                 staff.map((member) => (

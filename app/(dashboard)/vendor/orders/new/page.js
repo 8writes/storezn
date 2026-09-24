@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { Switch } from "@/components/ui/Switch.js";
 import { formatCurrency } from "@/lib/format.js";
 import { isPlusStore } from "@/lib/storePlan.js";
@@ -151,12 +152,16 @@ export default function RecordPastSalePage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <BackLink href="/vendor/orders" label="Back to orders" />
 
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-1.5">
-          Record a past sale
-          <InfoTip>For a sale that already happened - in person, by phone, or by transfer. Recorded as paid, stock deducted right away.</InfoTip>
-        </h1>
-        <div className="flex gap-3">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            Record a past sale
+            <InfoTip>For a sale that already happened - in person, by phone, or by transfer. Recorded as paid, stock deducted right away.</InfoTip>
+          </span>
+        }
+        description="Record a completed sale, assign the branch, capture payment method, and deduct stock immediately."
+        actions={
+          <>
           {stores.length > 1 && (
             <div className="w-40">
               <Select
@@ -175,8 +180,9 @@ export default function RecordPastSalePage() {
               <Select options={branches.map((b) => ({ value: b.id, label: b.name }))} value={branchId} onChange={setBranchId} required />
             </div>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {isOwner && (
         <div className="text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-sm px-3 py-2 flex items-center justify-between gap-2">

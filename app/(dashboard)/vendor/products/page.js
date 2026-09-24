@@ -13,6 +13,8 @@ import { Select } from "@/components/ui/Select.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { ConfirmModal } from "@/components/ui/ConfirmModal.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { TableRowSkeleton, CardListSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { parseCsv, downloadCsv } from "@/lib/csv.js";
@@ -371,29 +373,30 @@ export default function VendorProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Products</h1>
-          <p className="text-xs text-slate-800 mt-0.5 flex items-center gap-1">
+      <PageHeader
+        title="Products"
+        description={
+          <span className="inline-flex items-center gap-1">
             <Star size={12} className={featuredCount > 0 ? "fill-amber-400 text-amber-400" : "text-slate-300"} />
             {featuredCount}/{MAX_FEATURED} featured on your storefront
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* The full add / edit grid - unusable on a phone, so laptop up. */}
-          <Link href="/vendor/products/bulk" className="hidden lg:inline-flex">
-            <Button type="button" size="sm" variant="outline">
-              Bulk edit
-            </Button>
-          </Link>
-          <Link href={`/vendor/products/new${storeId ? `?storeId=${storeId}` : ""}`}>
-            <Button type="button" size="sm">
-              <Plus size={16} />
-              Add product
-            </Button>
-          </Link>
-        </div>
-      </div>
+          </span>
+        }
+        actions={
+          <>
+            <Link href="/vendor/products/bulk" className="hidden lg:inline-flex">
+              <Button type="button" size="sm" variant="outline">
+                Bulk edit
+              </Button>
+            </Link>
+            <Link href={`/vendor/products/new${storeId ? `?storeId=${storeId}` : ""}`}>
+              <Button type="button" size="sm">
+                <Plus size={16} />
+                Add product
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       <div className="bg-surface border border-slate-200 rounded-sm">
         <button
@@ -528,68 +531,70 @@ export default function VendorProductsPage() {
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-2 w-full">
-          <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="flex-1" />
-          <button
-            type="button"
-            onClick={() => setFiltersOpen(true)}
-            className="relative inline-flex items-center gap-1.5 shrink-0 px-3 py-2 border border-slate-300 rounded-sm text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
-          >
-            <SlidersHorizontal size={15} />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="ml-0.5 min-w-5 h-5 px-1 rounded-full bg-brand-600 text-white text-xs font-bold inline-flex items-center justify-center">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
+      <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 w-full">
+            <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="flex-1" />
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="relative inline-flex items-center gap-1.5 shrink-0 px-3 py-2 border border-slate-300 rounded-sm text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+            >
+              <SlidersHorizontal size={15} />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 min-w-5 h-5 px-1 rounded-full bg-brand-600 text-white text-xs font-bold inline-flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
+          <Link href="/vendor/categories" className="text-sm text-brand-600 hover:underline">
+            Manage categories
+          </Link>
+          {branchName && <p className="text-xs text-slate-600 sm:ml-auto">Showing stock for <span className="font-medium text-slate-800">{branchName}</span></p>}
         </div>
-        <Link href="/vendor/categories" className="text-sm text-brand-600 hover:underline">
-          Manage categories
-        </Link>
-        {branchName && <p className="text-xs text-slate-600 sm:ml-auto">Showing stock for <span className="font-medium text-slate-800">{branchName}</span></p>}
-      </div>
 
-      {activeFilterCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {status && (
-            <FilterChip label={STATUS_LABEL[status]} onClear={() => setStatus("")} />
-          )}
-          {featured && (
-            <FilterChip label={FEATURED_LABEL[featured]} onClear={() => setFeatured("")} />
-          )}
-          {stockLevel && (
-            <FilterChip label={STOCK_LABEL[stockLevel]} onClear={() => setStockLevel("")} />
-          )}
-          {expiry && (
-            <FilterChip label={EXPIRY_LABEL[expiry]} onClear={() => setExpiry("")} />
-          )}
-          {categoryId && (
-            <FilterChip
-              label={categories.find((c) => c.id === categoryId)?.name || "Category"}
-              onClear={() => setCategoryId("")}
-            />
-          )}
-          {sort !== "newest" && (
-            <FilterChip label={SORT_LABEL[sort]} onClear={() => setSort("newest")} />
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setCategoryId("");
-              setSort("newest");
-              setStockLevel("");
-              setExpiry("");
-              setStatus("");
-              setFeatured("");
-            }}
-            className="text-slate-800 hover:text-slate-800 underline cursor-pointer"
-          >
-            Clear all
-          </button>
-        </div>
-      )}
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {status && (
+              <FilterChip label={STATUS_LABEL[status]} onClear={() => setStatus("")} />
+            )}
+            {featured && (
+              <FilterChip label={FEATURED_LABEL[featured]} onClear={() => setFeatured("")} />
+            )}
+            {stockLevel && (
+              <FilterChip label={STOCK_LABEL[stockLevel]} onClear={() => setStockLevel("")} />
+            )}
+            {expiry && (
+              <FilterChip label={EXPIRY_LABEL[expiry]} onClear={() => setExpiry("")} />
+            )}
+            {categoryId && (
+              <FilterChip
+                label={categories.find((c) => c.id === categoryId)?.name || "Category"}
+                onClear={() => setCategoryId("")}
+              />
+            )}
+            {sort !== "newest" && (
+              <FilterChip label={SORT_LABEL[sort]} onClear={() => setSort("newest")} />
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setCategoryId("");
+                setSort("newest");
+                setStockLevel("");
+                setExpiry("");
+                setStatus("");
+                setFeatured("");
+              }}
+              className="text-slate-800 hover:text-slate-800 underline cursor-pointer"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+      </div>
 
       {filtersOpen && (
         <ProductFiltersModal
@@ -646,9 +651,11 @@ export default function VendorProductsPage() {
         {loading ? (
           <CardListSkeleton count={5} />
         ) : products.length === 0 ? (
-          <p className="bg-surface border border-slate-200 rounded-sm px-4 py-6 text-center text-sm text-slate-700">
-            {q || categoryId || stockLevel || expiry || status || featured ? "No products match your filters" : "No products yet"}
-          </p>
+          <EmptyState
+            icon={ImageOff}
+            title={q || categoryId || stockLevel || expiry || status || featured ? "No matching products" : "No products yet"}
+            description={q || categoryId || stockLevel || expiry || status || featured ? "Try another search or clear a filter." : "Add your first product to start selling from this store."}
+          />
         ) : (
           products.map((p) => {
             const oversold = p.productType === "physical" && p.stock != null && p.stock < 0;
@@ -764,7 +771,14 @@ export default function VendorProductsPage() {
               <TableRowSkeleton cols={9} />
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-6 text-center text-slate-700">{q || categoryId || stockLevel || expiry || status || featured ? "No products match your filters" : "No products yet"}</td>
+                <td colSpan={9} className="px-4 py-6">
+                  <EmptyState
+                    icon={ImageOff}
+                    title={q || categoryId || stockLevel || expiry || status || featured ? "No matching products" : "No products yet"}
+                    description={q || categoryId || stockLevel || expiry || status || featured ? "Try another search or clear a filter." : "Add your first product to start selling from this store."}
+                    className="border-0 bg-transparent py-8"
+                  />
+                </td>
               </tr>
             ) : (
               products.map((p) => (

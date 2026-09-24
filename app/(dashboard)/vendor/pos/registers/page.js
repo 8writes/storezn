@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/Input.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
+import { EmptyState } from "@/components/ui/EmptyState.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { isEnterpriseStore } from "@/lib/storePlan.js";
 import { Calculator, Trash2, Check, X } from "lucide-react";
 
@@ -134,17 +136,15 @@ export default function RegistersPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <BackLink href="/vendor/orders" label="Back to orders" />
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          <Calculator size={18} className="text-brand-600" /> Registers
-        </h1>
-        <Link href="/vendor/pos/sessions" className="text-sm font-medium text-brand-700 hover:text-brand-800">
-          Session history &amp; Z reports
-        </Link>
-      </div>
-      <p className="text-sm text-slate-800">
-        A register is a till at a branch. Open a shift on it from the Sell screen, take payments, and close it out with a Z report.
-      </p>
+      <PageHeader
+        title="Registers"
+        description="A register is a till at a branch. Open a shift from the Sell screen, take payments, and close it out with a Z report."
+        actions={
+          <Link href="/vendor/pos/sessions" className="text-sm font-medium text-brand-700 hover:text-brand-800">
+            Session history &amp; Z reports
+          </Link>
+        }
+      />
 
       {stores.length > 1 && (
         <div className="w-52">
@@ -156,7 +156,12 @@ export default function RegistersPage() {
         {loading ? (
           <div className="p-6 text-sm text-slate-400">Loading…</div>
         ) : registers.length === 0 ? (
-          <div className="p-6 text-sm text-slate-800 text-center">No registers yet</div>
+          <EmptyState
+            icon={Calculator}
+            title="No registers yet"
+            description="Add a register for each till or checkout point your team uses."
+            className="border-0 bg-transparent py-10"
+          />
         ) : (
           registers.map((r) => (
             <div key={r.id} className="flex items-center gap-3 px-4 py-3">

@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
+import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { formatDateTime } from "@/lib/format.js";
@@ -71,12 +72,10 @@ export default function VendorVerificationPage() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Verification</h1>
-        <p className="text-sm text-slate-800 mt-1">
-          You can set up your store and add products right away, but it won&apos;t be visible to customers or able to take orders until your identity is verified.
-        </p>
-      </div>
+      <PageHeader
+        title="Verification"
+        description="You can set up your store and add products right away, but customers cannot order until your identity is verified."
+      />
 
       {status.approvalStatus === "approved" && (
         <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-sm p-4 text-sm text-green-800">
