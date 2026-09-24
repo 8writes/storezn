@@ -266,18 +266,20 @@ body {
   display: none;
 }
 
-/* Sonner's default width is tight once the close control and icon are
-   present, which can collapse a useful message into a tall word stack. */
+/* Keep short toasts on one line, while allowing genuinely long messages to
+   wrap once the toast reaches its readable maximum width. */
 [data-sonner-toaster] {
-  --width: min(26rem, calc(100vw - 1.5rem));
+  --width: min(32rem, calc(100vw - 1.5rem));
 }
 [data-sonner-toast] {
-  width: var(--width) !important;
-  max-width: calc(100vw - 1.5rem) !important;
+  width: fit-content !important;
+  max-width: var(--width) !important;
   align-items: flex-start !important;
 }
 [data-sonner-toast] [data-content] {
-  flex: 1 1 auto !important;
+  flex: 0 1 auto !important;
+  width: max-content !important;
+  max-width: 100% !important;
   min-width: 0 !important;
 }
 [data-sonner-toast] [data-title],
