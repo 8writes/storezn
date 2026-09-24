@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 // Shown once, as a dialog, only when arriving from a marketplace product
 // link (see MarketplaceGrid.js's ProductCard href, which appends
@@ -14,22 +15,21 @@ export function MarketplaceBanner({ storeName }) {
   const searchParams = useSearchParams();
   const fromMarketplace = searchParams.get("from") === "marketplace";
   const [open, setOpen] = useState(fromMarketplace);
+  useModalScrollLock(open);
 
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e) => e.key === "Escape" && setOpen(false);
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open]);
 
   if (!fromMarketplace || !open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 py-8">
       <div className="fixed inset-0 bg-black/50" onClick={() => setOpen(false)} />
       <div className="relative bg-white rounded-sm shadow-xl w-full max-w-sm p-6 space-y-4 my-auto">
         <div>

@@ -11,12 +11,11 @@ import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../../lib/email/escapeHtml.js";
 import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
+import { getPublicAppOrigin } from "../../../../../lib/requestUrl.js";
 
 const requestNumber = () => `REQ-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
 async function handlePost(req) {
-  const limit = await checkRateLimit(req, "invoice-request", { max: 20, windowMs: 60_000 });
-  if (!limit.allowed) return NextResponse.json({ error: "Too many requests, try again shortly" }, { status: 429 });
   const store = await resolveStoreByHost(req.headers.get("host") || "");
   if (!store || !isStoreLive(store)) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   const body = await req.json().catch(() => null);
@@ -24,6 +23,14 @@ async function handlePost(req) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
   const user = await getUser(req);
+  const identity = user?.id || result.data.guestEmail;
+  const [identityLimit, networkLimit] = await Promise.all([
+    checkRateLimit(req, `invoice-request:${store.id}`, { max: 1, windowMs: 60_000, userId: identity }),
+    checkRateLimit(req, `invoice-request-network:${store.id}`, { max: 10, windowMs: 60_000 }),
+  ]);
+  if (!identityLimit.allowed || !networkLimit.allowed) {
+    return NextResponse.json({ error: "You can send one quote request per minute. Please wait and try again." }, { status: 429 });
+  }
   const productIds = [...new Set(result.data.items.map((item) => item.productId))];
   const variantIds = [...new Set(result.data.items.map((item) => item.variantId).filter(Boolean))];
   const [productRows, variantRows] = await Promise.all([
@@ -48,18 +55,14 @@ async function handlePost(req) {
   }
 
   const customerId = user?.role === "customer" && user.storeId === store.id ? user.id : null;
-  if (!customerId && !result.data.guestEmail && !result.data.buyerPhone) {
-    return NextResponse.json({ error: "Add an email or phone number so the seller can contact you" }, { status: 400 });
-  }
-
   const [request] = await db.transaction(async (tx) => {
     const [created] = await tx.insert(invoiceRequests).values({
       storeId: store.id,
       customerId,
       requestNumber: requestNumber(),
-      guestEmail: result.data.guestEmail || (user?.role === "customer" ? user.email : null),
-      buyerName: result.data.buyerName || null,
-      buyerPhone: result.data.buyerPhone || null,
+      guestEmail: result.data.guestEmail,
+      buyerName: result.data.buyerName,
+      buyerPhone: result.data.buyerPhone,
       note: result.data.note || null,
       status: "new",
     }).returning();
@@ -75,7 +78,7 @@ async function handlePost(req) {
     return [created];
   });
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin).replace(/\/$/, "");
+  const appUrl = getPublicAppOrigin(req);
   after(async () => {
     await sendPushToStore(store.id, {
       title: "New invoice request",

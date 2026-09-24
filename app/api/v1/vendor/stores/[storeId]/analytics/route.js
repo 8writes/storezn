@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { orders, orderItems, products, categories, customers, branches, refundRequests, stores } from "../../../../../../../lib/db/schema.js";
+import { orders, orderItems, products, categories, customers, branches, refundRequests, stores, invoices, invoiceRequests } from "../../../../../../../lib/db/schema.js";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
@@ -222,6 +222,33 @@ export async function GET(req, { params }) {
     .from(products)
     .where(eq(products.storeId, storeId));
 
+  const invoiceConditions = [eq(invoices.storeId, storeId), inRange(invoices.createdAt, from, to)];
+  if (branchId) invoiceConditions.push(eq(orders.branchId, branchId));
+  if (channel === "online") invoiceConditions.push(eq(orders.isOffline, false));
+  if (channel === "offline") invoiceConditions.push(eq(orders.isOffline, true));
+  const [invoiceStats] = await db
+    .select({
+      total: sql`count(*)`.mapWith(Number),
+      sent: sql`count(*) filter (where ${invoices.status} = 'sent')`.mapWith(Number),
+      partiallyPaid: sql`count(*) filter (where ${invoices.status} = 'partially_paid')`.mapWith(Number),
+      paid: sql`count(*) filter (where ${invoices.status} = 'paid')`.mapWith(Number),
+      cancelled: sql`count(*) filter (where ${invoices.status} in ('cancelled', 'void', 'expired'))`.mapWith(Number),
+      quotedValue: sql`coalesce(sum(${invoices.totalAmount}) filter (where ${invoices.status} not in ('cancelled', 'void')), 0)`.mapWith(Number),
+      received: sql`coalesce(sum(${invoices.amountPaid}), 0)`.mapWith(Number),
+      outstanding: sql`coalesce(sum(${invoices.amountDue}) filter (where ${invoices.status} in ('sent', 'partially_paid')), 0)`.mapWith(Number),
+    })
+    .from(invoices)
+    .leftJoin(orders, eq(orders.id, invoices.orderId))
+    .where(and(...invoiceConditions));
+  const [requestStats] = await db
+    .select({
+      total: sql`count(*)`.mapWith(Number),
+      storefront: sql`count(*) filter (where ${invoiceRequests.createdBy} is null)`.mapWith(Number),
+      offline: sql`count(*) filter (where ${invoiceRequests.createdBy} is not null)`.mapWith(Number),
+    })
+    .from(invoiceRequests)
+    .where(and(eq(invoiceRequests.storeId, storeId), inRange(invoiceRequests.createdAt, from, to)));
+
   const revenue = summaryRow?.revenue || 0;
   const orderCount = summaryRow?.orderCount || 0;
   const prevRevenue = prevSummaryRow?.revenue || 0;
@@ -248,6 +275,19 @@ export async function GET(req, { params }) {
     branchBreakdown: branchBreakdown.length > 1 ? branchBreakdown : [],
     topCustomers,
     refunds: { pending: refundRow?.pending || 0, approved: refundRow?.approved || 0, rejected: refundRow?.rejected || 0 },
+    invoices: {
+      requests: requestStats?.total || 0,
+      storefrontRequests: requestStats?.storefront || 0,
+      offlineRequests: requestStats?.offline || 0,
+      total: invoiceStats?.total || 0,
+      sent: invoiceStats?.sent || 0,
+      partiallyPaid: invoiceStats?.partiallyPaid || 0,
+      paid: invoiceStats?.paid || 0,
+      cancelled: invoiceStats?.cancelled || 0,
+      quotedValue: invoiceStats?.quotedValue || 0,
+      received: invoiceStats?.received || 0,
+      outstanding: invoiceStats?.outstanding || 0,
+    },
     products: {
       total: productStats?.total || 0,
       live: productStats?.live || 0,

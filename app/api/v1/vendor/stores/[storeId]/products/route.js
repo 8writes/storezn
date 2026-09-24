@@ -54,6 +54,7 @@ export async function GET(req, { params }) {
   const q = searchParams.get("q")?.trim();
   const exactSku = searchParams.get("sku")?.trim();
   const categoryId = searchParams.get("category")?.trim();
+  const saleMode = searchParams.get("saleMode")?.trim();
   const orderBy = SORTS[searchParams.get("sort")] || SORTS.newest;
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
   const includeVariants = searchParams.get("includeVariants") === "true";
@@ -93,6 +94,7 @@ export async function GET(req, { params }) {
     }
   }
   if (categoryId) conditions.push(eq(products.categoryId, categoryId));
+  if (saleMode === "fixed_price" || saleMode === "invoice_required") conditions.push(eq(products.saleMode, saleMode));
 
   // A selected branch makes that branch's base-product stock authoritative
   // for filtering and display. Without a branch, use the cached store total.

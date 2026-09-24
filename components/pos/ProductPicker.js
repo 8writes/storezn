@@ -9,6 +9,7 @@ import { networkErrorMessage } from "@/lib/fetchError.js";
 import { isOffline } from "@/lib/connectivity.js";
 import { searchCatalog, findBySku, getCatalogProduct } from "@/lib/posOffline.js";
 import { barcodeMatches, normalizeBarcode } from "@/lib/barcode.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 const PAGE_SIZE = 24;
 
@@ -45,6 +46,7 @@ export function ProductPicker({ storeId, branchId, token, onAdd, onInvoiceReques
   const [variantsBy, setVariantsBy] = useState({});
   const [loadingVariantsFor, setLoadingVariantsFor] = useState(null);
   const [picker, setPicker] = useState(null);
+  useModalScrollLock(!!picker);
   const [scanning, setScanning] = useState(false);
   const searchRef = useRef(null);
   const handleScanRef = useRef(null);

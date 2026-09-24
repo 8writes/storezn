@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Download, QrCode, X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { generateStoreQrCard } from "@/lib/generateStoreQrCard.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 // Opens a preview of the downloadable "shop online" QR card and lets the
 // vendor save it as a PNG - the actual composition (logo, store name, QR
@@ -29,6 +30,7 @@ export function StoreQrCodeButton({ storeName, storeUrl }) {
 // flip it on open - unmounting on close then remounting on next open
 // resets everything for free.
 function QrModal({ storeName, storeUrl, onClose }) {
+  useModalScrollLock(true);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [canvas, setCanvas] = useState(null);
   const [generating, setGenerating] = useState(true);
@@ -56,7 +58,7 @@ function QrModal({ storeName, storeUrl, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 py-8">
       <div className="fixed inset-0 bg-black/70" onClick={onClose} />
       <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-sm overflow-hidden my-auto">
         <div className="flex items-center justify-between px-4 h-12 border-b border-slate-200">

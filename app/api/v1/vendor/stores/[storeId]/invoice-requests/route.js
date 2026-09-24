@@ -1,11 +1,12 @@
 import { NextResponse, after } from "next/server";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../../../../../../lib/db/index.js";
-import { invoiceRequestItems, invoiceRequests, productVariants, products, stores } from "../../../../../../../lib/db/schema.js";
+import { branches, invoiceRequestItems, invoiceRequests, productVariants, products, stores } from "../../../../../../../lib/db/schema.js";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createInvoiceRequestSchema, validateCustomerFieldAnswers } from "../../../../../../../lib/validate.js";
 import { snapshotCustomerFieldAnswers } from "../../../../../../../lib/customerFields.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
+import { stockBranchForUser, STAFF_BRANCH_REQUIRED_MESSAGE } from "../../../../../../../lib/stockBranch.js";
 
 export async function GET(req, { params }) {
   const user = await getUser(req);
@@ -28,6 +29,11 @@ export async function POST(req, { params }) {
   const body = await req.json().catch(() => null);
   const result = validate(createInvoiceRequestSchema, body || {});
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+  const branchRows = await db.select().from(branches).where(eq(branches.storeId, storeId)).orderBy(branches.createdAt);
+  const branch = user.role === "staff"
+    ? stockBranchForUser(branchRows, user)
+    : branchRows.find((row) => row.id === result.data.branchId) || stockBranchForUser(branchRows, user);
+  if (!branch) return NextResponse.json({ error: STAFF_BRANCH_REQUIRED_MESSAGE }, { status: 409 });
   const ids = [...new Set(result.data.items.map((item) => item.productId))];
   const variants = [...new Set(result.data.items.map((item) => item.variantId).filter(Boolean))];
   const [productsRows, variantsRows] = await Promise.all([
@@ -47,7 +53,7 @@ export async function POST(req, { params }) {
   }
   const requestNumber = `REQ-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
   const [request] = await db.transaction(async (tx) => {
-    const [created] = await tx.insert(invoiceRequests).values({ storeId, requestNumber, guestEmail: result.data.guestEmail || null, buyerName: result.data.buyerName || null, buyerPhone: result.data.buyerPhone || null, note: result.data.note || null, status: "new", createdBy: user.id }).returning();
+    const [created] = await tx.insert(invoiceRequests).values({ storeId, branchId: branch.id, requestNumber, guestEmail: result.data.guestEmail, buyerName: result.data.buyerName, buyerPhone: result.data.buyerPhone, note: result.data.note || null, status: "new", createdBy: user.id }).returning();
     await tx.insert(invoiceRequestItems).values(rows.map(({ product, variant, item }) => ({ requestId: created.id, productId: product.id, variantId: variant?.id || null, productName: product.name, variantLabel: variant ? Object.entries(variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, quantity: item.quantity, customerFields: item.customerFields || {} })));
     return [created];
   });

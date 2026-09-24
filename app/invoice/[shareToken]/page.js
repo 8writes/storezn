@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button.js";
 import { Input } from "@/components/ui/Input.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 import { customerFieldEntries } from "@/lib/customerFields.js";
+import { generateBrandShades } from "@/lib/colorShades.js";
 
 export default function PublicInvoicePage({ params }) {
   const { shareToken } = use(params);
@@ -50,7 +51,7 @@ export default function PublicInvoicePage({ params }) {
   const payable = ["sent", "partially_paid"].includes(invoice.status) && !expired;
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 sm:p-8">
+    <main className="min-h-screen bg-slate-50 p-4 sm:p-8" style={store.storefrontAccentColor ? generateBrandShades(store.storefrontAccentColor) : undefined}>
       <div className="max-w-xl mx-auto bg-white border border-slate-200 rounded-sm p-5 sm:p-8 shadow-sm">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-5">
           {store.logoUrl && <img src={store.logoUrl} alt="" className="w-12 h-12 rounded-sm object-cover" />}
@@ -65,6 +66,7 @@ export default function PublicInvoicePage({ params }) {
           <div className="flex justify-between text-sm font-semibold text-brand-700"><span>Due now</span><span>{formatCurrency(invoice.amountDue)}</span></div>
         </div>
         <div className="pt-6 space-y-3">
+          {invoice.orderStatus && invoice.amountPaid > 0 && <p className="text-sm text-slate-700">Order status: <strong className="capitalize text-slate-900">{invoice.orderStatus.replace("_", " ")}</strong></p>}
           {invoice.expiresAt && invoice.status === "sent" && <p className="text-xs text-slate-600">Valid until {formatDate(invoice.expiresAt)}</p>}
           {invoice.status === "partially_paid" && <p className="text-xs text-slate-600">Your deposit is confirmed. The remaining balance stays payable from this link.</p>}
           {paid ? <p className="text-sm font-semibold text-green-700">Paid in full. Thank you.</p> : !payable ? <p className="text-sm font-semibold text-slate-700">This invoice is {expired ? "expired" : invoice.status} and can no longer be paid.</p> : <>

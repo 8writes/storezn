@@ -4,6 +4,7 @@ import Cropper from "react-easy-crop";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { getCroppedImageBlob } from "@/lib/cropImage.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 // Lets the vendor reposition/zoom their upload within a fixed shape
 // before it's saved, so the result is always exactly the part of the
@@ -25,10 +26,11 @@ export function ImageCropModal({
   onCancel,
   onCropped,
 }) {
+  useModalScrollLock(open);
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overscroll-none p-4">
       <div className="fixed inset-0 bg-black/70" onClick={onCancel} />
       <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-sm overflow-hidden">
         <div className="flex items-center justify-between px-4 h-12 border-b border-slate-200">

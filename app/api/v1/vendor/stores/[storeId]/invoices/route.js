@@ -11,6 +11,7 @@ import { escapeHtml } from "../../../../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../../../../lib/format.js";
 import { OutOfStockError, resolveFulfillingBranch, reserveStock } from "../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
+import { buildPublicAppUrl } from "../../../../../../../lib/requestUrl.js";
 
 const invoiceNumber = () => `INV-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
@@ -101,6 +102,7 @@ async function handlePost(req, { params }) {
   const order = {
     id: orderId,
     storeId,
+    userId: request.customerId || null,
     orderNumber: generateOrderNumber(),
     guestEmail: invoice.guestEmail,
     buyerName: request.buyerName,
@@ -117,9 +119,9 @@ async function handlePost(req, { params }) {
     vendorPayoutAmount: totals.vendorPayoutAmount,
     feeChargedToCustomer: false,
     note: invoice.note,
-    isOffline: false,
-    channel: "online",
-    branchId: null,
+    isOffline: !!request.createdBy,
+    channel: request.createdBy ? "manual" : "online",
+    branchId: request.branchId || null,
     amountPaid: 0,
     amountDue: subtotal,
     invoiceId,
@@ -141,7 +143,7 @@ async function handlePost(req, { params }) {
           variantId: line.variant?.id || null,
           quantity: line.quantity,
           productName: line.product.name,
-        })));
+        })), { preferredBranchId: request.branchId || undefined });
         await reserveStock(tx, physicalLines.map((line) => ({
           productId: line.product.id,
           variantId: line.variant?.id || null,
@@ -171,7 +173,7 @@ async function handlePost(req, { params }) {
   }
   const paymentEmail = invoice.guestEmail;
   if (paymentEmail) {
-    const link = `${new URL(req.url).origin}/invoice/${invoice.shareToken}`;
+    const link = buildPublicAppUrl(req, `/invoice/${invoice.shareToken}`);
     after(() => sendMail({
       to: paymentEmail,
       subject: `Invoice ${invoice.invoiceNumber} from ${store.name}`,

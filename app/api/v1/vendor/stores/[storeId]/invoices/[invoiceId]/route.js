@@ -1,10 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../../../../../../../lib/db/index.js";
 import { invoiceItems, invoicePayments, invoiceRequests, invoices, orders, stores } from "../../../../../../../../lib/db/schema.js";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { releaseInvoiceInventoryHold } from "../../../../../../../../lib/invoiceInventory.js";
 import { withApiMonitoring } from "../../../../../../../../lib/apiMonitoring.js";
+import { sendMail } from "../../../../../../../../lib/email/sendMail.js";
+import { escapeHtml } from "../../../../../../../../lib/email/escapeHtml.js";
+import { formatCurrency } from "../../../../../../../../lib/format.js";
+import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
 
 async function load(req, params) {
   const user = await getUser(req);
@@ -13,7 +17,7 @@ async function load(req, params) {
   if (!user || !store || !canManageStore(user, store)) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   const [invoice] = await db.select().from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.storeId, storeId))).limit(1);
   if (!invoice) return { error: NextResponse.json({ error: "Invoice not found" }, { status: 404 }) };
-  return { user, invoice };
+  return { user, store, invoice };
 }
 
 async function handleGet(req, { params }) {
@@ -41,6 +45,25 @@ async function handlePatch(req, { params }) {
     return true;
   });
   if (!cancelled) return NextResponse.json({ error: "Only an unpaid invoice without an active payment can be cancelled" }, { status: 409 });
+  if (loaded.invoice.guestEmail) {
+    after(() => sendMail({
+      to: loaded.invoice.guestEmail,
+      subject: `Invoice ${loaded.invoice.invoiceNumber} was cancelled`,
+      html: `<p>Hello${loaded.invoice.buyerName ? ` ${escapeHtml(loaded.invoice.buyerName)}` : ""},</p><p><strong>${escapeHtml(loaded.store.name)}</strong> cancelled invoice <strong>${escapeHtml(loaded.invoice.invoiceNumber)}</strong>.</p><p>No payment is due. The cancelled total was ${escapeHtml(formatCurrency(loaded.invoice.totalAmount))}.</p>`,
+      fromName: loaded.store.name,
+      brand: loaded.store,
+      preheader: `Invoice ${loaded.invoice.invoiceNumber} was cancelled`,
+    }).catch((error) => console.error("sendMail failed (invoice cancellation):", error)));
+  }
+  after(() => logStoreActivity({
+    storeId: loaded.invoice.storeId,
+    actor: loaded.user,
+    action: "invoice.cancel",
+    summary: `Cancelled invoice ${loaded.invoice.invoiceNumber}`,
+    targetType: "invoice",
+    targetId: loaded.invoice.id,
+    metadata: { orderId: loaded.invoice.orderId, totalAmount: loaded.invoice.totalAmount },
+  }));
   return NextResponse.json({ ok: true });
 }
 

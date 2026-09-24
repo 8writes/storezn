@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Video, X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 export function ProductGallery({ images = [], videoUrl, name }) {
   const [active, setActive] = useState(0);
@@ -112,6 +113,7 @@ export function ProductGallery({ images = [], videoUrl, name }) {
 // scrolling - no src swap, no transition replay, no flicker. Zoom/pan
 // only ever touches the slide that's currently centred.
 function Lightbox({ slides, index, name, onIndexChange, onClose }) {
+  useModalScrollLock(true);
   const count = slides.length;
   const stripRef = useRef(null);
   const [zoom, setZoom] = useState(false);
@@ -151,10 +153,8 @@ function Lightbox({ slides, index, name, onIndexChange, onClose }) {
       else if (e.key === "ArrowLeft") goTo(index - 1);
     };
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, zoom]);

@@ -1,11 +1,15 @@
 "use client";
 import { useMemo, useState } from "react";
+import { Minus, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button.js";
 import { SizeGuideButton } from "@/components/storefront/SizeGuideButton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
+import { useConfirm } from "@/hooks/useConfirm.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
+import { InfoTip } from "@/components/ui/InfoTip.js";
 
 const LOW_STOCK = 10;
 const norm = (v) => String(v ?? "").trim().toLowerCase();
@@ -33,7 +37,8 @@ export function AddToCartButton({
   sizeGuide = null,
   customerFields = [],
 }) {
-  const { token, loading: authLoading } = useCustomerAuth();
+  const { user, token, loading: authLoading } = useCustomerAuth();
+  const { confirm, confirmDialog } = useConfirm();
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState({});
   const [useBase, setUseBase] = useState(false);
@@ -42,6 +47,17 @@ export function AddToCartButton({
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [invoiceQuantity, setInvoiceQuantity] = useState(1);
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  useModalScrollLock(quoteOpen);
+
+  const openQuote = () => {
+    if (user) {
+      setBuyerName((value) => value || [user.firstName, user.lastName].filter(Boolean).join(" "));
+      setGuestEmail((value) => value || user.email || "");
+      setBuyerPhone((value) => value || user.phone || "");
+    }
+    setQuoteOpen(true);
+  };
 
   const optionGroups = useMemo(() => {
     const groups = {};
@@ -122,31 +138,41 @@ export function AddToCartButton({
 
   const pickedSizeRow = sizeGroupName && selected[sizeGroupName] ? sizeRow(selected[sizeGroupName]) : null;
 
-  const handleClick = async () => {
-    if (invoiceRequired) {
-      if (!token && !guestEmail.trim() && !buyerPhone.trim()) {
-        toast.error("Enter an email or phone number so the seller can contact you");
-        return;
-      }
-      const quantity = Number(invoiceQuantity);
-      if (!Number.isInteger(quantity) || quantity < 1) return toast.error("Quantity must be at least 1");
-      setLoading(true);
-      try {
-        const res = await fetch("/api/v1/storefront/invoice-requests", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ guestEmail: guestEmail.trim() || undefined, buyerName: buyerName.trim() || undefined, buyerPhone: buyerPhone.trim() || undefined, items: [{ productId, variantId: matchedVariant?.id || null, quantity, customerFields: answers }] }),
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(data?.error || "Could not submit invoice request");
-        toast.success("Request sent. The seller will send your invoice.");
-      } catch (err) {
-        toast.error(err.message || "Could not submit invoice request");
-      } finally {
-        setLoading(false);
-      }
-      return;
+  const submitQuote = async () => {
+    const name = buyerName.trim();
+    const email = guestEmail.trim();
+    const phone = buyerPhone.trim();
+    if (!name || !email || !phone) return toast.error("Name, email, and phone are required");
+    if (!/^\S+@\S+\.\S+$/.test(email)) return toast.error("Enter a valid email address");
+    const missingField = customerFields.find((field) => field.required && (field.type === "checkbox" ? answers[field.id] !== true : !String(answers[field.id] ?? "").trim()));
+    if (missingField) return toast.error(`${missingField.label} is required`);
+    const quantity = Number(invoiceQuantity);
+    if (!Number.isInteger(quantity) || quantity < 1) return toast.error("Quantity must be at least 1");
+    const approved = await confirm({
+      title: "Send quote request?",
+      description: `The seller will receive your contact details and a request for ${quantity} item${quantity === 1 ? "" : "s"}.`,
+      confirmLabel: "Send request",
+    });
+    if (!approved) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/v1/storefront/invoice-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ guestEmail: email, buyerName: name, buyerPhone: phone, items: [{ productId, variantId: matchedVariant?.id || null, quantity, customerFields: answers }] }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Could not submit quote request");
+      toast.success(`Quote request ${data.request.requestNumber} sent`);
+      setQuoteOpen(false);
+    } catch (err) {
+      toast.error(err.message || "Could not submit quote request");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleClick = async () => {
     if (authLoading) return;
     setLoading(true);
     try {
@@ -180,7 +206,7 @@ export function AddToCartButton({
   const cta = needsSelection && !hasChosen ? (
     <Button disabled fullWidth size="lg" variant="secondary">Select an option</Button>
   ) : invoiceRequired ? (
-    <Button onClick={handleClick} loading={loading || authLoading} disabled={authLoading} fullWidth size="lg">Request a quote</Button>
+    <Button onClick={openQuote} disabled={authLoading} fullWidth size="lg">Request a quote</Button>
   ) :
     !inStock ? (
       <Button disabled fullWidth size="lg" variant="secondary">Out of stock</Button>
@@ -189,6 +215,7 @@ export function AddToCartButton({
     );
 
   return (
+    <>
     <div className="space-y-5">
       <div className="flex items-baseline gap-2.5">
         <p className="text-2xl font-medium text-slate-900">{invoiceRequired ? "Price on request" : formatCurrency(price)}</p>
@@ -235,7 +262,7 @@ export function AddToCartButton({
                 const row = isSize ? sizeRow(value) : null;
                 const lone = isSize ? loneVariantForSize(value) : null;
                 const soldOut = lone && productType === "physical" && lone.stock != null && lone.stock <= 0;
-                const low =
+                const low = !invoiceRequired &&
                   lone && productType === "physical" && lone.stock != null && lone.stock > 0 && lone.stock <= LOW_STOCK;
                 return (
                   <button
@@ -282,19 +309,13 @@ export function AddToCartButton({
         <p className="text-xs text-slate-800">{sizeGuide.note}</p>
       )}
 
-      {needsSelection && hasChosen && stock != null && productType === "physical" && (
+      {!invoiceRequired && needsSelection && hasChosen && stock != null && productType === "physical" && (
         <p className="text-sm text-slate-700">{stock} in stock</p>
       )}
 
-      {(invoiceRequired || customerFields.length > 0) && (
+      {!invoiceRequired && customerFields.length > 0 && (
         <div className="space-y-3 border-t border-slate-200 pt-4">
-          <p className="text-sm font-semibold text-slate-900">{invoiceRequired ? "Request an invoice" : "Product details"}</p>
-          {invoiceRequired && <>
-            <input type="number" min="1" step="1" value={invoiceQuantity} onChange={(e) => setInvoiceQuantity(e.target.value)} aria-label="Quantity" placeholder="Quantity" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
-            <input type="text" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Your name (optional)" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
-            <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email (optional)" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
-            <input type="tel" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="WhatsApp or phone (optional)" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
-          </>}
+          <p className="text-sm font-semibold text-slate-900">Product details</p>
           {customerFields.map((field) => (
             <label key={field.id} className="block space-y-1">
               <span className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</span>
@@ -326,5 +347,51 @@ export function AddToCartButton({
         <div className="flex-1">{cta}</div>
       </div>
     </div>
+    {quoteOpen && (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none">
+        <div className="fixed inset-0 bg-black/50" onClick={loading ? undefined : () => setQuoteOpen(false)} />
+        <div className="relative bg-white rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92dvh] flex flex-col overscroll-contain">
+          <div className="flex items-start justify-between gap-3 p-4 border-b border-slate-200">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold text-slate-900">Request a quote</h2>
+                <InfoTip storefront>The seller will review your requirements, agree the price with you, and send a secure invoice when the quote is ready.</InfoTip>
+              </div>
+              <p className="text-sm text-slate-600 mt-1">Enter the details the seller should use to contact you.</p>
+            </div>
+            <button type="button" onClick={() => setQuoteOpen(false)} disabled={loading} aria-label="Close" className="p-1 text-slate-600 hover:text-slate-900 cursor-pointer disabled:cursor-not-allowed"><X size={19} /></button>
+          </div>
+          <div className="p-4 overflow-y-auto overscroll-contain space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Quantity</label>
+              <div className="inline-grid grid-cols-[2.75rem_4rem_2.75rem] h-11 border border-slate-300 rounded-sm overflow-hidden">
+                <button type="button" onClick={() => setInvoiceQuantity((q) => Math.max(1, Number(q) - 1))} aria-label="Decrease quantity" className="grid place-items-center text-brand-700 hover:bg-brand-50 cursor-pointer"><Minus size={17} /></button>
+                <output className="grid place-items-center border-x border-slate-300 text-sm font-semibold text-slate-900 tabular-nums">{invoiceQuantity}</output>
+                <button type="button" onClick={() => setInvoiceQuantity((q) => Math.min(100000, Number(q) + 1))} aria-label="Increase quantity" className="grid place-items-center text-brand-700 hover:bg-brand-50 cursor-pointer"><Plus size={17} /></button>
+              </div>
+            </div>
+            <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Customer name *</span><input type="text" required value={buyerName} onChange={(e) => setBuyerName(e.target.value)} autoComplete="name" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-base sm:text-sm" /></label>
+            <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Email *</span><input type="email" required value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} autoComplete="email" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-base sm:text-sm" /></label>
+            <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Phone or WhatsApp *</span><input type="tel" required value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} autoComplete="tel" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-base sm:text-sm" /></label>
+            {customerFields.map((field) => (
+              <label key={field.id} className="block space-y-1">
+                <span className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</span>
+                {field.type === "textarea" ? <textarea rows={3} value={answers[field.id] || ""} onChange={(e) => setAnswers((a) => ({ ...a, [field.id]: e.target.value }))} placeholder={field.placeholder || ""} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-base sm:text-sm" />
+                  : field.type === "select" ? <select value={answers[field.id] || ""} onChange={(e) => setAnswers((a) => ({ ...a, [field.id]: e.target.value }))} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-base sm:text-sm"><option value="">Select...</option>{(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                    : field.type === "checkbox" ? <input type="checkbox" checked={answers[field.id] === true} onChange={(e) => setAnswers((a) => ({ ...a, [field.id]: e.target.checked }))} />
+                      : <input type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"} value={answers[field.id] || ""} onChange={(e) => setAnswers((a) => ({ ...a, [field.id]: e.target.value }))} placeholder={field.placeholder || ""} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-base sm:text-sm" />}
+                {field.helpText && <span className="block text-xs text-slate-600">{field.helpText}</span>}
+              </label>
+            ))}
+          </div>
+          <div className="p-4 border-t border-slate-200 flex gap-3">
+            <Button type="button" variant="outline" fullWidth disabled={loading} onClick={() => setQuoteOpen(false)}>Cancel</Button>
+            <Button type="button" fullWidth loading={loading} onClick={submitQuote}>Continue</Button>
+          </div>
+        </div>
+      </div>
+    )}
+    {confirmDialog}
+    </>
   );
 }

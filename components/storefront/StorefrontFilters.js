@@ -5,6 +5,7 @@ import { Search, Loader2, X, SlidersHorizontal } from "lucide-react";
 import { Select } from "@/components/ui/Select.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Button } from "@/components/ui/Button.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
@@ -169,6 +170,7 @@ function Chip({ label, onClear }) {
 // its own scrolling body. Holds its own draft state; nothing touches the
 // URL until "Apply".
 function FilterModal({ categories, themed, initial, onApply, onClose }) {
+  useModalScrollLock(true);
   const [category, setCategory] = useState(initial.category);
   const [sort, setSort] = useState(initial.sort);
   const [min, setMin] = useState(initial.min);
@@ -185,9 +187,9 @@ function FilterModal({ categories, themed, initial, onApply, onClose }) {
   const anyDraft = category || sort !== "newest" || min || max || discounted;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none sm:p-4">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white w-full sm:max-w-md rounded-t-sm sm:rounded-sm shadow-xl flex flex-col max-h-[85vh]">
+      <div className="relative bg-white w-full sm:max-w-md rounded-t-sm sm:rounded-sm shadow-xl flex flex-col max-h-[85vh] overscroll-contain">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
           <p className="text-sm font-bold text-slate-900">Filter</p>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700 cursor-pointer" aria-label="Close">

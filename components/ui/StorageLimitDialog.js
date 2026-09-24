@@ -3,27 +3,27 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 // Shown whenever an upload is rejected with 402 "storage limit reached"
 // (see POST /api/v1/uploads/file) - offers the two real ways out instead
 // of just a toast: upgrade for more room, or free some up by removing a
 // product's photos. Same chrome as ConfirmModal.js.
 export function StorageLimitDialog({ open, onClose }) {
+  useModalScrollLock(open);
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 py-8">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-sm p-6 space-y-4 my-auto">
         <div className="flex items-start gap-3">

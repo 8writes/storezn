@@ -7,18 +7,19 @@ import { getEffectivePrice } from "@/lib/pricing.js";
 
 function RailCard({ p }) {
   const effectivePrice = getEffectivePrice(p.price, p.discountPercent);
+  const invoiceRequired = p.saleMode === "invoice_required";
   return (
     <Link
       href={`/products/${p.slug}`}
       className="group block shrink-0 w-40 sm:w-48 snap-start"
     >
       <div className="relative aspect-4/5 bg-slate-100 overflow-hidden rounded-sm">
-        {p.discountPercent > 0 && !p.outOfStock && (
+        {!invoiceRequired && p.discountPercent > 0 && !p.outOfStock && (
           <span className="absolute top-2 left-2 z-10 bg-red-600 text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-sm">
             -{p.discountPercent}%
           </span>
         )}
-        {p.outOfStock && (
+        {!invoiceRequired && p.outOfStock && (
           <span className="absolute top-2 left-2 z-10 bg-slate-900/80 text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-sm">
             Out of stock
           </span>
@@ -27,7 +28,7 @@ function RailCard({ p }) {
           <img
             src={p.images[0]}
             alt={p.name}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${p.outOfStock ? "opacity-50" : ""}`}
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${!invoiceRequired && p.outOfStock ? "opacity-50" : ""}`}
           />
         ) : (
           <span className="flex h-full items-center justify-center text-slate-300 text-xs">No image</span>
@@ -36,8 +37,8 @@ function RailCard({ p }) {
       <div className="mt-2 space-y-0.5">
         <p className="text-sm text-slate-800 group-hover:text-slate-950 transition-colors truncate">{p.name}</p>
         <p className="flex items-baseline gap-1.5">
-          <span className="text-sm font-medium text-slate-900">{formatCurrency(effectivePrice)}</span>
-          {p.discountPercent > 0 && <span className="text-xs text-slate-400 line-through">{formatCurrency(p.price)}</span>}
+          <span className="text-sm font-medium text-slate-900">{invoiceRequired ? "Price on request" : formatCurrency(effectivePrice)}</span>
+          {!invoiceRequired && p.discountPercent > 0 && <span className="text-xs text-slate-400 line-through">{formatCurrency(p.price)}</span>}
         </p>
       </div>
     </Link>

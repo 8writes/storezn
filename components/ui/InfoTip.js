@@ -8,7 +8,7 @@ import { Info } from "lucide-react";
 // across a whole page it's what turns a form into a wall of text nobody
 // actually reads. Keeps the same words reachable on demand instead of
 // deleting them.
-export function InfoTip({ children }) {
+export function InfoTip({ children, storefront = false }) {
   const [open, setOpen] = useState(false);
   const [shiftX, setShiftX] = useState(0);
   const anchorRef = useRef(null);
@@ -37,7 +37,7 @@ export function InfoTip({ children }) {
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         aria-label="More info"
-        className="p-1 -m-1 text-slate-700 hover:text-brand-600 cursor-pointer"
+        className={`p-1 -m-1 cursor-pointer ${storefront ? "text-brand-700 hover:text-brand-900" : "text-slate-700 hover:text-brand-600"}`}
       >
         <Info size={16} />
       </button>
@@ -46,13 +46,13 @@ export function InfoTip({ children }) {
           ref={tooltipRef}
           role="tooltip"
           style={{ transform: `translateX(calc(-50% + ${shiftX}px))` }}
-          className="absolute z-20 bottom-full left-1/2 mb-2 w-56 max-w-[80vw] rounded-sm bg-neutral-800 text-white text-xs leading-relaxed px-3 py-2 shadow-lg"
+          className={`absolute z-20 bottom-full left-1/2 mb-2 w-56 max-w-[80vw] rounded-sm text-white text-xs leading-relaxed px-3 py-2 shadow-lg ${storefront ? "bg-brand-700" : "bg-neutral-800"}`}
         >
           {children}
         </span>
       )}
       {open && (
-        <span className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-0.5 border-4 border-transparent border-t-slate-800" />
+        <span className={`absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-0.5 border-4 border-transparent ${storefront ? "border-t-brand-700" : "border-t-slate-800"}`} />
       )}
     </span>
   );

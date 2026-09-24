@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { orders } from "../../../../../lib/db/schema.js";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
 import { parsePagination } from "../../../../../lib/pagination.js";
 
@@ -12,8 +12,8 @@ export async function GET(req) {
   const { page, pageSize, limit, offset } = parsePagination(new URL(req.url).searchParams);
 
   const [rows, [{ total }]] = await Promise.all([
-    db.select().from(orders).where(eq(orders.userId, user.id)).orderBy(desc(orders.createdAt)).limit(limit).offset(offset),
-    db.select({ total: count() }).from(orders).where(eq(orders.userId, user.id)),
+    db.select().from(orders).where(and(eq(orders.userId, user.id), isNull(orders.invoiceId))).orderBy(desc(orders.createdAt)).limit(limit).offset(offset),
+    db.select({ total: count() }).from(orders).where(and(eq(orders.userId, user.id), isNull(orders.invoiceId))),
   ]);
 
   return NextResponse.json({

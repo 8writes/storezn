@@ -26,6 +26,8 @@ import { OfflineSetupModal } from "@/components/pos/OfflineSetupModal.js";
 import { generateOrderNumber } from "@/lib/orders.js";
 import { isOffline, onConnectivityChange } from "@/lib/connectivity.js";
 import { networkErrorMessage } from "@/lib/fetchError.js";
+import { useConfirm } from "@/hooks/useConfirm.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 import {
   enqueueSale,
   flushQueue,
@@ -247,6 +249,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const router = useRouter();
   const isOwner = user?.role === "vendor" || user?.role === "super_admin";
   const actorId = user?.id || null;
+  const { confirm, confirmDialog } = useConfirm();
   const lsKey = `pos_register_${storeId}`;
   const sessionCacheKey = useCallback((sessionId) => `pos_session_${storeId}_${sessionId}`, [storeId]);
 
@@ -292,6 +295,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [offlineReceipt, setOfflineReceipt] = useState(null);
   const [catalog, setCatalog] = useState({ count: 0, savedAt: null, syncing: false, error: null });
   const [offlineSetupOpen, setOfflineSetupOpen] = useState(false);
+  useModalScrollLock(!!invoiceRequest || !!offlineReceipt || tenderOpen || cashOpen || closeOpen || xOpen || heldOpen || holdPromptOpen || offlineSetupOpen);
   const [networkOffline, setNetworkOffline] = useState(false);
   const catalogSessionRef = useRef("");
 
@@ -547,14 +551,30 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       toast.error("Quantity must be at least 1");
       return;
     }
+    if (!buyer.name.trim() || !invoiceRequestEmail.trim() || !buyer.phone.trim()) {
+      toast.error("Customer name, email, and phone are required");
+      return;
+    }
+    const missingField = (Array.isArray(product.customerFields) ? product.customerFields : []).find((field) => field.required && (field.type === "checkbox" ? invoiceRequestAnswers[field.id] !== true : !String(invoiceRequestAnswers[field.id] ?? "").trim()));
+    if (missingField) {
+      toast.error(`${missingField.label} is required`);
+      return;
+    }
+    const approved = await confirm({
+      title: "Add this quote request?",
+      description: `The request for ${quantity} item${quantity === 1 ? "" : "s"} will be added to Invoices for pricing and sending.`,
+      confirmLabel: "Add request",
+    });
+    if (!approved) return;
     setInvoiceRequestSubmitting(true);
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests`, {
         method: "POST",
         body: JSON.stringify({
-          guestEmail: invoiceRequestEmail.trim() || undefined,
-          buyerName: buyer.name || undefined,
-          buyerPhone: buyer.phone || undefined,
+          guestEmail: invoiceRequestEmail.trim(),
+          buyerName: buyer.name.trim(),
+          buyerPhone: buyer.phone.trim(),
+          branchId: sessionData?.register?.branchId || undefined,
           note: buyer.note || undefined,
           items: [{ productId: product.id, variantId: variant?.id || null, quantity, customerFields: invoiceRequestAnswers }],
         }),
@@ -1073,16 +1093,18 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       )}
 
       {invoiceRequest && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none">
           <div className="fixed inset-0 bg-black/50" onClick={invoiceRequestSubmitting ? undefined : () => setInvoiceRequest(null)} />
           <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <div><p className="text-sm font-bold text-slate-900">Request invoice</p><p className="text-xs text-slate-600 mt-0.5">{invoiceRequest.product.name}{invoiceRequest.variant ? ` - ${Object.values(invoiceRequest.variant.options || {}).join(" / ")}` : ""}</p></div>
               <button type="button" aria-label="Close" disabled={invoiceRequestSubmitting} onClick={() => setInvoiceRequest(null)} className="text-slate-500 hover:text-slate-800 cursor-pointer disabled:cursor-not-allowed"><X size={18} /></button>
             </div>
-            <div className="p-4 overflow-y-auto space-y-4">
-              <Input type="number" min="1" step="1" label="Quantity" value={invoiceRequestQuantity} onChange={(event) => setInvoiceRequestQuantity(event.target.value)} />
-              <Input type="email" label="Customer email (optional)" value={invoiceRequestEmail} onChange={(event) => setInvoiceRequestEmail(event.target.value)} hint="You can leave this blank and share the payment link by WhatsApp." />
+            <div className="p-4 overflow-y-auto overscroll-contain space-y-4">
+              <div className="space-y-1"><p className="text-sm font-medium text-slate-700">Quantity</p><div className="inline-grid grid-cols-[2.75rem_4rem_2.75rem] h-11 border border-slate-300 rounded-sm overflow-hidden"><button type="button" aria-label="Decrease quantity" onClick={() => setInvoiceRequestQuantity((value) => Math.max(1, Number(value) - 1))} className="grid place-items-center hover:bg-brand-50 text-brand-700 cursor-pointer"><Minus size={17} /></button><output className="grid place-items-center border-x border-slate-300 text-sm font-semibold tabular-nums">{invoiceRequestQuantity}</output><button type="button" aria-label="Increase quantity" onClick={() => setInvoiceRequestQuantity((value) => Math.min(100000, Number(value) + 1))} className="grid place-items-center hover:bg-brand-50 text-brand-700 cursor-pointer"><Plus size={17} /></button></div></div>
+              <Input label="Customer name" required value={buyer.name} onChange={(event) => setBuyer((current) => ({ ...current, name: event.target.value }))} />
+              <Input type="email" label="Customer email" required value={invoiceRequestEmail} onChange={(event) => setInvoiceRequestEmail(event.target.value)} />
+              <Input type="tel" label="Customer phone or WhatsApp" required value={buyer.phone} onChange={(event) => setBuyer((current) => ({ ...current, phone: event.target.value }))} />
               {(Array.isArray(invoiceRequest.product.customerFields) ? invoiceRequest.product.customerFields : []).map((field) => (
                 <div key={field.id} className="space-y-1">
                   {field.type === "checkbox" ? (
@@ -1102,6 +1124,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           </div>
         </div>
       )}
+      {confirmDialog}
       {cashOpen && (
         <CashDrawerModal
           open

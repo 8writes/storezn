@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { Textarea } from "@/components/ui/Textarea.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 const VARIANT_ICON_CLASSES = {
   danger: "bg-red-100 text-red-600",
@@ -26,6 +27,7 @@ export function ConfirmModal({
   onCancel,
 }) {
   const [reason, setReason] = useState("");
+  useModalScrollLock(open);
 
   useEffect(() => {
     if (open) setReason("");
@@ -35,10 +37,8 @@ export function ConfirmModal({
     if (!open) return;
     const onKeyDown = (e) => e.key === "Escape" && onCancel();
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onCancel]);
 
@@ -51,7 +51,7 @@ export function ConfirmModal({
     // tall card - e.g. the reason textarea's mobile keyboard shrinking the
     // viewport - scrolls within the backdrop instead of getting clipped
     // off-screen with no way to reach the buttons.
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 py-8">
       <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
       <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-sm p-6 space-y-4 my-auto">
         <div className="flex items-start gap-3">

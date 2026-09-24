@@ -6,6 +6,7 @@ import { initializeTransaction, isValidSubAccountCode } from "../../../../../../
 import { withApiMonitoring } from "../../../../../../lib/apiMonitoring.js";
 import { checkRateLimit } from "../../../../../../lib/rateLimit.js";
 import { z } from "zod";
+import { buildPublicAppUrl } from "../../../../../../lib/requestUrl.js";
 
 const paymentEmailSchema = z.string().trim().toLowerCase().email("Enter a valid email address");
 
@@ -19,6 +20,7 @@ export async function GET(req, { params }) {
   const row = await loadInvoice(shareToken);
   if (!row) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, row.invoice.id));
+  const [order] = row.invoice.orderId ? await db.select({ status: orders.status }).from(orders).where(eq(orders.id, row.invoice.orderId)).limit(1) : [];
   return NextResponse.json({
     invoice: {
       invoiceNumber: row.invoice.invoiceNumber,
@@ -32,6 +34,7 @@ export async function GET(req, { params }) {
       note: row.invoice.note,
       expiresAt: row.invoice.expiresAt,
       paidAt: row.invoice.paidAt,
+      orderStatus: order?.status || null,
       requiresPaymentEmail: !row.invoice.guestEmail,
       isExpired: row.invoice.status === "expired" || (row.invoice.status === "sent" && row.invoice.expiresAt && new Date(row.invoice.expiresAt).getTime() <= Date.now()),
     },
@@ -80,14 +83,13 @@ async function handlePost(req, { params }) {
   if (prepared.preparing) return NextResponse.json({ error: "Payment is already being prepared. Try again shortly." }, { status: 409 });
   if (prepared.existing) return NextResponse.json({ authorizationUrl: prepared.existing.authorizationUrl, reference: prepared.existing.paymentReference });
   const payment = prepared.payment;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
   try {
     const paystackData = await initializeTransaction({
       amount: payment.amount,
       email: paymentEmail,
       name: invoice.buyerName || undefined,
       reference,
-      redirectUrl: `${baseUrl}/invoice/${shareToken}`,
+      redirectUrl: buildPublicAppUrl(req, `/invoice/${shareToken}`),
       split: isValidSubAccountCode(row.store.subAccountCode)
         ? { subAccountCode: row.store.subAccountCode, amount: payment.amount * (order.vendorPayoutAmount / Math.max(order.totalAmount, 1)) }
         : undefined,

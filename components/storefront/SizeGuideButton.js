@@ -2,21 +2,21 @@
 import { useEffect, useState } from "react";
 import { Ruler, X } from "lucide-react";
 import { SizeGuideTable } from "@/components/ui/SizeGuideTable.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 // Opens the product's structured size chart (products.sizeGuide) in a
 // modal - a real measurements table with a cm/inch toggle, kept out of
 // the buy box but one tap away for anyone unsure of their size.
 export function SizeGuideButton({ guide }) {
   const [open, setOpen] = useState(false);
+  useModalScrollLock(open);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === "Escape" && setOpen(false);
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
     };
   }, [open]);
 
@@ -34,7 +34,7 @@ export function SizeGuideButton({ guide }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 py-8">
           <div className="fixed inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <div className="relative bg-white rounded-sm shadow-xl w-full max-w-lg my-auto">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
@@ -48,7 +48,7 @@ export function SizeGuideButton({ guide }) {
                 <X size={18} />
               </button>
             </div>
-            <div className="px-5 py-4 max-h-[75vh] overflow-y-auto">
+            <div className="px-5 py-4 max-h-[75vh] overflow-y-auto overscroll-contain">
               <SizeGuideTable guide={guide} />
             </div>
           </div>

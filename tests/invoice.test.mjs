@@ -43,12 +43,23 @@ test("product customer field ids must be unique", () => {
 
 test("invoice requests reject duplicate product options", () => {
   const result = createInvoiceRequestSchema.safeParse({
+    buyerName: "Ada Customer",
+    guestEmail: "ada@example.com",
+    buyerPhone: "+2348000000000",
     items: [
       { productId: "product-1", variantId: "variant-1", quantity: 1 },
       { productId: "product-1", variantId: "variant-1", quantity: 2 },
     ],
   });
   assert.equal(result.success, false);
+});
+
+test("invoice requests require customer name, email, and phone", () => {
+  const item = { productId: "product-1", quantity: 1 };
+  assert.equal(createInvoiceRequestSchema.safeParse({ guestEmail: "ada@example.com", buyerPhone: "+2348000000000", items: [item] }).success, false);
+  assert.equal(createInvoiceRequestSchema.safeParse({ buyerName: "Ada", buyerPhone: "+2348000000000", items: [item] }).success, false);
+  assert.equal(createInvoiceRequestSchema.safeParse({ buyerName: "Ada", guestEmail: "ada@example.com", items: [item] }).success, false);
+  assert.equal(createInvoiceRequestSchema.safeParse({ buyerName: "Ada", guestEmail: "ada@example.com", buyerPhone: "+2348000000000", items: [item] }).success, true);
 });
 
 test("invoice creation rejects duplicate product options", () => {

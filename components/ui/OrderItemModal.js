@@ -4,6 +4,7 @@ import Link from "next/link";
 import { X, ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/lib/format.js";
 import { customerFieldEntries } from "@/lib/customerFields.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 // Quick-view for an order line item, opened from an order detail page
 // instead of navigating straight to the product page - keeps the vendor
@@ -11,14 +12,13 @@ import { customerFieldEntries } from "@/lib/customerFields.js";
 // still one tap away via the link at the bottom, for whoever actually
 // wants to leave.
 export function OrderItemModal({ item, productHref, onClose }) {
+  useModalScrollLock(!!item);
   useEffect(() => {
     if (!item) return;
     const onKeyDown = (e) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [item, onClose]);
 
@@ -26,7 +26,7 @@ export function OrderItemModal({ item, productHref, onClose }) {
   const customerDetails = customerFieldEntries(item.customerFields);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 py-8">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-surface rounded-sm shadow-xl w-full max-w-sm overflow-hidden my-auto">
         <button

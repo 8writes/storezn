@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { Select } from "@/components/ui/Select.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 export const SORT_OPTIONS = [
   { value: "newest", label: "Newest first" },
@@ -51,10 +52,11 @@ export function FilterChip({ label, onClear }) {
 }
 
 export function ProductFiltersModal({ categories, categoryId, setCategoryId, sort, setSort, stockLevel, setStockLevel, expiry, setExpiry, status, setStatus, featured, setFeatured, branches = [], branchId = "", setBranchId, allowAllBranches = true, onClose }) {
+  useModalScrollLock(true);
   const anyActive = categoryId || sort !== "newest" || stockLevel || expiry || status || featured;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-none sm:items-center sm:p-4">
       <div className="fixed inset-0 cursor-pointer bg-black/50" onClick={onClose} />
       <div className="relative flex max-h-[85vh] w-full flex-col rounded-t-sm bg-surface shadow-xl sm:max-w-lg sm:rounded-sm">
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">

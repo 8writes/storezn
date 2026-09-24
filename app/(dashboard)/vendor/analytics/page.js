@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   RotateCcw,
   CalendarClock,
+  FileText,
 } from "lucide-react";
 
 const BRAND = "#14915b";
@@ -216,6 +217,18 @@ export default function VendorAnalyticsPage() {
             <StatCard icon={Package} label="Units sold" value={data.summary.unitsSold} />
             <StatCard icon={Users} label="New customers" value={data.summary.newCustomers} color="brand" />
           </div>
+
+          <section className="border-y border-slate-200 py-5 space-y-4">
+            <div className="flex items-center gap-2"><FileText size={17} className="text-brand-700" /><h2 className="text-sm font-semibold text-slate-900">Invoice performance</h2></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-5 gap-y-4 text-sm">
+              <div><p className="text-slate-600">Quote requests</p><p className="text-lg font-bold text-slate-900">{data.invoices?.requests || 0}</p><p className="text-xs text-slate-600">{data.invoices?.offlineRequests || 0} offline</p></div>
+              <div><p className="text-slate-600">Invoices sent</p><p className="text-lg font-bold text-slate-900">{data.invoices?.total || 0}</p><p className="text-xs text-slate-600">{data.invoices?.sent || 0} awaiting payment</p></div>
+              <div><p className="text-slate-600">Partially paid</p><p className="text-lg font-bold text-slate-900">{data.invoices?.partiallyPaid || 0}</p></div>
+              <div><p className="text-slate-600">Paid in full</p><p className="text-lg font-bold text-slate-900">{data.invoices?.paid || 0}</p></div>
+              <div><p className="text-slate-600">Invoice payments</p><p className="text-lg font-bold text-green-700" title={formatCurrency(data.invoices?.received || 0)}>{compactCurrency(data.invoices?.received || 0)}</p></div>
+              <div><p className="text-slate-600">Outstanding</p><p className="text-lg font-bold text-amber-700" title={formatCurrency(data.invoices?.outstanding || 0)}>{compactCurrency(data.invoices?.outstanding || 0)}</p></div>
+            </div>
+          </section>
 
           {/* ---- Revenue trend ---- */}
           <div className="bg-surface border border-slate-200 rounded-sm p-5">

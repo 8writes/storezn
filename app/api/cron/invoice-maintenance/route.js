@@ -8,6 +8,8 @@ import { releaseInvoiceInventoryHold } from "../../../../lib/invoiceInventory.js
 import { sendMail } from "../../../../lib/email/sendMail.js";
 import { escapeHtml } from "../../../../lib/email/escapeHtml.js";
 import { formatCurrency } from "../../../../lib/format.js";
+import { getPublicAppOrigin } from "../../../../lib/requestUrl.js";
+import { sendInvoicePaymentNotifications } from "../../../../lib/invoiceNotifications.js";
 
 export async function GET(req) {
   if (!process.env.CRON_SECRET || req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -22,7 +24,10 @@ export async function GET(req) {
       checked += 1;
       if (transaction.paymentStatus === "PAID") {
         const result = await reconcileInvoicePayment({ reference: payment.paymentReference, amountPaid: transaction.amountPaid, paidAt: new Date() });
-        if (result.applied) paid += 1;
+        if (result.applied) {
+          paid += 1;
+          await sendInvoicePaymentNotifications(result);
+        }
       } else if (transaction.paymentStatus === "FAILED") {
         await db.update(invoicePayments).set({ status: "failed", updatedAt: now }).where(and(eq(invoicePayments.id, payment.id), eq(invoicePayments.status, "pending")));
         failed += 1;
@@ -56,9 +61,8 @@ export async function GET(req) {
     .where(and(inArray(invoices.status, ["sent", "partially_paid"]), lte(invoices.expiresAt, reminderCutoff), or(isNull(invoices.lastReminderAt), lte(invoices.lastReminderAt, reminderSince))))
     .limit(100);
   let reminded = 0;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = getPublicAppOrigin(req);
   for (const { invoice, store } of reminders) {
-    if (!appUrl) break;
     if (!invoice.guestEmail) continue;
     const claimed = await db.update(invoices).set({ lastReminderAt: now, updatedAt: now }).where(and(eq(invoices.id, invoice.id), inArray(invoices.status, ["sent", "partially_paid"]), or(eq(invoices.status, "partially_paid"), isNull(invoices.expiresAt), gte(invoices.expiresAt, now)), or(isNull(invoices.lastReminderAt), lte(invoices.lastReminderAt, reminderSince)))).returning({ id: invoices.id });
     if (claimed.length === 0) continue;

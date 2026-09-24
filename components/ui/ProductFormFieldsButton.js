@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 export function ProductFormFieldsButton({ fields, visibleFields, onToggle, saving = false }) {
   const [open, setOpen] = useState(false);
+  useModalScrollLock(open);
 
   useEffect(() => {
     if (!open) return;
     const close = (event) => event.key === "Escape" && setOpen(false);
     document.addEventListener("keydown", close);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", close);
-      document.body.style.overflow = "";
     };
   }, [open]);
 
@@ -25,7 +25,7 @@ export function ProductFormFieldsButton({ fields, visibleFields, onToggle, savin
       </Button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overflow-y-auto p-0 sm:p-4 sm:py-8">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overflow-y-auto overscroll-contain p-0 sm:p-4 sm:py-8">
           <div className="fixed inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[85vh] flex flex-col my-auto">
             <div className="flex items-start justify-between gap-3 p-4 border-b border-slate-200">
@@ -38,7 +38,7 @@ export function ProductFormFieldsButton({ fields, visibleFields, onToggle, savin
               </button>
             </div>
 
-            <div className="overflow-y-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="overflow-y-auto overscroll-contain p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {fields.map((field) => (
                 <label key={field.id} className="flex items-center gap-3 min-h-10 px-3 py-2 border border-slate-200 rounded-sm text-sm text-slate-800 hover:bg-slate-50 cursor-pointer">
                   <input

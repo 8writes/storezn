@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { CheckCircle2, Circle, Info, X } from "lucide-react";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 // Controlled, dismissible checklist walking a new vendor through the
 // steps that actually unlock a working store (see vendor/dashboard's
@@ -16,6 +17,7 @@ import { CheckCircle2, Circle, Info, X } from "lucide-react";
 // stays open so the checklist can flip to done immediately after).
 export function SetupGuideModal({ open, onClose, steps }) {
   const [actioningLabel, setActioningLabel] = useState(null);
+  useModalScrollLock(open);
 
   const runAction = async (step) => {
     setActioningLabel(step.label);
@@ -32,10 +34,8 @@ export function SetupGuideModal({ open, onClose, steps }) {
     if (!open) return;
     const onKeyDown = (e) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 
@@ -44,7 +44,7 @@ export function SetupGuideModal({ open, onClose, steps }) {
   const doneCount = steps.filter((s) => s.done).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-4 py-8">
       {/* transform: translateZ(0) forces just the backdrop onto its own
           compositing layer immediately - without it, mobile Safari
           sometimes doesn't actually paint a fixed overlay until the next

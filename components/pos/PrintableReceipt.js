@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/Button.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { X } from "lucide-react";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 const RECEIPT_CSS = `
 @media print {
@@ -29,10 +30,11 @@ function Line({ label, value, strong }) {
 // completes (so the counter can print now), including the offline case
 // where there's no server order to fetch yet.
 export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tenders, subtotal, discount = 0, total, note, pending, onClose }) {
+  useModalScrollLock(true);
   const change = (tenders || []).reduce((s, t) => s + Number(t.changeGiven || 0), 0);
 
   return (
-    <div className="receipt-modal-backdrop fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="receipt-modal-backdrop fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none">
       <div className="fixed inset-0 bg-black/50 no-print" onClick={onClose} />
       <div className="receipt-modal relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between p-3 border-b border-slate-100 no-print">

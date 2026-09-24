@@ -40,7 +40,9 @@ export async function generateMetadata({ params }) {
   const title = `${product.name} - ${store.name}`;
   const description = product.description
     ? product.description.slice(0, 200)
-    : `${formatCurrency(getEffectivePrice(product.price, product.discountPercent))} at ${store.name}.`;
+    : product.saleMode === "invoice_required"
+      ? `Price on request at ${store.name}.`
+      : `${formatCurrency(getEffectivePrice(product.price, product.discountPercent))} at ${store.name}.`;
   const url = `${getStorefrontUrl(store)}/products/${product.slug}`;
   const image = product.images?.[0];
 
@@ -126,7 +128,7 @@ export default async function StorefrontProductPage({ params }) {
             </div>
           )}
 
-          {product.productType === "physical" && variants.length === 0 && product.stock != null && (
+          {product.saleMode !== "invoice_required" && product.productType === "physical" && variants.length === 0 && product.stock != null && (
             <p className="text-xs text-slate-700 uppercase tracking-wide">{product.stock} in stock</p>
           )}
 
