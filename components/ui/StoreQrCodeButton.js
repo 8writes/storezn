@@ -17,7 +17,6 @@ export function StoreQrCodeButton({ storeName, storeUrl }) {
     <>
       <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
         <QrCode size={16} />
-        Get QR code
       </Button>
 
       {open && <QrModal storeName={storeName} storeUrl={storeUrl} onClose={() => setOpen(false)} />}

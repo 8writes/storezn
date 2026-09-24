@@ -34,7 +34,11 @@ import {
   StatGridSkeleton,
   VendorDashboardSkeleton,
 } from "@/components/ui/Skeleton.js";
-import { formatCurrency, compactCurrency, compactNumber } from "@/lib/format.js";
+import {
+  formatCurrency,
+  compactCurrency,
+  compactNumber,
+} from "@/lib/format.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { installPwa, usePwaInstall } from "@/lib/pwaInstall.js";
 import {
@@ -118,11 +122,8 @@ function SHORTCUTS(storeId, isOwner) {
       icon: Plus,
       href: `/vendor/products/new?storeId=${storeId}`,
     },
-    { label: "Products", icon: Package, href: "/vendor/products" },
-    { label: "Orders", icon: ShoppingBag, href: "/vendor/orders" },
     { label: "Record order", icon: ClipboardList, href: "/vendor/orders/new" },
     { label: "Customers", icon: Users, href: "/vendor/customers" },
-    { label: "Shipping", icon: Truck, href: "/vendor/shipping" },
   ];
   // Payouts, store settings, verification, and the setup guide are all
   // owner-only concerns (see isOwner above) - left out of a staff
@@ -257,7 +258,9 @@ export default function VendorDashboardPage() {
           installAvailable:
             installState.ready &&
             installState.isPlatformHost &&
-            (installState.standalone || installState.isIos || !!installState.deferredPrompt),
+            (installState.standalone ||
+              installState.isIos ||
+              !!installState.deferredPrompt),
           installDone: installState.standalone,
           installIsIos: installState.isIos,
           onInstall: handleInstallApp,
@@ -303,10 +306,18 @@ export default function VendorDashboardPage() {
           >
             <span
               className={`w-2 h-2 rounded-full ${
-                store.isActive === false ? "bg-red-500" : store.isOpen ? "bg-brand-500" : "bg-slate-400"
+                store.isActive === false
+                  ? "bg-red-500"
+                  : store.isOpen
+                    ? "bg-brand-500"
+                    : "bg-slate-400"
               }`}
             />
-            {store.isActive === false ? "Store disabled" : store.isOpen ? "Store online" : "Store offline"}
+            {store.isActive === false
+              ? "Store disabled"
+              : store.isOpen
+                ? "Store online"
+                : "Store offline"}
           </span>
           {store.isActive !== false && !store.isOpen && (
             <button
@@ -323,11 +334,18 @@ export default function VendorDashboardPage() {
 
       <PageHeader
         title={`Welcome, ${user?.firstName || ""}`.trim()}
-        description={store ? "Here's how your store is doing today." : undefined}
+        description={
+          store ? "Here's how your store is doing today." : undefined
+        }
         actions={
           <>
             {isOwner && steps.length > 0 && !allStepsDone && (
-              <Button type="button" size="sm" variant="outline" onClick={() => setGuideForceOpen(true)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setGuideForceOpen(true)}
+              >
                 <ListChecks size={15} /> Setup guide
               </Button>
             )}
@@ -352,8 +370,8 @@ export default function VendorDashboardPage() {
                 This is your website&apos;s link
               </p>
               <p className="text-xs text-slate-800">
-                Anyone who opens it can browse and buy from you, copy it
-                and share it on WhatsApp, Instagram, anywhere.
+                Anyone who opens it can browse and buy from you, copy it and
+                share it on WhatsApp, Instagram, anywhere.
               </p>
               <div className="pt-1">
                 <CopyableUrl
@@ -413,8 +431,8 @@ export default function VendorDashboardPage() {
                   </p>
                 ) : verification.nin ? (
                   <p>
-                    Your NIN is under review, your store stays hidden
-                    from customers until it&apos;s approved.
+                    Your NIN is under review, your store stays hidden from
+                    customers until it&apos;s approved.
                   </p>
                 ) : (
                   <p>
@@ -445,10 +463,17 @@ export default function VendorDashboardPage() {
           )}
 
           {!statsLoading && stats?.products?.oversold > 0 && (
-            <Alert tone="danger" icon={AlertTriangle} title={`${stats.products.oversold} oversold product${stats.products.oversold === 1 ? "" : "s"}`}>
+            <Alert
+              tone="danger"
+              icon={AlertTriangle}
+              title={`${stats.products.oversold} oversold product${stats.products.oversold === 1 ? "" : "s"}`}
+            >
               <p>
                 These products have stock below zero and need reconciliation.{" "}
-                <Link href="/vendor/products?stock=oversold" className="underline font-medium">
+                <Link
+                  href="/vendor/products?stock=oversold"
+                  className="underline font-medium"
+                >
                   Review oversold products
                 </Link>
                 .
@@ -521,7 +546,7 @@ export default function VendorDashboardPage() {
                     />
                   )}
                   <StatCard
-                    className="col-span-2 sm:col-span-1"
+                    className={`col-span-2 ${showExpiry ? "sm:col-span-1" : "sm:col-span-2"}`}
                     icon={ClipboardList}
                     label="Invoice requests"
                     value={stats.invoiceRequests?.open || 0}
@@ -538,7 +563,7 @@ export default function VendorDashboardPage() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2.5">
               Quick actions
             </p>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
+            <div className="grid grid-cols-3 sm:grid-cols-3 gap-2.5">
               {SHORTCUTS(storeId, isOwner).map(
                 ({ label, icon: Icon, href, onClick }) => {
                   const content = (

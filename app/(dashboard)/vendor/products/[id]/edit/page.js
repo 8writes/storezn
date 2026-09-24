@@ -22,15 +22,21 @@ import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
 import { CustomerFieldsEditor } from "@/components/ui/CustomerFieldsEditor.js";
 import { ProductFormFieldsButton } from "@/components/ui/ProductFormFieldsButton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
-import { uploadFile, getVideoDuration } from "@/lib/clientUpload.js";
+import {
+  uploadFile,
+  validateVideoDuration,
+  validateProductImageFile,
+  validateProductVideoFile,
+  PRODUCT_VIDEO_MAX_SECONDS,
+  formatUploadSize,
+} from "@/lib/clientUpload.js";
+import { PRODUCT_VIDEO_MAX_BYTES } from "@/lib/mediaValidation.js";
 import { formatCurrency } from "@/lib/format.js";
 import { X, Trash2, ImagePlus, Loader2, GripVertical, Video, Pencil, Check } from "lucide-react";
 
 // Photos and video share one combined cap - a video eats one of the 10
 // slots, same as a photo would.
 const MAX_MEDIA = 10;
-const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
-const MAX_VIDEO_SECONDS = 30;
 
 const PRODUCT_TYPE_OPTIONS = [
   { value: "physical", label: "Physical (needs shipping)" },
@@ -92,6 +98,8 @@ export default function VendorProductEditPage({ params }) {
   // branch would it even mean?), so it's disabled in favor of the panel.
   const [branchCount, setBranchCount] = useState(1);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoUploadStatus, setVideoUploadStatus] = useState("");
+  const [videoUploadProgress, setVideoUploadProgress] = useState(null);
   const [visibleFormFields, setVisibleFormFields] = useState(DEFAULT_VISIBLE_FORM_FIELDS);
   const [savingFormPreferences, setSavingFormPreferences] = useState(false);
 
@@ -187,31 +195,39 @@ export default function VendorProductEditPage({ params }) {
       return;
     }
 
-    const toUpload = files.slice(0, room);
-    if (files.length > toUpload.length) toast.error(`Only added ${toUpload.length} - max ${MAX_MEDIA} photos and video combined`);
+    const validFiles = [];
+    for (const file of files) {
+      const validation = validateProductImageFile(file);
+      if (!validation.ok) {
+        toast.error(`${file.name}: ${validation.error}`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    const toUpload = validFiles.slice(0, room);
+    if (validFiles.length > toUpload.length) toast.error(`Only added ${toUpload.length} - max ${MAX_MEDIA} photos and video combined`);
     if (toUpload.length === 0) return;
 
-    const entries = toUpload.map((file) => ({ key: `${Date.now()}-${Math.random()}`, file, localUrl: URL.createObjectURL(file) }));
+    const entries = toUpload.map((file) => ({ key: `${Date.now()}-${Math.random()}`, file, localUrl: URL.createObjectURL(file), status: "Preparing image...", progress: null }));
     setPendingUploads((p) => [...p, ...entries]);
 
-    // Uploads run in parallel, but each one appends to imagesRef.current
-    // (the latest known list) and immediately persists that - so two
-    // photos finishing back-to-back can't stomp on each other the way
-    // they would if both read a stale form.images from their own closure.
-    await Promise.all(
-      entries.map(async (entry) => {
-        try {
-          const url = await uploadFile(token, entry.file, "product-image");
-          await persistImages([...imagesRef.current, url]);
-        } catch (err) {
-          if (err.status === 402) setStorageDialogOpen(true);
-          else toast.error(err.message || "Upload failed");
-        } finally {
-          URL.revokeObjectURL(entry.localUrl);
-          setPendingUploads((p) => p.filter((e2) => e2.key !== entry.key));
-        }
-      }),
-    );
+    for (const entry of entries) {
+      const updateEntry = (patch) => setPendingUploads((p) => p.map((e2) => (e2.key === entry.key ? { ...e2, ...patch } : e2)));
+      try {
+        const url = await uploadFile(token, entry.file, "product-image", {
+          onStatus: (status) => updateEntry({ status }),
+          onProgress: (progress) => updateEntry({ progress }),
+        });
+        await persistImages([...imagesRef.current, url]);
+      } catch (err) {
+        if (err.status === 402) setStorageDialogOpen(true);
+        else toast.error(`${entry.file.name}: ${err.message || "Upload failed"}`);
+      } finally {
+        URL.revokeObjectURL(entry.localUrl);
+        setPendingUploads((p) => p.filter((e2) => e2.key !== entry.key));
+      }
+    }
   };
 
   const removeImage = (url) => persistImages(imagesRef.current.filter((i) => i !== url));
@@ -238,31 +254,43 @@ export default function VendorProductEditPage({ params }) {
       return;
     }
 
-    if (file.size > MAX_VIDEO_SIZE) {
-      toast.error(`Video must be smaller than ${MAX_VIDEO_SIZE / (1024 * 1024)}MB`);
+    const fileValidation = validateProductVideoFile(file);
+    if (!fileValidation.ok) {
+      toast.error(fileValidation.error);
       return;
     }
 
+    setVideoUploadStatus("Checking video...");
+    setVideoUploadProgress(null);
+    setUploadingVideo(true);
     try {
-      const duration = await getVideoDuration(file);
-      if (duration > MAX_VIDEO_SECONDS) {
-        toast.error(`Video must be ${MAX_VIDEO_SECONDS} seconds or shorter (this one is ${Math.round(duration)}s)`);
+      const durationValidation = await validateVideoDuration(file);
+      if (!durationValidation.ok) {
+        toast.error(durationValidation.error);
+        setVideoUploadStatus("");
+        setUploadingVideo(false);
         return;
       }
     } catch {
       toast.error("Could not read that video file");
+      setVideoUploadStatus("");
+      setUploadingVideo(false);
       return;
     }
 
-    setUploadingVideo(true);
     try {
-      const url = await uploadFile(token, file, "product-video");
+      const url = await uploadFile(token, file, "product-video", {
+        onStatus: setVideoUploadStatus,
+        onProgress: setVideoUploadProgress,
+      });
       await persistVideo(url);
     } catch (err) {
       if (err.status === 402) setStorageDialogOpen(true);
       else toast.error(err.message || "Upload failed");
     } finally {
       setUploadingVideo(false);
+      setVideoUploadStatus("");
+      setVideoUploadProgress(null);
     }
   };
 
@@ -497,8 +525,12 @@ export default function VendorProductEditPage({ params }) {
             {pendingUploads.map((entry) => (
               <div key={entry.key} className="relative w-24 h-24 rounded-sm border border-slate-200 overflow-hidden">
                 <img src={entry.localUrl} alt="" className="w-full h-full object-cover opacity-50" />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/35 px-1 text-center">
                   <Loader2 size={20} className="text-white animate-spin" />
+                  <span className="text-[10px] font-medium leading-tight text-white">
+                    {entry.status || "Uploading image..."}
+                    {entry.progress != null ? ` ${entry.progress}%` : ""}
+                  </span>
                 </div>
               </div>
             ))}
@@ -522,11 +554,11 @@ export default function VendorProductEditPage({ params }) {
         {hasField("video") && <div className="space-y-2">
           <div className="flex items-center gap-1.5">
             <label className="text-sm font-medium text-slate-700">Video (optional)</label>
-            <InfoTip>A short clip of the product - up to {MAX_VIDEO_SECONDS}s and {MAX_VIDEO_SIZE / (1024 * 1024)}MB.</InfoTip>
+            <InfoTip>A short clip of the product - up to {PRODUCT_VIDEO_MAX_SECONDS}s and {formatUploadSize(PRODUCT_VIDEO_MAX_BYTES)}.</InfoTip>
           </div>
           {form.videoUrl ? (
             <div className="relative w-40">
-              <video src={form.videoUrl} controls className="w-40 rounded-sm border border-slate-200" />
+              <video src={form.videoUrl} controls preload="metadata" className="w-40 rounded-sm border border-slate-200" />
               <button
                 type="button"
                 onClick={removeVideo}
@@ -537,8 +569,12 @@ export default function VendorProductEditPage({ params }) {
               </button>
             </div>
           ) : uploadingVideo ? (
-            <div className="w-40 h-24 rounded-sm border border-slate-200 flex items-center justify-center bg-slate-50">
+            <div className="w-40 h-24 rounded-sm border border-slate-200 flex flex-col items-center justify-center gap-1 bg-slate-50 px-2 text-center">
               <Loader2 size={20} className="text-slate-400 animate-spin" />
+              <span className="text-[11px] font-medium text-slate-700">
+                {videoUploadStatus || "Uploading video..."}
+                {videoUploadProgress != null ? ` ${videoUploadProgress}%` : ""}
+              </span>
             </div>
           ) : form.images.length + pendingUploads.length < MAX_MEDIA ? (
             <label className="w-40 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-700 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">

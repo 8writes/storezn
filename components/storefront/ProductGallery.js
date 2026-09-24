@@ -30,7 +30,7 @@ export function ProductGallery({ images = [], videoUrl, name }) {
     <div className="space-y-3">
       <div className="relative aspect-4/5 bg-slate-100 overflow-hidden">
         {current.type === "video" ? (
-          <video src={current.src} controls playsInline className="w-full h-full object-contain bg-black" />
+          <video src={current.src} controls playsInline preload="metadata" className="w-full h-full object-contain bg-black" />
         ) : (
           <button
             type="button"
@@ -88,7 +88,7 @@ export function ProductGallery({ images = [], videoUrl, name }) {
             >
               {slide.type === "video" ? (
                 <>
-                  <video src={slide.src} className="w-full h-full object-cover" muted />
+                  <video src={slide.src} className="w-full h-full object-cover" muted preload="metadata" />
                   <span className="absolute inset-0 flex items-center justify-center bg-black/30">
                     <Video size={16} className="text-white" />
                   </span>
@@ -221,7 +221,7 @@ function Lightbox({ slides, index, name, onIndexChange, onClose }) {
                 }}
               >
                 {slide.type === "video" ? (
-                  <video src={slide.src} controls playsInline className="max-h-full max-w-full" />
+                  <video src={slide.src} controls playsInline preload="metadata" className="max-h-full max-w-full" />
                 ) : (
                   <img
                     src={slide.src}
@@ -287,7 +287,7 @@ function Lightbox({ slides, index, name, onIndexChange, onClose }) {
             >
               {slide.type === "video" ? (
                 <>
-                  <video src={slide.src} muted className="h-full w-full object-cover" />
+                  <video src={slide.src} muted preload="metadata" className="h-full w-full object-cover" />
                   <span className="absolute inset-0 flex items-center justify-center bg-black/30">
                     <Video size={12} className="text-white" />
                   </span>

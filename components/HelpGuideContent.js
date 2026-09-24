@@ -85,8 +85,8 @@ const STEPS = [
       <p>
         Open <b>Products</b> &rarr; <b>Add product</b>. Name it (the URL slug
         fills in), set a <b>price</b>, add up to
-        <b> 10 photos and video combined</b> (photos under 3MB, one clip up to
-        20MB / 30s), and enter your <b>stock</b>. Optional extras live under
+        <b> 10 photos and video combined</b> (source photos up to 10MB, one clip up to
+        50MB / 60s), and enter your <b>stock</b>. Optional extras live under
         &quot;Show optional fields&quot;: SKU, discount %, category, and a size
         guide.
       </p>

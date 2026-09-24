@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUser } from "../../../../../lib/auth.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
-import { uploadPublicFile, deletePublicFile, generateObjectKey, isOwnedUploadUrl } from "../../../../../lib/storage/index.js";
+import { uploadPublicFileWithMetadata, deletePublicFile, generateObjectKey, isOwnedUploadUrl } from "../../../../../lib/storage/index.js";
 import { db } from "../../../../../lib/db/index.js";
 import { stores, platformSettings } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
@@ -9,20 +9,28 @@ import { getStorageLimitBytes } from "../../../../../lib/storePlan.js";
 import { reserveStoreUpload, finalizeStoreUpload, releaseStoreUploadReservation, removeStoreUpload, cleanupStaleStoreUploads } from "../../../../../lib/storeUploads.js";
 import { logAppError } from "../../../../../lib/appErrorLog.js";
 import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
+import {
+  PRODUCT_IMAGE_TYPES,
+  PRODUCT_VIDEO_TYPES,
+  PRODUCT_IMAGE_UPLOAD_MAX_BYTES,
+  PRODUCT_VIDEO_MAX_BYTES,
+  PRODUCT_VIDEO_MAX_SECONDS,
+  matchesImageSignature,
+  matchesVideoSignature,
+} from "../../../../../lib/mediaValidation.js";
 
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-// A 30s cap is enforced client-side only (see the product forms' duration
-// check before upload even starts) - there's no ffprobe/media-inspection
-// tooling on this server to re-verify duration server-side. The 20MB size
-// cap below is the real, unbypassable backstop.
-const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+const ALLOWED_IMAGE_TYPES = PRODUCT_IMAGE_TYPES;
+// A 60s cap is checked from browser media metadata before upload starts,
+// then enforced again after upload when the configured storage provider
+// returns authoritative video duration metadata (Cloudinary does).
+const ALLOWED_VIDEO_TYPES = PRODUCT_VIDEO_TYPES;
 // store-logo/store-favicon are cropped client-side to a fixed small
 // canvas size before upload (see ImageCropModal), so they never approach
 // even this generous ceiling - product-image is the one uploaded as-is
 // straight from the vendor's camera roll, so it gets its own tighter cap.
 const MAX_SIZE_BY_PURPOSE = {
-  "product-image": 3 * 1024 * 1024,
-  "product-video": 20 * 1024 * 1024,
+  "product-image": PRODUCT_IMAGE_UPLOAD_MAX_BYTES,
+  "product-video": PRODUCT_VIDEO_MAX_BYTES,
   "store-logo": 8 * 1024 * 1024,
   "store-favicon": 8 * 1024 * 1024,
 };
@@ -66,6 +74,15 @@ async function handlePost(req) {
     );
   }
 
+  const headerBytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const signatureMatches = isVideo ? matchesVideoSignature(file.type, headerBytes) : matchesImageSignature(file.type, headerBytes);
+  if (!signatureMatches) {
+    return NextResponse.json(
+      { error: isVideo ? "That file does not look like a valid product video" : "That file does not look like a valid image" },
+      { status: 400 },
+    );
+  }
+
   // Storage is metered per store, not per user - resolve which store this
   // upload counts against. Only vendor/staff hit this route today (see
   // MAX_SIZE_BY_PURPOSE), a customer profile picture goes through the
@@ -96,7 +113,13 @@ async function handlePost(req) {
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const key = generateObjectKey(`${purpose}/${user.id}`, file.name);
-    url = await uploadPublicFile(buffer, key, file.type);
+    const uploaded = await uploadPublicFileWithMetadata(buffer, key, file.type);
+    url = uploaded.url;
+    if (isVideo && Number.isFinite(uploaded.durationSeconds) && uploaded.durationSeconds > PRODUCT_VIDEO_MAX_SECONDS + 0.25) {
+      await deletePublicFile(url);
+      await releaseStoreUploadReservation(reservation.id).catch(() => {});
+      return NextResponse.json({ error: "Product videos can be up to 1 minute long." }, { status: 400 });
+    }
     await finalizeStoreUpload({ id: reservation.id, url, purpose });
     return NextResponse.json({ url });
   } catch (err) {
