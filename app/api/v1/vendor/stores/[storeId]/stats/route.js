@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { orders, products, productVariants, stores } from "../../../../../../../lib/db/schema.js";
+import { invoiceRequests, orders, products, productVariants, stores } from "../../../../../../../lib/db/schema.js";
 import { and, eq, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
@@ -70,6 +70,13 @@ export async function GET(req, { params }) {
 
   const stockValue = (productStats?.baseStockValue || 0) + (variantStats?.stockValue || 0);
 
+  const [invoiceRequestStats] = await db
+    .select({
+      open: sql`count(*) filter (where ${invoiceRequests.status} in ('new', 'reviewing', 'quoted'))`.mapWith(Number),
+    })
+    .from(invoiceRequests)
+    .where(eq(invoiceRequests.storeId, storeId));
+
   return NextResponse.json({
     orders: { total: orderStats?.totalOrders || 0, pending: orderStats?.pending || 0 },
     revenue: orderStats?.totalRevenue || 0,
@@ -82,5 +89,6 @@ export async function GET(req, { params }) {
       expiringSoon: productStats?.expiringSoon || 0,
       stockValue,
     },
+    invoiceRequests: { open: invoiceRequestStats?.open || 0 },
   });
 }

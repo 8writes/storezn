@@ -458,7 +458,7 @@ export default function VendorDashboardPage() {
           )}
 
           {statsLoading || !stats ? (
-            <StatGridSkeleton count={4} />
+            <StatGridSkeleton count={5} />
           ) : (
             (() => {
               const showExpiry =
@@ -497,6 +497,15 @@ export default function VendorDashboardPage() {
                     value={stats.products.lowStock}
                     color={stats.products.lowStock > 0 ? "amber" : "brand"}
                     href="/vendor/products?stock=low"
+                  />
+                  <StatCard
+                    className="col-span-2"
+                    icon={ClipboardList}
+                    label="Invoice requests"
+                    value={stats.invoiceRequests?.open || 0}
+                    sub="Awaiting pricing"
+                    color={stats.invoiceRequests?.open > 0 ? "accent" : "brand"}
+                    href="/vendor/invoices/requests"
                   />
                   {showExpiry && (
                     <StatCard

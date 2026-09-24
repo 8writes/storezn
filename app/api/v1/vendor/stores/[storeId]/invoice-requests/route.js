@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../../../../../../lib/db/index.js";
 import { branches, invoiceRequestItems, invoiceRequests, productVariants, products, stores } from "../../../../../../../lib/db/schema.js";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
@@ -13,12 +13,16 @@ export async function GET(req, { params }) {
   const { storeId } = await params;
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
   if (!user || !store || !canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const requests = await db.select().from(invoiceRequests).where(and(eq(invoiceRequests.storeId, storeId), inArray(invoiceRequests.status, ["new", "reviewing", "quoted"]))).orderBy(desc(invoiceRequests.createdAt)).limit(100);
+  const requestCondition = and(eq(invoiceRequests.storeId, storeId), inArray(invoiceRequests.status, ["new", "reviewing", "quoted"]));
+  const [requests, [{ total }]] = await Promise.all([
+    db.select().from(invoiceRequests).where(requestCondition).orderBy(desc(invoiceRequests.createdAt)).limit(100),
+    db.select({ total: count() }).from(invoiceRequests).where(requestCondition),
+  ]);
   const rows = requests.length ? await db.select().from(invoiceRequestItems).where(inArray(invoiceRequestItems.requestId, requests.map((request) => request.id))) : [];
   const itemsByRequest = new Map();
   for (const item of rows) itemsByRequest.set(item.requestId, [...(itemsByRequest.get(item.requestId) || []), item]);
   const full = requests.map((request) => ({ request, items: itemsByRequest.get(request.id) || [] }));
-  return NextResponse.json({ requests: full });
+  return NextResponse.json({ requests: full, total: Number(total) || 0 });
 }
 
 export async function POST(req, { params }) {
