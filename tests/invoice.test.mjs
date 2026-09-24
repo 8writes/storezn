@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createInvoiceRequestSchema, createInvoiceSchema, createProductSchema, validateCustomerFieldAnswers } from "../lib/validate.js";
+import { createInvoiceRequestSchema, createInvoiceSchema, createProductSchema, updateProductSchema, validateCustomerFieldAnswers } from "../lib/validate.js";
 
 const fields = [
   { id: "size", label: "Size", type: "select", required: true, options: ["Small", "Large"] },
@@ -39,6 +39,17 @@ test("product customer field ids must be unique", () => {
     ],
   });
   assert.equal(result.success, false);
+});
+
+test("partial product updates do not inject create-time defaults", () => {
+  const result = updateProductSchema.safeParse({ categoryId: null, isActive: false });
+  assert.equal(result.success, true);
+  assert.deepEqual(result.data, { categoryId: null, isActive: false });
+});
+
+test("partial invoice-product updates may retain the persisted zero price", () => {
+  const result = updateProductSchema.safeParse({ saleMode: "invoice_required", price: 0, isActive: false });
+  assert.equal(result.success, true);
 });
 
 test("invoice requests reject duplicate product options", () => {
