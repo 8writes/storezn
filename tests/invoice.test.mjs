@@ -42,6 +42,25 @@ test("product customer field ids must be unique", () => {
   assert.equal(result.success, false);
 });
 
+test("product creation treats blank optional product and variant text as absent", () => {
+  const result = createProductSchema.safeParse({
+    name: "Variant shirt",
+    slug: "variant-shirt",
+    price: 100,
+    sku: "",
+    description: "",
+    categoryId: "",
+    variants: [
+      { options: { Size: "Large" }, sku: "", price: null, stock: null },
+    ],
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.sku, undefined);
+  assert.equal(result.data.description, undefined);
+  assert.equal(result.data.categoryId, undefined);
+  assert.equal(result.data.variants[0].sku, undefined);
+});
+
 test("partial product updates do not inject create-time defaults", () => {
   const result = updateProductSchema.safeParse({ categoryId: null, isActive: false });
   assert.equal(result.success, true);
