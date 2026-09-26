@@ -40,6 +40,7 @@ export default async function PricingPage() {
     "Your own website, on a free storezn.com subdomain",
     "Up to 50 products",
     "Automatic payouts to your bank account",
+    "Invoices and receipts",
     `${settings.freeStorageMb.toLocaleString("en-NG")}MB of image storage`,
     `${settings.freeStaffLimit} staff seat`,
   ];
