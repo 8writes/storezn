@@ -139,6 +139,7 @@ function heldSummary(h) {
 export default function SellPage() {
   const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
+  const storeCacheKey = user?.id ? `pos_stores_${user.id}` : null;
 
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState("");
@@ -147,8 +148,8 @@ export default function SellPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!token) return;
-    const cached = storageJson("pos_stores", []);
+    if (!token || !storeCacheKey) return;
+    const cached = storageJson(storeCacheKey, []);
     if (Array.isArray(cached) && cached.length) {
       Promise.resolve().then(() => {
         setStores(cached);
@@ -159,14 +160,14 @@ export default function SellPage() {
     timedApiFetch(apiFetch, "/api/v1/vendor/stores")
       .then((data) => {
         const rows = Array.isArray(data?.stores) ? data.stores : [];
-        storageSet("pos_stores", JSON.stringify(rows));
+        storageSet(storeCacheKey, JSON.stringify(rows));
         setStores(rows);
         if (rows.length > 0) setStoreId((current) => current || rows[0].id);
         else setLoading(false);
       })
       .catch((err) => {
         // Offline cold start: fall back to the last store list we saw.
-        const cached = isNetErr(err) ? storageJson("pos_stores", []) : [];
+        const cached = isNetErr(err) ? storageJson(storeCacheKey, []) : [];
         if (Array.isArray(cached) && cached.length) {
           setStores(cached);
           setStoreId(cached[0].id);
@@ -176,7 +177,7 @@ export default function SellPage() {
         setLoading(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, storeCacheKey]);
 
   const activeStore = stores.find((s) => s.id === storeId);
   const regCacheKey = `pos_registers_${storeId}`;

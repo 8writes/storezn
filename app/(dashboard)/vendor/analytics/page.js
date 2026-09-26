@@ -175,7 +175,7 @@ export default function VendorAnalyticsPage() {
 
       {/* ---- Filters ---- */}
       <div className="bg-surface border border-slate-200 rounded-sm p-4 space-y-3">
-        <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
           {PRESETS.map((p) => (
             <button
               key={p.key}
