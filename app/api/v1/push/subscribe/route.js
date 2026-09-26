@@ -37,6 +37,36 @@ export async function POST(req) {
   const column = columnForRole(user.role);
   const ownerValues = { userId: null, staffId: null, customerId: null, [column]: user.id };
 
+  // Taking over an endpoint that currently belongs to somebody else is a
+  // legitimate, necessary case: PushManager.subscribe() returns the SAME
+  // subscription for a browser profile no matter which account is signed
+  // in, so on a genuinely shared device the second person has to be able
+  // to claim it or they silently get no notifications.
+  //
+  // What must not be possible is claiming an endpoint purely because its
+  // URL is known - that would let any signed-in user quietly cut another
+  // account off from its notifications. The browser hands out the
+  // endpoint and its keys together, so a real shared-device claim
+  // presents the same p256dh/auth as the stored row; only a URL lifted
+  // from somewhere else won't.
+  const [existing] = await db
+    .select()
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.endpoint, endpoint))
+    .limit(1);
+  if (existing) {
+    const ownedByCaller = existing[column] === user.id;
+    const keysMatch = existing.p256dh === keys.p256dh && existing.auth === keys.auth;
+    if (!ownedByCaller && !keysMatch) {
+      return NextResponse.json({ error: "That push subscription belongs to another account" }, { status: 409 });
+    }
+    await db
+      .update(pushSubscriptions)
+      .set({ ...ownerValues, p256dh: keys.p256dh, auth: keys.auth })
+      .where(eq(pushSubscriptions.endpoint, endpoint));
+    return NextResponse.json({ ok: true });
+  }
+
   await db
     .insert(pushSubscriptions)
     .values({ ...ownerValues, endpoint, p256dh: keys.p256dh, auth: keys.auth })

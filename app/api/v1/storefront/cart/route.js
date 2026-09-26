@@ -3,7 +3,7 @@ import { db } from "../../../../../lib/db/index.js";
 import { products, productVariants, cartItems, platformSettings } from "../../../../../lib/db/schema.js";
 import { and, eq, isNull } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
-import { resolveStoreByHost } from "../../../../../lib/resolveStore.js";
+import { isForeignCustomer, resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { validate, addCartItemSchema, customerFieldKey, validateCustomerFieldAnswers } from "../../../../../lib/validate.js";
 import { snapshotCustomerFieldAnswers } from "../../../../../lib/customerFields.js";
 import { resolveCart, getCartWithItems, computeCartTotals, findCartItem, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
@@ -37,6 +37,7 @@ async function handleGet(req) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
   const user = await getUser(req);
+  if (isForeignCustomer(user, store)) return NextResponse.json({ error: "Sign in to this store to continue" }, { status: 403 });
   const existingToken = req.cookies.get(GUEST_CART_COOKIE)?.value;
   if (!user && !existingToken) {
     return NextResponse.json({ items: [], subtotal: 0, itemCount: 0 });
@@ -143,6 +144,7 @@ async function handlePost(req) {
   }
 
   const user = await getUser(req);
+  if (isForeignCustomer(user, store)) return NextResponse.json({ error: "Sign in to this store to continue" }, { status: 403 });
   const existingToken = req.cookies.get(GUEST_CART_COOKIE)?.value;
   const guestToken = user ? null : existingToken || crypto.randomUUID();
 

@@ -18,31 +18,56 @@ export default function SuperAdminCustomersPage() {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [verifyingId, setVerifyingId] = useState(null);
   const [banningId, setBanningId] = useState(null);
 
-  const load = () => {
-    setLoading(true);
+  // One fetch path. `loading` starts true and is only ever cleared when a
+  // fetch settles; it's switched back on by whichever interaction asks for
+  // fresh data (see the handlers below), never synchronously inside this
+  // effect. `alive` drops the response of a request whose inputs have
+  // already changed, so a slow page-1 reply can't land on top of page 2.
+  useEffect(() => {
+    if (!token) return undefined;
+    let alive = true;
     const params = new URLSearchParams({ page: String(page) });
     if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/super-admin/customers?${params}`)
       .then((data) => {
+        if (!alive) return;
         setCustomers(data.customers);
         setPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load customers"))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load customers");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, page, q, refreshKey]);
+
+  // Re-runs the effect above after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
   };
 
-  useEffect(() => {
-    if (!token) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, q]);
-
-  useEffect(() => {
+  // A new search resets to the first page - done in the event that causes
+  // it rather than in an effect watching `q`.
+  const handleSearch = (value) => {
+    setLoading(true);
     setPage(1);
-  }, [q]);
+    setQ(value);
+  };
+
+  const handlePageChange = (next) => {
+    setLoading(true);
+    setPage(next);
+  };
 
   // For a customer stuck unverified because the email itself never
   // arrived (deliverability issue, not something they did wrong) -
@@ -52,7 +77,7 @@ export default function SuperAdminCustomersPage() {
     try {
       await apiFetch(`/api/v1/super-admin/customers/${customer.id}`, { method: "PATCH", body: JSON.stringify({}) });
       toast.success("Email marked as verified - they can sign in now");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Failed to verify customer");
     } finally {
@@ -70,7 +95,7 @@ export default function SuperAdminCustomersPage() {
         if (row) await apiFetch(`/api/v1/super-admin/bans/${row.id}`, { method: "DELETE" });
         else await apiFetch(`/api/v1/super-admin/customers/${c.id}`, { method: "PATCH", body: JSON.stringify({ isBanned: false }) });
         toast.success("Customer unbanned");
-        load();
+        refresh();
       } catch (err) {
         toast.error(err.message || "Couldn't unban");
       } finally {
@@ -87,7 +112,7 @@ export default function SuperAdminCustomersPage() {
         body: JSON.stringify({ customerId: c.id, banSignupDevice: true, reason: reason.trim() }),
       });
       toast.success(c.signupDeviceId ? "Customer + their device banned" : "Customer banned");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Couldn't ban");
     } finally {
@@ -99,7 +124,7 @@ export default function SuperAdminCustomersPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Customers</h1>
 
-      <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="max-w-sm" />
+      <SearchInput value={q} onSearch={handleSearch} placeholder="Search by name or email..." className="max-w-sm" />
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
@@ -162,7 +187,7 @@ export default function SuperAdminCustomersPage() {
             )}
           </tbody>
         </table>
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        <Pagination pagination={pagination} onPageChange={handlePageChange} />
       </div>
     </div>
   );

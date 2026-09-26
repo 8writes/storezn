@@ -39,27 +39,41 @@ export default function VendorCategoriesPage() {
   const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const formRef = useRef(null);
 
-  const load = () => {
-    setLoading(true);
-    apiFetch(`/api/v1/vendor/stores/${storeId}/categories`)
-      .then((data) => {
-        setCategories(data.categories);
-        setVisible(10);
-      })
-      .catch((err) => toast.error(err.message || "Failed to load categories"))
-      .finally(() => setLoading(false));
-  };
-
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; `refresh()` turns it back on after a mutation.
+  // `alive` drops a reply whose store has since changed.
   useEffect(() => {
     // Also gated on token, not just storeId - storeId can be populated
     // from shared context before this page's token resolves on a
     // client-side navigation (see VendorStoreContext.js).
-    if (!token || !storeId) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId]);
+    if (!token || !storeId) return undefined;
+    let alive = true;
+    apiFetch(`/api/v1/vendor/stores/${storeId}/categories`)
+      .then((data) => {
+        if (!alive) return;
+        setCategories(data.categories);
+        setVisible(10);
+      })
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load categories");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, storeId, refreshKey]);
+
+  // Re-runs the effect above after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
+  };
 
   const resetForm = () => {
     setForm(EMPTY_FORM);

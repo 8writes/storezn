@@ -21,9 +21,20 @@ export default function VendorShippingPage() {
   const { apiFetch } = useApi(token);
 
   const { stores, storeId, loading: storesLoading } = useVendorStore();
-  const [form, setForm] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // The loaded form is tagged with the store it came from, so switching
+  // stores shows the skeleton again instead of briefly showing the previous
+  // store's numbers - and `loading` is derived from that rather than being
+  // set synchronously inside the effect below.
+  const [loaded, setLoaded] = useState(null);
+  const form = loaded?.storeId === storeId ? loaded.form : null;
+  const loading = !form;
   const [saving, setSaving] = useState(false);
+
+  const setForm = (next) =>
+    setLoaded((current) => ({
+      storeId,
+      form: typeof next === "function" ? next(current?.form) : next,
+    }));
 
   useEffect(() => {
     // Also gated on token, not just storeId - see VendorStoreContext.js:
@@ -31,19 +42,26 @@ export default function VendorShippingPage() {
     // before this page's own token has resolved on a client-side
     // navigation, which would otherwise fire this fetch with no
     // Authorization header.
-    if (!token || !storeId) return;
-    setLoading(true);
+    if (!token || !storeId) return undefined;
+    let alive = true;
     apiFetch(`/api/v1/vendor/stores/${storeId}`)
-      .then((data) =>
-        setForm({
-          defaultShippingFee: String(data.store.defaultShippingFee ?? 0),
-          defaultShippingIsTBD: data.store.defaultShippingIsTBD ?? true,
-        }),
-      )
-      .catch((err) => toast.error(err.message || "Failed to load store"))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId]);
+      .then((data) => {
+        if (!alive) return;
+        setLoaded({
+          storeId,
+          form: {
+            defaultShippingFee: String(data.store.defaultShippingFee ?? 0),
+            defaultShippingIsTBD: data.store.defaultShippingIsTBD ?? true,
+          },
+        });
+      })
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load store");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, storeId]);
 
   const handleSave = async (e) => {
     e.preventDefault();

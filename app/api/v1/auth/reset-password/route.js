@@ -35,9 +35,21 @@ export async function POST(req) {
   const [table, id] = tokenRow.customerId ? [customers, tokenRow.customerId] : isStaff ? [staff, tokenRow.staffId] : [users, tokenRow.userId];
 
   const passwordHash = await bcrypt.hash(password, 10);
+  const now = new Date();
+  const ownerColumn = tokenRow.customerId ? tokens.customerId : isStaff ? tokens.staffId : tokens.userId;
   const [updatedAccount] = await db.transaction(async (tx) => {
-    const [updated] = await tx.update(table).set({ passwordHash }).where(eq(table.id, id)).returning();
-    await tx.update(tokens).set({ usedAt: new Date() }).where(eq(tokens.id, tokenRow.id));
+    // passwordChangedAt invalidates every already-issued JWT for this
+    // account (see getUser in lib/auth.js). Without it, resetting the
+    // password left whoever had stolen a token still signed in for up to
+    // 30 days, which defeats the reason for resetting it.
+    const [updated] = await tx.update(table).set({ passwordHash, passwordChangedAt: now }).where(eq(table.id, id)).returning();
+    await tx.update(tokens).set({ usedAt: now }).where(eq(tokens.id, tokenRow.id));
+    // Any other live reset link for this account is spent too - one
+    // request, one usable link, so an older email can't be replayed.
+    await tx
+      .update(tokens)
+      .set({ usedAt: now })
+      .where(and(eq(ownerColumn, id), eq(tokens.type, "reset"), isNull(tokens.usedAt)));
     return [updated];
   });
 

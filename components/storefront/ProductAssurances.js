@@ -10,20 +10,22 @@ import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 // stores.returnWindowDays (0 = no returns).
 export function ProductAssurances({ returnWindowDays, productType }) {
   const { token } = useCustomerAuth();
-  const [address, setAddress] = useState(null);
+  const [fetchedAddress, setFetchedAddress] = useState(null);
+  // A stale address from a previous session must never show after sign-out,
+  // so the rendered value is derived from the token rather than cleared.
+  const address = token ? fetchedAddress : null;
 
   useEffect(() => {
-    if (!token) {
-      setAddress(null);
-      return;
-    }
+    // No synchronous reset when signed out - `shownAddress` below already
+    // treats a missing token as "no address", so there is nothing to clear.
+    if (!token) return undefined;
     let cancelled = false;
     fetch("/api/v1/customer/addresses", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled) setAddress(data?.addresses?.[0] || null);
+        if (!cancelled) setFetchedAddress(data?.addresses?.[0] || null);
       })
       .catch(() => {});
     return () => {

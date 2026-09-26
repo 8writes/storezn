@@ -7,7 +7,7 @@ import { withApiMonitoring } from "../../../../../../lib/apiMonitoring.js";
 import { checkRateLimit } from "../../../../../../lib/rateLimit.js";
 import { z } from "zod";
 import { buildPublicAppUrl } from "../../../../../../lib/requestUrl.js";
-import { isInvoicePaymentAuthorizationExpired, reconcileInvoicePayment } from "../../../../../../lib/invoicePayments.js";
+import { invoicePaymentReference, isInvoicePaymentAuthorizationExpired, reconcileInvoicePayment } from "../../../../../../lib/invoicePayments.js";
 import { sendInvoicePaymentNotifications } from "../../../../../../lib/invoiceNotifications.js";
 
 const paymentEmailSchema = z.string().trim().toLowerCase().email("Enter a valid email address");
@@ -75,7 +75,7 @@ async function handlePost(req, { params }) {
   }
   const [order] = await db.select().from(orders).where(eq(orders.id, invoice.orderId)).limit(1);
   if (!order || invoice.amountDue <= 0) return NextResponse.json({ error: "This invoice is already paid" }, { status: 409 });
-  let reference = `INV-${invoice.invoiceNumber}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  let reference = invoicePaymentReference(invoice.invoiceNumber);
   let prepared;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     prepared = await db.transaction(async (tx) => {
@@ -113,11 +113,11 @@ async function handlePost(req, { params }) {
       }
       if (transaction.paymentStatus === "FAILED") {
         await db.update(invoicePayments).set({ status: "failed", updatedAt: new Date(), metadata: { ...(prepared.expiredExisting.metadata || {}), reason: "authorization_failed_after_expiry" } }).where(and(eq(invoicePayments.id, prepared.expiredExisting.id), eq(invoicePayments.status, "pending")));
-        reference = `INV-${invoice.invoiceNumber}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+        reference = invoicePaymentReference(invoice.invoiceNumber);
         continue;
       }
       await db.update(invoicePayments).set({ status: "failed", updatedAt: new Date(), metadata: { ...(prepared.expiredExisting.metadata || {}), reason: "authorization_expired_pending" } }).where(and(eq(invoicePayments.id, prepared.expiredExisting.id), eq(invoicePayments.status, "pending")));
-      reference = `INV-${invoice.invoiceNumber}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+      reference = invoicePaymentReference(invoice.invoiceNumber);
       continue;
     } catch {
       // If Paystack cannot be reached, keep returning the single existing
@@ -147,7 +147,7 @@ async function handlePost(req, { params }) {
     return NextResponse.json({ authorizationUrl: paystackData.authorizationUrl, reference });
   } catch (error) {
     await db.update(invoicePayments).set({ status: "failed", updatedAt: new Date(), metadata: { error: error.message } }).where(and(eq(invoicePayments.id, payment.id), eq(invoicePayments.status, "pending")));
-    return NextResponse.json({ error: error.message || "Could not start payment" }, { status: 502 });
+    return NextResponse.json({ error: "We couldn't start the payment. Please try again in a moment." }, { status: 502 });
   }
 }
 

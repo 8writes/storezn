@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -100,12 +100,19 @@ export default function RecordPastSalePage() {
     return m;
   }, [lines]);
 
+  // One id per attempt at this sale, kept across retries so a failed
+  // submit the server actually committed can't be recorded twice (see
+  // createOfflineOrderSchema.idempotencyKey). Cleared on success.
+  const idempotencyKeyRef = useRef(null);
+
   const submit = async (e) => {
     e.preventDefault();
     if (lines.length === 0) return toast.error("Add at least one item");
     setSubmitting(true);
     try {
+      if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID();
       const payload = {
+        idempotencyKey: idempotencyKeyRef.current,
         buyerName: buyer.buyerName,
         delivered: buyer.delivered,
         items: cart.map((r) => ({ productId: r.productId, ...(r.variantId ? { variantId: r.variantId } : {}), quantity: r.quantity })),
@@ -117,6 +124,7 @@ export default function RecordPastSalePage() {
       payload.paymentMethod = pay.method;
       if (pay.method === "card" || pay.method === "transfer") payload.paymentProvider = pay.provider;
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/offline`, { method: "POST", body: JSON.stringify(payload) });
+      idempotencyKeyRef.current = null;
       toast.success("Sale recorded");
       router.push(`/vendor/orders/${data.order.id}?storeId=${storeId}`);
     } catch (err) {

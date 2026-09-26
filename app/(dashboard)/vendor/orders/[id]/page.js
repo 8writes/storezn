@@ -33,24 +33,39 @@ export default function VendorOrderDetailPage({ params }) {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [updating, setUpdating] = useState(false);
   const [activeItem, setActiveItem] = useState(null);
   const [shippingFeeInput, setShippingFeeInput] = useState("");
   const [savingShippingFee, setSavingShippingFee] = useState(false);
 
-  const load = () => {
-    setLoading(true);
-    apiFetch(`/api/v1/vendor/stores/${storeId}/orders/${id}`)
-      .then(setData)
-      .catch((err) => toast.error(err.message || "Could not load order"))
-      .finally(() => setLoading(false));
-  };
-
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; `refresh()` turns it back on after a status
+  // change, rather than it being set synchronously inside this effect.
   useEffect(() => {
-    if (!storeId || !token) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, token]);
+    if (!storeId || !token) return undefined;
+    let alive = true;
+    apiFetch(`/api/v1/vendor/stores/${storeId}/orders/${id}`)
+      .then((next) => {
+        if (alive) setData(next);
+      })
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Could not load order");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, storeId, token, id, refreshKey]);
+
+  // Re-runs the effect above after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
+  };
 
   const handleStatusChange = async (status, label) => {
     const ok = await confirm({ title: label + "?", variant: status === "cancelled" ? "danger" : "default" });
@@ -59,7 +74,7 @@ export default function VendorOrderDetailPage({ params }) {
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
       toast.success("Order updated");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Could not update order");
     } finally {
@@ -76,7 +91,7 @@ export default function VendorOrderDetailPage({ params }) {
         body: JSON.stringify({ shippingFee: Number(shippingFeeInput) }),
       });
       toast.success("Delivery fee saved");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Could not save delivery fee");
     } finally {
@@ -113,7 +128,7 @@ export default function VendorOrderDetailPage({ params }) {
         body: JSON.stringify({ refundDecision, ...(reviewNote ? { reviewNote } : {}) }),
       });
       toast.success("Refund request updated");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Could not update refund request");
     } finally {
@@ -301,7 +316,7 @@ export default function VendorOrderDetailPage({ params }) {
 
       {(NEXT_ACTIONS[order.status] || []).length > 0 && (
         order.shippingFeeTBD && !order.shippingFeeConfirmedAt ? (
-          <p className="text-xs text-slate-800 text-right">Enter the delivery fee above before updating this order's status.</p>
+          <p className="text-xs text-slate-800 text-right">Enter the delivery fee above before updating this order&apos;s status.</p>
         ) : (
           <div className="flex justify-end gap-3">
             {NEXT_ACTIONS[order.status].map((action) => (

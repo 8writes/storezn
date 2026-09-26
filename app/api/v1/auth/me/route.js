@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { db } from "../../../../../lib/db/index.js";
 import { users, staff, customers } from "../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
@@ -55,8 +56,17 @@ export async function PATCH(req) {
     if (!valid) return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
 
     const passwordHash = await bcrypt.hash(result.data.newPassword, 10);
-    await db.update(table).set({ passwordHash }).where(eq(table.id, user.id));
-    return NextResponse.json({ success: true });
+    const passwordChangedAt = new Date();
+    // Stamping this kills every token issued before now (see getUser in
+    // lib/auth.js) - that is the point: changing a password after a
+    // compromise has to evict whoever else is holding a 30-day token.
+    // That includes the token this very request came in on, so mint a
+    // replacement and hand it back, otherwise the person who just
+    // changed their own password would be signed out mid-page.
+    await db.update(table).set({ passwordHash, passwordChangedAt }).where(eq(table.id, user.id));
+    const kind = user.role === "staff" ? "staff" : user.role === "customer" ? "customer" : "user";
+    const token = jwt.sign({ id: user.id, kind }, process.env.JWT_SECRET, { expiresIn: "30d" });
+    return NextResponse.json({ success: true, token });
   }
 
   const result = validate(updateProfileAndNotificationsSchema, body);

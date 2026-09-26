@@ -42,6 +42,12 @@ export default defineConfig({
       ...process.env,
       E2E: "1",
       NEXT_TELEMETRY_DISABLED: "1",
+      // The app under test must talk to the SAME throwaway database as the
+      // fixtures in tests/e2e/helpers/db.mjs, which deliberately read only
+      // E2E_DATABASE_URL so the app's own DATABASE_URL can't be written to
+      // by accident. Overriding it here (rather than letting the inherited
+      // DATABASE_URL through) is what keeps the two in step.
+      ...(process.env.E2E_DATABASE_URL ? { DATABASE_URL: process.env.E2E_DATABASE_URL } : {}),
     },
   },
 });

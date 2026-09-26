@@ -275,6 +275,20 @@ export async function POST(req, { params }) {
   let created;
   try {
     created = await db.transaction(async (tx) => {
+      // The plan check above is a friendly pre-check; this is the one that
+      // actually holds. Serializing product creation per store (same
+      // advisory-lock pattern as the storage quota in lib/storeUploads.js)
+      // stops two simultaneous creates from both passing a count of 49 and
+      // leaving a free store on 51 products.
+      if (Number.isFinite(productLimit)) {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`product-create:${storeId}`}))`);
+        const [{ total: liveCount }] = await tx.select({ total: count() }).from(products).where(eq(products.storeId, storeId));
+        if (liveCount >= productLimit) {
+          const err = new Error(`Free stores can list up to ${productLimit} products. Upgrade to Storezn+ to add more.`);
+          err.code = "PRODUCT_LIMIT_REACHED";
+          throw err;
+        }
+      }
       const [product] = await tx.insert(products).values({ storeId, ...productData }).returning();
 
     const defaultBranch = storeBranches.find((b) => b.isDefault);
@@ -331,8 +345,24 @@ export async function POST(req, { params }) {
       return product;
     });
   } catch (error) {
+    if (error?.code === "PRODUCT_LIMIT_REACHED") {
+      return NextResponse.json({ error: error.message }, { status: 402 });
+    }
     if (isProductNameUniqueViolation(error)) {
       return NextResponse.json({ error: PRODUCT_NAME_TAKEN_MESSAGE }, { status: 409 });
+    }
+    // The slug and SKU pre-checks above are not atomic either, and
+    // `products` has a unique index on both (see lib/db/schema.js) - so
+    // the loser of a concurrent create hit an unhandled 500 instead of the
+    // same 409 the pre-check would have returned.
+    if (error?.code === "23505") {
+      const constraint = error.constraint_name || error.constraint || "";
+      if (constraint.includes("slug")) {
+        return NextResponse.json({ error: "That product slug already exists" }, { status: 409 });
+      }
+      if (constraint.includes("sku")) {
+        return NextResponse.json({ error: "That SKU is already used by another product" }, { status: 409 });
+      }
     }
     throw error;
   }

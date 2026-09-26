@@ -1,20 +1,17 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
-import { readTheme, saveTheme, THEME_EVENT } from "@/lib/theme.js";
+import { getServerTheme, readTheme, saveTheme, subscribeToTheme } from "@/lib/theme.js";
 
 // Sun/moon switch for the platform. `tone="light"` when it sits on a
 // dark surface (the super-admin sidebar), otherwise it styles for a
 // light-or-dark card.
 export function ThemeToggle({ collapsed = false, tone = "auto" }) {
-  const [theme, setTheme] = useState("dark");
-
-  useEffect(() => {
-    setTheme(readTheme());
-    const on = () => setTheme(readTheme());
-    window.addEventListener(THEME_EVENT, on);
-    return () => window.removeEventListener(THEME_EVENT, on);
-  }, []);
+  // The theme is external state (localStorage + a broadcast event), not
+  // this component's own - so it is subscribed to rather than copied into
+  // state by an effect, which had to render twice on every mount to catch
+  // up with what the page was already displaying.
+  const theme = useSyncExternalStore(subscribeToTheme, readTheme, getServerTheme);
 
   const dark = theme === "dark";
   const label = dark ? "Light mode" : "Dark mode";

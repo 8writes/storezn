@@ -112,7 +112,7 @@ async function handlePost(req, { params }) {
       storeId,
       metadata: { reference, amount, planCode },
     });
-    return NextResponse.json({ error: err.message || "Failed to start subscription" }, { status: 502 });
+    return NextResponse.json({ error: "We couldn't start the subscription. Please try again in a moment." }, { status: 502 });
   }
 }
 

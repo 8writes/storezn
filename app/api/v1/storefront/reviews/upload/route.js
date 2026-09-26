@@ -7,9 +7,10 @@ import { products, platformSettings } from "../../../../../../lib/db/schema.js";
 import { and, eq, isNull } from "drizzle-orm";
 import { getStorageLimitBytes } from "../../../../../../lib/storePlan.js";
 import { reserveStoreUpload, finalizeStoreUpload, releaseStoreUploadReservation, cleanupStaleReviewUploads } from "../../../../../../lib/storeUploads.js";
-import { resolveStoreByHost, isStoreLive } from "../../../../../../lib/resolveStore.js";
+import { resolveStoreByHost, isStoreLive, isForeignCustomer } from "../../../../../../lib/resolveStore.js";
 import { logAppError } from "../../../../../../lib/appErrorLog.js";
 import { withApiMonitoring } from "../../../../../../lib/apiMonitoring.js";
+import { matchesImageSignature } from "../../../../../../lib/mediaValidation.js";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_SIZE = 3 * 1024 * 1024;
@@ -43,10 +44,21 @@ async function handlePost(req) {
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: "Image must be smaller than 3MB" }, { status: 400 });
   }
+  // file.type is whatever the client declared, so confirm the bytes
+  // actually are that image type - same check the vendor upload route
+  // does (see /api/v1/uploads/file). This is the one upload path open to
+  // self-signed-up customers, so it needs it at least as much.
+  const headerBytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (!matchesImageSignature(file.type, headerBytes)) {
+    return NextResponse.json({ error: "That file does not look like a valid image" }, { status: 400 });
+  }
 
   const host = req.headers.get("host");
   const store = host ? await resolveStoreByHost(host) : null;
   if (!isStoreLive(store)) return NextResponse.json({ error: "Store not found" }, { status: 404 });
+  // Metered against THIS store's quota below, so a customer of another
+  // store must not be able to spend it.
+  if (isForeignCustomer(user, store)) return NextResponse.json({ error: "Sign in to this store to continue" }, { status: 403 });
 
   const [product] = await db
     .select({ id: products.id })

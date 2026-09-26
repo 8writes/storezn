@@ -8,7 +8,7 @@ import { computeWholesalePrice } from "@/lib/pricing.js";
 import { reserveStock, OutOfStockError } from "@/lib/inventory.js";
 import { toKobo, toNaira, formatKobo } from "@/lib/money.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
-import { canReplayOfflineSale, posPriceAdjustmentPolicy, validateTenders } from "@/lib/pos.js";
+import { canReplayOfflineSale, offlineDriftWithinStaffAllowance, posPriceAdjustmentPolicy, validateTenders } from "@/lib/pos.js";
 import { posContext, loadSession, loadSessionAny } from "@/lib/posAccess.js";
 import { buildPosSessionSummary, lockPosSession, reconcileClosedPosSession } from "@/lib/posSession.js";
 import { logAppError } from "@/lib/appErrorLog.js";
@@ -53,6 +53,26 @@ async function handlePost(req, { params }) {
   const soldAtMs = data.soldAt ? new Date(data.soldAt).getTime() : NaN;
   const isDelayedSale = Number.isFinite(soldAtMs) && Date.now() - soldAtMs > 90_000;
   const isOfflineReplay = data.offlineReplay === true || isDelayedSale;
+  // A queued sale's cached line price is honoured whenever the client
+  // presents it as a replay - including one that reconnects and syncs
+  // seconds after the ring-up, which is completely normal.
+  //
+  // It must NOT be gated on the sale being old (isDelayedSale): the
+  // tenders were computed on the device from its cached catalogue, and
+  // validateTenders requires them to match the server's total to the
+  // kobo. So re-pricing a queued sale from the current catalogue doesn't
+  // produce a slightly different receipt - it makes the totals disagree
+  // and REJECTS a sale the cashier has already taken cash for. A device
+  // whose cache went stale during a long offline stretch hits that on its
+  // very next sale.
+  //
+  // The client flag is safe to trust here because it is not the control:
+  // the captured price is bounded below by offlineDriftWithinStaffAllowance
+  // for anyone who isn't the owner, so a cashier claiming "offline drift"
+  // still cannot settle a ₦100,000 item for ₦1. A genuinely live sale
+  // sends offlineReplay:false (see completeSale in the POS page) and stays
+  // server-priced.
+  const capturedPricingAllowed = isOfflineReplay;
 
   // Live sales remain branch-scoped. A delayed queued sale may use its
   // original same-store session after a branch reassignment; its timestamp
@@ -141,7 +161,7 @@ async function handlePost(req, { params }) {
       : toKobo(computeWholesalePrice(product, item.quantity).total);
     const catalogueUnitKobo = item.quantity > 0 ? Math.round(catalogueLineKobo / item.quantity) : catalogueLineKobo;
 
-    const capturedLineKobo = isOfflineReplay && item.capturedLineTotal != null ? toKobo(item.capturedLineTotal) : null;
+    const capturedLineKobo = capturedPricingAllowed && item.capturedLineTotal != null ? toKobo(item.capturedLineTotal) : null;
     const baseLineKobo = capturedLineKobo != null
       ? capturedLineKobo
       : item.unitPrice != null
@@ -166,6 +186,25 @@ async function handlePost(req, { params }) {
       overridden,
       originalUnitPrice: overridden ? toNaira(catalogueUnitKobo) : null,
     });
+  }
+
+  // A captured offline price is an adjustment the server did not compute,
+  // so a non-owner only gets it within a bounded allowance (see
+  // offlineDriftWithinStaffAllowance) - otherwise "offline drift" is just
+  // an unchecked price override by another name. Past the bound the sale
+  // still happened, so the owner has to settle it rather than it being
+  // silently repriced.
+  const outOfAllowanceLine = isOwner
+    ? null
+    : resolved.find((line) => line.overridden && !offlineDriftWithinStaffAllowance(line.capturedLineKobo, line.catalogueLineKobo));
+  if (outOfAllowanceLine) {
+    return NextResponse.json(
+      {
+        error: `${outOfAllowanceLine.product.name}: the price on this queued sale is too far from the current price for staff to settle. The store owner needs to complete it.`,
+        code: "PRICE_DRIFT_TOO_LARGE",
+      },
+      { status: 403 },
+    );
   }
 
   // The cashier already completed an offline sale at the price cached on
@@ -222,9 +261,21 @@ async function handlePost(req, { params }) {
     return t;
   })();
   const now = soldAt;
+  // The sell screen mints this so a receipt printed at the counter matches
+  // the row. Treat it strictly as a hint: if it is already in use, fall
+  // back to a server-generated one silently rather than letting a client
+  // squat a specific number, or learn from an error that some other
+  // store's order number exists.
   let orderNumber = data.orderNumber || generateOrderNumber();
+  if (data.orderNumber) {
+    const [taken] = await db.select({ id: orders.id }).from(orders).where(eq(orders.orderNumber, data.orderNumber)).limit(1);
+    if (taken) orderNumber = generateOrderNumber();
+  }
 
   for (let attempt = 0; attempt < 2; attempt++) {
+    // Set when a queued sale's cash change is more than this drawer can
+    // account for. Not a refusal (see below) - a fact the owner is told.
+    let drawerWentNegative = false;
     try {
       const created = await db.transaction(async (tx) => {
         const lockedSession = await lockPosSession(tx, settleSessionId);
@@ -235,7 +286,21 @@ async function handlePost(req, { params }) {
           error.code = "POS_SESSION_CLOSED";
           throw error;
         }
-        if (lockedSession.status === "open" && !isOfflineReplay) {
+        // Cash leaving the drawer as change on a non-cash tender is
+        // checked against what the drawer should hold.
+        //
+        // For a LIVE sale this is a refusal: the cashier is still standing
+        // there and the change hasn't been handed over yet, so stopping it
+        // prevents the shortfall.
+        //
+        // For a REPLAY it must not be a refusal. That change was physically
+        // handed over at the counter however long ago; rejecting the sync
+        // doesn't put the money back, it just loses the record of a sale
+        // that happened. It's also routinely a false alarm - the cash_sale
+        // movements from other sales queued on the same device may not have
+        // synced yet, so expectedCash reads low through no fault of the
+        // cashier. So it's recorded and flagged for the owner instead.
+        if (lockedSession.status === "open") {
           const drawerDelta = tendersKobo.reduce(
             (sum, tender) => sum + (tender.method === "cash" ? tender.amount : 0) - Number(tender.changeGiven || 0),
             0,
@@ -243,9 +308,12 @@ async function handlePost(req, { params }) {
           if (drawerDelta < 0) {
             const summary = await buildPosSessionSummary(tx, lockedSession);
             if (summary.drawer.expectedCash + drawerDelta < 0) {
-              const error = new Error("Not enough expected cash in this drawer to give that change");
-              error.code = "INSUFFICIENT_DRAWER_CASH";
-              throw error;
+              if (!isOfflineReplay) {
+                const error = new Error("Not enough expected cash in this drawer to give that change");
+                error.code = "INSUFFICIENT_DRAWER_CASH";
+                throw error;
+              }
+              drawerWentNegative = true;
             }
           }
         }
@@ -434,6 +502,7 @@ async function handlePost(req, { params }) {
             (changeKobo > 0 ? ` - ${formatKobo(changeKobo)} cash change from drawer` : "") +
             (discountAmountKobo > 0 ? ` - ${formatKobo(discountAmountKobo)} off` : "") +
             (offlinePriceDrift ? " - offline price changed; review required" : resolved.some((r) => r.overridden) ? " - price overridden" : "") +
+            (drawerWentNegative ? " - cash change exceeded the drawer's expected cash; review required" : "") +
             (settleSessionId !== data.sessionId ? " - synced to current shift" : ""),
           targetType: "order",
           targetId: created.id,
@@ -447,11 +516,19 @@ async function handlePost(req, { params }) {
             priceAdjustments,
             offlinePriceDrift,
             priceDriftLines,
+            drawerWentNegative,
             rehomed: settleSessionId !== data.sessionId,
             tenders: tendersKobo.map((t) => ({ method: t.method, provider: t.provider, amountKobo: t.amount, changeKobo: t.changeGiven })),
           },
-          flaggedAt: offlinePriceDrift ? new Date() : null,
-          flagNote: offlinePriceDrift ? "Offline sale used a cached price that differs from the current catalogue." : null,
+          // Either anomaly puts the sale in the owner's review queue. A
+          // drawer that can't account for the change it gave out is the
+          // more urgent of the two, so it leads when both are true.
+          flaggedAt: offlinePriceDrift || drawerWentNegative ? new Date() : null,
+          flagNote: drawerWentNegative
+            ? "Queued sale gave more cash change than this drawer's expected cash covers - the sale was recorded because the money had already changed hands. Check the drawer against the shift."
+            : offlinePriceDrift
+              ? "Offline sale used a cached price that differs from the current catalogue."
+              : null,
         }),
       );
 

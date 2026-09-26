@@ -43,6 +43,25 @@ export async function POST(req, { params }) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   const { buyerName, buyerEmail, buyerPhone, note, delivered, items, branchId: requestedBranchId, paymentMethod, paymentProvider } = result.data;
 
+  // orders.paymentReference is unique, so it doubles as the idempotency
+  // claim here exactly as it does for a register sale (see the POS sales
+  // route): a replayed submit finds the committed order and returns it
+  // rather than recording the same sale - and the same stock decrement -
+  // a second time.
+  const paymentReference = result.data.idempotencyKey ? `OFFLINE-${result.data.idempotencyKey}` : null;
+  if (paymentReference) {
+    const [existing] = await db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.paymentReference, paymentReference), eq(orders.storeId, storeId)))
+      .limit(1);
+    if (existing) return NextResponse.json({ order: existing, replayed: true });
+    const [foreignReference] = await db.select({ id: orders.id }).from(orders).where(eq(orders.paymentReference, paymentReference)).limit(1);
+    if (foreignReference) {
+      return NextResponse.json({ error: "That sale reference has already been used" }, { status: 409 });
+    }
+  }
+
   // A branch-scoped staff member records the sale at their own branch,
   // regardless of what's submitted - a vendor/owner (or unscoped staff,
   // single-branch store) picks or gets auto-assigned the store's one.
@@ -74,6 +93,12 @@ export async function POST(req, { params }) {
   for (const item of items) {
     const product = productById.get(item.productId);
     if (!product) return NextResponse.json({ error: "One or more products were not found in this store" }, { status: 404 });
+    // Same bar as storefront checkout and a register sale: a delisted
+    // product, or one a super_admin suspended for a policy violation,
+    // must not be sellable through this channel either.
+    if (!product.isActive || product.suspendedAt) {
+      return NextResponse.json({ error: `${product.name} is not available for sale` }, { status: 409 });
+    }
     if (product.saleMode === "invoice_required") {
       return NextResponse.json(
         { error: `${product.name} requires an invoice and cannot be recorded as a fixed-price offline order`, code: "INVOICE_REQUIRED" },
@@ -163,6 +188,7 @@ export async function POST(req, { params }) {
           vendorPayoutAmount,
           feeChargedToCustomer: false,
           note: note || null,
+          ...(paymentReference ? { paymentReference } : {}),
           isOffline: true,
           // A vendor typing up a sale after the fact - not a live-till
           // ring-up (that's channel "pos", see the pos/sales route).
@@ -202,6 +228,16 @@ export async function POST(req, { params }) {
   } catch (err) {
     if (err instanceof OutOfStockError) {
       return NextResponse.json({ error: err.message }, { status: 409 });
+    }
+    // Lost the idempotency race - the winning submit's order is the one
+    // this caller wanted anyway.
+    if (err?.code === "23505" && paymentReference) {
+      const [dupe] = await db
+        .select()
+        .from(orders)
+        .where(and(eq(orders.paymentReference, paymentReference), eq(orders.storeId, storeId)))
+        .limit(1);
+      if (dupe) return NextResponse.json({ order: dupe, replayed: true });
     }
     throw err;
   }

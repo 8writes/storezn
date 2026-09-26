@@ -11,26 +11,34 @@ const EMPTY_PASSWORD_FORM = { currentPassword: "", newPassword: "" };
 
 export default function CustomerProfilePage() {
   const router = useRouter();
-  const { user, token, loading: authLoading, updateUser } = useCustomerAuth();
+  const { user, token, loading: authLoading, login, updateUser } = useCustomerAuth();
 
-  const [form, setForm] = useState(null);
+  // The form is a view of the account until it's edited, then it's the
+  // edit in progress. Deriving it removes the mount-time effect that
+  // copied `user` into state - which also meant a background refresh of
+  // `user` could overwrite what someone was in the middle of typing.
+  const [edited, setEdited] = useState(null);
+  const form =
+    edited ??
+    (user
+      ? {
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          phone: user.phone || "",
+          emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
+        }
+      : null);
+  const setForm = (next) => setEdited((current) => (typeof next === "function" ? next(current ?? form) : next));
   const [saving, setSaving] = useState(false);
   const [notifSaving, setNotifSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // Signed-out visitors are sent to the store's login page. The form
+  // itself is derived above, so this effect only navigates.
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.replace("/login?next=account/profile");
-      return;
-    }
-    setForm({
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
-      phone: user.phone || "",
-      emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
-    });
+    if (authLoading || user) return;
+    router.replace("/login?next=account/profile");
   }, [authLoading, user, router]);
 
   const call = (body) =>
@@ -76,7 +84,11 @@ export default function CustomerProfilePage() {
     e.preventDefault();
     setChangingPassword(true);
     try {
-      await call(passwordForm);
+      // The server rotates the token on a password change (every older
+      // one is now dead), so adopt the new one instead of being signed
+      // out of the page we're standing on.
+      const data = await call(passwordForm);
+      if (data?.token) login(data.token, user);
       setPasswordForm(EMPTY_PASSWORD_FORM);
       toast.success("Password changed");
     } catch (err) {

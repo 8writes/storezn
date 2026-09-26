@@ -3,7 +3,7 @@ import { db } from "../../../../../lib/db/index.js";
 import { addresses, checkoutAttempts, platformSettings, stores } from "../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser } from "../../../../../lib/auth.js";
-import { resolveStoreByHost, isStoreLive } from "../../../../../lib/resolveStore.js";
+import { resolveStoreByHost, isStoreLive, isForeignCustomer } from "../../../../../lib/resolveStore.js";
 import { validate, checkoutSchema } from "../../../../../lib/validate.js";
 import { resolveCart, getCartWithItems, computeCartTotals, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
 import { generateOrderNumber, computeOrderTotals } from "../../../../../lib/orders.js";
@@ -132,6 +132,7 @@ async function handlePost(req) {
   }
 
   const user = await getUser(req);
+  if (isForeignCustomer(user, store)) return NextResponse.json({ error: "Sign in to this store to continue" }, { status: 403 });
   const guestToken = req.cookies.get(GUEST_CART_COOKIE)?.value;
   if (!user && !guestToken) return NextResponse.json({ error: "Your cart is empty" }, { status: 400 });
 
@@ -352,7 +353,9 @@ async function handlePost(req) {
       storeId: store.id,
       metadata: { checkoutAttemptId: attempt.id, cartId: cart.id, orderNumber, totalAmount },
     });
-    return NextResponse.json({ error: err.message || "Could not start payment" }, { status: 502 });
+    // Logged above with the upstream detail; the client gets a fixed
+    // message rather than Paystack's own error text.
+    return NextResponse.json({ error: "We couldn't start the payment. Please try again in a moment." }, { status: 502 });
   }
 }
 

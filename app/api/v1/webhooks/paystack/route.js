@@ -41,9 +41,16 @@ async function recordSubscriptionTransaction({ storeId, amount, reference, paidA
 async function handleSubscriptionCharge(event) {
   const storeId = event.data?.metadata?.storeId;
   if (!storeId) return;
+  // Same bar as an order payment below: never grant paid access off the
+  // webhook payload alone. This endpoint is reachable directly, not only
+  // through the trusted forwarder, and a charge can also be reversed
+  // after the fact - so re-confirm with Paystack and record the amount
+  // Paystack reports, not the amount the payload claims.
+  const verified = await verifyTransaction(event.data?.reference);
+  if (verified.paymentStatus !== "PAID") return;
   const isNewCharge = await recordSubscriptionTransaction({
     storeId,
-    amount: (event.data?.amount || 0) / 100,
+    amount: verified.amountPaid,
     reference: event.data?.reference,
     paidAt: event.data?.paid_at,
   });
@@ -78,9 +85,11 @@ async function handleSubscriptionRenewal(event) {
   if (!store) return;
   const storeId = store.id;
 
+  const verified = await verifyTransaction(event.data?.reference);
+  if (verified.paymentStatus !== "PAID") return;
   const isNewCharge = await recordSubscriptionTransaction({
     storeId,
-    amount: (event.data?.amount || 0) / 100,
+    amount: verified.amountPaid,
     reference: event.data?.reference,
     paidAt: event.data?.paid_at,
   });

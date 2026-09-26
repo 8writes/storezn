@@ -52,34 +52,72 @@ export default function VendorOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
+  const [pageStoreId, setPageStoreId] = useState(null);
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // `page` only counts for the store it was chosen on - switching stores
+  // falls back to page 1 without an effect resetting it (the store comes
+  // from the shared context, so there's no event on this page to hang a
+  // reset off).
+  const effectivePage = pageStoreId === storeId ? page : 1;
+
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; it is switched back on by whichever interaction
+  // asks for fresh data (the handlers below), never synchronously inside
+  // this effect. `alive` drops the response of a request whose inputs have
+  // already changed, so a slow earlier reply can't land on top of a newer
+  // one.
   useEffect(() => {
     // Also gated on token, not just storeId - see VendorStoreContext.js:
     // storeId can already be populated (shared context, not remounted)
     // before this page's own token has resolved on a client-side
     // navigation, which would otherwise fire this fetch with no
     // Authorization header.
-    if (!token || !storeId) return;
-    setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+    if (!token || !storeId) return undefined;
+    let alive = true;
+    const params = new URLSearchParams({ page: String(effectivePage), pageSize: "20" });
     if (status) params.set("status", status);
     if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/vendor/stores/${storeId}/orders?${params}`)
       .then((data) => {
+        if (!alive) return;
         setOrders(data.orders);
         setPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load orders"))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, page, status, q]);
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load orders");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, storeId, effectivePage, status, q]);
 
-  useEffect(() => {
+  // Changing a filter resets to the first page - done in the event that
+  // causes it rather than in an effect watching the filter.
+  const handleSearch = (value) => {
+    setLoading(true);
     setPage(1);
-  }, [status, q, storeId]);
+    setPageStoreId(storeId);
+    setQ(value);
+  };
+
+  const handleStatus = (next) => {
+    setLoading(true);
+    setPage(1);
+    setPageStoreId(storeId);
+    setStatus(next);
+  };
+
+  const handlePageChange = (next) => {
+    setLoading(true);
+    setPageStoreId(storeId);
+    setPage(next);
+  };
 
   if (!storesLoading && stores.length === 0) {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
@@ -102,9 +140,9 @@ export default function VendorOrdersPage() {
       <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(14rem,18rem)_minmax(14rem,20rem)] sm:items-end">
         <div className="w-full sm:max-w-xs">
-          <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+          <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={handleStatus} />
         </div>
-        <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="w-full sm:max-w-xs" />
+        <SearchInput value={q} onSearch={handleSearch} placeholder="Search by order number..." className="w-full sm:max-w-xs" />
         </div>
       </div>
 
@@ -148,7 +186,7 @@ export default function VendorOrdersPage() {
             </div>
           ))
         )}
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        <Pagination pagination={pagination} onPageChange={handlePageChange} />
       </div>
 
       {/* Desktop: table */}
@@ -198,7 +236,7 @@ export default function VendorOrdersPage() {
             )}
           </tbody>
         </table>
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        <Pagination pagination={pagination} onPageChange={handlePageChange} />
       </div>
     </div>
   );

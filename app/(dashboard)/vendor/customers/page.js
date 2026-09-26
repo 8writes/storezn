@@ -23,32 +23,63 @@ export default function VendorCustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
+  const [pageStoreId, setPageStoreId] = useState(null);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // `page` only counts for the store it was chosen on - switching stores
+  // falls back to page 1 without an effect resetting it (the store comes
+  // from the shared context, so there's no event on this page to hang a
+  // reset off).
+  const effectivePage = pageStoreId === storeId ? page : 1;
+
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; it is switched back on by whichever interaction
+  // asks for fresh data (the handlers below), never synchronously inside
+  // this effect. `alive` drops the response of a request whose inputs have
+  // already changed, so a slow earlier reply can't land on top of a newer
+  // one.
   useEffect(() => {
     // Also gated on token, not just storeId - see VendorStoreContext.js:
     // storeId can already be populated (shared context, not remounted)
     // before this page's own token has resolved on a client-side
     // navigation, which would otherwise fire this fetch with no
     // Authorization header.
-    if (!token || !storeId) return;
-    setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+    if (!token || !storeId) return undefined;
+    let alive = true;
+    const params = new URLSearchParams({ page: String(effectivePage), pageSize: "20" });
     if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/vendor/stores/${storeId}/customers?${params}`)
       .then((data) => {
+        if (!alive) return;
         setCustomers(data.customers);
         setPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load customers"))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId, page, q]);
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load customers");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, storeId, effectivePage, q]);
 
-  useEffect(() => {
+  // A new search resets to the first page - done in the event that causes
+  // it rather than in an effect watching `q`.
+  const handleSearch = (value) => {
+    setLoading(true);
     setPage(1);
-  }, [storeId, q]);
+    setPageStoreId(storeId);
+    setQ(value);
+  };
+
+  const handlePageChange = (next) => {
+    setLoading(true);
+    setPageStoreId(storeId);
+    setPage(next);
+  };
 
   if (!storesLoading && stores.length === 0) {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
@@ -62,7 +93,7 @@ export default function VendorCustomersPage() {
       />
 
       <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
-        <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="w-full sm:max-w-sm" />
+        <SearchInput value={q} onSearch={handleSearch} placeholder="Search by name or email..." className="w-full sm:max-w-sm" />
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -113,7 +144,7 @@ export default function VendorCustomersPage() {
             )}
           </tbody>
         </table>
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        <Pagination pagination={pagination} onPageChange={handlePageChange} />
       </div>
     </div>
   );

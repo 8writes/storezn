@@ -2,28 +2,51 @@ import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import postgres from "postgres";
 
-const SAFE_DB_RE = /(test|temp|dev|local|e2e)/i;
+// These specs insert, update and delete real rows, so "which database am
+// I pointed at?" has to be answered deliberately, never inferred.
+//
+// The previous version guessed: it accepted any hostname in
+// (localhost|127.0.0.1|::1), or any URL whose host/path matched
+// /(test|temp|dev|local|e2e)/. Both are unsafe guesses. A loopback address
+// is exactly what a tunnel or a connection proxy to a REMOTE database
+// looks like, and the "temp" substring matches a production database
+// branch named e.g. "<app>-temp". The default DATABASE_URL in this repo
+// resolves to 127.0.0.1/postgres, so the old guard passed on it without
+// anyone having said it was safe to write to.
+//
+// Now the test database must be named explicitly, in its own variable that
+// nothing else in the app reads, so the app's own DATABASE_URL can never
+// be picked up by accident.
+export function resolveE2EDatabaseUrl() {
+  const raw = process.env.E2E_DATABASE_URL;
+  if (!raw) {
+    throw new Error(
+      "E2E_DATABASE_URL is required to run E2E tests. Set it to a throwaway database - these specs write and delete rows. " +
+        "It is deliberately NOT read from DATABASE_URL so the app's own (possibly live) database can't be used by accident.",
+    );
+  }
+  try {
+    new URL(raw);
+  } catch {
+    throw new Error("E2E_DATABASE_URL is not a valid URL.");
+  }
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL === raw) {
+    throw new Error(
+      "E2E_DATABASE_URL is identical to DATABASE_URL. Point the tests at a separate throwaway database.",
+    );
+  }
+  if (process.env.E2E !== "1") {
+    throw new Error("E2E tests must be run with E2E=1 (the Playwright config sets this).");
+  }
+  return raw;
+}
 
 export function assertSafeE2EDatabase() {
-  const raw = process.env.DATABASE_URL;
-  if (!raw) throw new Error("DATABASE_URL is required for E2E tests.");
-  let url;
-  try {
-    url = new URL(raw);
-  } catch {
-    throw new Error("DATABASE_URL is not a valid URL.");
-  }
-
-  const local = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
-  const safeName = SAFE_DB_RE.test(url.pathname) || SAFE_DB_RE.test(url.hostname);
-  if (process.env.E2E !== "1" || (!local && !safeName)) {
-    throw new Error("Refusing to run E2E tests against a database that does not look like a test/temp/local database.");
-  }
+  resolveE2EDatabaseUrl();
 }
 
 export function createSql() {
-  assertSafeE2EDatabase();
-  return postgres(process.env.DATABASE_URL, {
+  return postgres(resolveE2EDatabaseUrl(), {
     max: 3,
     idle_timeout: 5,
     connect_timeout: 20,

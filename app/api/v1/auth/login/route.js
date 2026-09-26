@@ -111,14 +111,16 @@ async function handleLogin(req) {
     // Checked only after the password is confirmed, so a wrong password on
     // a banned account is indistinguishable from a wrong password on any
     // other - "suspended" is never an email-enumeration oracle.
-    if (account.isBanned) return NextResponse.json({ error: "This account has been suspended.", banned: true, reason: account.bannedReason || null }, { status: 403 });
+    // `users` and `staff` have no bannedReason column (only `customers`
+    // does, see lib/db/schema.js) - there is no reason to surface here.
+    if (account.isBanned) return NextResponse.json({ error: "This account has been suspended.", banned: true }, { status: 403 });
     if (!account.emailVerified) {
       return NextResponse.json({ error: "Please verify your email before signing in", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });
     }
 
     if (kind === "staff") {
       const [store] = await db.select({ isActive: stores.isActive }).from(stores).where(eq(stores.id, account.storeId)).limit(1);
-      if (store && !store.isActive) {
+      if (!store || !store.isActive) {
         return NextResponse.json({ error: "This store is currently unavailable." }, { status: 403 });
       }
     } else {
@@ -138,7 +140,7 @@ async function handleLogin(req) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
 
   const [account] = await db.select().from(customers).where(and(eq(customers.storeId, store.id), eq(customers.email, email))).limit(1);
-  if (!account) {
+  if (!account || account.deletedAt) {
     await bcrypt.compare(password, DUMMY_HASH);
     return invalid();
   }

@@ -27,24 +27,46 @@ export default function SuperAdminStoresPage() {
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState(null);
 
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; it is switched back on by whichever interaction
+  // asks for fresh data (the handlers below), never synchronously inside
+  // this effect. `alive` drops the response of a request whose inputs have
+  // already changed, so a slow earlier reply can't land on top of a newer
+  // one.
   useEffect(() => {
-    if (!token) return;
-    setLoading(true);
+    if (!token) return undefined;
+    let alive = true;
     const params = new URLSearchParams({ page: String(page) });
     if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/super-admin/stores?${params.toString()}`)
       .then((data) => {
+        if (!alive) return;
         setStores(data.stores);
         setPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load stores"))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, q]);
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load stores");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, page, q]);
 
-  useEffect(() => {
+  // Changing a filter resets to the first page - done in the event that
+  // causes it rather than in an effect watching the filter.
+  const handleSearch = (value) => {
+    setLoading(true);
     setPage(1);
-  }, [q]);
+    setQ(value);
+  };
+
+  const handlePageChange = (next) => {
+    setLoading(true);
+    setPage(next);
+  };
 
   const toggleActive = async (store) => {
     if (store.isActive) {
@@ -76,7 +98,7 @@ export default function SuperAdminStoresPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Stores</h1>
 
-      <SearchInput value={q} onSearch={setQ} placeholder="Search by business name or slug..." className="max-w-sm" />
+      <SearchInput value={q} onSearch={handleSearch} placeholder="Search by business name or slug..." className="max-w-sm" />
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
@@ -132,7 +154,7 @@ export default function SuperAdminStoresPage() {
             )}
           </tbody>
         </table>
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        <Pagination pagination={pagination} onPageChange={handlePageChange} />
       </div>
       {confirmDialog}
     </div>

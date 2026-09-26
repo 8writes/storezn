@@ -44,6 +44,7 @@ export default function SuperAdminTransactionsPage() {
   const [paymentStatus, setPaymentStatus] = useState("");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [failingStale, setFailingStale] = useState(false);
 
   const [subTransactions, setSubTransactions] = useState([]);
@@ -51,44 +52,87 @@ export default function SuperAdminTransactionsPage() {
   const [subPage, setSubPage] = useState(1);
   const [subLoading, setSubLoading] = useState(true);
 
-  const load = () => {
-    if (!token) return;
-    setLoading(true);
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; it is switched back on by whichever interaction
+  // asks for fresh data (the handlers below), never synchronously inside
+  // this effect. `alive` drops the response of a request whose inputs have
+  // already changed, so a slow earlier reply can't land on top of a newer
+  // one.
+  useEffect(() => {
+    if (!token) return undefined;
+    let alive = true;
     const params = new URLSearchParams({ page: String(page) });
     if (paymentStatus) params.set("paymentStatus", paymentStatus);
     if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/super-admin/transactions?${params}`)
       .then((data) => {
+        if (!alive) return;
         setTransactions(data.transactions);
         setPagination(data.pagination);
         setSummary(data.summary);
       })
-      .catch((err) => toast.error(err.message || "Failed to load transactions"))
-      .finally(() => setLoading(false));
-  };
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load transactions");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, page, paymentStatus, q, refreshKey]);
 
-  useEffect(load, [token, page, paymentStatus, q]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  // The subscriptions tab loads independently, and only once it is opened.
   useEffect(() => {
-    setPage(1);
-  }, [paymentStatus, q]);
-
-  const loadSubscriptions = () => {
-    if (!token) return;
-    setSubLoading(true);
+    if (!token || tab !== "subscriptions") return undefined;
+    let alive = true;
     apiFetch(`/api/v1/super-admin/subscription-transactions?page=${subPage}`)
       .then((data) => {
+        if (!alive) return;
         setSubTransactions(data.transactions);
         setSubPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load subscription transactions"))
-      .finally(() => setSubLoading(false));
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load subscription transactions");
+      })
+      .finally(() => {
+        if (alive) setSubLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, tab, subPage]);
+
+  // Re-runs the orders effect after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
   };
 
-  useEffect(() => {
-    if (tab === "subscriptions") loadSubscriptions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, tab, subPage]);
+  // Changing a filter resets to the first page - done in the event that
+  // causes it rather than in an effect watching the filter.
+  const handleSearch = (value) => {
+    setLoading(true);
+    setPage(1);
+    setQ(value);
+  };
+
+  const handlePaymentStatus = (next) => {
+    setLoading(true);
+    setPage(1);
+    setPaymentStatus(next);
+  };
+
+  const handlePageChange = (next) => {
+    setLoading(true);
+    setPage(next);
+  };
+
+  const handleSubPageChange = (next) => {
+    setSubLoading(true);
+    setSubPage(next);
+  };
 
   const failStale = async () => {
     const ok = await confirm({
@@ -102,7 +146,7 @@ export default function SuperAdminTransactionsPage() {
     try {
       const data = await apiFetch("/api/v1/super-admin/transactions/fail-stale", { method: "POST" });
       toast.success(data.failed > 0 ? `${data.failed} transaction${data.failed === 1 ? "" : "s"} marked failed` : "Nothing was stale");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Failed to run cleanup");
     } finally {
@@ -154,9 +198,9 @@ export default function SuperAdminTransactionsPage() {
       {tab === "orders" && (
         <div className="flex flex-col sm:flex-row sm:items-end gap-4">
           <div className="max-w-xs">
-            <Select label="Payment status" options={STATUS_OPTIONS} value={paymentStatus} onChange={setPaymentStatus} />
+            <Select label="Payment status" options={STATUS_OPTIONS} value={paymentStatus} onChange={handlePaymentStatus} />
           </div>
-          <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="max-w-xs" />
+          <SearchInput value={q} onSearch={handleSearch} placeholder="Search by order number..." className="max-w-xs" />
         </div>
       )}
 
@@ -198,7 +242,7 @@ export default function SuperAdminTransactionsPage() {
               )}
             </tbody>
           </table>
-          <Pagination pagination={pagination} onPageChange={setPage} />
+          <Pagination pagination={pagination} onPageChange={handlePageChange} />
         </div>
       ) : (
         <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -230,7 +274,7 @@ export default function SuperAdminTransactionsPage() {
               )}
             </tbody>
           </table>
-          <Pagination pagination={subPagination} onPageChange={setSubPage} />
+          <Pagination pagination={subPagination} onPageChange={handleSubPageChange} />
         </div>
       )}
       {confirmDialog}

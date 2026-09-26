@@ -17,56 +17,73 @@ export default function SessionsPage() {
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const [stores, setStores] = useState([]);
+  const [storesLoaded, setStoresLoaded] = useState(false);
   const [storeId, setStoreId] = useState("");
-  const [sessions, setSessions] = useState([]);
-  const [pagination, setPagination] = useState(null);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  // The whole feed in one value, tagged with the store it was loaded for.
+  // `loadedPage` is 0 until the first page for this store has arrived.
+  const [feed, setFeed] = useState({ storeId: null, page: 1, loadedPage: 0, sessions: [], pagination: null });
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // Everything below is derived, so switching stores shows an empty,
+  // loading feed with nothing having to clear it in an effect.
+  const isCurrentStore = feed.storeId === storeId;
+  const sessions = isCurrentStore ? feed.sessions : [];
+  const pagination = isCurrentStore ? feed.pagination : null;
+  const page = isCurrentStore ? feed.page : 1;
+  // Before a store is known we're waiting on the store list; after that,
+  // on this store's first page. An account with no store at all settles on
+  // "not loading" and renders the empty state.
+  const loading = storeId ? !isCurrentStore || feed.loadedPage === 0 : !storesLoaded;
 
   useEffect(() => {
     if (!token) return;
     apiFetch("/api/v1/vendor/stores")
       .then((data) => {
         setStores(data.stores);
+        setStoresLoaded(true);
         if (data.stores[0]) setStoreId(data.stores[0].id);
-        else setLoading(false);
       })
       .catch((err) => toast.error(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   useEffect(() => {
-    setPage(1);
-    setSessions([]);
-    setPagination(null);
-  }, [storeId]);
-
-  useEffect(() => {
-    if (!storeId) return;
+    if (!storeId) return undefined;
     const requestedPage = page;
     let active = true;
-    if (requestedPage === 1) setLoading(true);
-    else setLoadingMore(true);
     apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions?page=${requestedPage}&pageSize=20`)
       .then((data) => {
         if (!active) return;
-        setSessions((current) => requestedPage === 1 ? data.sessions : [...current, ...data.sessions]);
-        setPagination(data.pagination || null);
+        setFeed((current) => ({
+          storeId,
+          page: requestedPage,
+          loadedPage: requestedPage,
+          // Page 1 replaces; later pages append to what is already showing
+          // for THIS store (never to a previous store's list).
+          sessions:
+            requestedPage === 1 || current.storeId !== storeId
+              ? data.sessions
+              : [...current.sessions, ...data.sessions],
+          pagination: data.pagination || null,
+        }));
       })
       .catch((err) => {
         if (active) toast.error(err.message);
       })
       .finally(() => {
-        if (!active) return;
-        if (requestedPage === 1) setLoading(false);
-        else setLoadingMore(false);
+        if (active) setLoadingMore(false);
       });
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, page]);
+  }, [apiFetch, storeId, page]);
+
+  // Asking for the next page is a button press, which is the right place
+  // to turn its own spinner on.
+  const loadMore = () => {
+    setLoadingMore(true);
+    setFeed((current) => ({ ...current, storeId, page: (current.storeId === storeId ? current.page : 1) + 1 }));
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -169,7 +186,7 @@ export default function SessionsPage() {
             {page < pagination.totalPages && (
               <button
                 type="button"
-                onClick={() => setPage((current) => current + 1)}
+                onClick={loadMore}
                 disabled={loadingMore}
                 className="inline-flex min-h-9 items-center gap-2 rounded-sm border border-slate-300 bg-surface px-3 py-1.5 font-medium text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
               >

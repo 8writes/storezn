@@ -22,6 +22,7 @@ export default function RegistersPage() {
   const [branches, setBranches] = useState([]);
   const [registers, setRegisters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [name, setName] = useState("");
   const [branchId, setBranchId] = useState("");
@@ -41,13 +42,18 @@ export default function RegistersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const load = () => {
-    if (!storeId) return;
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; `refresh()` turns it back on after a mutation,
+  // rather than it being set synchronously inside this effect.
+  useEffect(() => {
+    if (!storeId) return undefined;
+    let alive = true;
     Promise.all([
       apiFetch(`/api/v1/vendor/stores/${storeId}/pos/registers`),
       apiFetch(`/api/v1/vendor/stores/${storeId}/branches`),
     ])
       .then(([r, b]) => {
+        if (!alive) return;
         setRegisters(r.registers);
         setBranches(b.branches);
         // Only auto-pick when there's nothing to choose - on a
@@ -59,15 +65,23 @@ export default function RegistersPage() {
       // A 402 just means the store isn't on Enterprise - the page already
       // renders the upsell for that, no toast needed.
       .catch((err) => {
+        if (!alive) return;
         if (err?.status !== 402) toast.error(err.message);
       })
-      .finally(() => setLoading(false));
-  };
-  useEffect(() => {
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, storeId, refreshKey]);
+
+  // Re-runs the effect above after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
     setLoading(true);
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+    setRefreshKey((key) => key + 1);
+  };
 
   const store = stores.find((s) => s.id === storeId);
 
@@ -80,7 +94,7 @@ export default function RegistersPage() {
         body: JSON.stringify({ name, branchId }),
       });
       setName("");
-      load();
+      refresh();
       toast.success("Register added");
     } catch (err) {
       toast.error(err.message || "Couldn't add the register");
@@ -96,7 +110,7 @@ export default function RegistersPage() {
         body: JSON.stringify({ name: editName }),
       });
       setEditId(null);
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message);
     }
@@ -105,7 +119,7 @@ export default function RegistersPage() {
   const retire = async (id) => {
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/registers/${id}`, { method: "DELETE" });
-      load();
+      refresh();
       toast.success("Register removed");
     } catch (err) {
       toast.error(err.message || "Couldn't remove it");

@@ -10,6 +10,7 @@ import { escapeHtml } from "../../../../../../../lib/email/escapeHtml.js";
 import { getStaffLimit } from "../../../../../../../lib/storePlan.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 import { emailBrand, emailButton } from "../../../../../../../lib/email/templates.js";
+import { buildRequestUrl } from "../../../../../../../lib/requestUrl.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -114,34 +115,63 @@ export async function POST(req, { params }) {
   }
 
   const passwordHash = await bcrypt.hash(crypto.randomUUID(), 10);
-
-  const [newStaff] = await db
-    .insert(staffTable)
-    .values({
-      storeId,
-      branchId: resolvedBranchId,
-      firstName,
-      lastName,
-      email,
-      passwordHash,
-      // They're being invited by someone who already knows their email is
-      // real - no separate email-verification round needed on top of the
-      // reset-password link below, which already proves inbox control.
-      emailVerified: true,
-    })
-    .returning();
-
   const token = crypto.randomUUID();
-  await db.insert(tokens).values({
-    staffId: newStaff.id,
-    type: "reset",
-    token,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-  });
 
-  const protocol = req.headers.get("x-forwarded-proto") || "http";
-  const host = req.headers.get("host") || "";
-  const setPasswordUrl = `${protocol}://${host}/reset-password?token=${token}`;
+  // The seat count above is a friendly pre-check; this is the one that
+  // holds. Serializing invites per store (same advisory-lock pattern as
+  // the storage quota in lib/storeUploads.js) stops two simultaneous
+  // invites from both passing a count one short of the limit. The invite
+  // token is created in the same transaction as the row it belongs to, so
+  // a failure can't leave a staff member with no way to set a password.
+  let newStaff;
+  try {
+    newStaff = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`staff-invite:${storeId}`}))`);
+      const [{ total: liveCount }] = await tx.select({ total: count() }).from(staffTable).where(eq(staffTable.storeId, storeId));
+      if (liveCount >= staffLimit) {
+        const err = new Error(`You can have at most ${staffLimit} staff members${staffLimit <= 1 ? " on the free plan - upgrade to Storezn+ for more" : ""}`);
+        err.code = "STAFF_LIMIT_REACHED";
+        throw err;
+      }
+      const [row] = await tx
+        .insert(staffTable)
+        .values({
+          storeId,
+          branchId: resolvedBranchId,
+          firstName,
+          lastName,
+          email,
+          passwordHash,
+          // They're being invited by someone who already knows their email
+          // is real - no separate email-verification round needed on top
+          // of the reset-password link below, which already proves inbox
+          // control.
+          emailVerified: true,
+        })
+        .returning();
+      await tx.insert(tokens).values({
+        staffId: row.id,
+        type: "reset",
+        token,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+      return row;
+    });
+  } catch (err) {
+    if (err?.code === "STAFF_LIMIT_REACHED") {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    // uq_staff_store_email - the existence check above is not atomic.
+    if (err?.code === "23505") {
+      return NextResponse.json({ error: "That email is already a staff member here" }, { status: 409 });
+    }
+    throw err;
+  }
+
+  // Same reasoning as forgot-password: this is a 7-day password-setting
+  // link, so the scheme comes from lib/requestUrl.js instead of a raw
+  // header read that defaulted to plaintext http.
+  const setPasswordUrl = buildRequestUrl(req, `/reset-password?token=${token}`);
   const mailIdentity = emailBrand(store);
 
   after(() =>

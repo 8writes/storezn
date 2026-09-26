@@ -8,10 +8,15 @@ import { Search } from "lucide-react";
 // a request per keystroke against the database.
 export function SearchInput({ value, onSearch, placeholder = "Search...", className = "" }) {
   const [text, setText] = useState(value || "");
-
-  useEffect(() => {
+  // Keeps the box in step when the parent changes `value` itself (clearing
+  // a filter, say). Compared during render against the last value we saw,
+  // which is React's documented way to adjust state on a prop change -
+  // an effect for this rendered the stale text once before correcting it.
+  const [lastValue, setLastValue] = useState(value || "");
+  if ((value || "") !== lastValue) {
+    setLastValue(value || "");
     setText(value || "");
-  }, [value]);
+  }
 
   useEffect(() => {
     const handle = setTimeout(() => {

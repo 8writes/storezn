@@ -19,27 +19,42 @@ export default function CustomerAddressesPage() {
 
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
-  const load = () => {
-    setLoading(true);
-    fetch("/api/v1/customer/addresses", { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => res.json())
-      .then((data) => setAddresses(data.addresses || []))
-      .catch(() => toast.error("Could not load your addresses"))
-      .finally(() => setLoading(false));
-  };
-
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; `refresh()` turns it back on after a mutation,
+  // rather than it being set synchronously inside this effect.
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading) return undefined;
     if (!user) {
       router.replace("/login?next=account/addresses");
-      return;
+      return undefined;
     }
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user, token]);
+    let alive = true;
+    fetch("/api/v1/customer/addresses", { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => res.json())
+      .then((data) => {
+        if (alive) setAddresses(data.addresses || []);
+      })
+      .catch(() => {
+        if (alive) toast.error("Could not load your addresses");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [authLoading, user, token, router, refreshKey]);
+
+  // Re-runs the effect above after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -54,7 +69,7 @@ export default function CustomerAddressesPage() {
       if (!res.ok) throw new Error(data.error);
       toast.success("Address added");
       setForm(EMPTY_FORM);
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Could not save address");
     } finally {
@@ -69,7 +84,7 @@ export default function CustomerAddressesPage() {
       const res = await fetch(`/api/v1/customer/addresses/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Could not remove address");
     }

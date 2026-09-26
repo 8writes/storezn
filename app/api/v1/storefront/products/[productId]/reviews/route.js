@@ -5,13 +5,14 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { getUser } from "../../../../../../../lib/auth.js";
 import { validate, createReviewSchema } from "../../../../../../../lib/validate.js";
 import { isOwnedUploadUrl } from "../../../../../../../lib/storage/index.js";
-import { resolveStoreByHost, isStoreLive } from "../../../../../../../lib/resolveStore.js";
+import { resolveStoreByHost, isStoreLive, isForeignCustomer } from "../../../../../../../lib/resolveStore.js";
 
 export async function GET(req, { params }) {
   const { productId } = await params;
   const host = req.headers.get("host");
   const store = host ? await resolveStoreByHost(host) : null;
   if (!isStoreLive(store)) return NextResponse.json({ error: "Store not found" }, { status: 404 });
+  if (isForeignCustomer(user, store)) return NextResponse.json({ error: "Sign in to this store to continue" }, { status: 403 });
 
   const [product] = await db
     .select({ id: products.id })

@@ -36,25 +36,53 @@ export default function SuperAdminOrdersPage() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; it is switched back on by whichever interaction
+  // asks for fresh data (the handlers below), never synchronously inside
+  // this effect. `alive` drops the response of a request whose inputs have
+  // already changed, so a slow earlier reply can't land on top of a newer
+  // one.
   useEffect(() => {
-    if (!token) return;
-    setLoading(true);
+    if (!token) return undefined;
+    let alive = true;
     const params = new URLSearchParams({ page: String(page) });
     if (status) params.set("status", status);
     if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/super-admin/orders?${params}`)
       .then((data) => {
+        if (!alive) return;
         setOrders(data.orders);
         setPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load orders"))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, status, q]);
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load orders");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, page, status, q]);
 
-  useEffect(() => {
+  // Changing a filter resets to the first page - done in the event that
+  // causes it rather than in an effect watching the filter.
+  const handleSearch = (value) => {
+    setLoading(true);
     setPage(1);
-  }, [status, q]);
+    setQ(value);
+  };
+
+  const handleStatus = (next) => {
+    setLoading(true);
+    setPage(1);
+    setStatus(next);
+  };
+
+  const handlePageChange = (next) => {
+    setLoading(true);
+    setPage(next);
+  };
 
   return (
     <div className="space-y-6">
@@ -62,9 +90,9 @@ export default function SuperAdminOrdersPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="max-w-xs">
-          <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+          <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={handleStatus} />
         </div>
-        <SearchInput value={q} onSearch={setQ} placeholder="Search by order number..." className="max-w-xs" />
+        <SearchInput value={q} onSearch={handleSearch} placeholder="Search by order number..." className="max-w-xs" />
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -102,7 +130,7 @@ export default function SuperAdminOrdersPage() {
             )}
           </tbody>
         </table>
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        <Pagination pagination={pagination} onPageChange={handlePageChange} />
       </div>
     </div>
   );

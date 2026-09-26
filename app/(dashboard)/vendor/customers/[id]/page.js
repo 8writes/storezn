@@ -19,18 +19,29 @@ export default function VendorCustomerDetailPage({ params }) {
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Data is tagged with the customer it belongs to, so `loading` can be
+  // derived instead of set synchronously inside the effect, and navigating
+  // to a different customer shows the skeleton rather than the previous
+  // customer's details.
+  const [loaded, setLoaded] = useState(null);
+  const key = `${storeId}:${id}`;
+  const data = loaded?.key === key ? loaded.data : null;
+  const loading = !data;
 
   useEffect(() => {
-    if (!storeId || !token) return;
-    setLoading(true);
+    if (!storeId || !token) return undefined;
+    let alive = true;
     apiFetch(`/api/v1/vendor/stores/${storeId}/customers/${id}`)
-      .then(setData)
-      .catch((err) => toast.error(err.message || "Could not load customer"))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, id, token]);
+      .then((next) => {
+        if (alive) setLoaded({ key, data: next });
+      })
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Could not load customer");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, storeId, id, token, key]);
 
   if (loading) return <FormSkeleton />;
   if (!data) return null;

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Toaster } from "sonner";
@@ -11,7 +11,13 @@ import { VendorStoreProvider } from "@/components/VendorStoreContext.js";
 import { Skeleton } from "@/components/ui/Skeleton.js";
 import { ThemeToggle } from "@/components/ui/ThemeToggle.js";
 import { PlatformThemeSync } from "@/components/PlatformThemeSync.js";
-import { readTheme, THEME_EVENT } from "@/lib/theme.js";
+import { getServerTheme, readTheme, subscribeToTheme } from "@/lib/theme.js";
+import {
+  getServerNavCollapsed,
+  readNavCollapsed,
+  saveNavCollapsed,
+  subscribeToNavCollapsed,
+} from "@/lib/navCollapse.js";
 import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
 import {
   Menu,
@@ -300,35 +306,15 @@ export default function DashboardLayout({ children }) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [offline, setOffline] = useState(() => isOffline());
-  // Desktop sidebar collapse (icons only). Remembered per browser.
-  const [navCollapsed, setNavCollapsed] = useState(false);
-  useEffect(() => {
-    try {
-      setNavCollapsed(localStorage.getItem("nav_collapsed") === "1");
-    } catch {
-      /* private mode / blocked storage - just start expanded */
-    }
-  }, []);
-  const toggleNav = () => {
-    setNavCollapsed((c) => {
-      const next = !c;
-      try {
-        localStorage.setItem("nav_collapsed", next ? "1" : "0");
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  };
+  // Desktop sidebar collapse (icons only), remembered per browser. Both
+  // this and the theme below live in localStorage and change from more than
+  // one place, so they are subscribed to as external stores rather than
+  // copied into state by an effect on mount.
+  const navCollapsed = useSyncExternalStore(subscribeToNavCollapsed, readNavCollapsed, getServerNavCollapsed);
+  const toggleNav = () => saveNavCollapsed(!navCollapsed);
 
   // Follow the platform theme so toasts match the shell.
-  const [uiTheme, setUiTheme] = useState("dark");
-  useEffect(() => {
-    setUiTheme(readTheme());
-    const on = () => setUiTheme(readTheme());
-    window.addEventListener(THEME_EVENT, on);
-    return () => window.removeEventListener(THEME_EVENT, on);
-  }, []);
+  const uiTheme = useSyncExternalStore(subscribeToTheme, readTheme, getServerTheme);
 
   // Drives the sidebar going inert (see NavLinks' `offline` prop) so a
   // click never starts a navigation that can only fail. Uses the shared

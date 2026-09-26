@@ -21,30 +21,63 @@ export default function SuperAdminDevicesPage() {
   const [q, setQ] = useState("");
   const [onlyBanned, setOnlyBanned] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [busyId, setBusyId] = useState(null);
 
-  const load = () => {
-    setLoading(true);
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; it is switched back on by whichever interaction
+  // asks for fresh data (the handlers below), never synchronously inside
+  // this effect. `alive` drops the response of a request whose inputs have
+  // already changed, so a slow earlier reply can't land on top of a newer
+  // one.
+  useEffect(() => {
+    if (!token) return undefined;
+    let alive = true;
     const params = new URLSearchParams({ page: String(page) });
     if (q.trim()) params.set("q", q.trim());
     if (onlyBanned) params.set("banned", "1");
     apiFetch(`/api/v1/super-admin/devices?${params}`)
       .then((data) => {
+        if (!alive) return;
         setDevices(data.devices);
         setPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load devices"))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load devices");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, page, q, onlyBanned, refreshKey]);
+
+  // Re-runs the effect above after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
   };
 
-  useEffect(() => {
-    if (token) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, q, onlyBanned]);
-
-  useEffect(() => {
+  // Changing a filter resets to the first page - done in the event that
+  // causes it rather than in an effect watching the filter.
+  const handleSearch = (value) => {
+    setLoading(true);
     setPage(1);
-  }, [q, onlyBanned]);
+    setQ(value);
+  };
+
+  const handleOnlyBanned = (checked) => {
+    setLoading(true);
+    setPage(1);
+    setOnlyBanned(checked);
+  };
+
+  const handlePageChange = (next) => {
+    setLoading(true);
+    setPage(next);
+  };
 
   const ban = async (d) => {
     const primary = d.accounts.find((a) => a.email)?.email;
@@ -60,7 +93,7 @@ export default function SuperAdminDevicesPage() {
         body: JSON.stringify({ deviceId: d.deviceId, fingerprint: d.fingerprint || undefined, reason: reason.trim() }),
       });
       toast.success("Device banned");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Couldn't ban the device");
     } finally {
@@ -74,7 +107,7 @@ export default function SuperAdminDevicesPage() {
     try {
       await apiFetch(`/api/v1/super-admin/bans/${d.banned.id}`, { method: "DELETE" });
       toast.success("Ban lifted");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Couldn't lift the ban");
     } finally {
@@ -92,9 +125,9 @@ export default function SuperAdminDevicesPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={q} onSearch={setQ} placeholder="Search email, device id, IP…" className="w-full sm:w-80" />
+        <SearchInput value={q} onSearch={handleSearch} placeholder="Search email, device id, IP…" className="w-full sm:w-80" />
         <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" checked={onlyBanned} onChange={(e) => setOnlyBanned(e.target.checked)} />
+          <input type="checkbox" checked={onlyBanned} onChange={(e) => handleOnlyBanned(e.target.checked)} />
           Banned only
         </label>
       </div>
@@ -180,7 +213,7 @@ export default function SuperAdminDevicesPage() {
         </table>
       </div>
 
-      <Pagination pagination={pagination} onPageChange={setPage} />
+      <Pagination pagination={pagination} onPageChange={handlePageChange} />
     </div>
   );
 }

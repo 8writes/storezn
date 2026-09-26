@@ -84,9 +84,10 @@ async function handlePost(req) {
   }
 
   // Storage is metered per store, not per user - resolve which store this
-  // upload counts against. Only vendor/staff hit this route today (see
-  // MAX_SIZE_BY_PURPOSE), a customer profile picture goes through the
-  // separate /api/v1/uploads/profile flow instead.
+  // upload counts against. Only vendor/staff hit this route (see
+  // MAX_SIZE_BY_PURPOSE); the one other upload path is the customer
+  // review photo, which has its own route and its own quota accounting
+  // (see /api/v1/storefront/reviews/upload).
   const storeIdForUser =
     user.role === "vendor"
       ? (await db.select({ id: stores.id }).from(stores).where(eq(stores.ownerId, user.id)).limit(1))[0]?.id
@@ -133,7 +134,7 @@ async function handlePost(req) {
       storeId: storeIdForUser,
       metadata: { purpose, fileType: file.type, fileSize: file.size },
     });
-    return NextResponse.json({ error: `Upload failed: ${err.message}` }, { status: 502 });
+    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 502 });
   }
 }
 
@@ -157,7 +158,8 @@ async function handleDelete(req) {
   }
   // generateObjectKey nests every upload under "<purpose>/<user.id>/...",
   // so this doubles as the ownership check - a vendor can only ever
-  // delete a file their own account uploaded.
+  // delete a file their own account uploaded. Both storage providers
+  // answer this through the same predicate (lib/storage/keyOwnership.js).
   if (!isOwnedUploadUrl(url, user.id)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

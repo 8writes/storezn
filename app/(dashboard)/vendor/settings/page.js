@@ -73,16 +73,20 @@ export default function VendorSettingsPage() {
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [isPlus, setIsPlus] = useState(false);
 
+  // `loading` starts true and is only cleared once this settles - it is
+  // never set synchronously here, which is what caused a cascading render
+  // on mount. `alive` drops a reply for a store that has since changed.
   useEffect(() => {
     // Also gated on token, not just storeId - see VendorStoreContext.js:
     // storeId can already be populated (shared context, not remounted)
     // before this page's own token has resolved on a client-side
     // navigation, which would otherwise fire this fetch with no
     // Authorization header.
-    if (!token || !storeId || !isOwner) return;
-    setLoading(true);
+    if (!token || !storeId || !isOwner) return undefined;
+    let alive = true;
     apiFetch(`/api/v1/vendor/stores/${storeId}`)
       .then((data) => {
+        if (!alive) return;
         setForm({
           logoUrl: data.store.logoUrl || "",
           faviconUrl: data.store.faviconUrl || "",
@@ -104,8 +108,15 @@ export default function VendorSettingsPage() {
         setStore(data.store);
         updateStore(data.store);
       })
-      .catch((err) => toast.error(err.message || "Failed to load store"))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load store");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId, isOwner]);
 

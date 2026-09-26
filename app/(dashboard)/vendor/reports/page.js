@@ -112,32 +112,48 @@ export default function VendorReportsPage() {
   }, []);
   const [month, setMonth] = useState(months[0]?.value || currentMonth);
   const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [runKey, setRunKey] = useState(0);
   const [denied, setDenied] = useState(false);
   const [locked, setLocked] = useState(false);
 
-  const generate = () => {
-    if (!storeId) return;
-    setLoading(true);
-    setReport(null);
+  // One fetch path for both the first load and the Generate button, keyed
+  // on `runKey`. The button is a handler, which is where turning the
+  // spinner on belongs; this effect only ever clears it. `alive` drops a
+  // reply for a month that is no longer the one being asked about.
+  useEffect(() => {
+    if (!token || !storeId) return undefined;
+    let alive = true;
     apiFetch(`/api/v1/vendor/stores/${storeId}/reports/monthly?month=${month}`)
       .then((data) => {
+        if (!alive) return;
         setReport(data);
         setDenied(false);
         setLocked(false);
       })
       .catch((err) => {
+        if (!alive) return;
         if (err?.status === 402) setLocked(true);
         else if (/owner/i.test(err.message || "")) setDenied(true);
         else toast.error(err.message || "Failed to generate report");
       })
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    if (token && storeId) generate();
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+    // `month` is deliberately not a dependency - a report is only re-run
+    // when Generate is pressed, not the moment the month dropdown changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId]);
+  }, [apiFetch, token, storeId, runKey]);
+
+  const generate = () => {
+    if (!storeId) return;
+    setLoading(true);
+    setReport(null);
+    setRunKey((key) => key + 1);
+  };
 
   if (user && user.role !== "vendor") {
     return <p className="text-sm text-slate-800">Reports are only available to the store owner.</p>;

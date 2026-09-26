@@ -21,30 +21,44 @@ export default function CustomerOrderDetailPage() {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [requesting, setRequesting] = useState(false);
   const [activeItem, setActiveItem] = useState(null);
 
-  const load = () => {
-    setLoading(true);
+  // One fetch path. `loading` starts true and is only cleared when a fetch
+  // settles; `refresh()` turns it back on after a mutation, rather than it
+  // being set synchronously inside this effect.
+  useEffect(() => {
+    if (authLoading) return undefined;
+    if (!user) {
+      router.replace(`/login?next=account/orders/${id}`);
+      return undefined;
+    }
+    let alive = true;
     fetch(`/api/v1/customer/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((d) => {
+        if (!alive) return;
         if (d.error) throw new Error(d.error);
         setData(d);
       })
-      .catch((err) => toast.error(err.message || "Could not load order"))
-      .finally(() => setLoading(false));
-  };
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Could not load order");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [authLoading, user, token, id, router, refreshKey]);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.replace(`/login?next=account/orders/${id}`);
-      return;
-    }
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user, token]);
+  // Re-runs the effect above after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
+  };
 
   const handleRequestRefund = async () => {
     const reason = await confirm({ title: "Request a refund?", description: "Tell the seller why - they'll review your request.", requireReason: true, confirmLabel: "Send request" });
@@ -59,7 +73,7 @@ export default function CustomerOrderDetailPage() {
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
       toast.success("Refund request sent");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Could not send refund request");
     } finally {
@@ -132,7 +146,7 @@ export default function CustomerOrderDetailPage() {
           <p className="text-slate-800">Reason: {refundRequest.reason}</p>
           {refundRequest.reviewNote && <p className="text-slate-800">Seller note: {refundRequest.reviewNote}</p>}
           {refundRequest.status === "approved" && (
-            <p className="text-slate-400 text-xs pt-1">The seller has approved this refund and will send your money back directly - this isn't processed automatically through Storezn.</p>
+            <p className="text-slate-400 text-xs pt-1">The seller has approved this refund and will send your money back directly - this isn&apos;t processed automatically through Storezn.</p>
           )}
         </div>
       ) : order.status === "delivered" ? (

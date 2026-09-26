@@ -7,6 +7,7 @@ import { validate, forgotPasswordSchema } from "../../../../../lib/validate.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { isPlatformHost, resolveStoreByHost } from "../../../../../lib/resolveStore.js";
 import { emailBrand, emailButton } from "../../../../../lib/email/templates.js";
+import { buildRequestUrl } from "../../../../../lib/requestUrl.js";
 
 export async function POST(req) {
   const limit = await checkRateLimit(req, "forgot-password", { max: 5, windowMs: 60_000 });
@@ -69,8 +70,10 @@ export async function POST(req) {
     // back on that store's own /reset-password (app/storefront/[host]/...,
     // rewritten by proxy.js), not the vendor/admin one at the platform
     // root, and vice versa for a vendor/admin request.
-    const protocol = req.headers.get("x-forwarded-proto") || "http";
-    const resetUrl = `${protocol}://${host}/reset-password?token=${token}`;
+    // Scheme via lib/requestUrl.js rather than a raw x-forwarded-proto
+    // read that defaulted to "http" - this link carries a live one-hour
+    // reset token. The host is still the request's own (see above).
+    const resetUrl = buildRequestUrl(req, `/reset-password?token=${token}`);
     const identity = emailBrand(mailBrand);
     // Not awaited - the response below must stay fast regardless of mail
     // provider latency, and always-ok must not depend on send success

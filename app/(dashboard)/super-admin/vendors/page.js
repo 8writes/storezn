@@ -34,33 +34,65 @@ export default function SuperAdminVendorsPage() {
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [decidingId, setDecidingId] = useState(null);
   const [verifyingEmailId, setVerifyingEmailId] = useState(null);
   const [busyId, setBusyId] = useState(null);
 
-  const load = () => {
-    setLoading(true);
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; it is switched back on by whichever interaction
+  // asks for fresh data (the handlers below), never synchronously inside
+  // this effect. `alive` drops the response of a request whose inputs have
+  // already changed, so a slow earlier reply can't land on top of a newer
+  // one.
+  useEffect(() => {
+    if (!token) return undefined;
+    let alive = true;
     const params = new URLSearchParams({ page: String(page) });
     if (status) params.set("status", status);
     if (q.trim()) params.set("q", q.trim());
     apiFetch(`/api/v1/super-admin/vendors?${params}`)
       .then((data) => {
+        if (!alive) return;
         setVendors(data.vendors);
         setPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load vendors"))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load vendors");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, page, status, q, refreshKey]);
+
+  // Re-runs the effect above after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
   };
 
-  useEffect(() => {
-    if (!token) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, status, q]);
-
-  useEffect(() => {
+  // Changing a filter resets to the first page - done in the event that
+  // causes it rather than in an effect watching the filter.
+  const handleSearch = (value) => {
+    setLoading(true);
     setPage(1);
-  }, [status, q]);
+    setQ(value);
+  };
+
+  const handleStatus = (next) => {
+    setLoading(true);
+    setPage(1);
+    setStatus(next);
+  };
+
+  const handlePageChange = (next) => {
+    setLoading(true);
+    setPage(next);
+  };
 
   const handleDecision = async (vendor, decision) => {
     const requireReason = decision === "rejected";
@@ -89,7 +121,7 @@ export default function SuperAdminVendorsPage() {
         body: JSON.stringify({ decision, reviewNote: requireReason ? result : undefined }),
       });
       toast.success(decision === "approved" ? "Vendor approved" : wasApproved ? "Vendor unverified - their store is now offline" : "Vendor rejected");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Failed to update vendor");
     } finally {
@@ -106,7 +138,7 @@ export default function SuperAdminVendorsPage() {
     try {
       await apiFetch(`/api/v1/super-admin/vendors/${vendor.id}/verify-email`, { method: "PATCH", body: JSON.stringify({}) });
       toast.success("Email marked as verified - they can sign in now");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Failed to verify email");
     } finally {
@@ -129,7 +161,7 @@ export default function SuperAdminVendorsPage() {
     try {
       await apiFetch(`/api/v1/super-admin/vendors/${vendor.id}`, { method: "PATCH", body: JSON.stringify({ isBanned: next }) });
       toast.success(next ? "Vendor suspended" : "Vendor restored");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Failed to update vendor");
     } finally {
@@ -156,7 +188,7 @@ export default function SuperAdminVendorsPage() {
     try {
       await apiFetch(`/api/v1/super-admin/vendors/${vendor.id}`, { method: "DELETE" });
       toast.success("Vendor account deleted");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Failed to delete account");
     } finally {
@@ -171,9 +203,9 @@ export default function SuperAdminVendorsPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="max-w-xs">
-          <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+          <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={handleStatus} />
         </div>
-        <SearchInput value={q} onSearch={setQ} placeholder="Search by name or email..." className="max-w-sm" />
+        <SearchInput value={q} onSearch={handleSearch} placeholder="Search by name or email..." className="max-w-sm" />
       </div>
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -327,7 +359,7 @@ export default function SuperAdminVendorsPage() {
             )}
           </tbody>
         </table>
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        <Pagination pagination={pagination} onPageChange={handlePageChange} />
       </div>
     </div>
   );

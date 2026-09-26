@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../../../../lib/db/index.js";
 import { invoiceRequestItems, invoiceRequests, productVariants, products, users } from "../../../../../lib/db/schema.js";
 import { getUser } from "../../../../../lib/auth.js";
-import { resolveStoreByHost, isStoreLive } from "../../../../../lib/resolveStore.js";
+import { resolveStoreByHost, isStoreLive, isForeignCustomer } from "../../../../../lib/resolveStore.js";
 import { validate, createInvoiceRequestSchema, validateCustomerFieldAnswers } from "../../../../../lib/validate.js";
 import { snapshotCustomerFieldAnswers } from "../../../../../lib/customerFields.js";
 import { sendPushToStore } from "../../../../../lib/push.js";
@@ -23,6 +23,7 @@ async function handlePost(req) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
   const user = await getUser(req);
+  if (isForeignCustomer(user, store)) return NextResponse.json({ error: "Sign in to this store to continue" }, { status: 403 });
   const identity = user?.id || result.data.guestEmail;
   const [identityLimit, networkLimit] = await Promise.all([
     checkRateLimit(req, `invoice-request:${store.id}`, { max: 1, windowMs: 60_000, userId: identity }),

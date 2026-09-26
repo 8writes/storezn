@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Loader2, Check, Search } from "lucide-react";
 
@@ -30,6 +30,10 @@ export function Select({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  // The combobox trigger has to point at the listbox it controls, and the
+  // panel renders in a portal on <body>, so the two need a shared id that
+  // is stable across the server and client render.
+  const listboxId = `${useId()}-listbox`;
   const [pos, setPos] = useState(null); // { left, top, width, drop } | null
   const wrapRef = useRef(null);
   const triggerRef = useRef(null);
@@ -133,12 +137,14 @@ export function Select({
                 />
               </div>
             )}
-            <div className="overflow-auto py-1">
+            <div className="overflow-auto py-1" id={listboxId} role="listbox">
               {visibleOptions.length === 0 && <div className="px-3 py-2 text-sm text-slate-800">No options</div>}
               {visibleOptions.map((opt) => (
                 <button
                   type="button"
                   key={opt.value}
+                  role="option"
+                  aria-selected={opt.value === value}
                   title={opt.label}
                   onClick={() => {
                     onChange(opt.value);
@@ -175,6 +181,14 @@ export function Select({
           ref={triggerRef}
           disabled={disabled || loading}
           onClick={() => setOpen((o) => !o)}
+          // This button IS the control, not a plain button next to one, so
+          // it carries the combobox role: that's what makes aria-invalid
+          // meaningful here (a bare button doesn't support it) and what
+          // tells a screen reader there's a popup and whether it's open.
+          role="combobox"
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          aria-controls={listboxId}
           aria-invalid={error ? true : undefined}
           title={selected?.label}
           className={`w-full flex items-center justify-between gap-2 px-3 py-2 border rounded-sm text-base sm:text-sm bg-surface cursor-pointer text-left

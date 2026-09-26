@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -16,11 +16,26 @@ const EMPTY_PASSWORD_FORM = { currentPassword: "", newPassword: "" };
 // lib/auth.js's getUser, PATCH /api/v1/auth/me). The "Leave store" card
 // below is staff-only.
 export default function ProfilePage() {
-  const { user, token, logout, updateUser } = useAuth(true);
+  const { user, token, login, logout, updateUser } = useAuth(true);
   const { apiFetch } = useApi(token);
   const { confirm, confirmDialog } = useConfirm();
 
-  const [form, setForm] = useState(null);
+  // The form is a view of the account until it's edited, then it's the
+  // edit in progress. Deriving it removes the mount-time effect that
+  // copied `user` into state - which also meant a background refresh of
+  // `user` could overwrite what someone was in the middle of typing.
+  const [edited, setEdited] = useState(null);
+  const form =
+    edited ??
+    (user
+      ? {
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          phone: user.phone || "",
+          emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
+        }
+      : null);
+  const setForm = (next) => setEdited((current) => (typeof next === "function" ? next(current ?? form) : next));
   const [saving, setSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -30,16 +45,6 @@ export default function ProfilePage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    setForm({
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
-      phone: user.phone || "",
-      emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
-    });
-  }, [user]);
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -79,7 +84,11 @@ export default function ProfilePage() {
     e.preventDefault();
     setChangingPassword(true);
     try {
-      await apiFetch("/api/v1/auth/me", { method: "PATCH", body: JSON.stringify(passwordForm) });
+      // Changing the password invalidates every token issued before now,
+      // including the one this page is holding - the server mints a
+      // replacement so this session survives its own password change.
+      const data = await apiFetch("/api/v1/auth/me", { method: "PATCH", body: JSON.stringify(passwordForm) });
+      if (data?.token) login(data.token, user);
       setPasswordForm(EMPTY_PASSWORD_FORM);
       toast.success("Password changed");
     } catch (err) {

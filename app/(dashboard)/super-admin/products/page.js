@@ -31,31 +31,63 @@ export default function SuperAdminProductsPage() {
   const [q, setQ] = useState("");
   const [suspended, setSuspended] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [actingId, setActingId] = useState(null);
 
-  const load = () => {
-    setLoading(true);
+  // One fetch path, cancellable. `loading` starts true and is only cleared
+  // when a fetch settles; it is switched back on by whichever interaction
+  // asks for fresh data (the handlers below), never synchronously inside
+  // this effect. `alive` drops the response of a request whose inputs have
+  // already changed, so a slow earlier reply can't land on top of a newer
+  // one.
+  useEffect(() => {
+    if (!token) return undefined;
+    let alive = true;
     const params = new URLSearchParams({ page: String(page) });
     if (q.trim()) params.set("q", q.trim());
     if (suspended) params.set("suspended", suspended);
     apiFetch(`/api/v1/super-admin/products?${params}`)
       .then((data) => {
+        if (!alive) return;
         setProducts(data.products);
         setPagination(data.pagination);
       })
-      .catch((err) => toast.error(err.message || "Failed to load products"))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (alive) toast.error(err.message || "Failed to load products");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [apiFetch, token, page, q, suspended, refreshKey]);
+
+  // Re-runs the effect above after a mutation, in place of calling the
+  // fetch directly from a handler.
+  const refresh = () => {
+    setLoading(true);
+    setRefreshKey((key) => key + 1);
   };
 
-  useEffect(() => {
-    if (!token) return;
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, q, suspended]);
-
-  useEffect(() => {
+  // Changing a filter resets to the first page - done in the event that
+  // causes it rather than in an effect watching the filter.
+  const handleSearch = (value) => {
+    setLoading(true);
     setPage(1);
-  }, [q, suspended]);
+    setQ(value);
+  };
+
+  const handleSuspendedFilter = (next) => {
+    setLoading(true);
+    setPage(1);
+    setSuspended(next);
+  };
+
+  const handlePageChange = (next) => {
+    setLoading(true);
+    setPage(next);
+  };
 
   const handleToggleSuspend = async (product) => {
     const suspending = !product.suspendedAt;
@@ -75,7 +107,7 @@ export default function SuperAdminProductsPage() {
         body: JSON.stringify({ suspended: suspending, reason: suspending ? reason : undefined }),
       });
       toast.success(suspending ? "Product suspended" : "Product unsuspended");
-      load();
+      refresh();
     } catch (err) {
       toast.error(err.message || "Failed to update product");
     } finally {
@@ -89,9 +121,9 @@ export default function SuperAdminProductsPage() {
       <h1 className="text-xl font-bold text-slate-900">Products</h1>
 
       <div className="flex flex-col sm:flex-row gap-4">
-        <SearchInput value={q} onSearch={setQ} placeholder="Search products..." className="max-w-sm" />
+        <SearchInput value={q} onSearch={handleSearch} placeholder="Search products..." className="max-w-sm" />
         <div className="max-w-xs">
-          <Select options={SUSPENDED_OPTIONS} value={suspended} onChange={setSuspended} />
+          <Select options={SUSPENDED_OPTIONS} value={suspended} onChange={handleSuspendedFilter} />
         </div>
       </div>
 
@@ -148,7 +180,7 @@ export default function SuperAdminProductsPage() {
             )}
           </tbody>
         </table>
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        <Pagination pagination={pagination} onPageChange={handlePageChange} />
       </div>
     </div>
   );
