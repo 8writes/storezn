@@ -18,6 +18,7 @@ import { Pagination } from "@/components/ui/Pagination.js";
 import { EmptyState } from "@/components/ui/EmptyState.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
+import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
 
 export default function VendorInvoiceRequestsPage() {
   const { token } = useAuth(true);
@@ -36,6 +37,7 @@ export default function VendorInvoiceRequestsPage() {
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [activeItem, setActiveItem] = useState(null);
   const { confirm, confirmDialog } = useConfirm();
 
   const loadData = useCallback(() => {
@@ -184,7 +186,35 @@ export default function VendorInvoiceRequestsPage() {
               {selected.items.map((item) => {
                 const key = `${item.productId}:${item.variantId || ""}`;
                 const details = customerFieldEntries(item.customerFields);
-                return <div key={item.id} className="grid grid-cols-[1fr_7rem] gap-3 items-end"><div><p className="text-sm font-medium text-slate-900">{item.productName}</p><p className="text-xs text-slate-600">Qty {item.quantity}{item.variantLabel ? ` - ${item.variantLabel}` : ""}</p>{details.length > 0 && <dl className="mt-2 space-y-1">{details.map((detail) => <div key={detail.id} className="text-xs text-slate-700"><dt className="inline font-medium">{detail.label}: </dt><dd className="inline">{detail.value === true ? "Yes" : detail.value === false ? "No" : String(detail.value)}</dd></div>)}</dl>}</div><input type="number" min="0.01" step="0.01" placeholder="Price" value={prices[key] || ""} onChange={(event) => setPrices((current) => ({ ...current, [key]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-2 py-2 text-sm" /></div>;
+                const unitPrice = Number(prices[key]) || 0;
+                return (
+                  <div key={item.id} className="rounded-sm border border-slate-200 p-3 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7rem] gap-3 items-end">
+                      <button
+                        type="button"
+                        onClick={() => setActiveItem({ ...item, unitPrice, lineTotal: unitPrice * item.quantity })}
+                        className="min-w-0 text-left cursor-pointer rounded-sm hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                      >
+                        <p className="text-sm font-medium text-slate-900">{item.productName}</p>
+                        <p className="text-xs text-slate-600">Qty {item.quantity}{item.variantLabel ? ` - ${item.variantLabel}` : ""}</p>
+                      </button>
+                      <input type="number" min="0.01" step="0.01" placeholder="Price" value={prices[key] || ""} onChange={(event) => setPrices((current) => ({ ...current, [key]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-2 py-2 text-sm" />
+                    </div>
+                    {details.length > 0 && (
+                      <div className="bg-slate-50 border border-slate-200 rounded-sm p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Customer details</p>
+                        <dl className="mt-2 space-y-1.5">
+                          {details.map((detail) => (
+                            <div key={detail.id} className="flex justify-between gap-3 text-xs text-slate-700">
+                              <dt className="font-medium">{detail.label}</dt>
+                              <dd className="text-right">{detail.value === true ? "Yes" : detail.value === false ? "No" : String(detail.value)}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    )}
+                  </div>
+                );
               })}
             </div>
             <div className="border-t border-slate-200 pt-4 space-y-3">
@@ -201,6 +231,11 @@ export default function VendorInvoiceRequestsPage() {
         </section>
       </div>
       {confirmDialog}
+      <OrderItemModal
+        item={activeItem}
+        productHref={activeItem?.productId ? `/vendor/products/${activeItem.productId}?storeId=${storeId}` : null}
+        onClose={() => setActiveItem(null)}
+      />
     </div>
   );
 }
