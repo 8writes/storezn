@@ -13,8 +13,6 @@ export function useModalScrollLock(open) {
     const body = document.body;
     if (lockCount === 0) {
       previousStyles = {
-        htmlOverflow: html.style.overflow,
-        htmlOverscroll: html.style.overscrollBehavior,
         bodyOverflow: body.style.overflow,
         bodyOverscroll: body.style.overscrollBehavior,
         bodyPaddingRight: body.style.paddingRight,
@@ -27,8 +25,10 @@ export function useModalScrollLock(open) {
         const currentPadding = Number.parseFloat(window.getComputedStyle(body).paddingRight) || 0;
         body.style.paddingRight = `${currentPadding + scrollbarWidth}px`;
       }
-      html.style.overflow = "hidden";
-      html.style.overscrollBehavior = "none";
+      // Do not lock <html>: the dashboard intentionally keeps its
+      // overflow-x as `clip` so the desktop sidebar can remain sticky.
+      // Changing it to `hidden` creates a new scroll context and pulls
+      // that sidebar out of its expected viewport position.
       body.style.overflow = "hidden";
       body.style.overscrollBehavior = "none";
       body.dataset.modalOpen = "true";
@@ -38,8 +38,6 @@ export function useModalScrollLock(open) {
     return () => {
       lockCount = Math.max(0, lockCount - 1);
       if (lockCount !== 0) return;
-      html.style.overflow = previousStyles?.htmlOverflow || "";
-      html.style.overscrollBehavior = previousStyles?.htmlOverscroll || "";
       body.style.overflow = previousStyles?.bodyOverflow || "";
       body.style.overscrollBehavior = previousStyles?.bodyOverscroll || "";
       body.style.paddingRight = previousStyles?.bodyPaddingRight || "";
