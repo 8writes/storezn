@@ -22,6 +22,7 @@ import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
 import { CustomerFieldsEditor } from "@/components/ui/CustomerFieldsEditor.js";
 import { ProductFormFieldsButton } from "@/components/ui/ProductFormFieldsButton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 import {
   uploadFile,
   validateVideoDuration,
@@ -647,7 +648,19 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
   const [selected, setSelected] = useState(() => new Set());
   const [visible, setVisible] = useState(VARIANT_PAGE);
   const [variantsCollapsed, setVariantsCollapsed] = useState(false);
+  const [variantsOpen, setVariantsOpen] = useState(false);
   const { confirm, confirmDialog } = useConfirm();
+
+  useModalScrollLock(variantsOpen);
+
+  useEffect(() => {
+    if (!variantsOpen) return;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape" && !generating && !savingEdit && !bulkDeleting && !togglingStandard && !deletingId) setVariantsOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [variantsOpen, generating, savingEdit, bulkDeleting, togglingStandard, deletingId]);
 
   const load = () => {
     apiFetch(`/api/v1/vendor/stores/${storeId}/products/${productId}/variants`)
@@ -861,11 +874,35 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
     }
   };
 
+  const busy = generating || savingEdit || bulkDeleting || togglingStandard || deletingId !== null;
+
   return (
-    <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
-      <div>
-        <p className="text-sm font-semibold text-slate-700">Variants</p>
+    <>
+      <div className="flex flex-col gap-3 border border-slate-200 bg-surface p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Variants</p>
+          <p className="mt-1 text-xs text-slate-700">{loading ? "Loading variants..." : variants.length > 0 ? `${variants.length} variant${variants.length === 1 ? "" : "s"} configured.` : "Add options such as Size and Colour when this product has choices."}</p>
+        </div>
+        <Button type="button" onClick={() => setVariantsOpen(true)} disabled={loading} fullWidth className="sm:w-auto">
+          {variants.length > 0 ? "Manage variants" : "Add variants"}
+        </Button>
       </div>
+
+      {variantsOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-none sm:items-center sm:p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={busy ? undefined : () => setVariantsOpen(false)} />
+          <div role="dialog" aria-modal="true" aria-labelledby="edit-product-variants-title" className="relative z-10 flex max-h-[92dvh] w-full flex-col rounded-t-sm bg-surface shadow-xl sm:max-w-2xl sm:rounded-sm">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4 sm:p-5">
+              <div className="min-w-0">
+                <h2 id="edit-product-variants-title" className="font-semibold text-slate-900">Variants</h2>
+                <p className="mt-0.5 text-sm text-slate-600">Generate, update, or remove product options.</p>
+              </div>
+              <button type="button" aria-label="Close variants" disabled={busy} onClick={() => setVariantsOpen(false)} className="shrink-0 rounded-sm p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
+              <div className="space-y-4">
 
       {!loading && variants.length > 0 && (
         <div className="flex items-center justify-between gap-4 rounded-sm border border-slate-200 p-3">
@@ -1084,7 +1121,12 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
         Two options (e.g. Size &times; Colour) creates a variant for every combination. Set each variant&apos;s
         price and stock by editing it below.
       </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmDialog}
-    </div>
+    </>
   );
 }

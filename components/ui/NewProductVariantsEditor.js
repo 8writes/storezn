@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 const emptyDimension = () => ({ name: "", values: "" });
 
@@ -16,6 +17,18 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
   const [dimensions, setDimensions] = useState([emptyDimension()]);
   const [message, setMessage] = useState("");
   const [variantsCollapsed, setVariantsCollapsed] = useState(false);
+  const [variantsOpen, setVariantsOpen] = useState(false);
+
+  useModalScrollLock(variantsOpen);
+
+  useEffect(() => {
+    if (!variantsOpen) return;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setVariantsOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [variantsOpen]);
 
   const variants = useMemo(() => (Array.isArray(value) ? value : []), [value]);
   const variantMap = useMemo(() => new Map(variants.map((variant) => [keyFor(variant.options || {}), variant])), [variants]);
@@ -62,11 +75,36 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
   const ToggleIcon = variantsCollapsed ? ChevronDown : ChevronUp;
 
   return (
-    <div className="space-y-3 border-t border-slate-200 pt-4">
-      <div>
-        <p className="text-sm font-semibold text-slate-900">Variants</p>
-        <p className="text-xs text-slate-700 mt-1">Generate combinations such as Size and Colour, then set each SKU, price, and stock before saving.</p>
+    <>
+      <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Variants</p>
+          <p className="mt-1 text-xs text-slate-700">{variants.length > 0 ? `${variants.length} variant${variants.length === 1 ? "" : "s"} configured.` : "Add options such as Size and Colour when this product has choices."}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setVariantsOpen(true)}
+          className="inline-flex w-full items-center justify-center rounded-sm bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-700 active:bg-brand-800 cursor-pointer sm:w-auto"
+        >
+          {variants.length > 0 ? "Manage variants" : "Add variants"}
+        </button>
       </div>
+
+      {variantsOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-none sm:items-center sm:p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setVariantsOpen(false)} />
+          <div role="dialog" aria-modal="true" aria-labelledby="new-product-variants-title" className="relative z-10 flex max-h-[92dvh] w-full flex-col rounded-t-sm bg-surface shadow-xl sm:max-w-2xl sm:rounded-sm">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4 sm:p-5">
+              <div className="min-w-0">
+                <h2 id="new-product-variants-title" className="font-semibold text-slate-900">Variants</h2>
+                <p className="mt-0.5 text-sm text-slate-600">Generate combinations, then set each SKU, price, and stock.</p>
+              </div>
+              <button type="button" aria-label="Close variants" onClick={() => setVariantsOpen(false)} className="shrink-0 rounded-sm p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
+              <div className="space-y-3">
       <div className="space-y-2">
         {dimensions.map((dimension, index) => (
           <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-2 items-end">
@@ -166,6 +204,11 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
           )}
         </div>
       )}
-    </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

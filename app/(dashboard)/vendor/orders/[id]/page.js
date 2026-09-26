@@ -167,7 +167,7 @@ export default function VendorOrderDetailPage({ params }) {
       {confirmDialog}
       <BackLink href="/vendor/orders" label="Back to orders" />
 
-      <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
         <div>
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             {order.orderNumber}
@@ -175,7 +175,7 @@ export default function VendorOrderDetailPage({ params }) {
           </h1>
           <p className="text-sm text-slate-800">Placed {formatDateTime(order.createdAt)}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex col-span-2 sm:col-span-1 items-center gap-3">
           <Badge color={STATUS_COLOR[order.status] || "slate"}>{order.status.replace("_", " ")}</Badge>
           <Button variant="outline" size="sm" onClick={downloadPdf}>
             <Download size={14} />

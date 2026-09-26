@@ -116,7 +116,7 @@ export default function VendorInvoiceDetailPage({ params }) {
         <Badge color={STATUS_COLOR[invoice.status] || "slate"}>{label(invoice.status)}</Badge>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <Button size="sm" onClick={copyPaymentLink}>Copy payment link</Button>
         <a href={paymentUrl} target="_blank" rel="noreferrer">
           <Button size="sm" variant="outline"><ExternalLink size={14} /> Open customer invoice</Button>
