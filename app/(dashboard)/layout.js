@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Toaster } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -221,16 +221,14 @@ const NAV_BY_ROLE = {
   ],
 };
 
-// Uses Next's per-link pending state, but paints as a page-level overlay
-// instead of a tiny dot beside the clicked nav item. CSS delays it slightly
-// so prefetched/instant navigations do not flash.
-function NavRouteLoader() {
-  const { pending } = useLinkStatus();
+// Page-level navigation feedback. This is driven from DashboardLayout, not
+// from the clicked link, so it survives the mobile drawer closing.
+function NavRouteLoader({ active }) {
   return (
     <span
-      role={pending ? "status" : undefined}
-      aria-hidden={pending ? undefined : "true"}
-      className={`nav-route-loader ${pending ? "is-pending" : ""}`}
+      role={active ? "status" : undefined}
+      aria-hidden={active ? undefined : "true"}
+      className={`nav-route-loader ${active ? "is-pending" : ""}`}
     >
       <span className="nav-route-loader__spinner" aria-hidden="true" />
       <span className="sr-only">Loading page</span>
@@ -283,7 +281,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
               <Link
                 key={href}
                 href={href}
-                onClick={onNavigate}
+                onClick={(event) => onNavigate?.(href, event)}
                 title={collapsed ? label : undefined}
                 className={
                   muted
@@ -301,7 +299,6 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
               >
                 <Icon size={18} />
                 {!collapsed && label}
-                <NavRouteLoader />
               </Link>
             );
           })}
@@ -317,6 +314,7 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [navPendingHref, setNavPendingHref] = useState(null);
   const [offline, setOffline] = useState(() => isOffline());
   // Desktop sidebar collapse (icons only). Remembered per browser.
   const [navCollapsed, setNavCollapsed] = useState(false);
@@ -356,6 +354,19 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     return onConnectivityChange(setOffline);
   }, []);
+
+  const navPending = !!navPendingHref && navPendingHref !== pathname;
+
+  useEffect(() => {
+    if (!navPending) return undefined;
+    const timer = setTimeout(() => setNavPendingHref(null), 10000);
+    return () => clearTimeout(timer);
+  }, [navPending]);
+
+  const handleNavStart = (href, event) => {
+    if (event?.defaultPrevented || event?.metaKey || event?.ctrlKey || event?.shiftKey || event?.altKey || event?.button !== 0) return;
+    if (href !== pathname) setNavPendingHref(href);
+  };
 
   // A signup-time "?next=" (e.g. from the Storezn+ pricing card) is
   // stashed in localStorage since signup doesn't auto-login (email
@@ -406,6 +417,7 @@ export default function DashboardLayout({ children }) {
           sidebar has no top bar), but the fixed offset doesn't hurt
           there either. */}
       <Toaster theme={uiTheme} position="top-right" offset="80px" mobileOffset="80px" closeButton={true} />
+      <NavRouteLoader active={navPending} />
       <UpdatePrompt />
       {isVendor && <OfflineNavGuard />}
 
@@ -424,7 +436,7 @@ export default function DashboardLayout({ children }) {
           )}
         </div>
         <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
-          <NavLinks groups={groups} pathname={pathname} muted={isVendor} offline={navOffline} collapsed={navCollapsed} />
+          <NavLinks groups={groups} pathname={pathname} onNavigate={handleNavStart} muted={isVendor} offline={navOffline} collapsed={navCollapsed} />
         </nav>
         <div className={`border-t shrink-0 ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
           <ThemeToggle collapsed={navCollapsed} tone={isVendor ? "auto" : "light"} />
@@ -495,7 +507,16 @@ export default function DashboardLayout({ children }) {
             </>
           }
         >
-          <NavLinks groups={groups} pathname={pathname} onNavigate={() => setDrawerOpen(false)} offline={navOffline} muted={isVendor} />
+          <NavLinks
+            groups={groups}
+            pathname={pathname}
+            onNavigate={(href, event) => {
+              handleNavStart(href, event);
+              setDrawerOpen(false);
+            }}
+            offline={navOffline}
+            muted={isVendor}
+          />
         </MobileNavDrawer>
 
         <main className="flex-1 bg-canvas">

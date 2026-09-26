@@ -59,7 +59,7 @@ export default function VendorInvoicesPage() {
   const visibleInvoices = useMemo(() => invoices.filter((invoice) => {
     if (status !== "all" && invoice.status !== status) return false;
     if (!normalizedSearch) return true;
-    return [invoice.invoiceNumber, invoice.buyerName, invoice.guestEmail, invoice.buyerPhone]
+    return [invoice.invoiceNumber, invoice.buyerName, invoice.guestEmail, invoice.buyerPhone, ...(invoice.productNames || [])]
       .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
   }), [invoices, status, normalizedSearch]);
 

@@ -116,6 +116,9 @@ async function handlePost(req, { params }) {
         reference = `INV-${invoice.invoiceNumber}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
         continue;
       }
+      await db.update(invoicePayments).set({ status: "failed", updatedAt: new Date(), metadata: { ...(prepared.expiredExisting.metadata || {}), reason: "authorization_expired_pending" } }).where(and(eq(invoicePayments.id, prepared.expiredExisting.id), eq(invoicePayments.status, "pending")));
+      reference = `INV-${invoice.invoiceNumber}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+      continue;
     } catch {
       // If Paystack cannot be reached, keep returning the single existing
       // link rather than risk creating two payable links for one invoice.

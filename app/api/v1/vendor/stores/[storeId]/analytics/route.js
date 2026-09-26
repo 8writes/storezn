@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { orders, orderItems, products, categories, customers, branches, refundRequests, stores, invoices, invoiceRequests } from "../../../../../../../lib/db/schema.js";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
 
@@ -240,6 +240,10 @@ export async function GET(req, { params }) {
     .from(invoices)
     .leftJoin(orders, eq(orders.id, invoices.orderId))
     .where(and(...invoiceConditions));
+  const requestConditions = [eq(invoiceRequests.storeId, storeId), inRange(invoiceRequests.createdAt, from, to)];
+  if (branchId) requestConditions.push(eq(invoiceRequests.branchId, branchId));
+  if (channel === "online") requestConditions.push(isNull(invoiceRequests.createdBy));
+  if (channel === "offline") requestConditions.push(isNotNull(invoiceRequests.createdBy));
   const [requestStats] = await db
     .select({
       total: sql`count(*)`.mapWith(Number),
@@ -247,7 +251,7 @@ export async function GET(req, { params }) {
       offline: sql`count(*) filter (where ${invoiceRequests.createdBy} is not null)`.mapWith(Number),
     })
     .from(invoiceRequests)
-    .where(and(eq(invoiceRequests.storeId, storeId), inRange(invoiceRequests.createdAt, from, to)));
+    .where(and(...requestConditions));
 
   const revenue = summaryRow?.revenue || 0;
   const orderCount = summaryRow?.orderCount || 0;
