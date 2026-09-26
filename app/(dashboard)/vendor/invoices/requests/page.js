@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -38,7 +38,6 @@ export default function VendorInvoiceRequestsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [activeItem, setActiveItem] = useState(null);
-  const detailsRef = useRef(null);
   const { confirm, confirmDialog } = useConfirm();
 
   const loadData = useCallback(() => {
@@ -89,9 +88,6 @@ export default function VendorInvoiceRequestsPage() {
     setGuestEmail(request.guestEmail || "");
     setPlan("full");
     setPrices(Object.fromEntries(items.map((item) => [`${item.productId}:${item.variantId || ""}`, ""])));
-    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
-      window.setTimeout(() => detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-    }
   };
 
   const createInvoice = async () => {
@@ -139,7 +135,10 @@ export default function VendorInvoiceRequestsPage() {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests/${request.id}`, { method: "PATCH", body: JSON.stringify({ action: "cancel" }) });
       setRequests((rows) => rows.filter((row) => row.request.id !== request.id));
       setRequestTotal((value) => Math.max(0, value - 1));
-      if (selectedId === request.id) setSelectedId("");
+      if (selectedId === request.id) {
+        setSelectedId("");
+        setPrices({});
+      }
       toast.success("Quote request cancelled and customer notified");
     } catch (err) {
       toast.error(err.message || "Could not cancel quote request");
@@ -162,8 +161,7 @@ export default function VendorInvoiceRequestsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-5">
-        <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200">
+      <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200">
           <div className="p-4"><h2 className="font-semibold text-slate-900">Open requests ({requestTotal})</h2></div>
           {loading ? <p className="p-4 text-sm text-slate-600">Loading requests...</p> : visibleRequests.length === 0 ? (
             <EmptyState
@@ -173,18 +171,25 @@ export default function VendorInvoiceRequestsPage() {
               className="border-0 bg-transparent py-10"
             />
           ) : visibleRequests.map(({ request, items }) => (
-            <div key={request.id} className={`flex items-start gap-2 p-4 hover:bg-slate-50 ${selectedId === request.id ? "bg-brand-50" : ""}`}><button type="button" onClick={() => selectRequest(request, items)} className="flex-1 min-w-0 text-left cursor-pointer">
+            <div key={request.id} className="flex items-start gap-2 p-4 hover:bg-slate-50"><button type="button" onClick={() => selectRequest(request, items)} className="flex-1 min-w-0 text-left cursor-pointer">
               <div className="flex items-center justify-between gap-3"><span className="font-semibold text-slate-900">{request.requestNumber}</span><span className="text-xs text-slate-600">{formatDate(request.createdAt)}</span></div>
               <p className="text-sm text-slate-700 mt-1">{request.buyerName || request.guestEmail || request.buyerPhone || "Guest buyer"}</p>
               <p className="text-xs text-slate-600 mt-1">{items.length} item{items.length === 1 ? "" : "s"} - {request.status}</p>
             </button><Button size="sm" variant="secondary" onClick={() => cancelRequest(request)}>Cancel</Button></div>
           ))}
           <Pagination pagination={pagination} onPageChange={setPage} />
-        </section>
+      </section>
 
-        <section ref={detailsRef} className="bg-surface border border-slate-200 rounded-sm p-5 scroll-mt-20">
-          {!selected ? <p className="text-sm text-slate-600">Select a request to prepare its invoice.</p> : <div className="space-y-5">
-            <div><h2 className="font-semibold text-slate-900">{selected.request.requestNumber}</h2><p className="text-sm text-slate-600">{selected.request.guestEmail || selected.request.buyerPhone || "No contact details - share the link manually"}</p></div>
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none sm:p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={sending ? undefined : () => setSelectedId("")} />
+          <div role="dialog" aria-modal="true" aria-labelledby="quote-request-dialog-title" className="relative z-10 flex max-h-[92dvh] w-full flex-col rounded-t-sm bg-surface shadow-xl sm:max-w-2xl sm:rounded-sm">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4 sm:p-5">
+              <div className="min-w-0"><h2 id="quote-request-dialog-title" className="font-semibold text-slate-900">{selected.request.requestNumber}</h2><p className="mt-0.5 text-sm text-slate-600">{selected.request.guestEmail || selected.request.buyerPhone || "No contact details - share the link manually"}</p></div>
+              <button type="button" aria-label="Close quote request" disabled={sending} onClick={() => setSelectedId("")} className="shrink-0 rounded-sm p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"><X size={20} /></button>
+            </div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
+              <div className="space-y-5">
             <input type="email" placeholder="Customer email (optional)" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
             <div className="space-y-3">
               {selected.items.map((item) => {
@@ -231,9 +236,11 @@ export default function VendorInvoiceRequestsPage() {
               {plan === "deposit" && <div className="flex justify-between text-sm text-slate-700"><span>First payment (50%)</span><strong>{formatCurrency(Math.round(invoiceTotals.totalAmount * 50) / 100)}</strong></div>}
               <Button onClick={createInvoice} loading={sending} fullWidth>Create invoice and copy link</Button>
             </div>
-          </div>}
-        </section>
-      </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmDialog}
       <OrderItemModal
         item={activeItem}
