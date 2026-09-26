@@ -1,4 +1,4 @@
-# Storezn — Codex Agent Instructions
+# Storezn — Agent Instructions
 
 This file defines how coding agents should work inside the Storezn repository.
 
