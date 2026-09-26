@@ -400,7 +400,7 @@ export default function VendorNewProductPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <form onSubmit={handleCreate} className={`${hasField("category") ? "lg:col-span-2" : "lg:col-span-3"} bg-surface space-y-2`}>
+        <form onSubmit={handleCreate} className={`${hasField("category") ? "lg:col-span-2" : "lg:col-span-3"} space-y-3`}>
           {stores.length > 1 && (
             <div className="max-w-xs">
               <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
@@ -669,7 +669,7 @@ export default function VendorNewProductPage() {
           </div>}
           </FormSection>}
 
-          <div className="sticky bottom-0 z-20 -mx-3 -mb-3 flex justify-end border-t border-slate-200 bg-surface/95 px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">
+          <div className="sticky bottom-0 z-20 -mx-3 -mb-3 flex justify-end px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">
             <Button type="submit" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} className="w-full">Create product</Button>
           </div>
         </form>

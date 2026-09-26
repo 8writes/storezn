@@ -17,7 +17,16 @@ export function useModalScrollLock(open) {
         htmlOverscroll: html.style.overscrollBehavior,
         bodyOverflow: body.style.overflow,
         bodyOverscroll: body.style.overscrollBehavior,
+        bodyPaddingRight: body.style.paddingRight,
       };
+      // Hiding the desktop scrollbar changes the viewport width and makes
+      // the dashboard's sticky sidebar/content flex layout visibly jump.
+      // Reserve that exact gutter before locking so everything stays put.
+      const scrollbarWidth = window.innerWidth - html.clientWidth;
+      if (scrollbarWidth > 0) {
+        const currentPadding = Number.parseFloat(window.getComputedStyle(body).paddingRight) || 0;
+        body.style.paddingRight = `${currentPadding + scrollbarWidth}px`;
+      }
       html.style.overflow = "hidden";
       html.style.overscrollBehavior = "none";
       body.style.overflow = "hidden";
@@ -33,6 +42,7 @@ export function useModalScrollLock(open) {
       html.style.overscrollBehavior = previousStyles?.htmlOverscroll || "";
       body.style.overflow = previousStyles?.bodyOverflow || "";
       body.style.overscrollBehavior = previousStyles?.bodyOverscroll || "";
+      body.style.paddingRight = previousStyles?.bodyPaddingRight || "";
       delete body.dataset.modalOpen;
       previousStyles = null;
     };

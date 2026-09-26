@@ -385,7 +385,7 @@ export default function VendorProductEditPage({ params }) {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="bg-surface space-y-2">
+      <form onSubmit={handleSave} className="space-y-3">
         <ProductFormFieldsButton
           fields={PRODUCT_FORM_FIELDS}
           visibleFields={visibleFormFields}
@@ -589,7 +589,7 @@ export default function VendorProductEditPage({ params }) {
         </div>}
         </FormSection>}
 
-        <div className="sticky bottom-0 z-20 -mx-3 -mb-3 flex justify-end border-t border-slate-200 bg-surface/95 px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">
+        <div className="sticky bottom-0 z-20 -mx-3 -mb-3 flex justify-end px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">
           <Button type="submit" loading={saving} fullWidth={true} disabled={pendingUploads.length > 0 || uploadingVideo} className="w-full">Save changes</Button>
         </div>
       </form>
