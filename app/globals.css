@@ -229,33 +229,46 @@ body {
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), transparent);
 }
 
-.nav-link-hint {
-  display: inline-block;
-  width: 0.5em;
-  height: 0.5em;
-  margin-left: auto;
-  border-radius: 9999px;
-  background: currentColor;
+.nav-route-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(246 245 243 / 0.36);
+  background: color-mix(in oklab, var(--color-canvas) 45%, transparent);
+  backdrop-filter: blur(1px);
   opacity: 0;
   visibility: hidden;
+  pointer-events: none;
 }
 
-.nav-link-hint.is-pending {
+.nav-route-loader.is-pending {
   visibility: visible;
-  animation-name: fadeIn2, pulse;
-  animation-duration: 150ms, 0.8s;
-  /* Delay so a fast (already-prefetched) navigation never flashes this. */
-  animation-delay: 80ms, 80ms;
-  animation-timing-function: ease, ease-in-out;
-  animation-iteration-count: 1, infinite;
-  animation-fill-mode: forwards, none;
+  animation: navRouteLoaderIn 150ms ease 100ms forwards;
 }
 
-@keyframes fadeIn2 {
-  to { opacity: 1; }
+.nav-route-loader__spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid var(--color-brand-200);
+  border-top-color: var(--color-brand-600);
+  border-radius: 9999px;
+  animation: spin 0.7s linear infinite;
+  box-shadow: 0 0 0 8px rgb(255 255 255 / 0.34);
 }
-@keyframes pulse {
-  50% { opacity: 0.3; }
+
+[data-theme="dark"] .nav-route-loader {
+  background: rgb(14 16 19 / 0.32);
+}
+
+[data-theme="dark"] .nav-route-loader__spinner {
+  box-shadow: 0 0 0 8px rgb(0 0 0 / 0.18);
+}
+
+@keyframes navRouteLoaderIn {
+  to { opacity: 1; }
 }
 
 .scrollbar-none {

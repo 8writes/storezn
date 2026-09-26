@@ -221,14 +221,21 @@ const NAV_BY_ROLE = {
   ],
 };
 
-// Fixed-size, always-rendered so it never shifts the link's layout -
-// visible/animated only once pending, and delayed 80ms so an
-// already-prefetched (near-instant) navigation never flashes it. Confirms
-// the click registered even before the target route's loading.js fallback
-// has a chance to paint.
-function NavLinkHint() {
+// Uses Next's per-link pending state, but paints as a page-level overlay
+// instead of a tiny dot beside the clicked nav item. CSS delays it slightly
+// so prefetched/instant navigations do not flash.
+function NavRouteLoader() {
   const { pending } = useLinkStatus();
-  return <span aria-hidden className={`nav-link-hint ${pending ? "is-pending" : ""}`} />;
+  return (
+    <span
+      role={pending ? "status" : undefined}
+      aria-hidden={pending ? undefined : "true"}
+      className={`nav-route-loader ${pending ? "is-pending" : ""}`}
+    >
+      <span className="nav-route-loader__spinner" aria-hidden="true" />
+      <span className="sr-only">Loading page</span>
+    </span>
+  );
 }
 
 // Vendor/staff get a calmer, low-contrast nav (light sidebar, thin accent
@@ -294,7 +301,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
               >
                 <Icon size={18} />
                 {!collapsed && label}
-                {!collapsed && <NavLinkHint />}
+                <NavRouteLoader />
               </Link>
             );
           })}

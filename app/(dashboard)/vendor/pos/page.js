@@ -1012,7 +1012,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
         <ProductPicker
-          key={`${storeId}:${registerBranchId || "all"}:${catalog.savedAt || "empty"}`}
+          key={`${storeId}:${registerBranchId || "all"}`}
           storeId={storeId}
           branchId={registerBranchId}
           token={token}
