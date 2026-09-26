@@ -194,7 +194,7 @@ async function handlePost(req, { params }) {
     db.select().from(platformSettings).limit(1),
   ]);
   const productById = new Map(
-    productRows.map((product) => [producZt.id, product]),
+    productRows.map((product) => [product.id, product]),
   );
   const variantById = new Map(
     variantRows.map((variant) => [variant.id, variant]),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 
 const emptyDimension = () => ({ name: "", values: "" });
 
@@ -15,6 +15,7 @@ const keyFor = (options) => JSON.stringify(Object.entries(options).sort(([a], [b
 export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired = false }) {
   const [dimensions, setDimensions] = useState([emptyDimension()]);
   const [message, setMessage] = useState("");
+  const [variantsCollapsed, setVariantsCollapsed] = useState(false);
 
   const variants = useMemo(() => (Array.isArray(value) ? value : []), [value]);
   const variantMap = useMemo(() => new Map(variants.map((variant) => [keyFor(variant.options || {}), variant])), [variants]);
@@ -52,10 +53,13 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
       };
     });
     onChange(rows);
+    setVariantsCollapsed(false);
     setMessage(`${rows.length} variant${rows.length === 1 ? "" : "s"} ready to save.`);
   };
 
   const updateVariant = (index, patch) => onChange(variants.map((variant, i) => (i === index ? { ...variant, ...patch } : variant)));
+  const toggleLabel = variantsCollapsed ? `Show ${variants.length} variant${variants.length === 1 ? "" : "s"}` : "Collapse variants";
+  const ToggleIcon = variantsCollapsed ? ChevronDown : ChevronUp;
 
   return (
     <div className="space-y-3 border-t border-slate-200 pt-4">
@@ -97,38 +101,69 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
       {message && <p className="text-xs text-center text-slate-700 pb-4">{message}</p>}
       {variants.length > 0 && (
         <div className="space-y-2">
-          {variants.map((variant, index) => (
-            <div key={keyFor(variant.options)} className="border border-slate-200 rounded-sm p-3 space-y-2">
-              <p className="text-sm font-medium text-slate-900">{Object.entries(variant.options).map(([name, option]) => `${name}: ${option}`).join(" · ")}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  value={variant.sku || ""}
-                  onChange={(event) => updateVariant(index, { sku: event.target.value })}
-                  placeholder="SKU / barcode"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
-                />
-                {!invoiceRequired && (
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={variant.price ?? ""}
-                    onChange={(event) => updateVariant(index, { price: event.target.value === "" ? null : Number(event.target.value) })}
-                    placeholder="Price override"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
-                  />
-                )}
-                <input
-                  type="number"
-                  min="0"
-                  value={variant.stock ?? ""}
-                  onChange={(event) => updateVariant(index, { stock: event.target.value === "" ? null : Number(event.target.value) })}
-                  placeholder="Stock (blank = unlimited)"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
-                />
-              </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            <p className="text-xs font-medium text-slate-700">{variants.length} variant{variants.length === 1 ? "" : "s"}</p>
+            <button
+              type="button"
+              onClick={() => setVariantsCollapsed((current) => !current)}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-sm border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer sm:w-auto"
+            >
+              <ToggleIcon size={14} />
+              {toggleLabel}
+            </button>
+          </div>
+          {variantsCollapsed ? (
+            <div className="rounded-sm border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-xs text-slate-700">
+              Variant rows are hidden. Open them when you need to edit SKU, price, or stock.
             </div>
-          ))}
+          ) : (
+            <>
+              <div className="max-h-[34rem] space-y-2 overflow-y-auto rounded-sm border border-slate-200 bg-slate-50/50 p-2 pr-1">
+                {variants.map((variant, index) => (
+                  <div key={keyFor(variant.options)} className="border border-slate-200 bg-white rounded-sm p-3 space-y-2">
+                    <p className="text-sm font-medium text-slate-900">{Object.entries(variant.options).map(([name, option]) => `${name}: ${option}`).join(" - ")}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input
+                        value={variant.sku || ""}
+                        onChange={(event) => updateVariant(index, { sku: event.target.value })}
+                        placeholder="SKU / barcode"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
+                      />
+                      {!invoiceRequired && (
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={variant.price ?? ""}
+                          onChange={(event) => updateVariant(index, { price: event.target.value === "" ? null : Number(event.target.value) })}
+                          placeholder="Price override"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
+                        />
+                      )}
+                      <input
+                        type="number"
+                        min="0"
+                        value={variant.stock ?? ""}
+                        onChange={(event) => updateVariant(index, { stock: event.target.value === "" ? null : Number(event.target.value) })}
+                        placeholder="Stock (blank = unlimited)"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setVariantsCollapsed(true)}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-sm border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer sm:w-auto"
+                >
+                  <ChevronUp size={14} />
+                  Collapse variants
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

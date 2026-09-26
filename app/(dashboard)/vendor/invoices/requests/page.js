@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -38,6 +38,7 @@ export default function VendorInvoiceRequestsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [activeItem, setActiveItem] = useState(null);
+  const detailsRef = useRef(null);
   const { confirm, confirmDialog } = useConfirm();
 
   const loadData = useCallback(() => {
@@ -88,6 +89,9 @@ export default function VendorInvoiceRequestsPage() {
     setGuestEmail(request.guestEmail || "");
     setPlan("full");
     setPrices(Object.fromEntries(items.map((item) => [`${item.productId}:${item.variantId || ""}`, ""])));
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+      window.setTimeout(() => detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    }
   };
 
   const createInvoice = async () => {
@@ -178,7 +182,7 @@ export default function VendorInvoiceRequestsPage() {
           <Pagination pagination={pagination} onPageChange={setPage} />
         </section>
 
-        <section className="bg-surface border border-slate-200 rounded-sm p-5">
+        <section ref={detailsRef} className="bg-surface border border-slate-200 rounded-sm p-5 scroll-mt-20">
           {!selected ? <p className="text-sm text-slate-600">Select a request to prepare its invoice.</p> : <div className="space-y-5">
             <div><h2 className="font-semibold text-slate-900">{selected.request.requestNumber}</h2><p className="text-sm text-slate-600">{selected.request.guestEmail || selected.request.buyerPhone || "No contact details - share the link manually"}</p></div>
             <input type="email" placeholder="Customer email (optional)" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />

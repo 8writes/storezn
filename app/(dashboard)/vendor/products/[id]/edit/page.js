@@ -32,7 +32,7 @@ import {
 } from "@/lib/clientUpload.js";
 import { PRODUCT_VIDEO_MAX_BYTES } from "@/lib/mediaValidation.js";
 import { formatCurrency } from "@/lib/format.js";
-import { X, Trash2, ImagePlus, Loader2, GripVertical, Video, Pencil, Check } from "lucide-react";
+import { X, Trash2, ImagePlus, Loader2, GripVertical, Video, Pencil, Check, ChevronDown, ChevronUp } from "lucide-react";
 
 // Photos and video share one combined cap - a video eats one of the 10
 // slots, same as a photo would.
@@ -646,6 +646,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
   const [savingEdit, setSavingEdit] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [visible, setVisible] = useState(VARIANT_PAGE);
+  const [variantsCollapsed, setVariantsCollapsed] = useState(false);
   const { confirm, confirmDialog } = useConfirm();
 
   const load = () => {
@@ -764,6 +765,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
       }
       if (ok > 0) toast.success(`${ok} variant${ok === 1 ? "" : "s"} ${needsRebuild ? "created" : "added"}`);
       else if (!needsRebuild) toast.error("Nothing new - those variants already exist");
+      setVariantsCollapsed(false);
       load();
     } finally {
       setGenerating(false);
@@ -919,7 +921,26 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
       )}
 
       {!loading && variants.length > 0 && (
-        <div className="divide-y divide-slate-100 border border-slate-100 rounded-sm">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setVariantsCollapsed((current) => !current)}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-sm border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer sm:w-auto"
+          >
+            {variantsCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            {variantsCollapsed ? `Show ${variants.length} variant${variants.length === 1 ? "" : "s"}` : "Collapse variants"}
+          </button>
+        </div>
+      )}
+
+      {!loading && variants.length > 0 && variantsCollapsed && (
+        <div className="rounded-sm border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-xs text-slate-700">
+          Variant rows are hidden. Open them when you need to edit price, stock, or delete options.
+        </div>
+      )}
+
+      {!loading && variants.length > 0 && !variantsCollapsed && (
+        <div className="max-h-[34rem] overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-sm pr-1">
           {variants.slice(0, visible).map((v) => (
             <div key={v.id} className={`p-3 text-sm ${selected.has(v.id) ? "bg-brand-50" : ""}`}>
               <div className="flex items-center justify-between gap-3">
@@ -996,7 +1017,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
         </div>
       )}
 
-      {!loading && variants.length > visible && (
+      {!loading && variants.length > visible && !variantsCollapsed && (
         <button
           type="button"
           onClick={() => setVisible((n) => n + VARIANT_PAGE)}
@@ -1004,6 +1025,19 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
         >
           Show {Math.min(VARIANT_PAGE, variants.length - visible)} more ({variants.length - visible} hidden)
         </button>
+      )}
+
+      {!loading && variants.length > 0 && !variantsCollapsed && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setVariantsCollapsed(true)}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-sm border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 cursor-pointer sm:w-auto"
+          >
+            <ChevronUp size={14} />
+            Collapse variants
+          </button>
+        </div>
       )}
 
       <form onSubmit={handleGenerate} className="space-y-3">
