@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/ui/EmptyState.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
+import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 export default function VendorInvoiceRequestsPage() {
   const { token } = useAuth(true);
@@ -63,6 +64,7 @@ export default function VendorInvoiceRequestsPage() {
   }, [loadData]);
 
   const selected = requests.find((row) => row.request.id === selectedId) || null;
+  useModalScrollLock(!!selected);
   const total = useMemo(
     () => (selected?.items || []).reduce((sum, item) => sum + (Number(prices[`${item.productId}:${item.variantId || ""}`]) || 0) * item.quantity, 0),
     [selected, prices],

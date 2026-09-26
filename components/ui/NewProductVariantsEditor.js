@@ -161,12 +161,15 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
                   <div key={keyFor(variant.options)} className="border border-slate-200 rounded-sm p-3 space-y-2">
                     <p className="text-sm font-medium text-slate-900">{Object.entries(variant.options).map(([name, option]) => `${name}: ${option}`).join(" - ")}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <input
-                        value={variant.sku || ""}
-                        onChange={(event) => updateVariant(index, { sku: event.target.value })}
-                        placeholder="SKU / barcode"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
-                      />
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-medium text-slate-700">SKU / barcode (optional)</span>
+                        <input
+                          value={variant.sku || ""}
+                          onChange={(event) => updateVariant(index, { sku: event.target.value })}
+                          placeholder="SKU or barcode"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
+                        />
+                      </label>
                       {!invoiceRequired && (
                         <input
                           type="number"

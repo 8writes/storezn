@@ -385,7 +385,7 @@ export default function VendorProductEditPage({ params }) {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-5 space-y-4">
+      <form onSubmit={handleSave} className="bg-surface">
         <ProductFormFieldsButton
           fields={PRODUCT_FORM_FIELDS}
           visibleFields={visibleFormFields}
