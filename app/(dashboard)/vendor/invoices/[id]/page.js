@@ -119,7 +119,7 @@ export default function VendorInvoiceDetailPage({ params }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <Button size="sm" onClick={copyPaymentLink}>Copy payment link</Button>
         <a href={paymentUrl} target="_blank" rel="noreferrer">
-          <Button size="sm" variant="outline"><ExternalLink size={14} /> Open customer invoice</Button>
+          <Button size="sm" variant="outline"><ExternalLink size={14} /> Open invoice</Button>
         </a>
         {order?.id && (
           <Link href={`/vendor/orders/${order.id}?storeId=${storeId}`}>
