@@ -79,10 +79,10 @@ function offlinePage() {
       `body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;min-height:100dvh;display:grid;place-items:center;background:#f6f8f4;color:#1a1e1a}` +
       `.c{max-width:22rem;text-align:center;padding:2rem;line-height:1.5}` +
       `h1{font-size:1.15rem;margin:0 0 .5rem}p{color:#59635c;font-size:.9rem;margin:.4rem 0}` +
-      `a{display:inline-block;margin-top:1rem;color:#fff;background:#1f7a4d;padding:.6rem 1rem;border-radius:3px;text-decoration:none;font-weight:600;font-size:.9rem}` +
+      `button{display:inline-block;margin-top:1rem;color:#fff;background:#1f7a4d;border:0;padding:.65rem 1.05rem;border-radius:3px;font-weight:600;font-size:.9rem;cursor:pointer}` +
       `</style></head><body><div class="c"><h1>You're offline</h1>` +
-      `<p>Reconnect and this page will load. Once the register has been opened it keeps working offline - sales are saved and sync when you're back.</p>` +
-      `<a href="/vendor/pos">Open the register</a></div></body></html>`,
+      `<p>Check your internet connection, then try loading this page again.</p>` +
+      `<button type="button" onclick="location.reload()">Reconnect</button></div></body></html>`,
     { status: 200, headers: { "content-type": "text/html; charset=utf-8" } },
   );
 }
