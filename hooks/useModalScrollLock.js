@@ -13,8 +13,8 @@ export function useModalScrollLock(open) {
     const body = document.body;
     if (lockCount === 0) {
       previousStyles = {
-        bodyOverflow: body.style.overflow,
-        bodyOverscroll: body.style.overscrollBehavior,
+        htmlOverflow: html.style.overflow,
+        htmlOverscroll: html.style.overscrollBehavior,
         bodyPaddingRight: body.style.paddingRight,
       };
       // Hiding the desktop scrollbar changes the viewport width and makes
@@ -25,12 +25,15 @@ export function useModalScrollLock(open) {
         const currentPadding = Number.parseFloat(window.getComputedStyle(body).paddingRight) || 0;
         body.style.paddingRight = `${currentPadding + scrollbarWidth}px`;
       }
-      // Do not lock <html>: the dashboard intentionally keeps its
-      // overflow-x as `clip` so the desktop sidebar can remain sticky.
-      // Changing it to `hidden` creates a new scroll context and pulls
-      // that sidebar out of its expected viewport position.
-      body.style.overflow = "hidden";
-      body.style.overscrollBehavior = "none";
+      // Lock <html>, never <body>: the root element's overflow propagates
+      // to the viewport, so the page stops scrolling while <html> itself
+      // stays a non-scroll container and position:sticky descendants keep
+      // resolving against the viewport. Setting overflow on <body> instead
+      // makes it a scroll container (it also drops its overflow-x: clip),
+      // which yanks the dashboard's sticky sidebar back to the document
+      // top for as long as the modal is open - see app/layout.js.
+      html.style.overflow = "hidden";
+      html.style.overscrollBehavior = "none";
       body.dataset.modalOpen = "true";
     }
     lockCount += 1;
@@ -38,8 +41,8 @@ export function useModalScrollLock(open) {
     return () => {
       lockCount = Math.max(0, lockCount - 1);
       if (lockCount !== 0) return;
-      body.style.overflow = previousStyles?.bodyOverflow || "";
-      body.style.overscrollBehavior = previousStyles?.bodyOverscroll || "";
+      html.style.overflow = previousStyles?.htmlOverflow || "";
+      html.style.overscrollBehavior = previousStyles?.htmlOverscroll || "";
       body.style.paddingRight = previousStyles?.bodyPaddingRight || "";
       delete body.dataset.modalOpen;
       previousStyles = null;
