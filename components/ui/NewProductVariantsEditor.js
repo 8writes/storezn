@@ -120,7 +120,7 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
             <>
               <div className="max-h-[34rem] space-y-2 overflow-y-auto rounded-sm border border-slate-200 bg-slate-50/50 p-2 pr-1">
                 {variants.map((variant, index) => (
-                  <div key={keyFor(variant.options)} className="border border-slate-200 bg-white rounded-sm p-3 space-y-2">
+                  <div key={keyFor(variant.options)} className="border border-slate-200 rounded-sm p-3 space-y-2">
                     <p className="text-sm font-medium text-slate-900">{Object.entries(variant.options).map(([name, option]) => `${name}: ${option}`).join(" - ")}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <input
