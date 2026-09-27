@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../../../../../lib/db/index.js";
 import { invoiceItems, invoicePayments, invoices, orders, stores } from "../../../../../../lib/db/schema.js";
-import { initializeTransaction, isValidSubAccountCode, verifyTransaction } from "../../../../../../lib/paystack.js";
+import { initializeTransaction, verifyTransaction } from "../../../../../../lib/paystack.js";
+import { resolveStoreSubAccountCode, SUBACCOUNT_UNAVAILABLE_MESSAGE } from "../../../../../../lib/storeSubAccount.js";
 import { withApiMonitoring } from "../../../../../../lib/apiMonitoring.js";
 import { checkRateLimit } from "../../../../../../lib/rateLimit.js";
 import { z } from "zod";
@@ -75,6 +76,12 @@ async function handlePost(req, { params }) {
   }
   const [order] = await db.select().from(orders).where(eq(orders.id, invoice.orderId)).limit(1);
   if (!order || invoice.amountDue <= 0) return NextResponse.json({ error: "This invoice is already paid" }, { status: 409 });
+  // Resolved BEFORE a payment row is created, and fatal if missing - the
+  // same bar as storefront checkout. Initializing without a split would
+  // take the buyer's money into the platform's main account with nothing
+  // routing it to the vendor, which is worse than not taking it at all.
+  const subAccountCode = await resolveStoreSubAccountCode(row.store, { source: "invoice_payment" });
+  if (!subAccountCode) return NextResponse.json({ error: SUBACCOUNT_UNAVAILABLE_MESSAGE }, { status: 400 });
   let reference = invoicePaymentReference(invoice.invoiceNumber);
   let prepared;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -137,9 +144,10 @@ async function handlePost(req, { params }) {
       name: invoice.buyerName || undefined,
       reference,
       redirectUrl: buildPublicAppUrl(req, `/invoice/${shareToken}`),
-      split: isValidSubAccountCode(row.store.subAccountCode)
-        ? { subAccountCode: row.store.subAccountCode, amount: payment.amount * (order.vendorPayoutAmount / Math.max(order.totalAmount, 1)) }
-        : undefined,
+      // A part-payment splits the same way the whole order would: the
+      // vendor's share of this instalment, in the order's own payout
+      // ratio (see computeOrderTotals).
+      split: { subAccountCode, amount: payment.amount * (order.vendorPayoutAmount / Math.max(order.totalAmount, 1)) },
       metadata: { invoiceId: invoice.id, orderId: order.id, invoiceNumber: invoice.invoiceNumber },
     });
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);

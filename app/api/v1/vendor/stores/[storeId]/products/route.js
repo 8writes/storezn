@@ -17,6 +17,7 @@ import {
   PRODUCT_NAME_TAKEN_MESSAGE,
 } from "../../../../../../../lib/productName.js";
 import { barcodeCandidates } from "../../../../../../../lib/barcode.js";
+import { claimStoreUploads, filterStoreOwnedUploadUrls } from "../../../../../../../lib/storeUploads.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -231,6 +232,16 @@ export async function POST(req, { params }) {
   const result = validate(createProductSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
+  // Same attach guard as the PATCH route - media fields are plain URLs on
+  // the wire, so every one has to be an upload this store actually made.
+  const attachedMedia = [...(result.data.images || []), ...(result.data.videoUrl ? [result.data.videoUrl] : [])];
+  if (attachedMedia.length > 0) {
+    const ownedAttachments = await filterStoreOwnedUploadUrls(storeId, attachedMedia);
+    if (attachedMedia.some((url) => !ownedAttachments.has(url))) {
+      return NextResponse.json({ error: "That media couldn't be attached - upload it to this store first" }, { status: 400 });
+    }
+  }
+
   const normalizedName = normalizeProductName(result.data.name);
   const [[existingName], [existingSlug]] = await Promise.all([
     db
@@ -366,6 +377,12 @@ export async function POST(req, { params }) {
     }
     throw error;
   }
+  // The product row now references this media, so it stops being a
+  // sweepable pending upload (see claimStoreUploads). Deliberately after
+  // the insert: a claim before it would survive a 409/402 and orphan the
+  // file permanently.
+  if (attachedMedia.length > 0) await claimStoreUploads(storeId, attachedMedia);
+
   after(() =>
     logStoreActivity({
       storeId,

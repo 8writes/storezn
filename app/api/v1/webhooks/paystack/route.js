@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../lib/db/index.js";
 import { orders, orderItems, carts, cartItems, users, customers, stores, storeSubscriptionTransactions, branches, productBranchStock, platformSettings } from "../../../../../lib/db/schema.js";
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { verifyWebhookSignature, verifyTransaction, updatePlan } from "../../../../../lib/paystack.js";
 import { sendMail } from "../../../../../lib/email/sendMail.js";
 import { formatCurrency } from "../../../../../lib/format.js";
@@ -18,6 +18,24 @@ import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 // Storezn+ subscription lifecycle - separate from the order-payment flow
 // below, see lib/storePlan.js's getEffectivePlan for how these fields
 // actually get enforced.
+
+// A Plus charge must never cost a store a higher tier. Enterprise is
+// granted off-platform (see POST /api/v1/super-admin/stores/[id]/
+// manual-plus) and that grant only marks planCancelled locally - it does
+// not disable a card subscription the store may still have running at
+// Paystack. So an ex-Plus subscriber granted Enterprise kept receiving
+// renewal charges, and each one wrote plan: "plus" straight over the
+// grant, silently taking the POS suite away (see isEnterpriseStore).
+const PAID_PLAN = sql`case when ${stores.plan} = 'enterprise' then 'enterprise' else 'plus' end`;
+
+// Same reasoning for the renewal date: a 31-day renewal must not shorten
+// a longer manually-granted term that is still running.
+function extendedRenewal(nextPaymentDate) {
+  const next = nextPaymentDate ? new Date(nextPaymentDate) : new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+  // Cast explicitly - `stores.plan_renews_at` is a bare timestamp, and an
+  // uncast bind parameter inside greatest() leaves Postgres guessing.
+  return sql`greatest(coalesce(${stores.planRenewsAt}, ${next}::timestamp), ${next}::timestamp)`;
+}
 
 // paystackReference is unique, so this is the actual idempotency gate for
 // the whole subscription flow below, not just a ledger write - a Paystack
@@ -63,7 +81,7 @@ async function handleSubscriptionCharge(event) {
   // subscription code/token/renewal date moments later.
   await db
     .update(stores)
-    .set({ plan: "plus", planCancelled: false, planRenewsAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) })
+    .set({ plan: PAID_PLAN, planCancelled: false, planRenewsAt: extendedRenewal() })
     .where(eq(stores.id, storeId));
 }
 
@@ -97,7 +115,7 @@ async function handleSubscriptionRenewal(event) {
 
   await db
     .update(stores)
-    .set({ plan: "plus", planCancelled: false, planRenewsAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) })
+    .set({ plan: PAID_PLAN, planCancelled: false, planRenewsAt: extendedRenewal() })
     .where(eq(stores.id, storeId));
 }
 
@@ -162,12 +180,12 @@ async function handleSubscriptionCreate(event) {
   await db
     .update(stores)
     .set({
-      plan: "plus",
+      plan: PAID_PLAN,
       planCancelled: false,
       paystackSubscriptionCode: event.data?.subscription_code || event.data?.subscription?.subscription_code,
       paystackSubscriptionToken: event.data?.email_token || event.data?.subscription?.email_token,
       paystackCustomerCode: event.data?.customer?.customer_code,
-      ...(nextPaymentDate ? { planRenewsAt: new Date(nextPaymentDate) } : {}),
+      ...(nextPaymentDate ? { planRenewsAt: extendedRenewal(nextPaymentDate) } : {}),
     })
     .where(eq(stores.id, store.id));
 }

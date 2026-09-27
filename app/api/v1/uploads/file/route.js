@@ -121,7 +121,9 @@ async function handlePost(req) {
       await releaseStoreUploadReservation(reservation.id).catch(() => {});
       return NextResponse.json({ error: "Product videos can be up to 1 minute long." }, { status: 400 });
     }
-    await finalizeStoreUpload({ id: reservation.id, url, purpose });
+    // Pending until a product/store row actually references this URL -
+    // see claimStoreUploads, called by the product and store write routes.
+    await finalizeStoreUpload({ id: reservation.id, url, purpose, pending: true });
     return NextResponse.json({ url });
   } catch (err) {
     if (url) await deletePublicFile(url);

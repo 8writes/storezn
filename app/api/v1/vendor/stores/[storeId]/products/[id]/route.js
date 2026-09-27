@@ -5,7 +5,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { validate, updateProductSchema } from "../../../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../../../lib/storage/index.js";
-import { removeStoreUpload } from "../../../../../../../../lib/storeUploads.js";
+import { claimStoreUploads, filterStoreOwnedUploadUrls, removeStoreUpload } from "../../../../../../../../lib/storeUploads.js";
 import { deleteStoreProducts, purgeProductAssets } from "../../../../../../../../lib/productDelete.js";
 import { setBranchStock } from "../../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
@@ -67,6 +67,25 @@ export async function PATCH(req, { params }) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   if (Object.keys(result.data).length === 0) {
     return NextResponse.json({ error: "No changes to update" }, { status: 400 });
+  }
+
+  // Media fields are plain URLs on the wire, so a vendor could otherwise
+  // point them at another store's file - and then have the removal cleanup
+  // below delete that store's file for them. Anything NEWLY attached has to
+  // be an upload this store actually made (see filterStoreOwnedUploadUrls);
+  // URLs already on the row are left alone so a legacy product whose ledger
+  // rows have since been pruned stays editable.
+  const attachedMedia = [
+    ...(result.data.images || []).filter((url) => !(product.images || []).includes(url)),
+    ...("videoUrl" in result.data && result.data.videoUrl && result.data.videoUrl !== product.videoUrl
+      ? [result.data.videoUrl]
+      : []),
+  ];
+  if (attachedMedia.length > 0) {
+    const ownedAttachments = await filterStoreOwnedUploadUrls(storeId, attachedMedia);
+    if (attachedMedia.some((url) => !ownedAttachments.has(url))) {
+      return NextResponse.json({ error: "That media couldn't be attached - upload it to this store first" }, { status: 400 });
+    }
   }
 
   if (result.data.name) {
@@ -158,15 +177,32 @@ export async function PATCH(req, { params }) {
   // gone from the new one) is now unreferenced - clean it out of storage
   // too, not just the DB array, best-effort so a storage hiccup doesn't
   // fail the save itself.
-  if (result.data.images) {
-    const removed = (product.images || []).filter((url) => !result.data.images.includes(url));
-    Promise.all(removed.map((url) => Promise.all([deletePublicFile(url), removeStoreUpload(url)]))).catch(() => {});
-  }
+  // The row now references whatever was just attached, so those uploads
+  // stop being sweepable pending rows (see claimStoreUploads). After the
+  // update, never before - a claim on a save that then failed would orphan
+  // the file for good.
+  if (attachedMedia.length > 0) await claimStoreUploads(storeId, attachedMedia);
+
   // Same reasoning for the video - "videoUrl" in result.data means the
   // vendor either replaced or cleared it (see updateProductSchema);
   // either way the old one (if different) is now unreferenced.
-  if ("videoUrl" in result.data && product.videoUrl && product.videoUrl !== result.data.videoUrl) {
-    Promise.all([deletePublicFile(product.videoUrl), removeStoreUpload(product.videoUrl)]).catch(() => {});
+  const unreferencedMedia = [
+    ...(result.data.images ? (product.images || []).filter((url) => !result.data.images.includes(url)) : []),
+    ...("videoUrl" in result.data && product.videoUrl && product.videoUrl !== result.data.videoUrl
+      ? [product.videoUrl]
+      : []),
+  ];
+  if (unreferencedMedia.length > 0) {
+    // Handed to after() rather than left as a floating promise: the same
+    // reasoning as the DELETE handler below - the function returning would
+    // cut the teardown off mid-flight and leave the file orphaned in
+    // storage while its metered-usage row lives on.
+    after(async () => {
+      const owned = await filterStoreOwnedUploadUrls(storeId, unreferencedMedia);
+      await Promise.allSettled(
+        [...owned].map((url) => Promise.allSettled([deletePublicFile(url), removeStoreUpload(url)])),
+      );
+    });
   }
 
   // Preserve a complete field-level audit. Large media arrays are recorded

@@ -271,3 +271,103 @@ test("custom-field answers are declared everywhere they are snapshotted", () => 
     assert.ok(columnNames(table).includes("customer_fields"), `${name} is missing customer_fields`);
   }
 });
+
+// ---------------------------------------------------------------------
+// MEDIA-01/02/03: product images, product video and the store logo/favicon
+// are plain z.string().url() on the wire, so nothing tied a URL to the
+// store that uploaded it. A vendor could paste a rival store's public
+// image URL into their own product, save, then remove it - and our own
+// cleanup would destroy the rival's file and drop its metered-usage row.
+// The same cleanups also ran as floating promises, so the response
+// returning could cut them off and orphan the file instead.
+// ---------------------------------------------------------------------
+const stripComments = (code) => code.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+const readRoute = (path) => stripComments(readFileSync(new URL(path, import.meta.url), "utf8"));
+
+const productPatchRoute = readRoute("../app/api/v1/vendor/stores/[storeId]/products/[id]/route.js");
+const productCreateRoute = readRoute("../app/api/v1/vendor/stores/[storeId]/products/route.js");
+const storePatchRoute = readRoute("../app/api/v1/vendor/stores/[storeId]/route.js");
+const productDeleteLib = readRoute("../lib/productDelete.js");
+const storeUploadsLib = readRoute("../lib/storeUploads.js");
+const uploadRoute = readRoute("../app/api/v1/uploads/file/route.js");
+
+test("every media write path checks the store owns the URL being attached", () => {
+  for (const [name, code] of [
+    ["product PATCH", productPatchRoute],
+    ["product create", productCreateRoute],
+    ["store settings PATCH", storePatchRoute],
+  ]) {
+    assert.match(
+      code,
+      /filterStoreOwnedUploadUrls\(storeId, attachedMedia\)/,
+      `${name} must reject media this store never uploaded`,
+    );
+  }
+});
+
+test("no media teardown deletes a URL without confirming the store owns it", () => {
+  for (const [name, code] of [
+    ["product PATCH", productPatchRoute],
+    ["store settings PATCH", storePatchRoute],
+    ["product delete", productDeleteLib],
+  ]) {
+    for (const call of code.match(/deletePublicFile\([^)]*\)/g) || []) {
+      assert.ok(
+        /deletePublicFile\(url\)/.test(call),
+        `${name} passes ${call} straight to storage - it must be filtered through filterStoreOwnedUploadUrls first`,
+      );
+    }
+    assert.match(code, /filterStoreOwnedUploadUrls/, `${name} must scope its teardown to this store's uploads`);
+  }
+});
+
+test("media teardown runs under after(), not as a floating promise", () => {
+  for (const [name, code] of [["product PATCH", productPatchRoute], ["store settings PATCH", storePatchRoute]]) {
+    assert.doesNotMatch(
+      code,
+      /^\s*Promise\.all\(/m,
+      `${name} must hand its storage teardown to after() - a floating promise is cut off when the response returns`,
+    );
+  }
+});
+
+// ---------------------------------------------------------------------
+// MEDIA-04: the new-product page uploads each photo the moment it is
+// picked, long before the product row exists. Those uploads were recorded
+// as permanent straight away, so closing the tab (or a create that 409'd
+// on a duplicate name) left the file counting against the store's storage
+// quota forever, with nothing referencing it and no sweep that could ever
+// collect it.
+// ---------------------------------------------------------------------
+
+test("a finished upload is parked as pending until something references it", () => {
+  assert.match(
+    uploadRoute,
+    /finalizeStoreUpload\(\{[^}]*pending: true[^}]*\}\)/,
+    "uploads must land as <purpose>-pending so an abandoned form's files stay sweepable",
+  );
+});
+
+test("the stale sweep collects every pending purpose, not just review images", () => {
+  assert.match(
+    storeUploadsLib,
+    /like '%-pending'/,
+    "cleanupStaleStoreUploads must sweep product-image-pending and friends too",
+  );
+});
+
+test("uploads are claimed only after the write that references them succeeds", () => {
+  for (const [name, code] of [
+    ["product PATCH", productPatchRoute],
+    ["product create", productCreateRoute],
+    ["store settings PATCH", storePatchRoute],
+  ]) {
+    const claimAt = code.indexOf("claimStoreUploads(storeId");
+    const guardAt = code.indexOf("filterStoreOwnedUploadUrls(storeId");
+    assert.ok(claimAt > -1, `${name} must claim its pending uploads`);
+    assert.ok(
+      claimAt > guardAt,
+      `${name} claims before the write lands - a claim that survives a failed save orphans the file for good`,
+    );
+  }
+});

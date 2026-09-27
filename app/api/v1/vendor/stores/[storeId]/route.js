@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../lib/db/index.js";
 import { stores, platformSettings, branches } from "../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser, canManageStore, isStoreOwner } from "../../../../../../lib/auth.js";
 import { validate, updateVendorStoreSchema } from "../../../../../../lib/validate.js";
 import { deletePublicFile } from "../../../../../../lib/storage/index.js";
-import { removeStoreUpload, getStoreStorageUsage } from "../../../../../../lib/storeUploads.js";
+import { claimStoreUploads, filterStoreOwnedUploadUrls, removeStoreUpload, getStoreStorageUsage } from "../../../../../../lib/storeUploads.js";
 import { isPlusStore, isEnterpriseStore, getEffectivePlan, getStorageLimitBytes, getPlusMonthlyPrice } from "../../../../../../lib/storePlan.js";
 import { isColorTooLight } from "../../../../../../lib/colorShades.js";
 
@@ -119,6 +119,20 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: "That color is too close to white - your header/footer text would be unreadable" }, { status: 400 });
   }
 
+  // Both upload-backed fields arrive as plain URLs, so a newly set one has
+  // to be an upload this store actually made - otherwise a vendor could
+  // point logoUrl at another store's file and have the cleanup below
+  // delete it for them on the next save (see filterStoreOwnedUploadUrls).
+  const attachedMedia = REPLACEABLE_IMAGE_FIELDS
+    .filter((field) => result.data[field] && result.data[field] !== store[field])
+    .map((field) => result.data[field]);
+  if (attachedMedia.length > 0) {
+    const ownedAttachments = await filterStoreOwnedUploadUrls(storeId, attachedMedia);
+    if (attachedMedia.some((url) => !ownedAttachments.has(url))) {
+      return NextResponse.json({ error: "That image couldn't be attached - upload it to this store first" }, { status: 400 });
+    }
+  }
+
   // Empty string means "clear this field", distinct from omitting the key
   // entirely (which leaves it untouched).
   const data = {};
@@ -128,9 +142,21 @@ export async function PATCH(req, { params }) {
 
   const [updated] = await db.update(stores).set(data).where(eq(stores.id, storeId)).returning();
 
+  // The store row now references the new logo/favicon, so it stops being a
+  // sweepable pending upload (see claimStoreUploads).
+  if (attachedMedia.length > 0) await claimStoreUploads(storeId, attachedMedia);
+
   const stale = REPLACEABLE_IMAGE_FIELDS.filter((field) => field in data && store[field] && store[field] !== data[field]).map((field) => store[field]);
   if (stale.length > 0) {
-    Promise.all(stale.map((url) => Promise.all([deletePublicFile(url), removeStoreUpload(url)]))).catch(() => {});
+    // after(), not a floating promise: returning the response would cut
+    // the teardown off mid-flight and orphan the old file in storage. Only
+    // this store's own uploads are ever torn down.
+    after(async () => {
+      const owned = await filterStoreOwnedUploadUrls(storeId, stale);
+      await Promise.allSettled(
+        [...owned].map((url) => Promise.allSettled([deletePublicFile(url), removeStoreUpload(url)])),
+      );
+    });
   }
 
   return NextResponse.json({ store: updated });
