@@ -24,6 +24,7 @@ import { CloseRegisterModal } from "@/components/pos/CloseRegisterModal.js";
 import { ZReport } from "@/components/pos/ZReport.js";
 import { PrintableReceipt } from "@/components/pos/PrintableReceipt.js";
 import { OfflineSetupModal } from "@/components/pos/OfflineSetupModal.js";
+import { RefundModal } from "@/components/pos/RefundModal.js";
 import { generateOrderNumber } from "@/lib/orders.js";
 import { isOffline, onConnectivityChange } from "@/lib/connectivity.js";
 import { networkErrorMessage } from "@/lib/fetchError.js";
@@ -342,6 +343,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [offlineSetupOpen, setOfflineSetupOpen] = useState(false);
   useModalScrollLock(!!invoiceRequest || !!offlineReceipt || tenderOpen || cashOpen || closeOpen || xOpen || heldOpen || holdPromptOpen || offlineSetupOpen);
   const [networkOffline, setNetworkOffline] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
   const catalogSessionRef = useRef("");
   const catalogSyncRef = useRef(null);
 
@@ -926,6 +929,50 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     }
   };
 
+  // Receipt number -> the sale itself. Both endpoints already exist; the
+  // eligibility rules below mirror POST /pos/returns so a cashier is told
+  // what is wrong here rather than after picking lines. The server
+  // re-checks every one of them.
+  const findSaleForRefund = async (orderNumber) => {
+    const list = await apiFetch(`/api/v1/vendor/stores/${storeId}/orders?q=${encodeURIComponent(orderNumber)}&pageSize=10`);
+    const match = (list?.orders || []).find(
+      (row) => row.orderNumber?.toLowerCase() === orderNumber.toLowerCase(),
+    );
+    if (!match) throw new Error("No sale with that receipt number");
+    if (match.channel !== "pos") throw new Error("That's an online order - refund it from its order page instead");
+    if (match.originalOrderId) throw new Error("That receipt is itself a refund");
+    if (match.paymentStatus !== "paid" || Number(match.totalAmount) < 0) throw new Error("That sale can't be refunded");
+    const detail = await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/${match.id}`);
+    const items = (detail?.items || []).filter((item) => item.quantity > 0);
+    if (items.length === 0) throw new Error("That sale has no returnable lines");
+    return { order: detail?.order || match, items };
+  };
+
+  const submitRefund = async (payload) => {
+    if (refundSubmitting) return;
+    setRefundSubmitting(true);
+    try {
+      const res = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/returns`, {
+        method: "POST",
+        body: JSON.stringify({ ...payload, sessionId: openSession.session.id }),
+      });
+      setRefundOpen(false);
+      refresh();
+      toast.success(res?.replayed ? "Already refunded" : `Refunded ${formatCurrency(res?.refundAmount || 0)}`);
+    } catch (err) {
+      if (err?.status === 404 || (err?.status === 409 && /session is closed|already closed/i.test(err.message || ""))) {
+        setRefundOpen(false);
+        setSessionData(null);
+        storageRemove(lsKey);
+        storageRemove(sessionCacheKey(openSession.session.id));
+        reloadRegisters(true).catch(() => {});
+      }
+      toast.error(err.message || "Couldn't process that refund");
+    } finally {
+      setRefundSubmitting(false);
+    }
+  };
+
   const submitCashMovement = async ({ kind, amount, reason, clientRef }) => {
     if (cashSubmitting) return;
     setCashSubmitting(true);
@@ -1006,6 +1053,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         catalog={catalog}
         onOpenOfflineSetup={() => setOfflineSetupOpen(true)}
         onCashDrawer={() => setCashOpen(true)}
+        onRefund={isOwner ? () => setRefundOpen(true) : null}
         onXReport={() => setXOpen(true)}
         onCloseRegister={() => setCloseOpen(true)}
         networkOffline={networkOffline}
@@ -1237,6 +1285,15 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           onClose={() => !cashSubmitting && setCashOpen(false)}
           onSubmit={submitCashMovement}
           submitting={cashSubmitting}
+        />
+      )}
+      {refundOpen && (
+        <RefundModal
+          open
+          onClose={() => !refundSubmitting && setRefundOpen(false)}
+          onFindSale={findSaleForRefund}
+          onSubmit={submitRefund}
+          submitting={refundSubmitting}
         />
       )}
       {closeOpen && (

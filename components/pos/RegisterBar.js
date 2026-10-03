@@ -1,5 +1,5 @@
 "use client";
-import { Calculator, Wallet, FileText, LockKeyhole, RefreshCw, Database, CloudOff, Cloud, Loader2 } from "lucide-react";
+import { Calculator, Wallet, FileText, LockKeyhole, RefreshCw, Database, CloudOff, Cloud, Loader2, Undo2 } from "lucide-react";
 import { formatKobo } from "@/lib/money.js";
 import { formatClockTime } from "@/lib/format.js";
 
@@ -27,6 +27,7 @@ export function RegisterBar({
   catalog,
   onOpenOfflineSetup,
   onCashDrawer,
+  onRefund,
   onXReport,
   onCloseRegister,
   networkOffline = false,
@@ -99,6 +100,11 @@ export function RegisterBar({
         <button type="button" onClick={onCashDrawer} disabled={networkOffline} title={networkOffline ? "Reconnect to record a drawer movement" : undefined} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
           <Wallet size={13} /> Cash
         </button>
+        {onRefund && (
+          <button type="button" onClick={onRefund} disabled={networkOffline} title={networkOffline ? "Reconnect to process a refund" : "Refund an earlier sale from this register"} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+            <Undo2 size={13} /> Refund
+          </button>
+        )}
         <button type="button" onClick={onXReport} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
           <FileText size={13} /> X report
         </button>
