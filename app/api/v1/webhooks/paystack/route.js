@@ -30,11 +30,24 @@ const PAID_PLAN = sql`case when ${stores.plan} = 'enterprise' then 'enterprise' 
 
 // Same reasoning for the renewal date: a 31-day renewal must not shorten
 // a longer manually-granted term that is still running.
+//
+// The bound value MUST be a string, never a Date. Inside a raw sql``
+// template there is no column in play, so drizzle has no mapToDriverValue
+// to convert with and hands the value straight to postgres-js, which
+// cannot serialise a Date for an explicitly-cast parameter - it throws
+// `The "string" argument must be of type string ... Received an instance
+// of Date` and the whole webhook 500s. (It only looks fine on a normal
+// .set({ planRenewsAt: date }) because the column mapper runs there.)
+// "YYYY-MM-DD HH:MM:SS.sss" in UTC is what plan_renews_at already stores,
+// so ::timestamp parses it with no offset guesswork.
+function utcTimestampLiteral(date) {
+  return date.toISOString().replace("T", " ").replace("Z", "");
+}
+
 function extendedRenewal(nextPaymentDate) {
   const next = nextPaymentDate ? new Date(nextPaymentDate) : new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
-  // Cast explicitly - `stores.plan_renews_at` is a bare timestamp, and an
-  // uncast bind parameter inside greatest() leaves Postgres guessing.
-  return sql`greatest(coalesce(${stores.planRenewsAt}, ${next}::timestamp), ${next}::timestamp)`;
+  const literal = utcTimestampLiteral(Number.isNaN(next.getTime()) ? new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) : next);
+  return sql`greatest(coalesce(${stores.planRenewsAt}, ${literal}::timestamp), ${literal}::timestamp)`;
 }
 
 // paystackReference is unique, so this is the actual idempotency gate for

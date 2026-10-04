@@ -371,3 +371,47 @@ test("uploads are claimed only after the write that references them succeeds", (
     );
   }
 });
+
+// ---------------------------------------------------------------------
+// BILLING-01: a Date interpolated into a raw sql`` template reaches
+// postgres-js unconverted - there is no column in play, so drizzle never
+// runs mapToDriverValue - and the driver throws `The "string" argument
+// must be of type string ... Received an instance of Date`. That took the
+// whole Paystack subscription webhook to a 500: a store paid, the charge
+// was recorded, and because recordSubscriptionTransaction had already
+// claimed the reference, every Paystack retry short-circuited before the
+// plan update it still needed. Bind a formatted UTC string instead.
+// ---------------------------------------------------------------------
+import { PgDialect } from "drizzle-orm/pg-core";
+import { sql as drizzleSql } from "drizzle-orm";
+import { stores } from "../lib/db/schema.js";
+
+const webhookRoute = stripComments(
+  readFileSync(new URL("../app/api/v1/webhooks/paystack/route.js", import.meta.url), "utf8"),
+);
+
+test("a Date in a raw sql template binds as a Date - which the driver rejects", () => {
+  const { params } = new PgDialect().sqlToQuery(drizzleSql`${new Date("2026-11-04T00:29:00Z")}::timestamp`);
+  assert.ok(params[0] instanceof Date, "if this ever stops being true, the guard below can be relaxed");
+});
+
+test("the renewal helper binds a string, never a Date", () => {
+  const utc = (date) => date.toISOString().replace("T", " ").replace("Z", "");
+  const literal = utc(new Date("2026-11-04T00:29:00Z"));
+  const { params } = new PgDialect().sqlToQuery(
+    drizzleSql`greatest(coalesce(${stores.planRenewsAt}, ${literal}::timestamp), ${literal}::timestamp)`,
+  );
+  assert.equal(literal, "2026-11-04 00:29:00.000");
+  for (const param of params) {
+    assert.equal(typeof param, "string", "plan_renews_at params must be formatted strings");
+  }
+});
+
+test("the webhook never interpolates a raw Date into its renewal SQL", () => {
+  assert.match(webhookRoute, /utcTimestampLiteral/, "the renewal helper must format its timestamp");
+  assert.doesNotMatch(
+    webhookRoute,
+    /\$\{next\}::timestamp/,
+    "binding the Date object directly is what 500'd the subscription webhook",
+  );
+});
