@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 function VerifyEmailBody() {
   const searchParams = useSearchParams();
@@ -16,7 +17,7 @@ function VerifyEmailBody() {
 
   useEffect(() => {
     if (!token) return;
-    fetch("/api/v1/auth/verify-email", {
+    safeFetch("/api/v1/auth/verify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
@@ -30,7 +31,7 @@ function VerifyEmailBody() {
     e.preventDefault();
     setResending(true);
     try {
-      await fetch("/api/v1/auth/resend-verification", {
+      await safeFetch("/api/v1/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resendEmail }),

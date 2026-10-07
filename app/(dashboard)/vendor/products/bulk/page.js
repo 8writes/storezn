@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { BarcodeScanButton } from "@/components/pos/BarcodeScanButton.js";
 import { EXPIRY_LABEL, FEATURED_LABEL, FilterChip, ProductFiltersModal, SORT_LABEL, STATUS_LABEL, STOCK_LABEL } from "@/components/products/ProductFilters.js";
+import { IMAGE_DISCLAIMER_TEXT } from "@/components/storefront/ImageDisclaimerBadge.js";
 
 // Spreadsheet-style bulk add / edit. Loads products 20 at a time ("load
 // more"), lets you change price / cost / stock / category / expiry in
@@ -23,7 +24,7 @@ const PAGE_SIZE = 20;
 const uid = () => `new_${Math.random().toString(36).slice(2, 10)}`;
 
 function blankRow(sku = "") {
-  return { _id: uid(), name: "", sku, categoryId: "", price: "", costPrice: "", stock: "", stockMode: "set", expiryDate: "" };
+  return { _id: uid(), name: "", sku, categoryId: "", price: "", costPrice: "", stock: "", stockMode: "set", expiryDate: "", imageDisclaimer: false };
 }
 
 export default function BulkProductsPage() {
@@ -94,6 +95,7 @@ export default function BulkProductsPage() {
               price: p.price != null ? String(p.price) : "",
               costPrice: p.costPrice != null ? String(p.costPrice) : "",
               expiryDate: p.expiryDate || "",
+              imageDisclaimer: !!p.imageDisclaimer,
               stock: data.stock?.[p.id] ?? null,
             };
           } else if (data.stock && p.id in data.stock) {
@@ -181,6 +183,7 @@ export default function BulkProductsPage() {
         price: e.price ?? b.price ?? "",
         costPrice: e.costPrice ?? b.costPrice ?? "",
         expiryDate: e.expiryDate ?? b.expiryDate ?? "",
+        imageDisclaimer: e.imageDisclaimer ?? b.imageDisclaimer ?? false,
         stockInput: e.stockInput ?? "",
         stockMode: e.stockMode ?? "add",
         hasVariants: meta[id]?.hasVariants,
@@ -208,6 +211,7 @@ export default function BulkProductsPage() {
         else if (Number(e.costPrice) >= 0 && Number(e.costPrice) !== Number(b.costPrice)) body.costPrice = Number(e.costPrice);
       }
       if (e.expiryDate != null && (e.expiryDate || "") !== (b.expiryDate || "")) body.expiryDate = e.expiryDate || null;
+      if (e.imageDisclaimer != null && !!e.imageDisclaimer !== !!b.imageDisclaimer) body.imageDisclaimer = !!e.imageDisclaimer;
       if (Object.keys(body).length) fieldPatches.push({ id, body });
 
       const inp = String(e.stockInput ?? "").trim();
@@ -230,6 +234,7 @@ export default function BulkProductsPage() {
         stock: r.stock === "" ? undefined : Number(r.stock),
         expiryDate: r.expiryDate || undefined,
         categoryId: r.categoryId || undefined,
+        imageDisclaimer: r.imageDisclaimer || undefined,
         productType: "physical",
         condition: "new",
       }));
@@ -410,17 +415,63 @@ export default function BulkProductsPage() {
         <FormSkeleton fields={6} />
       ) : (
         <>
-          <div ref={tableRef} className="overflow-x-auto border border-slate-200 rounded-sm">
+          {/* Below lg the 8-column grid is unusable - it was a 1000px-wide
+              table in a horizontal scroller, so a phone showed two columns
+              at a time and lost the row you were editing. Same data, one
+              card per product, matching how /vendor/products already drops
+              its table on small screens. */}
+          <div className="space-y-2.5 lg:hidden">
+            {newRows.map((r) => (
+              <GridCard
+                key={r._id}
+                r={r}
+                isNew
+                branchName={branchName}
+                catOptions={catOptions}
+                onChange={(patch) => setNewRow(r._id, patch)}
+                onRemove={() => setNewRows((n) => n.filter((x) => x._id !== r._id))}
+              />
+            ))}
+            {newRows.length > 0 && serverRows.length > 0 && (
+              <p className="px-0.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Existing products</p>
+            )}
+            {serverRows.length === 0 ? (
+              <p className="rounded-sm border border-slate-200 px-3 py-6 text-center text-sm text-slate-400">
+                {q ? `No product matches "${q}"` : "No products yet"}
+              </p>
+            ) : (
+              serverRows.map((sr) => {
+                const row = merged(sr.id);
+                const touched = !!edits[sr.id] && Object.keys(edits[sr.id]).length > 0;
+                const hit = lastScan && (row.sku || "").toLowerCase() === lastScan;
+                return (
+                  <GridCard
+                    key={sr.id}
+                    r={row}
+                    branchName={branchName}
+                    catOptions={catOptions}
+                    baseStock={base[sr.id]?.stock ?? null}
+                    touched={touched}
+                    highlight={hit}
+                    onChange={(patch) => editRow(sr.id, patch)}
+                  />
+                );
+              })
+            )}
+          </div>
+
+          <div ref={tableRef} className="hidden lg:block overflow-x-auto border border-slate-200 rounded-sm">
             <table className="w-full text-sm min-w-[1000px]">
               <thead className="bg-slate-50 text-slate-800 text-left sticky top-0 z-10">
                 <tr>
-                  <th className="px-2 py-2 font-medium w-[22%]">Name</th>
-                  <th className="px-2 py-2 font-medium w-[12%]">SKU</th>
-                  <th className="px-2 py-2 font-medium w-[14%]">Category</th>
-                  <th className="px-2 py-2 font-medium w-[10%] text-right">Price</th>
-                  <th className="px-2 py-2 font-medium w-[10%] text-right">Cost</th>
-                  <th className="px-2 py-2 font-medium w-[20%]">Stock ({branchName})</th>
-                  <th className="px-2 py-2 font-medium w-[12%]">Expiry</th>
+                  <th className="px-2 py-2 font-medium w-[20%]">Name</th>
+                  <th className="px-2 py-2 font-medium w-[10%]">SKU</th>
+                  <th className="px-2 py-2 font-medium w-[12%]">Category</th>
+                  <th className="px-2 py-2 font-medium w-[9%] text-right">Price</th>
+                  <th className="px-2 py-2 font-medium w-[9%] text-right">Cost</th>
+                  <th className="px-2 py-2 font-medium w-[19%]">Stock ({branchName})</th>
+                  <th className="px-2 py-2 font-medium w-[11%]">Expiry</th>
+                  <th className="px-2 py-2 font-medium w-[10%] text-center" title={IMAGE_DISCLAIMER_TEXT}>Illustration</th>
                   <th className="px-2 py-2 w-8" />
                 </tr>
               </thead>
@@ -438,14 +489,14 @@ export default function BulkProductsPage() {
                 ))}
                 {newRows.length > 0 && serverRows.length > 0 && (
                   <tr>
-                    <td colSpan={8} className="px-2 py-1.5 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    <td colSpan={9} className="px-2 py-1.5 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                       Existing products
                     </td>
                   </tr>
                 )}
                 {serverRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-slate-400">
+                    <td colSpan={9} className="px-3 py-6 text-center text-slate-400">
                       {q ? `No product matches "${q}"` : "No products yet"}
                     </td>
                   </tr>
@@ -471,7 +522,7 @@ export default function BulkProductsPage() {
             </table>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
+          <div className="sticky bottom-0 z-20 -mx-3 flex items-center justify-between gap-3 bg-canvas/80 px-3 py-3 backdrop-blur sm:-mx-5 sm:px-5">
             {canLoadMore ? (
               <Button type="button" variant="outline" size="sm" onClick={loadMore} loading={loadingMore}>
                 Load 20 more ({pagination.total - serverRows.length} left)
@@ -543,6 +594,16 @@ function GridRow({ r, isNew, catOptions, baseStock, touched, highlight, onChange
       <td className="px-2 py-1">
         <input type="date" className={inputCls} value={r.expiryDate || ""} onChange={(e) => onChange({ expiryDate: e.target.value })} />
       </td>
+      <td className="px-2 py-1 text-center">
+        <input
+          type="checkbox"
+          checked={!!r.imageDisclaimer}
+          onChange={(e) => onChange({ imageDisclaimer: e.target.checked })}
+          aria-label={IMAGE_DISCLAIMER_TEXT}
+          title={IMAGE_DISCLAIMER_TEXT}
+          className="size-4 accent-brand-600 cursor-pointer"
+        />
+      </td>
       <td className="px-1 py-1 text-center">
         {isNew && (
           <button type="button" onClick={onRemove} className="text-slate-400 hover:text-red-600" title="Remove row">
@@ -551,5 +612,98 @@ function GridRow({ r, isNew, catOptions, baseStock, touched, highlight, onChange
         )}
       </td>
     </tr>
+  );
+}
+
+// Phone/tablet equivalent of GridRow. Same edit model (onChange patches),
+// laid out as labelled fields instead of columns - a bare input with no
+// header is meaningless once the <thead> is gone.
+function GridCard({ r, isNew, branchName, catOptions, baseStock, touched, highlight, onChange, onRemove }) {
+  const inputCls = "w-full px-2 py-1.5 border border-slate-200 rounded-sm text-base sm:text-sm outline-none focus:border-brand-500 bg-surface";
+  const cardCls = isNew
+    ? "border-emerald-200 bg-emerald-50/40"
+    : highlight
+      ? "border-amber-300 bg-amber-50 ring-1 ring-amber-300"
+      : touched
+        ? "border-blue-200 bg-blue-50/40"
+        : "border-slate-200 bg-surface";
+  const label = "block text-[11px] font-medium uppercase tracking-wide text-slate-500 mb-1";
+
+  return (
+    <div className={`rounded-sm border p-3 space-y-3 ${cardCls}`}>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <label className={label}>Name</label>
+          <input className={inputCls} value={r.name} placeholder={isNew ? "New product name" : ""} onChange={(e) => onChange({ name: e.target.value })} />
+        </div>
+        {isNew && (
+          <button type="button" onClick={onRemove} aria-label="Remove row" className="mt-5 shrink-0 p-1.5 text-slate-400 hover:text-red-600 cursor-pointer">
+            <Trash2 size={16} />
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={label}>SKU</label>
+          <input className={inputCls} value={r.sku || ""} onChange={(e) => onChange({ sku: e.target.value })} />
+        </div>
+        <div className="min-w-0">
+          <label className={label}>Category</label>
+          <select className={inputCls} value={r.categoryId || ""} onChange={(e) => onChange({ categoryId: e.target.value })}>
+            {catOptions.map((o) => (
+              <option key={o.value || "none"} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={label}>Price</label>
+          <input type="number" inputMode="decimal" min="0" step="0.01" className={`${inputCls} tabular-nums`} value={r.price} onChange={(e) => onChange({ price: e.target.value })} />
+        </div>
+        <div>
+          <label className={label}>Cost</label>
+          <input type="number" inputMode="decimal" min="0" step="0.01" className={`${inputCls} tabular-nums`} value={r.costPrice} onChange={(e) => onChange({ costPrice: e.target.value })} />
+        </div>
+      </div>
+
+      <div>
+        <label className={label}>Stock{branchName ? ` (${branchName})` : ""}</label>
+        {isNew ? (
+          <input type="number" inputMode="numeric" min="0" className={`${inputCls} tabular-nums`} placeholder="opening stock" value={r.stock} onChange={(e) => onChange({ stock: e.target.value })} />
+        ) : r.hasVariants ? (
+          <p className="text-xs text-slate-500">Has variants - edit stock per variant</p>
+        ) : r.productType !== "physical" ? (
+          <p className="text-xs text-slate-500">Not stocked</p>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-xs text-slate-800 tabular-nums">now {baseStock ?? 0}</span>
+            <div className="flex shrink-0 overflow-hidden rounded-sm border border-slate-200 text-xs">
+              <button type="button" onClick={() => onChange({ stockMode: "add" })} className={`px-2.5 py-1.5 cursor-pointer ${r.stockMode === "add" ? "bg-brand-600 text-white" : "bg-surface text-slate-800"}`}>
+                +Add
+              </button>
+              <button type="button" onClick={() => onChange({ stockMode: "set" })} className={`px-2.5 py-1.5 cursor-pointer ${r.stockMode === "set" ? "bg-brand-600 text-white" : "bg-surface text-slate-800"}`}>
+                Set
+              </button>
+            </div>
+            <input type="number" inputMode="numeric" className={`${inputCls} tabular-nums`} placeholder={r.stockMode === "add" ? "+ qty" : "exact"} value={r.stockInput || ""} onChange={(e) => onChange({ stockInput: e.target.value })} />
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label className={label}>Expiry</label>
+        <input type="date" className={inputCls} value={r.expiryDate || ""} onChange={(e) => onChange({ expiryDate: e.target.value })} />
+      </div>
+
+      <label className="flex items-center gap-2.5 text-sm text-slate-800 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={!!r.imageDisclaimer}
+          onChange={(e) => onChange({ imageDisclaimer: e.target.checked })}
+          className="size-4 shrink-0 accent-brand-600"
+        />
+        {IMAGE_DISCLAIMER_TEXT}
+      </label>
+    </div>
   );
 }

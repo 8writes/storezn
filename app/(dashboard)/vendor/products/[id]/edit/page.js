@@ -21,6 +21,8 @@ import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
 import { CustomerFieldsEditor } from "@/components/ui/CustomerFieldsEditor.js";
 import { ProductFormFieldsButton } from "@/components/ui/ProductFormFieldsButton.js";
+import { Switch } from "@/components/ui/Switch.js";
+import { IMAGE_DISCLAIMER_TEXT } from "@/components/storefront/ImageDisclaimerBadge.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 import {
@@ -132,6 +134,7 @@ export default function VendorProductEditPage({ params }) {
           categoryId: product.categoryId || "",
           images: product.images || [],
           videoUrl: product.videoUrl || "",
+          imageDisclaimer: product.imageDisclaimer ?? false,
           isActive: product.isActive,
           allowStandardVariant: product.allowStandardVariant ?? true,
         });
@@ -342,6 +345,7 @@ export default function VendorProductEditPage({ params }) {
         images: form.images,
         isActive: form.isActive === true || form.isActive === "true",
         allowStandardVariant: form.allowStandardVariant !== false,
+        imageDisclaimer: !!form.imageDisclaimer,
       };
       // Disabled (and left out of the payload) once there's more than one
       // branch - form.stock is the store-wide aggregate in that case, not
@@ -587,6 +591,12 @@ export default function VendorProductEditPage({ params }) {
             <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
           )}
         </div>}
+        <Switch
+          checked={!!form.imageDisclaimer}
+          onChange={(value) => setForm((f) => ({ ...f, imageDisclaimer: value }))}
+          label="Photos are for illustration only"
+          description={`Shows "${IMAGE_DISCLAIMER_TEXT}" on this product's photos in your store - for a supplier or sample photo rather than a shot of the exact item.`}
+        />
         </FormSection>}
 
         <div className="sticky bottom-0 z-20 -mx-3 -mb-3 flex justify-end px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">

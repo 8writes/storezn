@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Toaster } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
+import { useLinkStatus } from "next/link";
 import { MobileNavDrawer } from "@/components/ui/MobileNavDrawer.js";
 import { StoreSwitcher } from "@/components/ui/StoreSwitcher.js";
 import { VendorStoreProvider } from "@/components/VendorStoreContext.js";
@@ -47,6 +48,7 @@ import {
   Bug,
   Activity,
   FileText,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -235,6 +237,17 @@ const NAV_BY_ROLE = {
 // catalogue/queue; even clicking its active link would needlessly start a
 // route transition and can interrupt a cashier mid-sale.
 
+// On a slow connection a tapped nav link gave no sign it had registered:
+// the drawer shut, the RSC payload took seconds, and the old page just sat
+// there - so it read as "my tap did nothing" and people tapped again.
+// useLinkStatus reports exactly this link's pending navigation, so the row
+// you touched is the row that shows it is working.
+function NavPending({ muted }) {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return <Loader2 size={15} className={`ml-auto shrink-0 animate-spin ${muted ? "text-brand-600" : "text-white/70"}`} />;
+}
+
 function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false, collapsed = false }) {
   return (
     <>
@@ -272,7 +285,12 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
               <Link
                 key={href}
                 href={href}
-                onClick={onNavigate}
+                // Only dismiss the drawer for a tap that will not navigate
+                // (you are already here). Every real navigation leaves it
+                // open until the route actually commits - the layout closes
+                // it on the pathname change - so the spinner below stays
+                // visible instead of vanishing with the panel.
+                onClick={() => { if (pathname === href) onNavigate?.(); }}
                 title={collapsed ? label : undefined}
                 className={
                   muted
@@ -290,6 +308,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
               >
                 <Icon size={18} />
                 {!collapsed && label}
+                {!collapsed && <NavPending muted={muted} />}
               </Link>
             );
           })}
@@ -304,7 +323,14 @@ export default function DashboardLayout({ children }) {
   const { apiFetch } = useApi(token);
   const pathname = usePathname();
   const router = useRouter();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Holds the pathname the drawer was opened on, so "still on that page"
+  // IS the open state - the drawer therefore closes exactly when the route
+  // commits, with no effect to sync. Closing on tap instead is what made a
+  // pending navigation look like a dead button: on a slow connection the
+  // panel vanished seconds before the new page arrived.
+  const [drawerOpenedAt, setDrawerOpenedAt] = useState(null);
+  const drawerOpen = drawerOpenedAt !== null && drawerOpenedAt === pathname;
+  const closeDrawer = () => setDrawerOpenedAt(null);
   const [offline, setOffline] = useState(() => isOffline());
   // Desktop sidebar collapse (icons only), remembered per browser. Both
   // this and the theme below live in localStorage and change from more than
@@ -424,7 +450,7 @@ export default function DashboardLayout({ children }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         <header
-          onClick={() => setDrawerOpen(true)}
+          onClick={() => setDrawerOpenedAt(pathname)}
           className={`sm:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-16 shrink-0 cursor-pointer ${
             isVendor ? "bg-surface border-b border-slate-200 text-slate-900" : "bg-brand-900 text-white"
           }`}
@@ -442,7 +468,7 @@ export default function DashboardLayout({ children }) {
 
         <MobileNavDrawer
           open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
+          onClose={closeDrawer}
           title="Menu"
           muted={isVendor}
           footer={
@@ -463,7 +489,7 @@ export default function DashboardLayout({ children }) {
             </>
           }
         >
-          <NavLinks groups={groups} pathname={pathname} onNavigate={() => setDrawerOpen(false)} offline={navOffline} muted={isVendor} />
+          <NavLinks groups={groups} pathname={pathname} onNavigate={closeDrawer} offline={navOffline} muted={isVendor} />
         </MobileNavDrawer>
 
         <main className="flex-1 bg-canvas">

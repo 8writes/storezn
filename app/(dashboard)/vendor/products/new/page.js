@@ -17,6 +17,8 @@ import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSection } from "@/components/ui/FormSection.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
+import { Switch } from "@/components/ui/Switch.js";
+import { IMAGE_DISCLAIMER_TEXT } from "@/components/storefront/ImageDisclaimerBadge.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { NewProductVariantsEditor } from "@/components/ui/NewProductVariantsEditor.js";
 import { CustomerFieldsEditor } from "@/components/ui/CustomerFieldsEditor.js";
@@ -54,7 +56,7 @@ const CONDITION_OPTIONS = [
   { value: "used", label: "Used" },
 ];
 
-const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", saleMode: "fixed_price", customerFields: [], condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "", variants: [] };
+const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", saleMode: "fixed_price", customerFields: [], condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "", imageDisclaimer: false, variants: [] };
 const EMPTY_CATEGORY = { name: "", slug: "" };
 const PRODUCT_FORM_FIELDS = [
   { id: "slug", label: "URL slug" },
@@ -367,6 +369,7 @@ export default function VendorNewProductPage() {
         .sort((a, b) => a.bundleQty - b.bundleQty);
       if (tiers.length) payload.priceTiers = tiers;
       if (form.videoUrl) payload.videoUrl = form.videoUrl;
+      if (form.imageDisclaimer) payload.imageDisclaimer = true;
 
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/products`, { method: "POST", body: JSON.stringify(payload) });
       toast.success("Product created");
@@ -667,6 +670,12 @@ export default function VendorNewProductPage() {
               <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
             )}
           </div>}
+          <Switch
+            checked={!!form.imageDisclaimer}
+            onChange={(value) => setForm((f) => ({ ...f, imageDisclaimer: value }))}
+            label="Photos are for illustration only"
+            description={`Shows "${IMAGE_DISCLAIMER_TEXT}" on this product's photos in your store - for a supplier or sample photo rather than a shot of the exact item.`}
+          />
           </FormSection>}
 
           <div className="sticky bottom-0 z-20 -mx-3 -mb-3 flex justify-end px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">

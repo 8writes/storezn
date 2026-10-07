@@ -10,6 +10,7 @@ import { networkErrorMessage, serverErrorMessage, readJson } from "../../../lib/
 import { deviceHeaders } from "../../../lib/clientDevice.js";
 import { BannedNotice } from "../../../components/BannedNotice.js";
 import { toast } from "sonner";
+import { safeFetch } from "@/lib/fetchError.js";
 
 function LoginForm() {
   const { login } = useAuth(false);
@@ -31,13 +32,13 @@ function LoginForm() {
 
     let res;
     try {
-      res = await fetch("/api/v1/auth/login", {
+      res = await safeFetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...deviceHeaders() },
         body: JSON.stringify(form),
       });
     } catch (err) {
-      // fetch() rejected - never reached the server (offline, DNS,
+      // safeFetch() rejected - never reached the server (offline, DNS,
       // connection reset). Say so, rather than "something went wrong".
       toast.error(networkErrorMessage(err) || "Couldn't reach Storezn. Check your connection and try again.");
       setLoading(false);
@@ -79,7 +80,7 @@ function LoginForm() {
   const handleResend = async () => {
     setResending(true);
     try {
-      await fetch("/api/v1/auth/resend-verification", {
+      await safeFetch("/api/v1/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: form.email }),

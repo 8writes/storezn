@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 export default function GuestOrderLookupPage() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function GuestOrderLookupPage() {
     if (normalizedOrderNumber.startsWith("INV-")) {
       setLoading(true);
       try {
-        const response = await fetch("/api/v1/storefront/invoices/lookup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ invoiceNumber: normalizedOrderNumber, email: normalizedEmail }) });
+        const response = await safeFetch("/api/v1/storefront/invoices/lookup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ invoiceNumber: normalizedOrderNumber, email: normalizedEmail }) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Invoice not found");
         window.location.assign(data.paymentUrl);

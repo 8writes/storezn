@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 const EMPTY_FORM = { fullName: "", phone: "", line1: "", line2: "", city: "", state: "", isDefault: false };
 
@@ -33,7 +34,7 @@ export default function CustomerAddressesPage() {
       return undefined;
     }
     let alive = true;
-    fetch("/api/v1/customer/addresses", { headers: { Authorization: `Bearer ${token}` } })
+    safeFetch("/api/v1/customer/addresses", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((data) => {
         if (alive) setAddresses(data.addresses || []);
@@ -60,7 +61,7 @@ export default function CustomerAddressesPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch("/api/v1/customer/addresses", {
+      const res = await safeFetch("/api/v1/customer/addresses", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
@@ -81,7 +82,7 @@ export default function CustomerAddressesPage() {
     const ok = await confirm({ title: "Remove this address?", variant: "danger" });
     if (!ok) return;
     try {
-      const res = await fetch(`/api/v1/customer/addresses/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const res = await safeFetch(`/api/v1/customer/addresses/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       refresh();

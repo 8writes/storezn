@@ -383,7 +383,7 @@ export default function VendorProductsPage() {
         }
         actions={
           <>
-            <Link href="/vendor/products/bulk" className="hidden lg:inline-flex">
+            <Link href="/vendor/products/bulk" className="inline-flex">
               <Button type="button" size="sm" variant="outline">
                 Bulk edit
               </Button>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 export default function StorefrontForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -14,7 +15,7 @@ export default function StorefrontForgotPasswordPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/auth/forgot-password", {
+      const res = await safeFetch("/api/v1/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

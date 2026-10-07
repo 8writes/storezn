@@ -12,6 +12,7 @@ import { NIGERIA_STATE_OPTIONS } from "@/lib/nigeria.js";
 import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
 import { deviceHeaders } from "@/lib/clientDevice.js";
 import { BannedNotice } from "@/components/BannedNotice.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 const EMPTY_FORM = {
   name: "",
@@ -53,7 +54,7 @@ function VendorSignupForm() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/vendor/signup", {
+      const res = await safeFetch("/api/v1/vendor/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...deviceHeaders() },
         body: JSON.stringify(form),

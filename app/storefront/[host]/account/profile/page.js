@@ -6,6 +6,7 @@ import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { Input } from "@/components/ui/Input.js";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 const EMPTY_PASSWORD_FORM = { currentPassword: "", newPassword: "" };
 
@@ -42,7 +43,7 @@ export default function CustomerProfilePage() {
   }, [authLoading, user, router]);
 
   const call = (body) =>
-    fetch("/api/v1/auth/me", {
+    safeFetch("/api/v1/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),

@@ -7,6 +7,7 @@ import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
 import { deviceHeaders } from "@/lib/clientDevice.js";
 import { BannedNotice } from "@/components/BannedNotice.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 const EMPTY_FORM = { firstName: "", lastName: "", email: "", password: "", acceptMarketing: false };
 
@@ -22,7 +23,7 @@ export default function StorefrontSignupPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/auth/signup", {
+      const res = await safeFetch("/api/v1/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...deviceHeaders() },
         body: JSON.stringify(form),

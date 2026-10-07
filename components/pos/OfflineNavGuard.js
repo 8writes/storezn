@@ -1,17 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { toast } from "sonner";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { WifiOff } from "lucide-react";
 import { isOffline, onConnectivityChange } from "@/lib/connectivity.js";
 
-// While the device is offline, keep a cashier on the register. Every
-// other dashboard page needs the network to load anything, and the whole
-// point of the POS is that it keeps working offline (IndexedDB sale
-// queue + catalogue snapshot, see lib/posOffline.js). Once /vendor/pos
-// has been opened in this tab, going offline anywhere else bounces
-// straight back so the shift never stalls on a blank screen. Someone who
-// never opened the register this session is left alone.
+// Tells a cashier what still works while the device is offline, without
+// moving them. This used to router.replace() them onto /vendor/pos the
+// moment the connection dropped, which yanked the page out from under
+// anyone mid-task - including someone who had only glanced at the
+// register earlier in the session - and lost whatever they were part-way
+// through typing. The register is offered as a link instead; the nav
+// itself is already disabled while offline (see navOffline in
+// app/(dashboard)/layout.js), so nothing here needs to police navigation.
 const POS_PREFIX = "/vendor/pos";
 const SESSION_FLAG = "pos_session_active";
 
@@ -19,7 +20,6 @@ const isPosPath = (p) => p === POS_PREFIX || p.startsWith(`${POS_PREFIX}/`);
 
 export function OfflineNavGuard() {
   const pathname = usePathname();
-  const router = useRouter();
   const [offline, setOffline] = useState(false);
   const [active, setActive] = useState(false);
 
@@ -45,20 +45,27 @@ export function OfflineNavGuard() {
     return onConnectivityChange(setOffline);
   }, []);
 
-  useEffect(() => {
-    if (!offline || !active || isPosPath(pathname)) return;
-    toast.info("You're offline - staying on the register");
-    router.replace(POS_PREFIX);
-  }, [offline, active, pathname, router]);
-
   if (!offline || !active) return null;
 
+  const onRegister = isPosPath(pathname);
+
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-center gap-1.5 bg-amber-500 px-3 py-1.5 text-center text-xs font-medium text-white">
+    <div className="fixed inset-x-0 bottom-0 z-40 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 bg-amber-500 px-3 py-1.5 text-center text-xs font-medium text-white">
       <WifiOff size={13} className="shrink-0" />
-      Offline - register only. Saved catalogue search and sales work; navigation,
-      live stock updates, cash movements, register closing, and sync wait for
-      the connection to return.
+      {onRegister ? (
+        <span>
+          Offline - register only. Saved catalogue search and sales work; navigation,
+          live stock updates, cash movements, register closing, and sync wait for
+          the connection to return.
+        </span>
+      ) : (
+        <>
+          <span>You&apos;re offline. This page needs a connection, but the register keeps selling.</span>
+          <Link href={POS_PREFIX} className="shrink-0 underline underline-offset-2 hover:no-underline">
+            Open register
+          </Link>
+        </>
+      )}
     </div>
   );
 }

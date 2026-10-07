@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red", abandoned: "red" };
 
@@ -29,7 +30,7 @@ export default function OrderConfirmationPage() {
       if (lookupEmail) params.set("email", lookupEmail);
       const reference = searchParams.get("reference") || searchParams.get("trxref");
       if (reference) params.set("reference", reference);
-      const res = await fetch(`/api/v1/storefront/orders/${orderNumber}?${params}`, {
+      const res = await safeFetch(`/api/v1/storefront/orders/${orderNumber}?${params}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();

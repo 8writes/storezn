@@ -10,6 +10,7 @@ import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { downloadOrderPdf } from "@/lib/orderPdf.js";
 import { Download } from "lucide-react";
+import { safeFetch } from "@/lib/fetchError.js";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 
@@ -35,7 +36,7 @@ export default function CustomerOrderDetailPage() {
       return undefined;
     }
     let alive = true;
-    fetch(`/api/v1/customer/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+    safeFetch(`/api/v1/customer/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((d) => {
         if (!alive) return;
@@ -65,7 +66,7 @@ export default function CustomerOrderDetailPage() {
     if (!reason) return;
     setRequesting(true);
     try {
-      const res = await fetch(`/api/v1/customer/orders/${id}/refund-request`, {
+      const res = await safeFetch(`/api/v1/customer/orders/${id}/refund-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ reason }),

@@ -6,6 +6,7 @@ import { Trash2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { formatCurrency } from "@/lib/format.js";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 export default function CartPage() {
   const { token, loading: authLoading } = useCustomerAuth();
@@ -15,7 +16,7 @@ export default function CartPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch("/api/v1/storefront/cart", {
+    safeFetch("/api/v1/storefront/cart", {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then((res) => res.json())
@@ -34,7 +35,7 @@ export default function CartPage() {
     if (quantity < 1) return;
     setBusyId(itemId);
     try {
-      const res = await fetch(`/api/v1/storefront/cart/items/${itemId}`, {
+      const res = await safeFetch(`/api/v1/storefront/cart/items/${itemId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -56,7 +57,7 @@ export default function CartPage() {
   const removeItem = async (itemId) => {
     setBusyId(itemId);
     try {
-      const res = await fetch(`/api/v1/storefront/cart/items/${itemId}`, {
+      const res = await safeFetch(`/api/v1/storefront/cart/items/${itemId}`, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

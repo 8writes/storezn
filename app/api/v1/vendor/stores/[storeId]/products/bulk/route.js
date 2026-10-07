@@ -104,6 +104,7 @@ export async function GET(req, { params }) {
         categoryId: products.categoryId,
         categoryName: categories.name,
         expiryDate: products.expiryDate,
+        imageDisclaimer: products.imageDisclaimer,
         productType: products.productType,
         stock: products.stock,
         variantCount: variantCountSql,
@@ -299,6 +300,7 @@ export async function POST(req, { params }) {
             condition: data.condition,
             stock: data.stock ?? null,
             expiryDate: data.expiryDate || null,
+            imageDisclaimer: data.imageDisclaimer ?? false,
             isActive: true,
           })
           .returning();

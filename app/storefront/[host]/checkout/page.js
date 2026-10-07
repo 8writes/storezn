@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { formatCurrency } from "@/lib/format.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 const EMPTY_ADDRESS = { fullName: "", phone: "", line1: "", line2: "", city: "", state: "", country: "Nigeria" };
 const MANUAL_ADDRESS_ID = "__manual__";
@@ -33,7 +34,7 @@ export default function CheckoutPage() {
     if (state) params.set("state", state);
     if (city) params.set("city", city);
     const url = params.toString() ? `/api/v1/storefront/cart?${params}` : "/api/v1/storefront/cart";
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const data = await res.json().catch(() => null);
@@ -52,7 +53,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!token) return;
-    fetch("/api/v1/customer/addresses", { headers: { Authorization: `Bearer ${token}` } })
+    safeFetch("/api/v1/customer/addresses", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((data) => {
         setAddresses(data.addresses || []);
@@ -133,7 +134,7 @@ export default function CheckoutPage() {
         else payload.shippingAddress = cleanManualAddress();
       }
 
-      const res = await fetch("/api/v1/storefront/checkout", {
+      const res = await safeFetch("/api/v1/storefront/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

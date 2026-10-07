@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { PasswordInput } from "@/components/ui/PasswordInput.js";
 import { Button } from "@/components/ui/Button.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -18,7 +19,7 @@ function ResetPasswordForm() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/auth/reset-password", {
+      const res = await safeFetch("/api/v1/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),

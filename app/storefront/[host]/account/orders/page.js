@@ -7,6 +7,7 @@ import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 
@@ -28,8 +29,8 @@ export default function CustomerOrdersPage() {
     const timer = setTimeout(() => {
       setLoading(true);
       Promise.all([
-        fetch(`/api/v1/customer/orders?page=${page}`, { headers: { Authorization: `Bearer ${token}` } }).then((res) => res.json()),
-        fetch("/api/v1/customer/invoices", { headers: { Authorization: `Bearer ${token}` } }).then((res) => res.json()),
+        safeFetch(`/api/v1/customer/orders?page=${page}`, { headers: { Authorization: `Bearer ${token}` } }).then((res) => res.json()),
+        safeFetch("/api/v1/customer/invoices", { headers: { Authorization: `Bearer ${token}` } }).then((res) => res.json()),
       ])
         .then(([orderData, invoiceData]) => {
           setOrders(orderData.orders || []);

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 import { customerFieldEntries } from "@/lib/customerFields.js";
 import { generateBrandShades } from "@/lib/colorShades.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 export default function PublicInvoicePage({ params }) {
   const { shareToken } = use(params);
@@ -17,7 +18,7 @@ export default function PublicInvoicePage({ params }) {
   const [paying, setPaying] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/v1/storefront/invoices/${shareToken}`)
+    safeFetch(`/api/v1/storefront/invoices/${shareToken}`)
       .then(async (res) => {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error || "Invoice not found");
@@ -30,7 +31,7 @@ export default function PublicInvoicePage({ params }) {
     setPaymentError("");
     setPaying(true);
     try {
-      const res = await fetch(`/api/v1/storefront/invoices/${shareToken}`, {
+      const res = await safeFetch(`/api/v1/storefront/invoices/${shareToken}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(email.trim() ? { email: email.trim() } : {}),

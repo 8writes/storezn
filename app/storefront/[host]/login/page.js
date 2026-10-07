@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button.js";
 import { networkErrorMessage, serverErrorMessage, readJson } from "@/lib/fetchError.js";
 import { deviceHeaders } from "@/lib/clientDevice.js";
 import { BannedNotice } from "@/components/BannedNotice.js";
+import { safeFetch } from "@/lib/fetchError.js";
 
 export default function StorefrontLoginPage() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function StorefrontLoginPage() {
 
     let res;
     try {
-      res = await fetch("/api/v1/auth/login", {
+      res = await safeFetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...deviceHeaders() },
         body: JSON.stringify(form),
@@ -67,7 +68,7 @@ export default function StorefrontLoginPage() {
   const handleResend = async () => {
     setResending(true);
     try {
-      await fetch("/api/v1/auth/resend-verification", {
+      await safeFetch("/api/v1/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: form.email }),
