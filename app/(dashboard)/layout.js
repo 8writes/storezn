@@ -280,21 +280,25 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
               type="button"
               onClick={() => toggleNavGroup(group.title)}
               aria-expanded={open}
-              className={`w-full flex items-center gap-1.5 px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider first:pt-2 cursor-pointer transition-colors ${
-                muted ? "text-slate-400 hover:text-slate-600" : "text-white/40 hover:text-white/70"
+              className={`w-full flex items-center gap-1.5 px-4 pt-4 pb-1.5 text-[13px] font-bold uppercase tracking-wide first:pt-3 cursor-pointer transition-colors ${
+                muted ? "text-slate-700 hover:text-slate-900" : "text-white/75 hover:text-white"
               }`}
             >
               {group.title}
-              <ChevronDown size={13} className={`transition-transform ${open ? "" : "-rotate-90"}`} />
+              <ChevronDown size={15} className={`transition-transform ${open ? "" : "-rotate-90"}`} />
               {!open && (
-                <span className={`ml-auto text-[10px] font-medium tabular-nums ${muted ? "text-slate-400" : "text-white/30"}`}>
+                <span
+                  className={`ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
+                    muted ? "bg-slate-100 text-slate-700" : "bg-white/10 text-white/70"
+                  }`}
+                >
                   {group.items.length}
                 </span>
               )}
             </button>
           )}
           {open && group.items.map(({ href, label, icon: Icon }) => {
-            const base = `flex items-center gap-3 text-sm font-medium ${collapsed ? "px-0 py-2.5 justify-center" : "px-4 py-2.5"}`;
+            const base = `flex items-center gap-3 text-[15px] font-medium ${collapsed ? "px-0 py-2.5 justify-center" : "px-4 py-2.5"}`;
 
             if (offline) {
               return (
