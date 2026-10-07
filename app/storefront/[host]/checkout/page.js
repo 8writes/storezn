@@ -67,6 +67,11 @@ export default function CheckoutPage() {
   const usesSavedAddress = !!user && addresses.length > 0 && addressId !== MANUAL_ADDRESS_ID;
   const selectedAddress = usesSavedAddress ? addresses.find((a) => a.id === addressId) : null;
   const effectiveState = needsShipping ? (selectedAddress?.state || manualAddress.state) : "";
+  // The cart endpoint re-answers this every time the state changes (see
+  // its `deliverable`), so the shopper is told before filling in the rest
+  // of the form rather than at the payment step. POST /checkout refuses it
+  // again regardless - this is UX, not the control.
+  const undeliverable = needsShipping && !!effectiveState && cart?.deliverable === false;
   const effectiveCity = needsShipping ? (selectedAddress?.city || manualAddress.city) : "";
 
   const cleanManualAddress = () => ({
@@ -223,6 +228,12 @@ export default function CheckoutPage() {
                   error={fieldErrors.state}
                   required
                 />
+                {undeliverable && (
+                  <p className="sm:col-span-2 -mt-1 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Sorry, this store isn&apos;t currently delivering to {effectiveState}. Choose another delivery state, or
+                    contact the seller.
+                  </p>
+                )}
                 <Select
                   label="City/LGA"
                   options={getLgaOptions(manualAddress.state)}
@@ -235,6 +246,13 @@ export default function CheckoutPage() {
               </div>
             )}
           </div>
+        )}
+
+        {undeliverable && usesSavedAddress && (
+          <p className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Sorry, this store isn&apos;t currently delivering to {effectiveState}. Pick a different address, or contact the
+            seller.
+          </p>
         )}
 
         <div className="pt-6 border-t border-slate-200">
@@ -288,9 +306,9 @@ export default function CheckoutPage() {
           fullWidth
           size="lg"
           loading={submitting}
-          disabled={cart.platformFeeShortfall > 0 && (!needsShipping || effectiveState)}
+          disabled={undeliverable || (cart.platformFeeShortfall > 0 && (!needsShipping || effectiveState))}
         >
-          Pay now
+          {undeliverable ? "Not delivering to your location" : "Pay now"}
         </Button>
         <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500">
           <span>Powered by <strong className="font-semibold text-slate-700">Storezn</strong></span>

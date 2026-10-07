@@ -13,7 +13,7 @@ import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
 
-const EMPTY_FORM = { defaultShippingFee: "0", defaultShippingIsTBD: true };
+const EMPTY_FORM = { defaultShippingFee: "0", defaultShippingIsTBD: true, deliveryStates: null };
 const EMPTY_RATE_FORM = { state: "", city: "", fee: "" };
 
 export default function VendorShippingPage() {
@@ -52,6 +52,9 @@ export default function VendorShippingPage() {
           form: {
             defaultShippingFee: String(data.store.defaultShippingFee ?? 0),
             defaultShippingIsTBD: data.store.defaultShippingIsTBD ?? true,
+            deliveryStates: Array.isArray(data.store.deliveryStates) && data.store.deliveryStates.length > 0
+              ? data.store.deliveryStates
+              : null,
           },
         });
       })
@@ -136,6 +139,83 @@ export default function VendorShippingPage() {
                 onChange={(v) => setForm((f) => ({ ...f, defaultShippingFee: v }))}
               />
             )}
+
+            <div className="border-t border-slate-200 pt-4 space-y-3">
+              <div>
+                <label className="text-sm font-medium text-slate-700">Where you deliver</label>
+                <p className="text-xs text-slate-800 mt-0.5">
+                  A buyer whose delivery state isn&apos;t covered is told you don&apos;t deliver there, and can&apos;t check out.
+                  Digital products are unaffected.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, deliveryStates: null }))}
+                  className={`rounded-sm border p-3 text-left cursor-pointer transition-colors ${
+                    form.deliveryStates === null ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="block text-sm font-medium text-slate-900">Anywhere in Nigeria</span>
+                  <span className="mt-0.5 block text-xs text-slate-800">Every state. This is the default.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, deliveryStates: f.deliveryStates ?? [] }))}
+                  className={`rounded-sm border p-3 text-left cursor-pointer transition-colors ${
+                    form.deliveryStates !== null ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="block text-sm font-medium text-slate-900">Only selected states</span>
+                  <span className="mt-0.5 block text-xs text-slate-800">Pick the states you serve.</span>
+                </button>
+              </div>
+
+              {form.deliveryStates !== null && (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-slate-800">
+                      {form.deliveryStates.length} of {NIGERIA_STATE_OPTIONS.length} selected
+                    </span>
+                    <div className="flex gap-2 text-xs">
+                      <button type="button" onClick={() => setForm((f) => ({ ...f, deliveryStates: NIGERIA_STATE_OPTIONS.map((o) => o.value) }))} className="cursor-pointer text-brand-700 underline hover:text-brand-800">
+                        Select all
+                      </button>
+                      <button type="button" onClick={() => setForm((f) => ({ ...f, deliveryStates: [] }))} className="cursor-pointer text-slate-700 underline hover:text-slate-900">
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto rounded-sm border border-slate-200 p-2 grid grid-cols-2 gap-1">
+                    {NIGERIA_STATE_OPTIONS.map((option) => {
+                      const on = form.deliveryStates.includes(option.value);
+                      return (
+                        <label key={option.value} className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => setForm((f) => ({
+                              ...f,
+                              deliveryStates: on
+                                ? f.deliveryStates.filter((v) => v !== option.value)
+                                : [...f.deliveryStates, option.value],
+                            }))}
+                            className="size-4 shrink-0 accent-brand-600"
+                          />
+                          <span className="truncate">{option.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {form.deliveryStates.length === 0 && (
+                    <p className="rounded-sm border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+                      No state selected - saving this leaves you delivering anywhere, since &ldquo;nowhere&rdquo; would close your store to every physical order.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
 
             <Button type="submit" loading={saving} fullWidth>Save</Button>
           </form>

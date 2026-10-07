@@ -139,6 +139,14 @@ export async function PATCH(req, { params }) {
   for (const [key, value] of Object.entries(result.data)) {
     data[key] = value === "" ? null : value;
   }
+  // "Delivers nowhere" is never a thing a vendor means - clearing the last
+  // state reopens the whole country (see stores.deliveryStates, where NULL
+  // is "everywhere"). Also de-duplicated and trimmed, since the stored list
+  // is compared against free-text address states.
+  if (Array.isArray(data.deliveryStates)) {
+    const cleaned = [...new Set(data.deliveryStates.map((entry) => String(entry).trim()).filter(Boolean))];
+    data.deliveryStates = cleaned.length > 0 ? cleaned : null;
+  }
 
   const [updated] = await db.update(stores).set(data).where(eq(stores.id, storeId)).returning();
 

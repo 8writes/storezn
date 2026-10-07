@@ -8,7 +8,7 @@ import { validate, addCartItemSchema, customerFieldKey, validateCustomerFieldAns
 import { snapshotCustomerFieldAnswers } from "../../../../../lib/customerFields.js";
 import { resolveCart, getCartWithItems, computeCartTotals, findCartItem, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
 import { computeOrderTotals } from "../../../../../lib/orders.js";
-import { resolveShippingFee } from "../../../../../lib/shipping.js";
+import { resolveShippingFee, canDeliverTo } from "../../../../../lib/shipping.js";
 import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { sql } from "drizzle-orm";
@@ -58,10 +58,15 @@ async function handleGet(req) {
   const { fee: resolvedShippingFee, isTBD: shippingFeeTBD } =
     needsShipping && state ? await resolveShippingFee(store, { state, city }) : { fee: 0, isTBD: false };
   const shippingFee = shippingFeeTBD ? 0 : resolvedShippingFee;
+  // Only meaningful once a state is known and the cart actually ships -
+  // an all-digital cart is deliverable everywhere. The checkout page uses
+  // this to warn (and block its submit) before the shopper fills in the
+  // rest of the form; POST /checkout re-checks it regardless.
+  const deliverable = !needsShipping || !state ? true : canDeliverTo(store, state);
 
   const fees = await computeDisplayFees(store, totals.subtotal, shippingFee);
 
-  return NextResponse.json({ items, ...totals, shippingFee, shippingFeeTBD, ...fees });
+  return NextResponse.json({ items, ...totals, shippingFee, shippingFeeTBD, deliverable, deliveryStates: store.deliveryStates ?? null, ...fees });
 }
 
 // Live preview of what checkout will actually charge/split, so the cart
