@@ -19,6 +19,12 @@ import {
   saveNavCollapsed,
   subscribeToNavCollapsed,
 } from "@/lib/navCollapse.js";
+import {
+  getServerOpenNavGroups,
+  readOpenNavGroups,
+  subscribeToNavGroups,
+  toggleNavGroup,
+} from "@/lib/navGroups.js";
 import { POST_AUTH_REDIRECT_KEY } from "@/lib/postAuthRedirect.js";
 import {
   Menu,
@@ -49,6 +55,7 @@ import {
   Activity,
   FileText,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -249,22 +256,44 @@ function NavPending({ muted }) {
 }
 
 function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false, collapsed = false }) {
+  const openGroups = useSyncExternalStore(subscribeToNavGroups, readOpenNavGroups, getServerOpenNavGroups);
+
   return (
     <>
-      {groups.map((group) => (
+      {groups.map((group) => {
+        // The group holding the current page is always open, whatever the
+        // stored preference - a sidebar that hides where you currently are
+        // is worse than a long one. Derived here rather than written to
+        // storage, so navigating away doesn't silently leave groups open
+        // that the vendor never chose to open.
+        const hasCurrent = group.items.some((item) => pathname === item.href);
+        // Icons-only has no group headers to click, so grouping is moot
+        // there - it keeps its plain dividers and shows everything.
+        const open = collapsed || hasCurrent || openGroups.includes(group.title);
+
+        return (
         <div key={group.title}>
           {collapsed ? (
             <div className={`mx-3 my-2 border-t first:border-t-0 ${muted ? "border-slate-200" : "border-white/10"}`} />
           ) : (
-            <p
-              className={`px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider first:pt-2 ${
-                muted ? "text-slate-400" : "text-white/40"
+            <button
+              type="button"
+              onClick={() => toggleNavGroup(group.title)}
+              aria-expanded={open}
+              className={`w-full flex items-center gap-1.5 px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider first:pt-2 cursor-pointer transition-colors ${
+                muted ? "text-slate-400 hover:text-slate-600" : "text-white/40 hover:text-white/70"
               }`}
             >
               {group.title}
-            </p>
+              <ChevronDown size={13} className={`transition-transform ${open ? "" : "-rotate-90"}`} />
+              {!open && (
+                <span className={`ml-auto text-[10px] font-medium tabular-nums ${muted ? "text-slate-400" : "text-white/30"}`}>
+                  {group.items.length}
+                </span>
+              )}
+            </button>
           )}
-          {group.items.map(({ href, label, icon: Icon }) => {
+          {open && group.items.map(({ href, label, icon: Icon }) => {
             const base = `flex items-center gap-3 text-sm font-medium ${collapsed ? "px-0 py-2.5 justify-center" : "px-4 py-2.5"}`;
 
             if (offline) {
@@ -313,7 +342,8 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
             );
           })}
         </div>
-      ))}
+        );
+      })}
     </>
   );
 }

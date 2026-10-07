@@ -67,6 +67,35 @@ export default function VendorOrderDetailPage({ params }) {
     setRefreshKey((key) => key + 1);
   };
 
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundForm, setRefundForm] = useState({ amount: "", reason: "", restock: true });
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+
+  const submitRefund = async () => {
+    if (refundSubmitting) return;
+    if (!refundForm.reason.trim()) {
+      toast.error("Give a reason for this refund");
+      return;
+    }
+    setRefundSubmitting(true);
+    try {
+      const payload = { reason: refundForm.reason.trim(), restock: refundForm.restock };
+      if (refundForm.amount !== "") payload.amount = Number(refundForm.amount);
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/orders/${id}/refund`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      toast.success("Refund recorded");
+      setRefundOpen(false);
+      setRefundForm({ amount: "", reason: "", restock: true });
+      refresh();
+    } catch (err) {
+      toast.error(err.message || "Could not record the refund");
+    } finally {
+      setRefundSubmitting(false);
+    }
+  };
+
   const handleStatusChange = async (status, label) => {
     const ok = await confirm({ title: label + "?", variant: status === "cancelled" ? "danger" : "default" });
     if (!ok) return;
@@ -310,6 +339,101 @@ export default function VendorOrderDetailPage({ params }) {
           <div className="flex justify-end gap-3">
             <Button size="sm" onClick={() => handleRefundDecision("approved")} loading={updating}>Approve</Button>
             <Button size="sm" variant="danger" onClick={() => handleRefundDecision("rejected")} loading={updating}>Reject</Button>
+          </div>
+        </div>
+      )}
+
+      {refundRequest && refundRequest.status !== "pending" && (
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-1">
+          <p className="text-sm font-semibold text-slate-700">
+            {refundRequest.status === "approved"
+              ? `Refunded ${formatCurrency(refundRequest.amount ?? order.totalAmount)}${
+                  (refundRequest.amount ?? order.totalAmount) < (order.amountPaid ?? order.totalAmount)
+                    ? ` of ${formatCurrency(order.amountPaid ?? order.totalAmount)}`
+                    : ""
+                }`
+              : "Refund declined"}
+          </p>
+          <p className="text-sm text-slate-700">{refundRequest.reason}</p>
+          <p className="text-xs text-slate-500">
+            {refundRequest.initiatedByName
+              ? `Recorded by ${refundRequest.initiatedByName}`
+              : "Requested by the customer"}
+            {refundRequest.reviewedAt ? ` on ${formatDateTime(refundRequest.reviewedAt)}` : ""}
+          </p>
+        </div>
+      )}
+
+      {!refundRequest && ["paid", "partially_paid"].includes(order.paymentStatus) && order.status !== "refunded" && (
+        <div className="bg-surface border border-slate-200 rounded-sm p-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-700">Refund this order</p>
+            <p className="text-xs text-slate-800 mt-0.5">
+              Records the refund and can return the items to stock. It doesn&apos;t send any money - you pay the customer
+              back yourself.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setRefundOpen(true)}>Refund</Button>
+        </div>
+      )}
+
+      {refundOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => !refundSubmitting && setRefundOpen(false)} />
+          <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92dvh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 shrink-0">
+              <div>
+                <p className="text-sm font-bold text-slate-900">Refund {order.orderNumber}</p>
+                <p className="text-xs text-slate-600 mt-0.5">Paid {formatCurrency(order.amountPaid ?? order.totalAmount)}</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                disabled={refundSubmitting}
+                onClick={() => setRefundOpen(false)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer disabled:opacity-50"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-4 space-y-3 overflow-y-auto overscroll-contain">
+              <PriceInput
+                label="Amount to refund"
+                value={refundForm.amount}
+                onChange={(v) => setRefundForm((f) => ({ ...f, amount: v }))}
+                placeholder={String(order.amountPaid ?? order.totalAmount)}
+              />
+              <p className="-mt-1 text-xs text-slate-800">
+                Leave blank to refund the full {formatCurrency(order.amountPaid ?? order.totalAmount)}. A partial refund
+                keeps this order in your sales figures.
+              </p>
+              <div>
+                <label className="text-sm font-medium text-slate-700">Reason</label>
+                <textarea
+                  rows={3}
+                  value={refundForm.reason}
+                  onChange={(e) => setRefundForm((f) => ({ ...f, reason: e.target.value }))}
+                  placeholder="What happened? This is kept on the order."
+                  className="mt-1 w-full px-3 py-2 rounded-sm border border-slate-300 bg-surface text-base sm:text-sm text-slate-900 outline-none focus:border-brand-500"
+                />
+              </div>
+              <label className="flex items-start gap-2.5 text-sm text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={refundForm.restock}
+                  onChange={(e) => setRefundForm((f) => ({ ...f, restock: e.target.checked }))}
+                  className="mt-0.5 size-4 shrink-0 accent-brand-600"
+                />
+                <span>
+                  Put the items back into stock
+                  <span className="block text-xs text-slate-600">Uncheck if the goods weren&apos;t returned - a lost parcel or a goodwill refund.</span>
+                </span>
+              </label>
+            </div>
+            <div className="p-4 border-t border-slate-100 shrink-0 flex gap-2">
+              <Button type="button" variant="outline" fullWidth disabled={refundSubmitting} onClick={() => setRefundOpen(false)}>Cancel</Button>
+              <Button type="button" variant="danger" fullWidth loading={refundSubmitting} onClick={submitRefund}>Record refund</Button>
+            </div>
           </div>
         </div>
       )}
