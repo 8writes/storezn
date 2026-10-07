@@ -23,7 +23,7 @@ export function ThemeToggle({ collapsed = false, tone = "auto" }) {
       : "text-slate-800 hover:bg-slate-50 hover:text-slate-900";
 
   return (
-    <button type="button" onClick={() => setTheme(saveTheme(dark ? "light" : "dark"))} title={label} className={`${base} ${skin} cursor-pointer`}>
+    <button type="button" onClick={() => saveTheme(dark ? "light" : "dark")} title={label} className={`${base} ${skin} cursor-pointer`}>
       {dark ? <Sun size={18} /> : <Moon size={18} />}
       {!collapsed && label}
     </button>
