@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
+import { ImageDisclaimerBadge } from "@/components/storefront/ImageDisclaimerBadge.js";
 
 function RailCard({ p }) {
   const effectivePrice = getEffectivePrice(p.price, p.discountPercent);
@@ -33,6 +34,7 @@ function RailCard({ p }) {
         ) : (
           <span className="flex h-full items-center justify-center text-slate-300 text-xs">No image</span>
         )}
+        {p.imageDisclaimer && p.images?.[0] && <ImageDisclaimerBadge />}
       </div>
       <div className="mt-2 space-y-0.5">
         <p className="text-sm text-slate-800 group-hover:text-slate-950 transition-colors truncate">{p.name}</p>

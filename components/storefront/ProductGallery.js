@@ -2,8 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Video, X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
+import { ImageDisclaimerBadge } from "@/components/storefront/ImageDisclaimerBadge.js";
 
-export function ProductGallery({ images = [], videoUrl, name }) {
+export function ProductGallery({ images = [], videoUrl, name, imageDisclaimer = false }) {
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -41,6 +42,7 @@ export function ProductGallery({ images = [], videoUrl, name }) {
             <img src={current.src} alt={name} draggable={false} className="w-full h-full object-cover" />
           </button>
         )}
+        {imageDisclaimer && current.type === "image" && <ImageDisclaimerBadge size="lg" />}
 
         {count > 1 && (
           <>
@@ -102,7 +104,7 @@ export function ProductGallery({ images = [], videoUrl, name }) {
       )}
 
       {lightboxOpen && (
-        <Lightbox slides={slides} index={active} name={name} onIndexChange={goTo} onClose={() => setLightboxOpen(false)} />
+        <Lightbox slides={slides} index={active} name={name} imageDisclaimer={imageDisclaimer} onIndexChange={goTo} onClose={() => setLightboxOpen(false)} />
       )}
     </div>
   );
@@ -112,7 +114,7 @@ export function ProductGallery({ images = [], videoUrl, name }) {
 // native scroll-snap strip, so moving between them is just the browser
 // scrolling - no src swap, no transition replay, no flicker. Zoom/pan
 // only ever touches the slide that's currently centred.
-function Lightbox({ slides, index, name, onIndexChange, onClose }) {
+function Lightbox({ slides, index, name, imageDisclaimer = false, onIndexChange, onClose }) {
   useModalScrollLock(true);
   const count = slides.length;
   const stripRef = useRef(null);
@@ -204,6 +206,10 @@ function Lightbox({ slides, index, name, onIndexChange, onClose }) {
       </div>
 
       <div className="relative flex-1 min-h-0">
+        {/* Pinned to the stage rather than the image: the active photo is
+            translated/scaled while panning, which would drag a badge
+            anchored to it off-screen. */}
+        {imageDisclaimer && slides[index]?.type === "image" && <ImageDisclaimerBadge size="lg" />}
         <div
           ref={stripRef}
           onScroll={(e) => onStripScroll(e.currentTarget)}

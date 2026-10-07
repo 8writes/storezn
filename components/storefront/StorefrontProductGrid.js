@@ -5,6 +5,7 @@ import { Loader2, MapPin } from "lucide-react";
 import { formatCurrency, formatCondition } from "@/lib/format.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { formatStateLabel } from "@/lib/nigeria.js";
+import { ImageDisclaimerBadge } from "@/components/storefront/ImageDisclaimerBadge.js";
 
 function ProductCard({ p, storeState }) {
   const effectivePrice = getEffectivePrice(p.price, p.discountPercent);
@@ -31,6 +32,7 @@ function ProductCard({ p, storeState }) {
         ) : (
           <span className="flex h-full items-center justify-center text-slate-300 text-xs">No image</span>
         )}
+        {p.imageDisclaimer && p.images?.[0] && <ImageDisclaimerBadge />}
       </div>
       <div className="mt-3 space-y-0.5">
         <p className="text-sm text-slate-800 group-hover:text-slate-950 transition-colors">
