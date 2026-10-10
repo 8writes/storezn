@@ -1,0 +1,22 @@
+-- pos_sessions.closing_change_cash
+--
+-- The change float counted in the drawer at close: the small notes (under
+-- ₦500) kept purely for giving customers change. See CHANGE_FLOAT_BELOW
+-- in lib/pos.js.
+--
+-- It is recorded for the record only and is NEVER added to counted_cash.
+-- The float is not declared in the opening float at the start of a shift
+-- (the shop's practice: "if it's not up to 500 or 1000 we don't count it,
+-- it's for change"), so the physical drawer always holds the float on top
+-- of what expected_cash predicts. Adding it to the count would make every
+-- shift read over by the size of the kitty.
+--
+-- Nullable on purpose: NULL = "not recorded", which must display
+-- differently from a counted zero. No backfill - historical shifts
+-- genuinely never recorded this.
+--
+-- Run against production BEFORE deploying the matching code: drizzle
+-- names every column in its select(), so deploying first breaks every
+-- query against pos_sessions. Idempotent - safe to re-run.
+alter table "pos_sessions"
+  add column if not exists "closing_change_cash" integer;

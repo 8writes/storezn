@@ -52,7 +52,10 @@ function signed(kobo) {
 export function ZReport({ summary, title = "X report", movements = [] }) {
   if (!summary) return null;
   const d = summary.drawer || {};
-  const byMethod = summary.byTenderMethod || {};
+  // Same-basis per method (every method net of its own change), so this
+  // block actually ties to gross sales. Falls back to the mixed-basis
+  // original for snapshots stored before it existed.
+  const byMethod = summary.byTenderMethodApplied || summary.byTenderMethod || {};
   const byAccount = summary.byAccount || [];
   const nonCashChangeOut = summary.nonCashChangeOut || 0;
   const isZ = summary.countedCash != null;
@@ -133,7 +136,23 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
         <div className="px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Cash drawer</p>
           <Row label="Opening float" value={signed(d.openingFloat)} />
-          <Row label="Cash sales (cash in)" value={signed(d.cashSales)} tone="pos" />
+          {/* "Cash sales" is NET of the change handed back, because both
+              are written into one cash_sale movement when a sale settles.
+              That total is right but unreadable - an owner cannot see how
+              much cash crossed the counter. Where the derived pair
+              reconciles (cashSplitTies), show the two real figures
+              instead; they sum to exactly the same number. Older stored
+              snapshots have no such keys, so they keep the single line. */}
+          {summary.cashSplitTies ? (
+            <>
+              <Row label="Gross cash taken in" value={signed(summary.cashTenderedGross)} tone="pos" />
+              {(summary.cashChangeGiven || 0) !== 0 && (
+                <Row label="Change given (cash)" value={signed(-summary.cashChangeGiven)} tone="neg" />
+              )}
+            </>
+          ) : (
+            <Row label="Cash sales (cash in)" value={signed(d.cashSales)} tone="pos" />
+          )}
           {d.cashRefunds !== 0 && <Row label="Cash refunds" value={signed(d.cashRefunds)} tone="neg" />}
           {d.paidIn !== 0 && <Row label="Paid in" value={signed(d.paidIn)} tone="pos" />}
           {d.paidOut !== 0 && <Row label="Paid out (cash removed)" value={signed(d.paidOut)} tone="neg" />}
@@ -144,7 +163,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
           <Row label="Expected in drawer" value={formatKobo(isZ ? summary.expectedCash : d.expectedCash)} strong rule />
           {/* Older shifts (before the change_out split) folded that change
               into a negative cash-sale figure - keep the note for them. */}
-          {!(d.changeOut || 0) && nonCashChangeOut > 0 && (
+          {!summary.cashSplitTies && !(d.changeOut || 0) && nonCashChangeOut > 0 && (
             <p className="text-[11px] text-slate-400 pt-1">
               Cash sales above are net of {formatKobo(nonCashChangeOut)} change handed back on POS / transfer overpayments.
             </p>
@@ -158,6 +177,19 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
                 strong
                 tone={summary.overShort === 0 ? undefined : "neg"}
               />
+              {/* Below the over/short on purpose: the float sits outside
+                  that comparison entirely. It was never declared in the
+                  opening float, so it is recorded for the owner and takes
+                  no part in whether the shift balanced. null (not 0) means
+                  the shift never recorded one - don't invent a zero. */}
+              {summary.closingChangeCash != null && (
+                <>
+                  <Row label="Change float in drawer" value={formatKobo(summary.closingChangeCash)} rule />
+                  <p className="text-[11px] text-slate-400">
+                    Small notes kept for giving change. Not part of takings and not included in the figures above.
+                  </p>
+                </>
+              )}
             </>
           )}
         </div>

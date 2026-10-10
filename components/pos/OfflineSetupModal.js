@@ -29,7 +29,7 @@ function StepRow({ state, title, detail }) {
 // One-tap "make this device ready to sell offline": caches the register
 // screen + its files through the service worker, and pulls the whole
 // catalogue into local storage.
-export function OfflineSetupModal({ storeId, branchId, catalog, pendingSync = 0, queuedSales = [], syncing, onSync, onDiscard, onSyncCatalog, onClose }) {
+export function OfflineSetupModal({ storeId, branchId, catalog, pendingSync = 0, queuedSales = [], syncing, onSync, onRetryRejected, onDiscard, onSyncCatalog, onClose }) {
   const [phase, setPhase] = useState("idle"); // idle | running | done
   const [shell, setShell] = useState({ state: "pending", detail: "" });
   const [cat, setCat] = useState({
@@ -76,7 +76,12 @@ export function OfflineSetupModal({ storeId, branchId, catalog, pendingSync = 0,
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      {/* Deliberately not click-to-dismiss. This is a till: a cashier
+              rests a palm on the screen, or taps past the sheet while the
+              customer is still talking, and a half-filled count / refund /
+              tender would vanish with no undo. The X (or Cancel) is the
+              only way out of a POS dialog. */}
+      <div className="fixed inset-0 bg-black/50" />
       <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <p className="text-sm font-bold text-slate-900">Set up offline</p>
@@ -120,15 +125,39 @@ export function OfflineSetupModal({ storeId, branchId, catalog, pendingSync = 0,
                 {queuedSales.map((sale) => (
                   <div key={sale.id} className="flex items-start justify-between gap-2 py-2">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-slate-900 truncate">{sale.payload?.orderNumber || "Offline sale"}</p>
-                      <p className={`text-[11px] ${sale.lastError ? "text-red-700" : "text-slate-600"}`}>
-                        {sale.lastError || `Waiting to sync${sale.attempts ? ` - ${sale.attempts} attempt(s)` : ""}`}
+                      <p className="text-xs font-medium text-slate-900 truncate">
+                        {sale.payload?.orderNumber || "Offline sale"}
+                        {/* A sale queued by someone else can't be pushed from
+                            here - the server books takings against whoever is
+                            signed in, so it would be credited to the wrong
+                            cashier. Say whose it is instead of showing it as
+                            merely "waiting". */}
+                        {sale.queuedByName ? <span className="font-normal text-slate-600"> · {sale.queuedByName}</span> : null}
                       </p>
+                      {sale.status === "rejected" ? (
+                        // Refused outright. Retrying on a timer can never
+                        // change the answer, so it is shown with the server's
+                        // own words and an explicit retry rather than looping
+                        // silently forever.
+                        <p className="text-[11px] text-red-700">Refused: {sale.rejectedReason || "the server rejected this sale"}</p>
+                      ) : (
+                        <p className={`text-[11px] ${sale.lastError ? "text-amber-800" : "text-slate-600"}`}>
+                          {sale.lastError || `Waiting to sync${sale.attempts ? ` - ${sale.attempts} attempt(s)` : ""}`}
+                        </p>
+                      )}
                     </div>
-                    <button type="button" onClick={() => onDiscard(sale.id)} title="Discard queued sale"
-                      className="p-1 text-slate-400 hover:text-red-600 shrink-0">
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {sale.status === "rejected" && onRetryRejected && (
+                        <button type="button" onClick={() => onRetryRejected()} disabled={syncing || !online} title="Try this sale again"
+                          className="p-1 text-slate-500 hover:text-brand-700 disabled:opacity-50 cursor-pointer">
+                          <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
+                        </button>
+                      )}
+                      <button type="button" onClick={() => onDiscard(sale.id)} title="Discard queued sale"
+                        className="p-1 text-slate-400 hover:text-red-600 cursor-pointer">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

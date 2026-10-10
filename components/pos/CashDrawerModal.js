@@ -50,7 +50,12 @@ export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={submitting ? undefined : onClose} />
+      {/* Deliberately not click-to-dismiss. This is a till: a cashier
+              rests a palm on the screen, or taps past the sheet while the
+              customer is still talking, and a half-filled count / refund /
+              tender would vanish with no undo. The X (or Cancel) is the
+              only way out of a POS dialog. */}
+      <div className="fixed inset-0 bg-black/50" />
       <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <p className="text-sm font-bold text-slate-900">Cash drawer</p>

@@ -35,7 +35,12 @@ export function PrintableReceipt({ storeName, orderNumber, soldAt, lines, tender
 
   return (
     <div className="receipt-modal-backdrop fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none">
-      <div className="fixed inset-0 bg-black/50 no-print" onClick={onClose} />
+      {/* Deliberately not click-to-dismiss. This is a till: a cashier
+              rests a palm on the screen, or taps past the sheet while the
+              customer is still talking, and a half-filled count / refund /
+              tender would vanish with no undo. The X (or Cancel) is the
+              only way out of a POS dialog. */}
+      <div className="fixed inset-0 bg-black/50 no-print" />
       <div className="receipt-modal relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between p-3 border-b border-slate-100 no-print">
           <p className="text-sm font-bold text-slate-900">{pending ? "Saved offline" : "Sale complete"}</p>

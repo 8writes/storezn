@@ -32,7 +32,19 @@ export function useApi(token) {
       try {
         data = await res.json();
       } catch {
-        if (!res.ok) throw new Error(serverErrorMessage(res.status));
+        if (!res.ok) {
+          // Carry the status even when the body isn't JSON (a proxy's HTML
+          // 502, a crashed handler). Without it callers can't tell this
+          // apart from a network failure - the POS offline queue read a
+          // bare Error as "unknown", so a down server made it hammer every
+          // queued sale instead of backing off once and stopping.
+          const e = new Error(serverErrorMessage(res.status));
+          e.status = res.status;
+          // A dead session that happens to answer with HTML still ends the
+          // session, same as the JSON branch below.
+          if (token && res.status === 401) killSession("/login");
+          throw e;
+        }
         return null;
       }
 

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildSessionSummary, canReplayOfflineSale, computeDrawer, posPriceAdjustmentPolicy, validateTenders } from "../lib/pos.js";
+import { buildSessionSummary, canReplayOfflineSale, computeDrawer, posPriceAdjustmentPolicy, splitCountBreakdown, validateTenders } from "../lib/pos.js";
 
 test("split tenders must settle the total exactly", () => {
   assert.deepEqual(validateTenders([
@@ -78,4 +78,120 @@ test("owner price differences do not require an automatic review flag", () => {
     posPriceAdjustmentPolicy({ isOwner: true, wantsPriceChange: true, isOfflineReplay: true, hasPriceDifference: true }),
     { blocked: false, reviewRequired: false },
   );
+});
+
+// ---------------------------------------------------------------------
+// The change float: the small notes kept in the drawer purely to give
+// change. It is never declared in the opening float, so the physical
+// drawer always holds it ON TOP of what expectedCash predicts - counting
+// it as takings would make every shift read over by the size of the
+// kitty. See CHANGE_FLOAT_BELOW in lib/pos.js.
+// ---------------------------------------------------------------------
+
+test("a note-by-note count splits takings from the change float at ₦500", () => {
+  // 2x₦1000 + 3x₦500 = ₦3,500 takings; 4x₦200 + 10x₦50 = ₦1,300 float.
+  const { countedKobo, changeFloatKobo } = splitCountBreakdown({ 1000: 2, 500: 3, 200: 4, 50: 10 });
+  assert.equal(countedKobo, 350_000);
+  assert.equal(changeFloatKobo, 130_000);
+});
+
+test("₦500 itself is takings, not float", () => {
+  // The rule the shop works to is "not up to 500" - so 500 is counted.
+  assert.equal(splitCountBreakdown({ 500: 1 }).countedKobo, 50_000);
+  assert.equal(splitCountBreakdown({ 500: 1 }).changeFloatKobo, 0);
+  assert.equal(splitCountBreakdown({ 200: 1 }).countedKobo, 0);
+  assert.equal(splitCountBreakdown({ 200: 1 }).changeFloatKobo, 20_000);
+});
+
+test("the float never leaks into the counted figure", () => {
+  // The whole point: over/short is computed from countedKobo alone, so a
+  // bigger kitty must not move it by a single kobo.
+  const small = splitCountBreakdown({ 1000: 5, 100: 2 });
+  const large = splitCountBreakdown({ 1000: 5, 100: 400 });
+  assert.equal(small.countedKobo, large.countedKobo);
+  assert.notEqual(small.changeFloatKobo, large.changeFloatKobo);
+});
+
+test("an empty or junk count is zero on both sides, never NaN", () => {
+  for (const input of [undefined, null, {}, { 1000: 0 }, { abc: 3 }, { 500: -2 }]) {
+    const out = splitCountBreakdown(input);
+    assert.equal(out.countedKobo, 0, `countedKobo for ${JSON.stringify(input)}`);
+    assert.equal(out.changeFloatKobo, 0, `changeFloatKobo for ${JSON.stringify(input)}`);
+  }
+});
+
+// ---------------------------------------------------------------------
+// Gross cash in / change given, derived rather than stored.
+//
+// A sale writes ONE cash_sale movement holding (cash tendered − change),
+// so the drawer total is right but the Z can't say how much cash actually
+// crossed the counter. The pair is derived from the tender rows instead -
+// which works identically on historical rows, because the ledger total is
+// basis-invariant: net writes (gross−change) once, a gross basis would
+// write gross and −change, and both sum to the same thing.
+// ---------------------------------------------------------------------
+
+const shift = ({ tenders, movements }) =>
+  buildSessionSummary({
+    session: { openingFloat: 20_000, openedAt: "2026-10-10T08:00:00.000Z" },
+    orders: [],
+    tenders,
+    movements,
+  });
+
+test("gross cash and change reconcile to the drawer on historical net rows", () => {
+  // ₦10,000 handed over for an ₦8,000 sale: one net cash_sale of ₦8,000,
+  // which is exactly what every shift before this change stored.
+  const summary = shift({
+    tenders: [{ method: "cash", amount: 1_000_000, changeGiven: 200_000 }],
+    movements: [{ kind: "cash_sale", amount: 800_000 }],
+  });
+
+  assert.equal(summary.cashTenderedGross, 1_000_000);
+  assert.equal(summary.cashChangeGiven, 200_000);
+  assert.equal(summary.cashSplitTies, true);
+  // The two new lines must sum to the same drawer movement they replace.
+  assert.equal(
+    summary.cashTenderedGross - summary.changeGivenTotal,
+    summary.drawer.cashSales + summary.drawer.changeOut,
+  );
+  assert.equal(summary.drawer.expectedCash, 20_000 + 800_000);
+});
+
+test("cash change and POS-overpayment change are both counted, once each", () => {
+  const summary = shift({
+    tenders: [
+      { method: "cash", amount: 500_000, changeGiven: 100_000 },
+      { method: "card", provider: "Moniepoint", amount: 300_000, changeGiven: 50_000 },
+    ],
+    movements: [
+      { kind: "cash_sale", amount: 400_000 },
+      { kind: "change_out", amount: -50_000 },
+    ],
+  });
+
+  assert.equal(summary.cashChangeGiven, 100_000, "cash-tender change");
+  assert.equal(summary.nonCashChangeOut, 50_000, "card-overpayment change");
+  assert.equal(summary.changeGivenTotal, 150_000);
+  assert.equal(summary.cashSplitTies, true);
+});
+
+test("a hand-patched ledger fails the tie check instead of printing a wrong split", () => {
+  // Same tenders, but the cash_sale movement has been edited in SQL.
+  const summary = shift({
+    tenders: [{ method: "cash", amount: 1_000_000, changeGiven: 200_000 }],
+    movements: [{ kind: "cash_sale", amount: 750_000 }],
+  });
+  assert.equal(summary.cashSplitTies, false, "the Z must fall back to the old net line here");
+});
+
+test("per-method applied figures share one basis, unlike byTenderMethod", () => {
+  const summary = shift({
+    tenders: [{ method: "transfer", provider: "Opay", amount: 1_000_000, changeGiven: 400_000 }],
+    movements: [{ kind: "change_out", amount: -400_000 }],
+  });
+  // The account really did receive the full ₦10,000 - that stays gross.
+  assert.equal(summary.byTenderMethod.transfer, 1_000_000);
+  // ...but only ₦6,000 of it paid for anything, which is what ties to sales.
+  assert.equal(summary.byTenderMethodApplied.transfer, 600_000);
 });

@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { formatCurrency, formatClockTime } from "@/lib/format.js";
-import { formatKobo } from "@/lib/money.js";
+import { formatKobo, toKobo } from "@/lib/money.js";
 import { isEnterpriseStore } from "@/lib/storePlan.js";
+import { drawerDeltaFromTenders } from "@/lib/pos.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { RegisterBar } from "@/components/pos/RegisterBar.js";
@@ -31,7 +32,10 @@ import { networkErrorMessage } from "@/lib/fetchError.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 import {
+  claimSale,
   enqueueSale,
+  releaseSale,
+  retryRejectedSales,
   flushQueue,
   listHeldSales,
   listQueuedSales,
@@ -296,6 +300,9 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const router = useRouter();
   const isOwner = user?.role === "vendor" || user?.role === "super_admin";
   const actorId = user?.id || null;
+  // Display-only, for the queue list: a sale queued by another cashier
+  // can't be pushed from this device, so it has to be able to name them.
+  const actorName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.email || null;
   const { confirm, confirmDialog } = useConfirm();
   const lsKey = `pos_register_${storeId}`;
   const sessionCacheKey = useCallback((sessionId) => `pos_session_${storeId}_${sessionId}`, [storeId]);
@@ -360,6 +367,23 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     [queuedSales, openSession],
   );
   const pendingSync = sessionQueuedSales.length;
+  const rejectedCount = sessionQueuedSales.filter((sale) => sale.status === "rejected").length;
+  // What the drawer holds that the SERVER hasn't been told about yet.
+  // expectedCash only ever counts synced sales, so a cashier working
+  // offline saw a figure that silently excluded every sale they had just
+  // taken - and then closed the till against it. The payload's tenders are
+  // in naira (TenderPanel's units), so they convert before the kobo maths.
+  const offlineCashDeltaKobo = useMemo(
+    () => sessionQueuedSales.reduce((sum, sale) => {
+      const tenders = Array.isArray(sale.payload?.tenders) ? sale.payload.tenders : [];
+      return sum + drawerDeltaFromTenders(tenders.map((t) => ({
+        method: t.method,
+        amount: toKobo(t.amount),
+        changeGiven: toKobo(t.changeGiven || 0),
+      })));
+    }, 0),
+    [sessionQueuedSales],
+  );
 
   const loadLocalHeld = useCallback(async (sessionId) => {
     const rows = await listHeldSales(storeId, sessionId).catch(() => []);
@@ -454,8 +478,15 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         toast.success(`${res.synced} offline sale${res.synced === 1 ? "" : "s"} synced`);
         refresh();
       }
-      if (res.stuck > 0) toast.error(`${res.stuck} offline sale${res.stuck === 1 ? "" : "s"} couldn't sync - open Offline setup to review`);
-      if (res.blocked > 0) toast.error(`${res.blocked} queued sale${res.blocked === 1 ? " belongs" : "s belong"} to another cashier. Sign in as that cashier to sync.`);
+      // Only on a deliberate Sync. These used to fire on every 25-second
+      // tick, so one stuck sale produced a toast storm all shift - which
+      // is itself a large part of "sync is bad". The badge and the Offline
+      // setup sheet carry the same information without shouting.
+      if (force === true) {
+        if (res.stuck > 0) toast.error(`${res.stuck} offline sale${res.stuck === 1 ? "" : "s"} couldn't sync - open Offline setup to review`);
+        if (res.rejected > 0) toast.error(`${res.rejected} sale${res.rejected === 1 ? " was" : "s were"} refused by the server - open Offline setup to review`);
+        if (res.blocked > 0) toast.error(`${res.blocked} queued sale${res.blocked === 1 ? " belongs" : "s belong"} to another cashier. Sign in as that cashier to sync.`);
+      }
     } catch {
       /* still offline - try again next tick */
     } finally {
@@ -572,9 +603,18 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       // Connectivity may return after products changed while this register
       // was disconnected, so do not trust the previous freshness window.
       syncCatalog(true);
-      if (!offlineMode) syncNow();
+      // FORCED. An unforced call here respects the per-sale backoff, which
+      // by the time the network returns has often grown to its 30-minute
+      // cap - so reconnecting appeared to do nothing for half an hour.
+      if (!offlineMode) syncNow(true);
     };
     window.addEventListener("online", onOnline);
+    // navigator.onLine stays true on connected-but-dead wifi (see
+    // lib/connectivity.js), so the "online" event never fires for the most
+    // common failure here. This is what actually catches that recovery.
+    const stopWatchingConnectivity = onConnectivityChange((nowOffline) => {
+      if (!nowOffline && !offlineMode) syncNow(true);
+    });
     const catalogIv = setInterval(() => syncCatalog(), 25_000);
     let salesIv = null;
     if (!offlineMode) {
@@ -583,6 +623,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     }
     return () => {
       window.removeEventListener("online", onOnline);
+      stopWatchingConnectivity();
       clearInterval(catalogIv);
       if (salesIv) clearInterval(salesIv);
     };
@@ -616,6 +657,28 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       toast.error(err.message || "Couldn't open the register");
     } finally {
       setOpening(false);
+    }
+  };
+
+  // An explicit "try this one again" for a sale the server refused. The
+  // automatic flush deliberately leaves those alone, so this is the only
+  // way back - used after the owner fixes whatever was wrong (reopens a
+  // shift, adjusts a price allowance).
+  const retryRejected = async () => {
+    setSyncing(true);
+    try {
+      const res = await retryRejectedSales(storeId, apiFetch, actorId);
+      setQueuedSales(await listQueuedSales(storeId).catch(() => []));
+      if (res.synced > 0) {
+        toast.success(`${res.synced} sale${res.synced === 1 ? "" : "s"} synced`);
+        refresh();
+      } else {
+        toast.error("The server refused it again - check the reason shown");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Couldn't retry that sale");
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -796,8 +859,14 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     // still exists locally and the same idempotency key can safely replay it.
     let recoverySaved = false;
     try {
-      await enqueueSale(storeId, payload, actorId);
+      await enqueueSale(storeId, payload, actorId, actorName);
       recoverySaved = true;
+      // Tell the background flush this one is being sent live right now.
+      // Without it the 25s tick can POST the queued copy concurrently -
+      // same idempotency key, but the queued payload carries
+      // capturedLineTotal while this one is server-priced, so whichever
+      // lands first silently decides the receipt total.
+      await claimSale(payload.idempotencyKey).catch(() => {});
     } catch (error) {
       if (offlineMode) {
         toast.error(error?.message || "This device could not save the sale. Keep the cart open and reconnect before taking payment.");
@@ -809,7 +878,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     const queueIt = async (msg) => {
       if (!recoverySaved) {
         try {
-          await enqueueSale(storeId, payload, actorId);
+          await enqueueSale(storeId, payload, actorId, actorName);
           recoverySaved = true;
         } catch (error) {
           toast.error(error?.message || "Couldn't save this sale offline. The cart has been kept.");
@@ -817,6 +886,9 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           return false;
         }
       }
+      // No live POST is in flight any more, so let the flush have it on
+      // its next tick rather than waiting out the claim's TTL.
+      await releaseSale(payload.idempotencyKey).catch(() => {});
       if (recalledHeldId) {
         await removeHeldSale(recalledHeldId).catch(() => {});
         await loadLocalHeld(openSession.session.id);
@@ -1052,6 +1124,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         onToggleOfflineMode={toggleOfflineMode}
         catalog={catalog}
         onOpenOfflineSetup={() => setOfflineSetupOpen(true)}
+        offlineCashDeltaKobo={offlineCashDeltaKobo}
         onCashDrawer={() => setCashOpen(true)}
         onRefund={isOwner ? () => setRefundOpen(true) : null}
         onXReport={() => setXOpen(true)}
@@ -1248,7 +1321,12 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
       {invoiceRequest && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none">
-          <div className="fixed inset-0 bg-black/50" onClick={invoiceRequestSubmitting ? undefined : () => setInvoiceRequest(null)} />
+          {/* Deliberately not click-to-dismiss. This is a till: a cashier
+              rests a palm on the screen, or taps past the sheet while the
+              customer is still talking, and a half-filled count / refund /
+              tender would vanish with no undo. The X (or Cancel) is the
+              only way out of a POS dialog. */}
+          <div className="fixed inset-0 bg-black/50" />
           <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <div><p className="text-sm font-bold text-slate-900">Request invoice</p><p className="text-xs text-slate-600 mt-0.5">{invoiceRequest.product.name}{invoiceRequest.variant ? ` - ${Object.values(invoiceRequest.variant.options || {}).join(" / ")}` : ""}</p></div>
@@ -1301,6 +1379,8 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           open
           onClose={() => setCloseOpen(false)}
           expectedCashKobo={sessionData.summary?.drawer?.expectedCash ?? 0}
+          offlineCashDeltaKobo={offlineCashDeltaKobo}
+          rejectedCount={rejectedCount}
           heldCount={heldCount}
           pendingSync={pendingSync}
           syncing={syncing}
@@ -1313,6 +1393,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       )}
       {offlineSetupOpen && (
         <OfflineSetupModal
+          onRetryRejected={retryRejected}
           storeId={storeId}
           branchId={registerBranchId}
           catalog={catalog}
@@ -1328,7 +1409,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
       {xOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setXOpen(false)} />
+          <div className="fixed inset-0 bg-black/50" />
           <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <p className="text-sm font-bold text-slate-900">Register status</p>
@@ -1350,7 +1431,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
       {holdPromptOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setHoldPromptOpen(false)} />
+          <div className="fixed inset-0 bg-black/50" />
           <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-xs p-4 space-y-3">
             <p className="text-sm font-bold text-slate-900">Hold this sale</p>
             <p className="text-xs text-slate-800">Give it a name so you can find it again for the customer.</p>
@@ -1377,7 +1458,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
 
       {heldOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setHeldOpen(false)} />
+          <div className="fixed inset-0 bg-black/50" />
           <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-sm max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <p className="text-sm font-bold text-slate-900">Held sales</p>

@@ -6,6 +6,7 @@ import { validate, closeSessionSchema } from "@/lib/validate.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
 import { buildPosSessionSummary, lockPosSession } from "@/lib/posSession.js";
+import { splitCountBreakdown } from "@/lib/pos.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 
 export async function POST(req, { params }) {
@@ -46,17 +47,23 @@ export async function POST(req, { params }) {
       const expectedCash = summary.drawer.expectedCash;
       let countedCash;
       let closeMethod;
+      // Recorded alongside the count but deliberately kept out of it -
+      // see CHANGE_FLOAT_BELOW in lib/pos.js for why counting the float
+      // would make every shift read over.
+      let closingChangeCash = null;
       if (forced) {
         countedCash = expectedCash;
         closeMethod = "forced_uncounted";
       } else if (countBreakdown) {
-        countedCash = Object.entries(countBreakdown).reduce(
-          (sum, [denom, quantity]) => sum + toKobo(Number(denom)) * Number(quantity || 0),
-          0,
-        );
+        // The note-by-note count already says which notes are which, so
+        // the split is derived here rather than trusted from the client.
+        const split = splitCountBreakdown(countBreakdown);
+        countedCash = split.countedKobo;
+        closingChangeCash = split.changeFloatKobo;
         closeMethod = "blind_count";
       } else {
         countedCash = toKobo(result.data.countedCash);
+        closingChangeCash = result.data.closingChangeCash == null ? null : toKobo(result.data.closingChangeCash);
         closeMethod = "blind_count";
       }
 
@@ -65,18 +72,18 @@ export async function POST(req, { params }) {
       const reviewStatus = forced || provisional || Math.abs(overShort) >= 50_000 ? "pending" : "ok";
       const zReport = {
         ...summary, countedCash, expectedCash, overShort, closedBy: ctx.user.id,
-        closeMethod, provisional, pendingSyncCount, reviewStatus,
+        closeMethod, provisional, pendingSyncCount, reviewStatus, closingChangeCash,
       };
       const [closed] = await tx.update(posSessions).set({
         status: "closed", closedBy: ctx.user.id, closedAt: new Date(), countedCash,
-        expectedCash, overShort, closeMethod, countBreakdown: countBreakdown || null,
+        expectedCash, overShort, closeMethod, countBreakdown: countBreakdown || null, closingChangeCash,
         forcedReason: forced ? forcedReason : null, provisional, pendingSyncCount,
         reviewStatus, zReport,
       }).where(and(eq(posSessions.id, id), eq(posSessions.status, "open"))).returning();
       if (!closed) {
         throw Object.assign(new Error("This session is already closed"), { code: "SESSION_CLOSED" });
       }
-      return { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod };
+      return { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod, closingChangeCash };
     });
   } catch (error) {
     if (["NOT_FOUND", "SESSION_CLOSED", "HELD_SALE"].includes(error.code)) {

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { formatKobo } from "@/lib/money.js";
+import { CHANGE_FLOAT_BELOW, splitCountBreakdown } from "@/lib/pos.js";
 import { ZReport } from "./ZReport.js";
 
 // Nigerian cash denominations, high to low (naira).
@@ -18,20 +19,27 @@ const DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5];
 //   { countBreakdown: {denom: qty} } note-by-note count
 //   { forced: true, forcedReason }   couldn't count - use the system figure
 // and resolves to the closed session's zReport (or throws).
-export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount, pendingSync = 0, syncing = false, onSync, onSubmit }) {
+export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCashDeltaKobo = 0, rejectedCount = 0, heldCount, pendingSync = 0, syncing = false, onSync, onSubmit }) {
   const [mode, setMode] = useState("total"); // "total" | "notes"
   const [counted, setCounted] = useState("");
   const [qtys, setQtys] = useState({});
   const [forcing, setForcing] = useState(false);
   const [forcedReason, setForcedReason] = useState("");
+  const [changeFloat, setChangeFloat] = useState("");
   const [ackProvisional, setAckProvisional] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [zReport, setZReport] = useState(null);
 
-  const breakdownKobo = useMemo(
-    () => DENOMS.reduce((sum, d) => sum + d * 100 * (Number(qtys[d]) || 0), 0),
-    [qtys],
-  );
+  // Notes under ₦500 are the change float, not takings - the same split
+  // the server applies when it stores the close (splitCountBreakdown), so
+  // the figure shown while counting is the figure that gets recorded.
+  const split = useMemo(() => {
+    const breakdown = {};
+    for (const d of DENOMS) if (Number(qtys[d]) > 0) breakdown[d] = Number(qtys[d]);
+    return splitCountBreakdown(breakdown);
+  }, [qtys]);
+  const breakdownKobo = split.countedKobo;
+  const changeFloatKobo = split.changeFloatKobo;
   const countedKobo = mode === "notes" ? breakdownKobo : Math.round(Number(counted || 0) * 100);
 
   if (!open) return null;
@@ -41,7 +49,7 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
   const canSubmit = forcing
     ? forcedReason.trim().length > 0
     : mode === "notes"
-      ? breakdownKobo > 0
+      ? breakdownKobo > 0 || changeFloatKobo > 0
       : counted !== "";
 
   const submit = async () => {
@@ -53,7 +61,10 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
         const countBreakdown = {};
         for (const d of DENOMS) if (Number(qtys[d]) > 0) countBreakdown[d] = Number(qtys[d]);
         payload = { countBreakdown };
-      } else payload = { countedCash: Number(counted || 0) };
+      } else {
+        payload = { countedCash: Number(counted || 0) };
+        if (changeFloat !== "") payload.closingChangeCash = Number(changeFloat || 0);
+      }
       const z = await onSubmit(payload);
       if (z) setZReport(z);
     } finally {
@@ -63,7 +74,12 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={submitting ? undefined : onClose} />
+      {/* Deliberately not click-to-dismiss. This is a till: a cashier
+              rests a palm on the screen, or taps past the sheet while the
+              customer is still talking, and a half-filled count / refund /
+              tender would vanish with no undo. The X (or Cancel) is the
+              only way out of a POS dialog. */}
+      <div className="fixed inset-0 bg-black/50" />
       <div className="relative bg-surface rounded-t-sm sm:rounded-sm shadow-xl w-full sm:max-w-md max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <p className="text-sm font-bold text-slate-900">{zReport ? "Register closed" : "Close register"}</p>
@@ -92,6 +108,15 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
                     {pendingSync} sale{pendingSync === 1 ? "" : "s"} on this device {pendingSync === 1 ? "hasn't" : "haven't"} synced.
                     You can still close, the Z will be marked <strong>provisional</strong> and will update when they sync.
                   </p>
+                  {offlineCashDeltaKobo !== 0 && (
+                    // The count stays blind - this is not what the drawer
+                    // should hold, it is how much of the cash in front of
+                    // them the server hasn't been told about, which is what
+                    // makes a provisional Z read short later.
+                    <p className="text-xs text-amber-800">
+                      That accounts for <strong className="tabular-nums">{formatKobo(offlineCashDeltaKobo)}</strong> of cash in this drawer.
+                    </p>
+                  )}
                   <Button type="button" size="sm" variant="outline" onClick={onSync} loading={syncing}>
                     {syncing ? "Syncing…" : `Try sync again`}
                   </Button>
@@ -99,6 +124,18 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
                     <input type="checkbox" checked={ackProvisional} onChange={(e) => setAckProvisional(e.target.checked)} className="mt-0.5" />
                     Close anyway, with provisional figures
                   </label>
+                </div>
+              )}
+
+              {rejectedCount > 0 && (
+                // Different from "not synced yet": the server has refused
+                // these outright, so waiting will not bring them in and
+                // this Z will never contain them.
+                <div className="text-sm bg-red-50 border border-red-200 rounded-sm p-3">
+                  <p className="text-red-800">
+                    {rejectedCount} sale{rejectedCount === 1 ? " was" : "s were"} refused by the server and <strong>will not be in this Z report</strong>.
+                    Open Offline setup to see why.
+                  </p>
                 </div>
               )}
 
@@ -153,6 +190,21 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
                       placeholder="Counted cash total"
                       className="w-full px-3 py-2.5 border border-slate-300 rounded-sm text-lg tabular-nums outline-none focus:border-brand-500"
                     />
+                  ) : null}
+                  {mode === "total" ? (
+                    <div className="space-y-1">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={changeFloat}
+                        onChange={(e) => setChangeFloat(e.target.value)}
+                        placeholder="Change in drawer (optional)"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
+                      />
+                      <p className="text-xs text-slate-700">
+                        The small notes kept for giving change. Recorded separately - it is not counted as takings.
+                      </p>
+                    </div>
                   ) : (
                     <div className="border border-slate-200 rounded-sm divide-y divide-slate-100">
                       {DENOMS.map((d) => (
@@ -174,8 +226,15 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, heldCount,
                         </div>
                       ))}
                       <div className="flex justify-between px-3 py-2 text-sm font-semibold">
-                        <span>Counted</span>
+                        <span>Drawer cash</span>
                         <span className="tabular-nums">{formatKobo(breakdownKobo)}</span>
+                      </div>
+                      <div className="flex items-baseline justify-between gap-2 px-3 py-2 text-sm">
+                        <span className="text-slate-700">
+                          Change float
+                          <span className="block text-[11px] text-slate-600">Notes under ₦{CHANGE_FLOAT_BELOW} - recorded, not counted as takings</span>
+                        </span>
+                        <span className="tabular-nums text-slate-800">{formatKobo(changeFloatKobo)}</span>
                       </div>
                     </div>
                   )}
