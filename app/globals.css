@@ -340,3 +340,28 @@ body {
   }
   .spinner, .spinner-lg { animation-duration: 0.7s !important; animation-iteration-count: infinite !important; }
 }
+
+/* ---------------------------------------------------------------------------
+   Pointer cursor on anything clickable.
+
+   Tailwind v4's preflight dropped v3's `button { cursor: pointer }` and went
+   back to the browser default, which is an arrow. That silently made every
+   button in the app feel inert - a till is mostly buttons, so it was most
+   obvious there. Fixing it here rather than sprinkling `cursor-pointer` over
+   several hundred call sites, which would only ever be as complete as the
+   last person to remember it.
+
+   Disabled controls are excluded so they keep the not-allowed/arrow cursor
+   that says "this isn't available", and individual `disabled:cursor-*`
+   utilities still win on specificity.
+--------------------------------------------------------------------------- */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  select:not(:disabled),
+  summary,
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  label:has(> input[type="radio"]:not(:disabled)) {
+    cursor: pointer;
+  }
+}
