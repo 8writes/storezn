@@ -5,6 +5,7 @@ import { cashMovements } from "@/lib/db/schema.js";
 import { validate, cashMovementSchema } from "@/lib/validate.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
+import { recordSafeMovement } from "@/lib/safe.js";
 import { buildPosSessionSummary, lockPosSession } from "@/lib/posSession.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 
@@ -64,6 +65,28 @@ export async function POST(req, { params }) {
         createdBy: ctx.user.id,
         clientRef,
       }).returning();
+
+      // The safe leg of the same physical move, written in this very
+      // transaction so the two ledgers can never disagree about cash that
+      // moved once. A drop is money arriving in the safe; a paid_in the
+      // cashier marked "from the safe" is money leaving it. Anything else
+      // (a cashier replacing missing cash, petty cash out) has no safe
+      // side and is left alone.
+      const branchId = row.register.branchId;
+      if (result.data.kind === "drop") {
+        await recordSafeMovement(tx, {
+          storeId, branchId, kind: "drop_in", amountKobo: magnitude,
+          reason: result.data.reason, sessionId: id, cashMovementId: created.id,
+          createdBy: ctx.user.id, clientRef: clientRef ? `${clientRef}:safe` : null,
+        });
+      } else if (result.data.kind === "paid_in" && result.data.fromSafe) {
+        await recordSafeMovement(tx, {
+          storeId, branchId, kind: "topup_out", amountKobo: magnitude,
+          reason: result.data.reason, sessionId: id, cashMovementId: created.id,
+          createdBy: ctx.user.id, clientRef: clientRef ? `${clientRef}:safe` : null,
+        });
+      }
+
       return { movement: created, replayed: false };
     }));
   } catch (err) {
@@ -78,7 +101,7 @@ export async function POST(req, { params }) {
         .limit(1);
       if (winner) return NextResponse.json({ movement: winner, replayed: true }, { status: 200 });
     }
-    if (["NOT_FOUND", "SESSION_CLOSED", "INSUFFICIENT_DRAWER_CASH"].includes(err.code)) {
+    if (["NOT_FOUND", "SESSION_CLOSED", "INSUFFICIENT_DRAWER_CASH", "INSUFFICIENT_SAFE_CASH"].includes(err.code)) {
       return NextResponse.json({ error: err.message }, { status: err.code === "NOT_FOUND" ? 404 : 409 });
     }
     throw err;

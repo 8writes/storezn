@@ -329,6 +329,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [tenderOpen, setTenderOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
+  const [safeBalanceKobo, setSafeBalanceKobo] = useState(null);
   const [cashSubmitting, setCashSubmitting] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [xOpen, setXOpen] = useState(false);
@@ -1125,7 +1126,14 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         catalog={catalog}
         onOpenOfflineSetup={() => setOfflineSetupOpen(true)}
         offlineCashDeltaKobo={offlineCashDeltaKobo}
-        onCashDrawer={() => setCashOpen(true)}
+        onCashDrawer={() => {
+          setCashOpen(true);
+          // Best-effort: the sheet still works without it, it just can't
+          // show what the safe holds.
+          apiFetch(`/api/v1/vendor/stores/${storeId}/safe`)
+            .then((data) => setSafeBalanceKobo(Number(data?.balanceKobo ?? 0)))
+            .catch(() => setSafeBalanceKobo(null));
+        }}
         onRefund={isOwner ? () => setRefundOpen(true) : null}
         onXReport={() => setXOpen(true)}
         onCloseRegister={() => setCloseOpen(true)}
@@ -1359,6 +1367,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
       {confirmDialog}
       {cashOpen && (
         <CashDrawerModal
+          safeBalanceKobo={safeBalanceKobo}
           open
           onClose={() => !cashSubmitting && setCashOpen(false)}
           onSubmit={submitCashMovement}

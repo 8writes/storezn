@@ -56,6 +56,7 @@ import {
   FileText,
   Loader2,
   ChevronDown,
+  Vault,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -175,6 +176,7 @@ const NAV_BY_ROLE = {
       title: "Finance",
       items: [
         { href: "/vendor/payouts", label: "Payouts", icon: Wallet },
+        { href: "/vendor/safe", label: "Safe", icon: Vault },
         { href: "/vendor/plus", label: "Storezn Plus", icon: Sparkles },
       ],
     },

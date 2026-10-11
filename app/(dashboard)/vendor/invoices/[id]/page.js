@@ -164,7 +164,7 @@ export default function VendorInvoiceDetailPage({ params }) {
         <div className="flex justify-between text-slate-700"><span>Items subtotal</span><span>{formatCurrency(subtotal)}</span></div>
         {order && (
           <div className="flex justify-between text-slate-700">
-            <span>Platform fee ({order.commissionRatePercent}%{Number(order.flatFeeAmount) > 0 ? ` + ${formatCurrency(order.flatFeeAmount)}` : ""})</span>
+            <span>Paystack Gateway Fee ({order.commissionRatePercent}%{Number(order.flatFeeAmount) > 0 ? ` + ${formatCurrency(order.flatFeeAmount)}` : ""})</span>
             <span>{order.feeChargedToCustomer ? "+" : "-"}{formatCurrency(platformFee)}</span>
           </div>
         )}

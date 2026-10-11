@@ -15,32 +15,27 @@ import { reserveStock, restockItems, resolveFulfillingBranch, OutOfStockError } 
 import { buildRequestUrl } from "../../../../../lib/requestUrl.js";
 import { logAppError } from "../../../../../lib/appErrorLog.js";
 import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
+import { isUniqueViolation, pgError } from "../../../../../lib/dbErrors.js";
 
-// Postgres' unique_violation code - thrown when two simultaneous checkout
-// POSTs race on uq_checkout_attempts_cart_pending (see lib/db/schema.js). We no
-// longer resume/reuse old pending orders for payment; a fresh checkout
-// submit should price the current cart and create a fresh Paystack
-// session. A real race gets a retryable 409 instead of a reused link.
-const UNIQUE_VIOLATION = "23505";
 const CHECKOUT_LINK_TTL_MS = Number(process.env.PAYSTACK_CHECKOUT_LINK_TTL_MINUTES || 30) * 60 * 1000;
 const IN_FLIGHT_CHECKOUT_GRACE_MS = 30_000;
 
+// Two simultaneous checkout POSTs racing on uq_checkout_attempts_cart_pending
+// (see lib/db/schema.js). We no longer resume/reuse old pending orders for
+// payment; a fresh submit prices the current cart and opens a fresh
+// Paystack session, so a real race gets a retryable 409 rather than a
+// reused link.
+//
+// The cause-walking this used to do by hand now lives in lib/dbErrors.js,
+// because the same mistake - reading .code off the drizzle wrapper, where
+// it is always undefined - had silently disabled the identical recovery in
+// eleven other places.
 function isPendingCartConflict(err) {
-  for (let current = err; current; current = current.cause) {
-    if (
-      current.code === UNIQUE_VIOLATION
-      && (
-        current.constraint_name === "uq_orders_cart_pending"
-        || current.constraint === "uq_orders_cart_pending"
-        || current.constraint_name === "uq_checkout_attempts_cart_pending"
-        || current.constraint === "uq_checkout_attempts_cart_pending"
-        || current.detail?.includes("Key (cart_id)=")
-      )
-    ) {
-      return true;
-    }
-  }
-  return false;
+  return (
+    isUniqueViolation(err, "uq_orders_cart_pending")
+    || isUniqueViolation(err, "uq_checkout_attempts_cart_pending")
+    || (isUniqueViolation(err) && (pgError(err)?.detail || "").includes("Key (cart_id)="))
+  );
 }
 
 function checkoutLinkExpiresAt() {
@@ -196,7 +191,7 @@ async function handlePost(req) {
   const configuredFlatFee = Math.max(0, Number(settings?.defaultFlatFee) || 0);
   if (!feeChargedToCustomer && configuredFlatFee > flatFeeAmount + 0.001) {
     return NextResponse.json(
-      { error: "This order total is too low for the store to absorb the full platform fee. Add more items or choose a different store." },
+      { error: "This order total is too low for the store to absorb the full Paystack Gateway Fee. Add more items or choose a different store." },
       { status: 422 },
     );
   }

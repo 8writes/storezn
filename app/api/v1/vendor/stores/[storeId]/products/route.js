@@ -18,6 +18,7 @@ import {
 } from "../../../../../../../lib/productName.js";
 import { barcodeCandidates } from "../../../../../../../lib/barcode.js";
 import { claimStoreUploads, filterStoreOwnedUploadUrls } from "../../../../../../../lib/storeUploads.js";
+import { isUniqueViolation, pgConstraint } from "../../../../../../../lib/dbErrors.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -366,8 +367,8 @@ export async function POST(req, { params }) {
     // `products` has a unique index on both (see lib/db/schema.js) - so
     // the loser of a concurrent create hit an unhandled 500 instead of the
     // same 409 the pre-check would have returned.
-    if (error?.code === "23505") {
-      const constraint = error.constraint_name || error.constraint || "";
+    if (isUniqueViolation(error)) {
+      const constraint = pgConstraint(error) || "";
       if (constraint.includes("slug")) {
         return NextResponse.json({ error: "That product slug already exists" }, { status: 409 });
       }

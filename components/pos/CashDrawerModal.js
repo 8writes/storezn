@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { formatCurrency } from "@/lib/format.js";
+import { formatKobo } from "@/lib/money.js";
 
 // A fresh id each time the modal mounts (it unmounts on close), reused
 // for every retry of THIS action so the server dedupes a flaky-network
@@ -24,11 +25,12 @@ const KINDS = [
 
 // paid_in / paid_out / drop against the open session. Every one needs a
 // reason. Calls onSubmit({ kind, amount, reason }) with amount in naira.
-export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
+export function CashDrawerModal({ open, onClose, onSubmit, submitting, safeBalanceKobo = null }) {
   const [kind, setKind] = useState("paid_out");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [clientRef] = useState(newRef);
+  const [fromSafe, setFromSafe] = useState(false);
   const { confirm, confirmDialog } = useConfirm();
 
   if (!open) return null;
@@ -45,7 +47,7 @@ export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
       confirmLabel: `Record ${active.label.toLowerCase()}`,
       variant: kind === "paid_in" ? "brand" : "danger",
     });
-    if (ok) onSubmit({ kind, amount: Number(amount), reason: reason.trim(), clientRef });
+    if (ok) onSubmit({ kind, amount: Number(amount), reason: reason.trim(), clientRef, fromSafe: kind === "paid_in" && fromSafe });
   };
 
   return (
@@ -94,6 +96,33 @@ export function CashDrawerModal({ open, onClose, onSubmit, submitting }) {
             placeholder="Reason (required)"
             className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
           />
+          {kind === "paid_in" && (
+            // Without this a paid_in is money appearing from nowhere. Tick
+            // it and the same amount is taken off the safe's balance in
+            // the same transaction, so the two ledgers stay in step.
+            <label className="flex items-start gap-2.5 text-sm text-slate-800 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={fromSafe}
+                onChange={(e) => setFromSafe(e.target.checked)}
+                className="mt-0.5 size-4 shrink-0 accent-brand-600"
+              />
+              <span>
+                This cash came from the safe
+                <span className="block text-xs text-slate-600">
+                  {safeBalanceKobo != null
+                    ? `Safe holds ${formatKobo(safeBalanceKobo)}. It will drop to ${formatKobo(Math.max(0, safeBalanceKobo - Math.round(Number(amount || 0) * 100)))}.`
+                    : "Leave unticked if you're replacing missing cash rather than drawing from the safe."}
+                </span>
+              </span>
+            </label>
+          )}
+          {kind === "drop" && safeBalanceKobo != null && (
+            <p className="text-xs text-slate-700">
+              Safe holds {formatKobo(safeBalanceKobo)}. This drop will take it to{" "}
+              {formatKobo(safeBalanceKobo + Math.round(Number(amount || 0) * 100))}.
+            </p>
+          )}
           <Button type="button" fullWidth loading={submitting} disabled={!valid || submitting} onClick={handleSubmit}>
             Record {active.label.toLowerCase()}
           </Button>

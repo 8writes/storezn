@@ -14,6 +14,7 @@ import { invoicePayments } from "../../../../../lib/db/schema.js";
 import { reconcileInvoicePayment } from "../../../../../lib/invoicePayments.js";
 import { sendInvoicePaymentNotifications } from "../../../../../lib/invoiceNotifications.js";
 import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
+import { utcTimestampLiteral } from "../../../../../lib/sqlTime.js";
 
 // Storezn+ subscription lifecycle - separate from the order-payment flow
 // below, see lib/storePlan.js's getEffectivePlan for how these fields
@@ -29,41 +30,50 @@ import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 const PAID_PLAN = sql`case when ${stores.plan} = 'enterprise' then 'enterprise' else 'plus' end`;
 
 // Same reasoning for the renewal date: a 31-day renewal must not shorten
-// a longer manually-granted term that is still running.
-//
-// The bound value MUST be a string, never a Date. Inside a raw sql``
-// template there is no column in play, so drizzle has no mapToDriverValue
-// to convert with and hands the value straight to postgres-js, which
-// cannot serialise a Date for an explicitly-cast parameter - it throws
-// `The "string" argument must be of type string ... Received an instance
-// of Date` and the whole webhook 500s. (It only looks fine on a normal
-// .set({ planRenewsAt: date }) because the column mapper runs there.)
-// "YYYY-MM-DD HH:MM:SS.sss" in UTC is what plan_renews_at already stores,
-// so ::timestamp parses it with no offset guesswork.
-function utcTimestampLiteral(date) {
-  return date.toISOString().replace("T", " ").replace("Z", "");
-}
-
+// a longer manually-granted term that is still running. The bound value
+// must be a string, never a Date - see lib/sqlTime.js for why.
 function extendedRenewal(nextPaymentDate) {
   const next = nextPaymentDate ? new Date(nextPaymentDate) : new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
   const literal = utcTimestampLiteral(Number.isNaN(next.getTime()) ? new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) : next);
   return sql`greatest(coalesce(${stores.planRenewsAt}, ${literal}::timestamp), ${literal}::timestamp)`;
 }
 
-// paystackReference is unique, so this is the actual idempotency gate for
-// the whole subscription flow below, not just a ledger write - a Paystack
-// webhook retry (fired on any non-2xx response) or a replayed valid
-// payload carries the identical reference, so onConflictDoNothing's
-// `.returning()` comes back empty and the caller knows not to extend
-// planRenewsAt a second time for a charge already recorded once.
-async function recordSubscriptionTransaction({ storeId, amount, reference, paidAt }) {
+// Records the charge AND applies the plan in one transaction.
+//
+// These used to be two steps: insert the ledger row, check whether it was
+// new, then update the store. paystackReference is unique, so the insert
+// is the idempotency gate - which meant that if anything failed after it
+// (as a serialisation bug in extendedRenewal once did, for every renewal),
+// the charge was permanently recorded as handled while the plan was never
+// applied. Every Paystack retry then short-circuited on "already recorded"
+// and the store had to be repaired by hand.
+//
+// In one transaction the ledger row rolls back with the failure, so a
+// retry genuinely redoes both halves. Returns true when this call is the
+// one that applied it.
+async function applySubscriptionCharge({ storeId, amount, reference, paidAt, nextPaymentDate, extra = {} }) {
   if (!storeId || !reference) return false;
-  const [inserted] = await db
-    .insert(storeSubscriptionTransactions)
-    .values({ storeId, amount, paystackReference: reference, paidAt: paidAt ? new Date(paidAt) : new Date() })
-    .onConflictDoNothing()
-    .returning({ id: storeSubscriptionTransactions.id });
-  return !!inserted;
+  return db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(storeSubscriptionTransactions)
+      .values({ storeId, amount, paystackReference: reference, paidAt: paidAt ? new Date(paidAt) : new Date() })
+      .onConflictDoNothing()
+      .returning({ id: storeSubscriptionTransactions.id });
+    // A redelivered or replayed webhook carries the identical reference -
+    // it must not push planRenewsAt another month out for free.
+    if (!inserted) return false;
+
+    await tx
+      .update(stores)
+      .set({
+        plan: PAID_PLAN,
+        planCancelled: false,
+        planRenewsAt: extendedRenewal(nextPaymentDate),
+        ...extra,
+      })
+      .where(eq(stores.id, storeId));
+    return true;
+  });
 }
 
 // The initial subscribe payment - we generate this charge ourselves (see
@@ -79,23 +89,16 @@ async function handleSubscriptionCharge(event) {
   // Paystack reports, not the amount the payload claims.
   const verified = await verifyTransaction(event.data?.reference);
   if (verified.paymentStatus !== "PAID") return;
-  const isNewCharge = await recordSubscriptionTransaction({
+  // charge.success fires before subscription.create - this marks the store
+  // Plus immediately so the vendor isn't waiting on two webhooks in
+  // sequence; subscription.create fills in the authoritative subscription
+  // code/token/renewal date moments later.
+  await applySubscriptionCharge({
     storeId,
     amount: verified.amountPaid,
     reference: event.data?.reference,
     paidAt: event.data?.paid_at,
   });
-  // Already recorded this exact charge - a redelivered/replayed webhook
-  // must not push planRenewsAt another 31 days out for free.
-  if (!isNewCharge) return;
-  // charge.success fires before subscription.create - this just marks the
-  // store Plus immediately so the vendor isn't waiting on two webhooks in
-  // sequence; subscription.create (below) fills in the authoritative
-  // subscription code/token/renewal date moments later.
-  await db
-    .update(stores)
-    .set({ plan: PAID_PLAN, planCancelled: false, planRenewsAt: extendedRenewal() })
-    .where(eq(stores.id, storeId));
 }
 
 // Every renewal after the first - Paystack initiates these itself, so
@@ -118,18 +121,13 @@ async function handleSubscriptionRenewal(event) {
 
   const verified = await verifyTransaction(event.data?.reference);
   if (verified.paymentStatus !== "PAID") return;
-  const isNewCharge = await recordSubscriptionTransaction({
+  await applySubscriptionCharge({
     storeId,
     amount: verified.amountPaid,
     reference: event.data?.reference,
     paidAt: event.data?.paid_at,
+    nextPaymentDate: event.data?.next_payment_date,
   });
-  if (!isNewCharge) return;
-
-  await db
-    .update(stores)
-    .set({ plan: PAID_PLAN, planCancelled: false, planRenewsAt: extendedRenewal() })
-    .where(eq(stores.id, storeId));
 }
 
 async function findStoreForSubscriptionEvent(event) {

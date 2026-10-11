@@ -8,6 +8,7 @@ import { restockItems } from "@/lib/inventory.js";
 import { logStoreActivity, actorLabel } from "@/lib/storeActivity.js";
 import { formatCurrency } from "@/lib/format.js";
 import { withApiMonitoring } from "@/lib/apiMonitoring.js";
+import { isUniqueViolation } from "@/lib/dbErrors.js";
 
 // A refund the STORE starts, rather than one the buyer asked for.
 //
@@ -150,7 +151,7 @@ async function handlePost(req, { params }) {
     return NextResponse.json({ order: updated, refund: recorded }, { status: 201 });
   } catch (err) {
     // uq_refund_requests_order_id - a second submit raced the first.
-    if (err?.code === "23505") {
+    if (isUniqueViolation(err)) {
       return NextResponse.json({ error: "A refund has already been recorded for this order" }, { status: 409 });
     }
     throw err;

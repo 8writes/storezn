@@ -765,7 +765,7 @@ export default function VendorSettingsPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-slate-700">
-                    Who pays the platform fee?
+                    Who pays the Paystack Gateway Fee?
                   </label>
                   {commissionRate != null && (
                     <Badge color="slate">
@@ -775,7 +775,7 @@ export default function VendorSettingsPage() {
                   )}
                   <InfoTip>
                     {form.feeChargedToCustomer
-                      ? 'Shown as a separate "Platform fee" at checkout, added on top of the total. You receive your full subtotal + shipping.'
+                      ? 'Shown as a separate "Paystack Gateway Fee" at checkout, added on top of the total. You receive your full subtotal + shipping.'
                       : "Commission is deducted from your payout. Customers never see it, they just pay the order total."}
                   </InfoTip>
                 </div>

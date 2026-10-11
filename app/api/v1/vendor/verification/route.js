@@ -7,6 +7,8 @@ import { validate, submitNinSchema } from "../../../../../lib/validate.js";
 import { sendPushToRole, sendPushToUser } from "../../../../../lib/push.js";
 import { decryptNin } from "../../../../../lib/nin.js";
 import { verifyNinWithVerifyGuru } from "../../../../../lib/verifyGuru.js";
+import { alertAdmins } from "../../../../../lib/adminAlerts.js";
+import { sendVendorVerifiedEmail } from "../../../../../lib/verificationNotifications.js";
 
 export async function GET(req) {
   const user = await getUser(req);
@@ -57,6 +59,7 @@ export async function POST(req) {
     firstName: user.firstName,
     lastName: user.lastName,
   });
+  
   const autoApproved = autoVerification.approved;
 
   const [updated] = await db
@@ -65,7 +68,11 @@ export async function POST(req) {
       nin: result.data.nin,
       ninSubmittedAt: new Date(),
       approvalStatus: autoApproved ? "approved" : "pending",
-      approvalReviewNote: autoApproved ? "Auto-approved by VerifyGuru NIN verification." : null,
+      approvalReviewNote: autoApproved
+        ? "Auto-approved: the NIN is registered to this vendor's name."
+        : autoVerification.attempted
+          ? `Needs manual review - ${autoVerification.reason}`
+          : null,
       approvalReviewedBy: null,
       approvalReviewedAt: autoApproved ? new Date() : null,
     })
@@ -76,7 +83,7 @@ export async function POST(req) {
     if (autoApproved) {
       sendPushToUser(updated.id, {
         title: "You're verified!",
-        body: "Your identity was verified automatically - your store is now live and can take orders.",
+        body: "Your identity was verified - your store is now live and can take orders.",
         url: "/vendor/verification",
       }).catch((err) => console.error("sendPushToUser failed (NIN auto-approval):", err));
       sendPushToRole("super_admin", {

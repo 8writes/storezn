@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../../lib/auth.js";
 import { validate, reviewVendorApprovalSchema } from "../../../../../../lib/validate.js";
 import { sendPushToUser } from "../../../../../../lib/push.js";
+import { sendVendorVerifiedEmail } from "../../../../../../lib/verificationNotifications.js";
 import { logActivity } from "../../../../../../lib/activityLog.js";
 import { deleteVendorAccount } from "../../../../../../lib/deleteVendor.js";
 
@@ -69,6 +70,15 @@ export async function PATCH(req, { params }) {
         : reviewNote || "Your NIN submission was rejected. Check your verification page for details.",
     url: "/vendor/verification",
   }).catch((err) => console.error("sendPushToUser failed (vendor verification decision):", err));
+
+  // Same email the automatic path sends, so a vendor cleared by hand
+  // hears it the same way - a push alone is missed if their phone was
+  // locked, and this is the message that says they can start trading.
+  if (decision === "approved") {
+    sendVendorVerifiedEmail(updated, { reviewedByTeam: true }).catch((err) =>
+      console.error("sendVendorVerifiedEmail failed (manual approval):", err),
+    );
+  }
 
   await logActivity({
     user,

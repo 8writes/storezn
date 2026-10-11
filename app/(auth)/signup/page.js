@@ -138,6 +138,14 @@ function VendorSignupForm() {
       />
 
       <div className="pt-2 border-t border-slate-100 space-y-4">
+        {/* Said before the fields, not after: verification checks these two
+            names against the NIN the vendor submits later, and a nickname
+            or a business name here means that check can't clear them and
+            their store waits on a person to review it by hand. */}
+        <p className="rounded-sm border border-amber-200 bg-amber-100 px-3 py-2 text-sm text-amber-900">
+          Use your <strong>real first and last name</strong>, exactly as they appear on your NIN. We check them against
+          it when verifying your store - a nickname or your business name here will hold your store up.
+        </p>
         <div className="grid grid-cols-2 gap-4">
           <Input label="First name" value={form.vendor.firstName} onChange={setVendorField("firstName")} required />
           <Input label="Last name" value={form.vendor.lastName} onChange={setVendorField("lastName")} required />

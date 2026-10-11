@@ -183,7 +183,7 @@ export default function VendorOrderDetailPage({ params }) {
           ? []
           : [
               {
-                label: `Platform fee (${order.commissionRatePercent}%${order.flatFeeAmount > 0 ? ` + ${formatCurrency(order.flatFeeAmount)}` : ""})`,
+                label: `Paystack Gateway Fee (${order.commissionRatePercent}%${order.flatFeeAmount > 0 ? ` + ${formatCurrency(order.flatFeeAmount)}` : ""})`,
                 value: -(order.commissionAmount + (order.flatFeeAmount || 0)),
               },
             ]),
@@ -260,7 +260,7 @@ export default function VendorOrderDetailPage({ params }) {
           <div className="pt-2 border-t border-slate-100">
             <div className="flex justify-between text-sm text-slate-800">
               <span>
-                Platform fee ({order.commissionRatePercent}%
+                Paystack Gateway Fee ({order.commissionRatePercent}%
                 {order.flatFeeAmount > 0 ? ` + ${formatCurrency(order.flatFeeAmount)}` : ""})
               </span>
               <span>-{formatCurrency(order.commissionAmount + (order.flatFeeAmount || 0))}</span>

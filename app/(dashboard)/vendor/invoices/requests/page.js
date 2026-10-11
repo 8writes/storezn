@@ -230,10 +230,10 @@ export default function VendorInvoiceRequestsPage() {
             </div>
             <div className="border-t border-slate-200 pt-4 space-y-3">
               <div className="flex justify-between text-sm"><span>Quote subtotal</span><strong>{formatCurrency(total)}</strong></div>
-              {feePolicy?.feeChargedToCustomer && invoiceTotals.commissionAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Platform fee ({feePolicy.commissionRatePercent}%)</span><strong>{formatCurrency(invoiceTotals.commissionAmount)}</strong></div>}
+              {feePolicy?.feeChargedToCustomer && invoiceTotals.commissionAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Paystack Gateway Fee ({feePolicy.commissionRatePercent}%)</span><strong>{formatCurrency(invoiceTotals.commissionAmount)}</strong></div>}
               {feePolicy?.feeChargedToCustomer && invoiceTotals.flatFeeAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Flat fee</span><strong>{formatCurrency(invoiceTotals.flatFeeAmount)}</strong></div>}
               <div className="flex justify-between text-sm"><span>Customer total</span><strong>{formatCurrency(invoiceTotals.totalAmount)}</strong></div>
-              {!feePolicy?.feeChargedToCustomer && invoiceTotals.platformFeeAmount > 0 && <p className="text-xs text-slate-600">Your store absorbs {formatCurrency(invoiceTotals.platformFeeAmount)} in platform fees.</p>}
+              {!feePolicy?.feeChargedToCustomer && invoiceTotals.platformFeeAmount > 0 && <p className="text-xs text-slate-600">Your store absorbs {formatCurrency(invoiceTotals.platformFeeAmount)} in Paystack Gateway Fees.</p>}
               <Select label="Payment plan" options={[{ value: "full", label: "Full payment" }, { value: "deposit", label: "50/50 deposit" }]} value={plan} onChange={setPlan} />
               {plan === "deposit" && <div className="flex justify-between text-sm text-slate-700"><span>First payment (50%)</span><strong>{formatCurrency(Math.round(invoiceTotals.totalAmount * 50) / 100)}</strong></div>}
               <Button onClick={createInvoice} loading={sending} fullWidth>Create invoice and copy link</Button>

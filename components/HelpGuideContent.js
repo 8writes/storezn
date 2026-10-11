@@ -207,7 +207,7 @@ const SECTIONS = [
     cards: [
       card("When you get paid", "Online orders settle to your linked bank account the next business day (weekends roll to Monday). \"Check settlements\" on the Payouts page pulls the latest status from Paystack."),
       card("Offline orders", "Nothing to wait for - you took that payment in person."),
-      card("The platform fee", "One fee per online order: a percentage plus a small flat amount, shown on each order as \"Platform fee (x% + ₦…)\"."),
+      card("The Paystack Gateway Fee", "One fee per online order: a percentage plus a small flat amount, shown on each order as \"Paystack Gateway Fee (x% + ₦…)\"."),
       card("Who pays it", "Your choice in Store settings → Fees. Either you absorb it from your payout, or it's added on top of what the customer pays at checkout."),
     ],
   },

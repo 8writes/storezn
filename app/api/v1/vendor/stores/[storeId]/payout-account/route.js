@@ -5,7 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { getUser, isStoreOwner } from "../../../../../../../lib/auth.js";
 import { validate, linkPayoutAccountSchema } from "../../../../../../../lib/validate.js";
 import { getBanks, ensureSubAccount } from "../../../../../../../lib/paystack.js";
-import { sendPushToRole } from "../../../../../../../lib/push.js";
+import { alertAdmins } from "../../../../../../../lib/adminAlerts.js";
 import { logAppError } from "../../../../../../../lib/appErrorLog.js";
 import { withApiMonitoring } from "../../../../../../../lib/apiMonitoring.js";
 
@@ -90,11 +90,21 @@ async function handlePost(req, { params }) {
     // this point (ensureSubAccount above), this just flags it for a human
     // to review/approve in the Paystack dashboard. A failed push shouldn't
     // fail the vendor's request, so this is fire-and-forget.
-    sendPushToRole("super_admin", {
+    // Push AND email: money is about to start routing to this account,
+    // so it is worth someone actually seeing. Only the last four digits
+    // travel - the full account number stays out of inboxes.
+    alertAdmins({
+      req,
       title: "New payout account linked",
-      body: `${updated.name} linked ***${accountNumber.slice(-4)} at ${bankName || bankCode} (${subAccount.accountName})`,
+      body: `${updated.name} linked a bank account for payouts.`,
       url: `/super-admin/stores/${storeId}`,
-    }).catch((err) => console.error("payout-account: admin push failed", err));
+      lines: [
+        `Store: ${updated.name}`,
+        `Bank: ${bankName || bankCode}`,
+        `Account: ***${accountNumber.slice(-4)} (${subAccount.accountName})`,
+        "Review it in the Paystack dashboard if anything looks off.",
+      ],
+    }).catch((err) => console.error("payout-account: admin alert failed", err));
 
     return NextResponse.json({ store: updated });
   } catch (err) {

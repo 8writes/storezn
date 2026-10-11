@@ -203,7 +203,7 @@ export default function SuperAdminSettingsPage() {
           </div>
           <Input label="Default commission rate (%)" type="number" min="0" max="100" step="0.1" value={rate} onChange={(e) => setRate(e.target.value)} />
           <div>
-            <Input label="Platform fee cap (₦ per order, optional)" type="number" min="0" step="1" placeholder="No cap" value={cap} onChange={(e) => setCap(e.target.value)} />
+            <Input label="Paystack Gateway Fee cap (₦ per order, optional)" type="number" min="0" step="1" placeholder="No cap" value={cap} onChange={(e) => setCap(e.target.value)} />
             <p className="text-xs text-slate-800 mt-1">
               The platform never takes more than this per order in total - commission plus the flat fee below combined, regardless of the rate above or the order&apos;s subtotal. The flat fee always stays intact; the percentage commission is what shrinks to fit under the cap. Leave blank for no cap.
             </p>

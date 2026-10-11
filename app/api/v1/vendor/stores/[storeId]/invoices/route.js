@@ -35,6 +35,7 @@ import {
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 import { buildPublicAppUrl } from "../../../../../../../lib/requestUrl.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
+import { isUniqueViolation } from "@/lib/dbErrors.js";
 
 const invoiceNumber = () =>
   `INV-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
@@ -260,7 +261,7 @@ async function handlePost(req, { params }) {
     return NextResponse.json(
       {
         error:
-          "This invoice total is too low for the store to absorb the full platform fee. Increase the quoted price before creating the invoice.",
+          "This invoice total is too low for the store to absorb the full Paystack Gateway Fee. Increase the quoted price before creating the invoice.",
       },
       { status: 422 },
     );
@@ -445,8 +446,7 @@ async function handlePost(req, { params }) {
   } catch (error) {
     if (
       error instanceof InvoiceConflictError ||
-      (error?.code === "23505" &&
-        error?.constraint === "uq_invoices_request_id")
+      isUniqueViolation(error, "uq_invoices_request_id")
     )
       return NextResponse.json(
         { error: "This request has already been converted" },

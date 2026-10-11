@@ -4,6 +4,7 @@ import { orders, refundRequests, stores } from "../../../../../../../lib/db/sche
 import { eq } from "drizzle-orm";
 import { getUser } from "../../../../../../../lib/auth.js";
 import { validate, requestRefundSchema } from "../../../../../../../lib/validate.js";
+import { isUniqueViolation } from "@/lib/dbErrors.js";
 
 export async function POST(req, { params }) {
   const user = await getUser(req);
@@ -48,7 +49,7 @@ export async function POST(req, { params }) {
     // uq_refund_requests_order_id - a second submit that raced past the
     // existence check above. The first one is already recorded; treat
     // this as the same "already exists" answer.
-    if (err?.code === "23505") {
+    if (isUniqueViolation(err)) {
       return NextResponse.json({ error: "A refund request already exists for this order" }, { status: 409 });
     }
     throw err;

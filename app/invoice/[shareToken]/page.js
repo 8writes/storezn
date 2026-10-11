@@ -115,7 +115,7 @@ export default function PublicInvoicePage({ params }) {
           )}
           {invoice.commissionAmount > 0 && (
             <div className="flex justify-between text-sm text-slate-700">
-              <span>Platform fee ({invoice.commissionRatePercent}%)</span>
+              <span>Paystack Gateway Fee ({invoice.commissionRatePercent}%)</span>
               <span>{formatCurrency(invoice.commissionAmount)}</span>
             </div>
           )}

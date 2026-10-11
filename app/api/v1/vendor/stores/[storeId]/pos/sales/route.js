@@ -13,6 +13,7 @@ import { posContext, loadSession, loadSessionAny } from "@/lib/posAccess.js";
 import { buildPosSessionSummary, lockPosSession, reconcileClosedPosSession } from "@/lib/posSession.js";
 import { logAppError } from "@/lib/appErrorLog.js";
 import { withApiMonitoring } from "@/lib/apiMonitoring.js";
+import { isUniqueViolation } from "@/lib/dbErrors.js";
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -537,7 +538,7 @@ async function handlePost(req, { params }) {
       if (err instanceof OutOfStockError) {
         return NextResponse.json({ error: err.message }, { status: 409 });
       }
-      if (err?.code === UNIQUE_VIOLATION) {
+      if (isUniqueViolation(err)) {
         // Idempotent replay that raced this request in.
         const [dupe] = await db.select().from(orders).where(and(eq(orders.paymentReference, paymentReference), eq(orders.storeId, storeId))).limit(1);
         if (dupe) {

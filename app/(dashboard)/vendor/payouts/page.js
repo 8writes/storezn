@@ -209,7 +209,7 @@ export default function VendorPayoutsPage() {
       <div className="space-y-6">
         <PageHeader
           title="Payouts"
-          description="Track Paystack settlement, offline collections, platform fees, and the money due to your store."
+          description="Track Paystack settlement, offline collections, gateway fees, and the money due to your store."
         />
         <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
           <Skeleton className="h-4 w-40" />
@@ -231,7 +231,7 @@ export default function VendorPayoutsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Payouts"
-        description="Track Paystack settlement, offline collections, platform fees, and the money due to your store."
+        description="Track Paystack settlement, offline collections, gateway fees, and the money due to your store."
       />
 
       <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">

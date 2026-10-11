@@ -116,6 +116,16 @@ export default function VendorVerificationPage() {
                 Why do we need your NIN? It confirms you&apos;re a real person behind this store - this is for fraud prevention, so buyers can trust who they&apos;re paying and we can catch impersonation or stolen-identity stores before they take orders. It&apos;s never shown publicly.
               </InfoTip>
             </div>
+            {/* Shows the exact name this NIN will be checked against, so
+                someone who signed up as "Mama T Stores" sees the problem
+                now rather than waiting days for a manual review to tell
+                them. See namesLookConsistent in lib/verifyGuru.js. */}
+            <p className="mb-2 rounded-sm border border-amber-200 bg-amber-100 px-3 py-2 text-sm text-amber-900">
+              This NIN must be registered to{" "}
+              <strong>{[user?.firstName, user?.lastName].filter(Boolean).join(" ") || "the name on your account"}</strong>
+              {" "}&mdash; that&apos;s the name on your account, and we check it against your NIN. If it isn&apos;t your
+              real name, change it in your profile first, or verification will have to wait for a manual review.
+            </p>
             <Input
               placeholder="12345678901"
               maxLength={11}

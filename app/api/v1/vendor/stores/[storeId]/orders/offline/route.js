@@ -13,6 +13,7 @@ import { formatCurrency } from "../../../../../../../../lib/format.js";
 import { computeWholesalePrice } from "../../../../../../../../lib/pricing.js";
 import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
 import { reserveStock, OutOfStockError } from "../../../../../../../../lib/inventory.js";
+import { isUniqueViolation } from "@/lib/dbErrors.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -231,7 +232,7 @@ export async function POST(req, { params }) {
     }
     // Lost the idempotency race - the winning submit's order is the one
     // this caller wanted anyway.
-    if (err?.code === "23505" && paymentReference) {
+    if (isUniqueViolation(err) && paymentReference) {
       const [dupe] = await db
         .select()
         .from(orders)

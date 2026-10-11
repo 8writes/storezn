@@ -11,6 +11,7 @@ import { getStaffLimit } from "../../../../../../../lib/storePlan.js";
 import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 import { emailBrand, emailButton } from "../../../../../../../lib/email/templates.js";
 import { buildRequestUrl } from "../../../../../../../lib/requestUrl.js";
+import { isUniqueViolation } from "@/lib/dbErrors.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -162,7 +163,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
     // uq_staff_store_email - the existence check above is not atomic.
-    if (err?.code === "23505") {
+    if (isUniqueViolation(err)) {
       return NextResponse.json({ error: "That email is already a staff member here" }, { status: 409 });
     }
     throw err;

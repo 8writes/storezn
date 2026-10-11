@@ -7,6 +7,7 @@ import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadRegister } from "@/lib/posAccess.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 import { parsePagination } from "@/lib/pagination.js";
+import { isUniqueViolation } from "@/lib/dbErrors.js";
 
 // GET  -> recent sessions for the store (for the session/Z-report list),
 //         newest first, register name joined.
@@ -107,7 +108,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ session }, { status: 201 });
   } catch (err) {
     // uq_pos_sessions_open_register - a session is already open here.
-    if (err?.code === "23505") {
+    if (isUniqueViolation(err)) {
       return NextResponse.json({ error: "This register already has an open session" }, { status: 409 });
     }
     throw err;

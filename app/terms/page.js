@@ -51,7 +51,7 @@ export default function TermsPage() {
               Each vendor chooses, for their own store, who pays this commission: by default the vendor absorbs it (it
               is deducted from their payout, and the customer pays exactly the listed price plus shipping), or the
               vendor may instead choose to pass it on, in which case it is added on top and shown to the customer as a
-              separate &quot;Platform fee&quot; line at checkout. This choice can be changed at any time from the store&apos;s
+              separate &quot;Paystack Gateway Fee&quot; line at checkout. This choice can be changed at any time from the store&apos;s
               settings and applies to every order placed after the change.
             </p>
             <p>

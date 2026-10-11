@@ -16,11 +16,12 @@ import {
   productNameKeyExpression,
   PRODUCT_NAME_TAKEN_MESSAGE,
 } from "../../../../../../../../lib/productName.js";
+import { isUniqueViolation } from "@/lib/dbErrors.js";
 
 const MAX_ROWS = 500;
 
 function isSkuUniqueViolation(error) {
-  return error?.code === "23505" && error?.constraint_name === "uq_products_store_sku";
+  return isUniqueViolation(error, "uq_products_store_sku");
 }
 
 async function loadStore(storeId) {

@@ -12,6 +12,7 @@ import { resolveShippingFee, canDeliverTo } from "../../../../../lib/shipping.js
 import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { sql } from "drizzle-orm";
+import { isUniqueViolation } from "../../../../../lib/dbErrors.js";
 
 function withGuestTokenCookie(res, guestToken, isNewToken) {
   if (isNewToken) {
@@ -70,7 +71,7 @@ async function handleGet(req) {
 }
 
 // Live preview of what checkout will actually charge/split, so the cart
-// and checkout pages can show the same "Platform fee"/shipping lines (or
+// and checkout pages can show the same "Paystack Gateway Fee"/shipping lines (or
 // hide them entirely) that POST /api/v1/storefront/checkout will compute
 // for real - see lib/orders.js's computeOrderTotals for the shared math.
 // store.feeChargedToCustomer is the vendor's own choice for their store
@@ -176,7 +177,7 @@ async function handlePost(req) {
     try {
       await db.insert(cartItems).values({ cartId: cart.id, productId, variantId: variant?.id || null, quantity, customerFields: snapshotCustomerFieldAnswers(product.customerFields, answers.data), customizationKey });
     } catch (err) {
-      if (err?.code !== "23505") throw err;
+      if (!isUniqueViolation(err)) throw err;
       await db.update(cartItems).set({ quantity: sql`${cartItems.quantity} + ${quantity}` }).where(and(eq(cartItems.cartId, cart.id), eq(cartItems.productId, productId), eq(cartItems.customizationKey, customizationKey), variant?.id ? eq(cartItems.variantId, variant.id) : isNull(cartItems.variantId)));
     }
   }
