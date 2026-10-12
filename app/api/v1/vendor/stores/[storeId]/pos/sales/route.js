@@ -240,7 +240,7 @@ async function handlePost(req, { params }) {
 
   // computeOrderTotals stays the single place order economics are
   // derived - for POS it just passes the (already discounted) subtotal
-  // through with every platform fee at 0, exactly like a manual offline
+  // through with every payment processing fee at 0, exactly like a manual offline
   // order.
   const totals = computeOrderTotals({
     subtotal: toNaira(totalKobo),

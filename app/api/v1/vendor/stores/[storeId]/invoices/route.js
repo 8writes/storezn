@@ -122,7 +122,7 @@ export async function GET(req, { params }) {
         5,
       flatFee: settings?.defaultFlatFee ?? 0,
       maxCommissionAmount: settings?.maxCommissionAmount ?? null,
-      feeChargedToCustomer: store.feeChargedToCustomer ?? false,
+      feeChargedToCustomer: store.feeChargedToCustomer ?? true,
     },
   });
 }
@@ -244,7 +244,7 @@ async function handlePost(req, { params }) {
   const settings = settingsRows[0];
   const commissionRatePercent =
     store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
-  const feeChargedToCustomer = store.feeChargedToCustomer ?? false;
+  const feeChargedToCustomer = store.feeChargedToCustomer ?? true;
   const totals = computeOrderTotals({
     subtotal,
     shippingFee: 0,

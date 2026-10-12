@@ -9,7 +9,7 @@ const base = {
   flatFee: 500,
 };
 
-test("flat fee is deducted from the vendor payout when the vendor absorbs platform fees", () => {
+test("flat fee is deducted from the vendor payout when the vendor absorbs payment processing fees", () => {
   assert.deepEqual(computeOrderTotals({ ...base, feeChargedToCustomer: false }), {
     totalAmount: 11_000,
     commissionAmount: 500,
@@ -19,7 +19,7 @@ test("flat fee is deducted from the vendor payout when the vendor absorbs platfo
   });
 });
 
-test("flat fee is added to the customer charge when the customer pays platform fees", () => {
+test("flat fee is added to the customer charge when the customer pays payment processing fees", () => {
   assert.deepEqual(computeOrderTotals({ ...base, feeChargedToCustomer: true }), {
     totalAmount: 12_000,
     commissionAmount: 500,

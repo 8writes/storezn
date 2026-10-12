@@ -174,7 +174,7 @@ async function handlePost(req) {
   const commissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
   // The vendor's own choice for their store (see updateVendorStoreSchema),
   // not a platform-wide setting.
-  const feeChargedToCustomer = store.feeChargedToCustomer ?? false;
+  const feeChargedToCustomer = store.feeChargedToCustomer ?? true;
   const { subtotal } = computeCartTotals(items);
   const { fee: resolvedShippingFee, isTBD: shippingFeeTBD } = needsShipping
     ? await resolveShippingFee(store, shippingAddress)

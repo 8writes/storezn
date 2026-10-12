@@ -459,7 +459,7 @@ Before modifying:
 * subaccounts
 * split payments
 * settlement behavior
-* platform fees
+* payment processing fees (Platform fee)
 
 inspect the complete existing payment implementation.
 

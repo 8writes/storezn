@@ -79,7 +79,7 @@ async function handleGet(req) {
 async function computeDisplayFees(store, subtotal, shippingFee) {
   const [settings] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
   const commissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
-  const feeChargedToCustomer = store.feeChargedToCustomer ?? false;
+  const feeChargedToCustomer = store.feeChargedToCustomer ?? true;
   const { totalAmount, platformFeeAmount, flatFeeAmount } = computeOrderTotals({
     subtotal,
     shippingFee,
