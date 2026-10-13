@@ -131,7 +131,7 @@ export default function VendorOrdersPage() {
         actions={
           <Link href="/vendor/orders/new">
             <Button type="button" size="sm" variant="outline">
-              <Plus size={14} /> Record a past sale
+              <Plus size={14} /> Record Offline Order
             </Button>
           </Link>
         }

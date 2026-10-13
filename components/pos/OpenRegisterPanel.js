@@ -71,7 +71,7 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, onResume, openin
         <p className="text-xs text-slate-400">
           Just logging a sale that already happened?{" "}
           <Link href="/vendor/orders/new" className="underline hover:text-slate-600">
-            Record a past sale
+            Record Offline Order
           </Link>
         </p>
       </div>

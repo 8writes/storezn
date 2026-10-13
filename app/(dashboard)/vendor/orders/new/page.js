@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -17,7 +16,7 @@ import { formatCurrency } from "@/lib/format.js";
 import { isPlusStore } from "@/lib/storePlan.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
-import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, X } from "lucide-react";
 import { FeatureLocked } from "@/components/ui/FeatureLocked.js";
 
 // Manually recording a sale that already happened - in person, by phone,
@@ -39,8 +38,10 @@ export default function RecordPastSalePage() {
   const [buyer, setBuyer] = useState({ buyerName: "Walk In Customer", buyerPhone: "", buyerEmail: "", note: "", delivered: true });
   const [pay, setPay] = useState({ method: "cash", provider: "Moniepoint" }); // method: cash | card | transfer
   const [submitting, setSubmitting] = useState(false);
+  // Mobile only: the sale panel is a sheet rather than a column far below
+  // the product list. Ignored from lg up, where both show side by side.
+  const [sheetOpen, setSheetOpen] = useState(false);
 
-  const isOwner = user?.role === "vendor";
   const branchScoped = user?.role === "staff" && !!user?.branchId;
 
   useEffect(() => {
@@ -95,6 +96,7 @@ export default function RecordPastSalePage() {
     [cart, details],
   );
   const total = lines.reduce((s, l) => s + l.lineTotal, 0);
+  const itemCount = lines.reduce((s, l) => s + l.quantity, 0);
   const countByProduct = useMemo(() => {
     const m = new Map();
     for (const l of lines) m.set(l.productId, (m.get(l.productId) || 0) + l.quantity);
@@ -158,11 +160,11 @@ export default function RecordPastSalePage() {
       <PageHeader
         title={
           <span className="inline-flex items-center gap-1.5">
-            Record a past sale
+            Record Offline Order
             <InfoTip>For a sale that already happened - in person, by phone, or by transfer. Recorded as paid, stock deducted right away.</InfoTip>
           </span>
         }
-        description="Record a completed sale, assign the branch, capture payment method, and deduct stock immediately."
+        description="Record a completed sale, capture payment method, and deduct stock immediately."
         actions={
           <>
           {stores.length > 1 && (
@@ -187,19 +189,35 @@ export default function RecordPastSalePage() {
         }
       />
 
-      {isOwner && (
-        <div className="text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-sm px-3 py-2 flex items-center justify-between gap-2">
-          <span>Selling to a customer right now? Use the register instead - split payments, a cash drawer, Z reports, works offline.</span>
-          <Link href="/vendor/pos" className="font-semibold text-brand-700 hover:text-brand-800 whitespace-nowrap">
-            Open the register →
-          </Link>
-        </div>
-      )}
-
       <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
         <ProductPicker storeId={storeId} token={token} onAdd={addToCart} cartCountByProduct={countByProduct} />
 
-        <div className="space-y-4 lg:sticky lg:top-4">
+        {/* On a phone this column used to sit BELOW the whole product list,
+            so recording a sale meant scrolling past every product to reach
+            the customer fields and the submit button. Same markup, same
+            single instance (duplicating it would duplicate the inputs and
+            split the form state) - on mobile it becomes a sheet opened from
+            the sticky bar below, while from lg up it is the sticky sidebar
+            it always was. */}
+        <div
+          className={`space-y-4 ${
+            sheetOpen
+              ? "fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-surface p-4 pb-24"
+              : "hidden"
+          } lg:block lg:inset-auto lg:z-auto lg:overflow-visible lg:bg-transparent lg:p-0 lg:pb-0 lg:sticky lg:top-4`}
+        >
+          {/* Mobile-only: the sheet needs its own way out. */}
+          <div className="lg:hidden flex items-center justify-between gap-2 pb-1">
+            <p className="text-base font-bold text-slate-900">Record this order</p>
+            <button
+              type="button"
+              onClick={() => setSheetOpen(false)}
+              aria-label="Back to products"
+              className="p-2 -mr-2 text-slate-500 hover:text-slate-900 cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+          </div>
           <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
             <p className="text-sm font-semibold text-slate-700 px-4 py-3 border-b border-slate-100 flex items-center gap-2">
               <ShoppingCart size={16} className="text-slate-400" /> Current sale
@@ -314,7 +332,28 @@ export default function RecordPastSalePage() {
             Record sale{lines.length > 0 ? ` · ${formatCurrency(total)}` : ""}
           </Button>
         </div>
+
+        {/* The way into the sheet: always reachable while picking products,
+            so the running total and the next step are never off-screen. */}
+        {!sheetOpen && (
+          <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 bg-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-slate-600">
+                {lines.length === 0
+                  ? "No items yet"
+                  : `${itemCount} item${itemCount === 1 ? "" : "s"}`}
+              </p>
+              <p className="text-base font-bold text-slate-900 tabular-nums">{formatCurrency(total)}</p>
+            </div>
+            <Button type="button" onClick={() => setSheetOpen(true)} size="lg" className="shrink-0">
+              {lines.length === 0 ? "Enter details" : "Review & record"}
+            </Button>
+          </div>
+        )}
       </form>
+
+      {/* Clears the fixed bar so the last product row stays tappable. */}
+      {!sheetOpen && <div className="lg:hidden h-20" aria-hidden="true" />}
     </div>
   );
 }
