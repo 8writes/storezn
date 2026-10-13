@@ -197,14 +197,15 @@ export default function SessionsPage() {
                         {s.reviewStatus === "pending" && (
                           <span className="rounded-sm bg-amber-100 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5">review</span>
                         )}
-                        {/* Pre-fix shifts counted the opening figure with the
-                            change bowl inside it and the close without, so
-                            they all read short by about the bowl. Marked so
-                            an owner scrolling history doesn't read that as a
-                            cashier's variance. */}
+                        {/* Shifts opened before the opening count was asked
+                            for properly: almost all of them declared ₦0 and
+                            then counted a drawer that already had cash in
+                            it, so they read over by that amount. Marked so
+                            an owner doesn't read it as a cashier's variance
+                            - or trust it as a clean shift. */}
                         {!s.openingBasis && (
-                          <span className="rounded-sm bg-slate-100 text-slate-600 text-[10px] font-semibold px-1.5 py-0.5" title="Opened before the change bowl was excluded from the opening count - expect this to read short by about the size of the bowl.">
-                            old basis
+                          <span className="rounded-sm bg-slate-100 text-slate-600 text-[10px] font-semibold px-1.5 py-0.5" title="Opened before the opening count was asked for properly - the cash already in the drawer usually wasn't declared, so this figure includes it and isn't a reliable measure of the shift.">
+                            no opening count
                           </span>
                         )}
                       </span>

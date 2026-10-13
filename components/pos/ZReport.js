@@ -156,8 +156,9 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
             </p>
           ) : (
             <p className="text-[11px] text-amber-700 mb-1">
-              Opened on the old basis: the opening figure included the change bowl, which the close did not count &ndash;
-              so this shift reads short by roughly the size of the bowl.
+              Opened before the opening count was asked for properly. On these shifts the cash already in the
+              drawer was usually not declared, so the over / short below also contains that money and is not a
+              reliable measure of this shift.
             </p>
           )}
           <Row label={countedNotesBasis ? `Opened with (₦${CHANGE_FLOAT_BELOW}+ notes)` : "Opening float"} value={signed(d.openingFloat)} />

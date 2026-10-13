@@ -25,11 +25,22 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, onResume, openin
   const [qtys, setQtys] = useState({});
   const [potOpen, setPotOpen] = useState(false);
 
+  const [drawerEmpty, setDrawerEmpty] = useState(false);
+
   const breakdown = {};
   for (const d of [...COUNTED_DENOMS, ...POT_DENOMS]) if (Number(qtys[d]) > 0) breakdown[d] = Number(qtys[d]);
   const countedNaira = COUNTED_DENOMS.reduce((sum, d) => sum + d * (Number(qtys[d]) || 0), 0);
   const potNaira = POT_DENOMS.reduce((sum, d) => sum + d * (Number(qtys[d]) || 0), 0);
-  const hasCount = mode === "notes" ? Object.keys(breakdown).length > 0 : float !== "" && Number(float) >= 0;
+  // null = nothing entered yet, which is not the same as a counted zero.
+  const openingNaira = mode === "notes" ? countedNaira : (float === "" ? null : Number(float));
+  // Opening on zero has to be a deliberate statement, not the path of
+  // least resistance. 38 of the first 41 shifts opened at ₦0 into a
+  // drawer that plainly wasn't empty - the old screen asked for "cash
+  // physically in drawer now" and then said "Enter 0 only when the drawer
+  // is empty" - so every one of those closes read over by the cash nobody
+  // declared, and the over/short meant nothing all the way through.
+  const needsEmptyConfirm = openingNaira === 0;
+  const hasCount = openingNaira != null && (openingNaira > 0 || drawerEmpty);
 
   // Derived, not stored: the picked id if it's still valid, else the
   // first free register, else the first of any.
@@ -207,6 +218,28 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, onResume, openin
               </div>
             </div>
           )}
+
+          {/* Zero has to be said out loud. Without this the till opens at
+              ₦0 by default and every close that follows reads over by the
+              cash that was really there. */}
+          {needsEmptyConfirm && (
+            <label className="flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={drawerEmpty}
+                onChange={(e) => setDrawerEmpty(e.target.checked)}
+                className="mt-0.5 cursor-pointer"
+              />
+              <span>
+                <span className="font-semibold">The drawer is completely empty.</span>
+                <span className="block">
+                  Tick this only if there is genuinely no cash in the till. If there is any &ndash; even just
+                  change &ndash; count the ₦500 and ₦1,000 notes above instead, or every close this shift will
+                  read over by it.
+                </span>
+              </span>
+            </label>
+          )}
         </div>
       )}
 
@@ -224,7 +257,13 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, onResume, openin
             ? { registerId, openingCountBreakdown: breakdown }
             : { registerId, openingFloat: Number(float || 0) })}
       >
-        {busy ? "Resume register" : !hasCount ? "Count the ₦500 / ₦1,000 notes" : "Open register"}
+        {busy
+          ? "Resume register"
+          : needsEmptyConfirm && !drawerEmpty
+            ? "Count the cash in the drawer"
+            : !hasCount
+              ? "Count the ₦500 / ₦1,000 notes"
+              : "Open register"}
       </Button>
 
       {isOwner && (
