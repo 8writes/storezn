@@ -6,7 +6,7 @@ import { validate, closeSessionSchema } from "@/lib/validate.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
 import { buildPosSessionSummary, lockPosSession } from "@/lib/posSession.js";
-import { splitCountBreakdown } from "@/lib/pos.js";
+import { openingBasisOf, posOverShortReview, resolveCloseCount } from "@/lib/pos.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 
 export async function POST(req, { params }) {
@@ -45,34 +45,38 @@ export async function POST(req, { params }) {
 
       const summary = await buildPosSessionSummary(tx, session);
       const expectedCash = summary.drawer.expectedCash;
-      let countedCash;
-      let closeMethod;
-      // Recorded alongside the count but deliberately kept out of it -
-      // see CHANGE_FLOAT_BELOW in lib/pos.js for why counting the float
-      // would make every shift read over.
-      let closingChangeCash = null;
-      if (forced) {
-        countedCash = expectedCash;
-        closeMethod = "forced_uncounted";
-      } else if (countBreakdown) {
-        // The note-by-note count already says which notes are which, so
-        // the split is derived here rather than trusted from the client.
-        const split = splitCountBreakdown(countBreakdown);
-        countedCash = split.countedKobo;
-        closingChangeCash = split.changeFloatKobo;
-        closeMethod = "blind_count";
-      } else {
-        countedCash = toKobo(result.data.countedCash);
-        closingChangeCash = result.data.closingChangeCash == null ? null : toKobo(result.data.closingChangeCash);
-        closeMethod = "blind_count";
-      }
+      // Decided in lib/pos.js so it can be tested without a database -
+      // over/short is the figure staff are judged on. The change pot is
+      // recorded alongside the count and never inside it; see
+      // CHANGE_FLOAT_BELOW for why both sides must exclude it.
+      const { countedCash, closingChangeCash, closeMethod } = resolveCloseCount({
+        forced,
+        countBreakdown,
+        countedCashKobo: result.data.countedCash == null ? 0 : toKobo(result.data.countedCash),
+        closingChangeCashKobo: result.data.closingChangeCash == null ? null : toKobo(result.data.closingChangeCash),
+        expectedCash,
+      });
 
       const overShort = countedCash - expectedCash;
       const provisional = pendingSyncCount > 0;
-      const reviewStatus = forced || provisional || Math.abs(overShort) >= 50_000 ? "pending" : "ok";
+      // Per-store, replacing a flat ₦500 that flagged practically every
+      // close once the pot stopped being counted into the drawer figure.
+      const { reviewStatus, toleranceKobo } = posOverShortReview({
+        overShort,
+        forced,
+        provisional,
+        toleranceKobo: ctx.store.posOverShortTolerance,
+      });
       const zReport = {
         ...summary, countedCash, expectedCash, overShort, closedBy: ctx.user.id,
         closeMethod, provisional, pendingSyncCount, reviewStatus, closingChangeCash,
+        // Frozen into the snapshot so the Z describes itself forever: a
+        // later tolerance change must not silently re-judge a past shift,
+        // and the basis is what tells the reader whether the pot was
+        // inside the opening figure.
+        openingBasis: openingBasisOf(session),
+        openingChangeCash: session.openingChangeCash ?? null,
+        overShortToleranceKobo: toleranceKobo,
       };
       const [closed] = await tx.update(posSessions).set({
         status: "closed", closedBy: ctx.user.id, closedAt: new Date(), countedCash,
@@ -83,7 +87,7 @@ export async function POST(req, { params }) {
       if (!closed) {
         throw Object.assign(new Error("This session is already closed"), { code: "SESSION_CLOSED" });
       }
-      return { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod, closingChangeCash };
+      return { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod, closingChangeCash, toleranceKobo };
     });
   } catch (error) {
     if (["NOT_FOUND", "SESSION_CLOSED", "HELD_SALE"].includes(error.code)) {
@@ -92,7 +96,7 @@ export async function POST(req, { params }) {
     throw error;
   }
 
-  const { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod } = closeResult;
+  const { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod, toleranceKobo } = closeResult;
   after(() => logStoreActivity({
     storeId,
     actor: ctx.user,
@@ -110,6 +114,8 @@ export async function POST(req, { params }) {
       overShortKobo: overShort, closeMethod, forcedReason: forced ? forcedReason : null,
       provisional, pendingSyncCount, reviewStatus, saleCount: summary.saleCount,
       grossSalesKobo: summary.grossSales,
+      // Why it was (or wasn't) flagged, so the audit trail stands alone.
+      overShortToleranceKobo: toleranceKobo,
     },
   }));
 

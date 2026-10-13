@@ -625,12 +625,17 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
     };
   }, [openSession, storeId, offlineMode, syncNow, syncCatalog]);
 
-  const handleOpen = async ({ registerId, openingFloat }) => {
+  // The panel sends either a note-by-note count (the default, which the
+  // server splits itself) or a plain total - passed straight through so
+  // the opening figure is only ever decided in one place.
+  const handleOpen = async ({ registerId, openingFloat, openingCountBreakdown }) => {
     setOpening(true);
     try {
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions`, {
         method: "POST",
-        body: JSON.stringify({ registerId, openingFloat }),
+        body: JSON.stringify(
+          openingCountBreakdown ? { registerId, openingCountBreakdown } : { registerId, openingFloat },
+        ),
       });
       const register = registers.find((row) => row.id === registerId);
       const bootstrap = {

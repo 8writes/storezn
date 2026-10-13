@@ -1,6 +1,7 @@
 "use client";
 import { formatKobo } from "@/lib/money.js";
 import { formatDateTime } from "@/lib/format.js";
+import { CHANGE_FLOAT_BELOW, DEFAULT_OVER_SHORT_TOLERANCE_KOBO, OPENING_BASIS, openingBasisOf } from "@/lib/pos.js";
 
 const METHOD_LABEL = {
   cash: "Cash",
@@ -59,6 +60,14 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
   const byAccount = summary.byAccount || [];
   const nonCashChangeOut = summary.nonCashChangeOut || 0;
   const isZ = summary.countedCash != null;
+  // A snapshot with no recorded basis is one of the pre-fix shifts, whose
+  // opening figure included the change bowl - openingBasisOf owns that
+  // default so every reader agrees on it.
+  const countedNotesBasis = openingBasisOf(summary) === OPENING_BASIS.COUNTED_NOTES;
+  // Frozen per shift; older snapshots carry none, so fall back to the
+  // current default rather than showing no verdict at all.
+  const tolerance = Number(summary.overShortToleranceKobo) || DEFAULT_OVER_SHORT_TOLERANCE_KOBO;
+  const overTolerance = Math.abs(Number(summary.overShort) || 0) >= tolerance;
   // Line-item every hand-entered cash move so the drawer figure is never
   // a mystery - "Paid out -₦40,000" on its own tells you nothing. Prefer
   // a live movements list (it carries staff names); fall back to the
@@ -135,7 +144,26 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
 
         <div className="px-3 py-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Cash drawer</p>
-          <Row label="Opening float" value={signed(d.openingFloat)} />
+          {/* Which pile these figures describe. Shifts opened before the
+              basis was recorded had the change bowl swept into the
+              opening figure while the close excluded it, so they read
+              short by about the bowl - saying so here explains every
+              historical short without altering one stored byte. Same
+              old-snapshot treatment as cashSplitTies above. */}
+          {countedNotesBasis ? (
+            <p className="text-[11px] text-slate-500 mb-1">
+              ₦{CHANGE_FLOAT_BELOW} notes and up. The change bowl sits outside these figures on both sides.
+            </p>
+          ) : (
+            <p className="text-[11px] text-amber-700 mb-1">
+              Opened on the old basis: the opening figure included the change bowl, which the close did not count &ndash;
+              so this shift reads short by roughly the size of the bowl.
+            </p>
+          )}
+          <Row label={countedNotesBasis ? `Opened with (₦${CHANGE_FLOAT_BELOW}+ notes)` : "Opening float"} value={signed(d.openingFloat)} />
+          {isZ && summary.openingChangeCash != null && (
+            <Row label="Change bowl at open" value={formatKobo(summary.openingChangeCash)} />
+          )}
           {/* "Cash sales" is NET of the change handed back, because both
               are written into one cash_sale movement when a sale settles.
               That total is right but unreadable - an owner cannot see how
@@ -160,7 +188,12 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
           {(d.changeOut || 0) !== 0 && (
             <Row label="Change given (POS / transfer overpayment)" value={signed(d.changeOut)} tone="neg" />
           )}
-          <Row label="Expected in drawer" value={formatKobo(isZ ? summary.expectedCash : d.expectedCash)} strong rule />
+          <Row
+            label={countedNotesBasis ? `Expected (₦${CHANGE_FLOAT_BELOW}+ notes)` : "Expected in drawer"}
+            value={formatKobo(isZ ? summary.expectedCash : d.expectedCash)}
+            strong
+            rule
+          />
           {/* Older shifts (before the change_out split) folded that change
               into a negative cash-sale figure - keep the note for them. */}
           {!summary.cashSplitTies && !(d.changeOut || 0) && nonCashChangeOut > 0 && (
@@ -170,25 +203,44 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
           )}
           {isZ && (
             <>
-              <Row label="Counted (physically)" value={formatKobo(summary.countedCash)} strong rule />
+              <Row
+                label={countedNotesBasis ? `Counted (₦${CHANGE_FLOAT_BELOW}+ notes)` : "Counted (physically)"}
+                value={formatKobo(summary.countedCash)}
+                strong
+                rule
+              />
               <Row
                 label={summary.overShort === 0 ? "Balanced" : summary.overShort > 0 ? "Over (counted − expected)" : "Short (counted − expected)"}
                 value={signed(summary.overShort)}
                 strong
-                tone={summary.overShort === 0 ? undefined : "neg"}
+                tone={summary.overShort === 0 || !overTolerance ? undefined : "neg"}
               />
-              {/* Below the over/short on purpose: the float sits outside
-                  that comparison entirely. It was never declared in the
-                  opening float, so it is recorded for the owner and takes
-                  no part in whether the shift balanced. null (not 0) means
-                  the shift never recorded one - don't invent a zero. */}
-              {summary.closingChangeCash != null && (
+              {/* A small over or short every shift is normal on this basis:
+                  swapping a ₦1,000 note into the bowl for change moves the
+                  counted pile without anything being lost. So say whether
+                  it actually cleared the store's threshold rather than
+                  colouring every non-zero figure red. The tolerance is read
+                  from the frozen snapshot, so changing the setting later
+                  never re-judges a past shift. */}
+              {summary.overShort !== 0 && tolerance > 0 && (
+                <p className={`text-[11px] ${overTolerance ? "text-red-600" : "text-slate-500"}`}>
+                  {overTolerance
+                    ? `Outside the ${formatKobo(tolerance)} allowance - flagged for the owner.`
+                    : `Within the ${formatKobo(tolerance)} change-bowl allowance - normal.`}
+                </p>
+              )}
+              {/* Below the over/short on purpose: the bowl sits outside that
+                  comparison entirely, on both sides. null (not 0) means the
+                  shift never counted one - don't invent a zero. */}
+              {summary.closingChangeCash != null ? (
                 <>
-                  <Row label="Change float in drawer" value={formatKobo(summary.closingChangeCash)} rule />
+                  <Row label="Change bowl at close" value={formatKobo(summary.closingChangeCash)} rule />
                   <p className="text-[11px] text-slate-400">
-                    Small notes kept for giving change. Not part of takings and not included in the figures above.
+                    Small notes kept for giving change. Not takings, and not part of any figure above.
                   </p>
                 </>
+              ) : (
+                <p className="text-[11px] text-slate-400 pt-1">Change bowl: not counted this shift.</p>
               )}
             </>
           )}

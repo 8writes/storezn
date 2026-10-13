@@ -6,8 +6,14 @@ import { formatKobo } from "@/lib/money.js";
 import { CHANGE_FLOAT_BELOW, splitCountBreakdown } from "@/lib/pos.js";
 import { ZReport } from "./ZReport.js";
 
-// Nigerian cash denominations, high to low (naira).
-const DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5];
+// Nigerian cash denominations, high to low (naira), split by the pile
+// they belong to. The counted pile (₦500 and up) is what over/short is
+// measured on - at open and at close, the same notes both times. The
+// bowl is the small notes the shop never counts; entering them is
+// optional and never moves the counted figure.
+const COUNTED_DENOMS = [1000, 500];
+const POT_DENOMS = [200, 100, 50, 20, 10, 5];
+const DENOMS = [...COUNTED_DENOMS, ...POT_DENOMS];
 
 // Close flow: count the drawer -> confirm -> the Z report is shown for
 // printing. It is a BLIND count - the expected figure and the over/short
@@ -20,12 +26,14 @@ const DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5];
 //   { forced: true, forcedReason }   couldn't count - use the system figure
 // and resolves to the closed session's zReport (or throws).
 export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCashDeltaKobo = 0, rejectedCount = 0, heldCount, pendingSync = 0, syncing = false, onSync, onSubmit }) {
-  const [mode, setMode] = useState("total"); // "total" | "notes"
+  // Notes-first: it's the mode where the server derives the split itself,
+  // so the counted pile and the bowl can't be confused with each other.
+  const [mode, setMode] = useState("notes"); // "notes" | "total"
+  const [changeFloat, setChangeFloat] = useState("");
   const [counted, setCounted] = useState("");
   const [qtys, setQtys] = useState({});
   const [forcing, setForcing] = useState(false);
   const [forcedReason, setForcedReason] = useState("");
-  const [changeFloat, setChangeFloat] = useState("");
   const [ackProvisional, setAckProvisional] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [zReport, setZReport] = useState(null);
@@ -63,6 +71,8 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
         payload = { countBreakdown };
       } else {
         payload = { countedCash: Number(counted || 0) };
+        // Only when they actually typed one - blank means "not counted",
+        // which the Z renders differently from a counted zero.
         if (changeFloat !== "") payload.closingChangeCash = Number(changeFloat || 0);
       }
       const z = await onSubmit(payload);
@@ -161,7 +171,12 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
               ) : (
                 <>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-slate-600">Count the cash in the drawer.</p>
+                    <p className="text-sm text-slate-600">
+                      Count the ₦500 and ₦1,000 notes only.
+                      <span className="block text-xs text-slate-600">
+                        Leave the change bowl alone &ndash; the small notes for giving change aren&apos;t part of this.
+                      </span>
+                    </p>
                     <div className="flex gap-1 text-xs">
                       <button
                         type="button"
@@ -187,10 +202,17 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
                       autoFocus
                       value={counted}
                       onChange={(e) => setCounted(e.target.value)}
-                      placeholder="Counted cash total"
+                      placeholder="Total of ₦500 and ₦1,000 notes"
                       className="w-full px-3 py-2.5 border border-slate-300 rounded-sm text-lg tabular-nums outline-none focus:border-brand-500"
                     />
                   ) : null}
+                  {/* The bowl is recorded at close in this mode too. It was
+                      briefly dropped from here, which lost the shop the
+                      record they asked for. What made the old version
+                      confusing was the box ABOVE saying "counted cash
+                      total" - now that it names the notes, this one can't
+                      be mistaken for part of it. Blank stays blank: a
+                      guessed figure would print on the Z as if counted. */}
                   {mode === "total" ? (
                     <div className="space-y-1">
                       <input
@@ -198,16 +220,17 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
                         inputMode="decimal"
                         value={changeFloat}
                         onChange={(e) => setChangeFloat(e.target.value)}
-                        placeholder="Change in drawer (optional)"
+                        placeholder="Change bowl in the drawer (optional)"
                         className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
                       />
                       <p className="text-xs text-slate-700">
-                        The small notes kept for giving change. Recorded separately - it is not counted as takings.
+                        The small notes kept for giving change. Recorded for your records &ndash; not takings, and it
+                        doesn&apos;t affect the over/short. Leave blank if nobody counted it.
                       </p>
                     </div>
                   ) : (
                     <div className="border border-slate-200 rounded-sm divide-y divide-slate-100">
-                      {DENOMS.map((d) => (
+                      {COUNTED_DENOMS.map((d) => (
                         <div key={d} className="flex items-center gap-3 px-3 py-1.5 text-sm">
                           <span className="w-16 text-slate-600 tabular-nums">₦{d.toLocaleString()}</span>
                           <span className="text-slate-300">×</span>
@@ -226,15 +249,44 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
                         </div>
                       ))}
                       <div className="flex justify-between px-3 py-2 text-sm font-semibold">
-                        <span>Drawer cash</span>
+                        <span>Counted (₦500 &amp; ₦1,000)</span>
                         <span className="tabular-nums">{formatKobo(breakdownKobo)}</span>
                       </div>
-                      <div className="flex items-baseline justify-between gap-2 px-3 py-2 text-sm">
-                        <span className="text-slate-700">
-                          Change float
-                          <span className="block text-[11px] text-slate-600">Notes under ₦{CHANGE_FLOAT_BELOW} - recorded, not counted as takings</span>
-                        </span>
-                        <span className="tabular-nums text-slate-800">{formatKobo(changeFloatKobo)}</span>
+                      {/* Recorded at close, as the shop asked. Visible, not
+                          hidden behind a disclosure: this is the only
+                          record anyone has of the bowl. It stays OUT of the
+                          counted figure above either way, so entering it
+                          can never move over/short. */}
+                      <div className="px-3 py-2 space-y-1">
+                        <p className="text-xs font-medium text-slate-700">
+                          Change bowl
+                          <span className="block text-[11px] font-normal text-slate-600">
+                            Notes under ₦{CHANGE_FLOAT_BELOW}. Recorded for your records &ndash; not takings, and it
+                            doesn&apos;t affect the figure above. Leave blank if nobody counted it.
+                          </span>
+                        </p>
+                        {POT_DENOMS.map((d) => (
+                          <div key={d} className="flex items-center gap-3 text-sm">
+                            <span className="w-16 text-slate-600 tabular-nums">₦{d.toLocaleString()}</span>
+                            <span className="text-slate-300">×</span>
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              min="0"
+                              value={qtys[d] ?? ""}
+                              onChange={(e) => setQtys((q) => ({ ...q, [d]: e.target.value }))}
+                              placeholder="0"
+                              className="w-16 px-2 py-1 border border-slate-300 rounded-sm text-sm tabular-nums outline-none focus:border-brand-500"
+                            />
+                            <span className="ml-auto tabular-nums text-slate-800">
+                              {formatKobo(d * 100 * (Number(qtys[d]) || 0))}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between pt-1 text-sm">
+                          <span className="text-slate-700">Change bowl total</span>
+                          <span className="tabular-nums text-slate-800">{formatKobo(changeFloatKobo)}</span>
+                        </div>
                       </div>
                     </div>
                   )}

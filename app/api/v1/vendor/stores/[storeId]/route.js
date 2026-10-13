@@ -148,6 +148,12 @@ export async function PATCH(req, { params }) {
     const cleaned = [...new Set(data.deliveryStates.map((entry) => String(entry).trim()).filter(Boolean))];
     data.deliveryStates = cleaned.length > 0 ? cleaned : null;
   }
+  // Naira on the wire, kobo in the column - the boundary every POS money
+  // field crosses. A cleared field coerces to 0, which the review helper
+  // reads as "use the default" rather than "flag every close".
+  if (data.posOverShortTolerance != null) {
+    data.posOverShortTolerance = Math.round(Number(data.posOverShortTolerance) * 100);
+  }
 
   const [updated] = await db.update(stores).set(data).where(eq(stores.id, storeId)).returning();
 

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button.js";
 import { ZReport } from "@/components/pos/ZReport.js";
 import { formatKobo } from "@/lib/money.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
+import { DEFAULT_OVER_SHORT_TOLERANCE_KOBO } from "@/lib/pos.js";
 
 const PAY_NAME = { cash: "Cash", card: "POS", transfer: "Transfer", wallet: "Wallet", store_credit: "Store credit" };
 const paidBy = (methods) =>
@@ -129,6 +130,9 @@ export default function SessionDetailPage({ params }) {
   const report = { ...(session.zReport || summary), cashEvents: summary.cashEvents };
   const isOwner = user?.role === "vendor" || user?.role === "super_admin";
   const forced = session.closeMethod === "forced_uncounted";
+  // Read from the shift's own frozen Z, so changing the store setting
+  // later never re-explains a close that was judged under the old one.
+  const overShortTolerance = Number(report.overShortToleranceKobo) || DEFAULT_OVER_SHORT_TOLERANCE_KOBO;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 print:max-w-none">
@@ -179,6 +183,16 @@ export default function SessionDetailPage({ params }) {
           {session.provisional && (
             <p className="text-amber-900">
               {session.pendingSyncCount} sale{session.pendingSyncCount === 1 ? "" : "s"} hadn&apos;t synced at close, so the totals may still move.
+            </p>
+          )}
+          {/* Name the amount and the threshold. The banner used to tell an
+              owner to review a shift without saying what to look at, which
+              is half of why the queue went unread. */}
+          {!forced && session.reviewStatus === "pending" && overShortTolerance > 0
+            && Math.abs(Number(session.overShort) || 0) >= overShortTolerance && (
+            <p className="text-amber-900">
+              The count was {formatKobo(Math.abs(session.overShort))} {Number(session.overShort) > 0 ? "over" : "short"},
+              past the {formatKobo(overShortTolerance)} allowance for this store.
             </p>
           )}
 

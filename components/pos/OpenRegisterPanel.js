@@ -5,13 +5,31 @@ import { Calculator } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { Select } from "@/components/ui/Select.js";
 
-// Shown on the till when no shift is open. Pick a register, enter the
-// cash already in the drawer, open. Registers already running a session
-// elsewhere are shown as busy.
+// Shown on the till when no shift is open. Pick a register, count the
+// notes you count, open. Registers already running a session elsewhere
+// are shown as busy.
+//
+// The opening count asks for the SAME pile the close counts: notes of
+// ₦500 and up, change pot excluded. It used to ask for "cash physically
+// in drawer now", which swept the pot in on this side only - so over/
+// short came out as minus the pot on every shift and every close got
+// flagged. See REGISTER-CASH-BASIS-MIGRATION.sql.
+const COUNTED_DENOMS = [1000, 500];
+const POT_DENOMS = [200, 100, 50, 20, 10, 5];
+
 export function OpenRegisterPanel({ registers, isOwner, onOpen, onResume, opening }) {
   const free = registers.filter((r) => r.isActive);
   const [picked, setPicked] = useState("");
   const [float, setFloat] = useState("");
+  const [mode, setMode] = useState("notes"); // "notes" | "total"
+  const [qtys, setQtys] = useState({});
+  const [potOpen, setPotOpen] = useState(false);
+
+  const breakdown = {};
+  for (const d of [...COUNTED_DENOMS, ...POT_DENOMS]) if (Number(qtys[d]) > 0) breakdown[d] = Number(qtys[d]);
+  const countedNaira = COUNTED_DENOMS.reduce((sum, d) => sum + d * (Number(qtys[d]) || 0), 0);
+  const potNaira = POT_DENOMS.reduce((sum, d) => sum + d * (Number(qtys[d]) || 0), 0);
+  const hasCount = mode === "notes" ? Object.keys(breakdown).length > 0 : float !== "" && Number(float) >= 0;
 
   // Derived, not stored: the picked id if it's still valid, else the
   // first free register, else the first of any.
@@ -91,18 +109,104 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, onResume, openin
           This register already has an open shift. Resume it on this device without changing its opening balance.
         </p>
       ) : (
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-700">Cash physically in drawer now</label>
-          <input
-            type="number"
-            inputMode="decimal"
-            value={float}
-            onChange={(e) => setFloat(e.target.value)}
-            placeholder="Count and enter the amount"
-            min="0"
-            className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
-          />
-          <p className="text-xs text-slate-800">Include cash carried over from the previous shift. Enter 0 only when the drawer is empty.</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-sm font-medium text-slate-700">Count the ₦500 and ₦1,000 notes</label>
+            <div className="flex gap-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setMode("notes")}
+                className={`px-2 py-1 rounded-sm border cursor-pointer ${mode === "notes" ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-800"}`}
+              >
+                By notes
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("total")}
+                className={`px-2 py-1 rounded-sm border cursor-pointer ${mode === "total" ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-800"}`}
+              >
+                Total
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-slate-800">
+            ₦500 and ₦1,000 notes only. Leave the change bowl out of this &ndash; the small
+            notes for giving change aren&apos;t counted here or at close.
+          </p>
+
+          {mode === "total" ? (
+            <input
+              type="number"
+              inputMode="decimal"
+              value={float}
+              onChange={(e) => setFloat(e.target.value)}
+              placeholder="Total of ₦500 and ₦1,000 notes"
+              min="0"
+              className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
+            />
+          ) : (
+            <div className="border border-slate-200 rounded-sm divide-y divide-slate-100">
+              {COUNTED_DENOMS.map((d) => (
+                <div key={d} className="flex items-center gap-3 px-3 py-1.5 text-sm">
+                  <span className="w-16 text-slate-600 tabular-nums">₦{d.toLocaleString()}</span>
+                  <span className="text-slate-300">×</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    value={qtys[d] ?? ""}
+                    onChange={(e) => setQtys((q) => ({ ...q, [d]: e.target.value }))}
+                    placeholder="0"
+                    className="w-20 px-2 py-1 border border-slate-300 rounded-sm tabular-nums outline-none focus:border-brand-500"
+                  />
+                  <span className="ml-auto text-slate-700 tabular-nums">
+                    ₦{(d * (Number(qtys[d]) || 0)).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between px-3 py-2 text-sm font-semibold">
+                <span>Counted (₦500 &amp; ₦1,000)</span>
+                <span className="tabular-nums">₦{countedNaira.toLocaleString()}</span>
+              </div>
+              {/* Optional on purpose: the shop doesn't count the bowl, and a
+                  guessed figure printed on a Z is worse than none. */}
+              <div className="px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => setPotOpen((v) => !v)}
+                  className="text-xs text-slate-800 hover:underline cursor-pointer"
+                >
+                  {potOpen ? "Hide the change bowl" : "Counting the change bowl today? (optional)"}
+                </button>
+                {potOpen && (
+                  <div className="mt-2 space-y-1">
+                    {POT_DENOMS.map((d) => (
+                      <div key={d} className="flex items-center gap-3 text-sm">
+                        <span className="w-16 text-slate-600 tabular-nums">₦{d.toLocaleString()}</span>
+                        <span className="text-slate-300">×</span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          value={qtys[d] ?? ""}
+                          onChange={(e) => setQtys((q) => ({ ...q, [d]: e.target.value }))}
+                          placeholder="0"
+                          className="w-20 px-2 py-1 border border-slate-300 rounded-sm tabular-nums outline-none focus:border-brand-500"
+                        />
+                        <span className="ml-auto text-slate-700 tabular-nums">
+                          ₦{(d * (Number(qtys[d]) || 0)).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                    <p className="pt-1 text-xs text-slate-700">
+                      Change bowl: <span className="tabular-nums">₦{potNaira.toLocaleString()}</span> &ndash; recorded only,
+                      not part of the opening figure.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -111,12 +215,16 @@ export function OpenRegisterPanel({ registers, isOwner, onOpen, onResume, openin
         fullWidth
         size="lg"
         loading={opening}
-        disabled={!registerId || opening || (!busy && (float === "" || Number(float) < 0))}
+        disabled={!registerId || opening || (!busy && !hasCount)}
         onClick={() => busy
           ? onResume?.({ registerId, sessionId: busy.id })
-          : onOpen({ registerId, openingFloat: Number(float || 0) })}
+          // A note count goes up as the breakdown so the server derives
+          // the split itself, exactly as the close does.
+          : onOpen(mode === "notes"
+            ? { registerId, openingCountBreakdown: breakdown }
+            : { registerId, openingFloat: Number(float || 0) })}
       >
-        {busy ? "Resume register" : float === "" ? "Enter the drawer cash" : "Open register"}
+        {busy ? "Resume register" : !hasCount ? "Count the ₦500 / ₦1,000 notes" : "Open register"}
       </Button>
 
       {isOwner && (

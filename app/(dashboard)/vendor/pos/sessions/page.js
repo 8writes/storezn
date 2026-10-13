@@ -23,6 +23,9 @@ export default function SessionsPage() {
   // `loadedPage` is 0 until the first page for this store has arrived.
   const [feed, setFeed] = useState({ storeId: null, page: 1, loadedPage: 0, sessions: [], pagination: null });
   const [loadingMore, setLoadingMore] = useState(false);
+  // Filtered server-side so the count and the paging stay honest - an
+  // owner hunting the flagged closes used to have to eyeball the list.
+  const [onlyPending, setOnlyPending] = useState(false);
 
   // Everything below is derived, so switching stores shows an empty,
   // loading feed with nothing having to clear it in an effect.
@@ -30,6 +33,8 @@ export default function SessionsPage() {
   const sessions = isCurrentStore ? feed.sessions : [];
   const pagination = isCurrentStore ? feed.pagination : null;
   const page = isCurrentStore ? feed.page : 1;
+  const toleranceKobo = isCurrentStore ? feed.toleranceKobo || 0 : 0;
+  const pendingReviewCount = isCurrentStore ? feed.pendingReviewCount || 0 : 0;
   // Before a store is known we're waiting on the store list; after that,
   // on this store's first page. An account with no store at all settles on
   // "not loading" and renders the empty state.
@@ -51,7 +56,7 @@ export default function SessionsPage() {
     if (!storeId) return undefined;
     const requestedPage = page;
     let active = true;
-    apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions?page=${requestedPage}&pageSize=20`)
+    apiFetch(`/api/v1/vendor/stores/${storeId}/pos/sessions?page=${requestedPage}&pageSize=20${onlyPending ? "&reviewStatus=pending" : ""}`)
       .then((data) => {
         if (!active) return;
         setFeed((current) => ({
@@ -65,6 +70,8 @@ export default function SessionsPage() {
               ? data.sessions
               : [...current.sessions, ...data.sessions],
           pagination: data.pagination || null,
+          toleranceKobo: data.overShortToleranceKobo || 0,
+          pendingReviewCount: data.pendingReviewCount || 0,
         }));
       })
       .catch((err) => {
@@ -76,7 +83,7 @@ export default function SessionsPage() {
     return () => {
       active = false;
     };
-  }, [apiFetch, storeId, page]);
+  }, [apiFetch, storeId, page, onlyPending]);
 
   // Asking for the next page is a button press, which is the right place
   // to turn its own spinner on.
@@ -93,10 +100,37 @@ export default function SessionsPage() {
         description="Review register openings, closings, cash differences, and Z report history."
       />
 
-      {stores.length > 1 && (
-        <div className="w-52">
-          <Select options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+      <div className="flex flex-wrap items-center gap-3">
+        {stores.length > 1 && (
+          <div className="w-52">
+            <Select options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+          </div>
+        )}
+        {/* The owner's way in. Without it a flagged close had to be spotted
+            by scrolling, which is why the queue went unread. */}
+        <div className="flex gap-1 text-xs">
+          <button
+            type="button"
+            onClick={() => { setOnlyPending(false); setFeed((c) => ({ ...c, storeId, page: 1, loadedPage: 0 })); }}
+            className={`px-2.5 py-1.5 rounded-sm border cursor-pointer ${!onlyPending ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-800"}`}
+          >
+            All shifts
+          </button>
+          <button
+            type="button"
+            onClick={() => { setOnlyPending(true); setFeed((c) => ({ ...c, storeId, page: 1, loadedPage: 0 })); }}
+            className={`px-2.5 py-1.5 rounded-sm border cursor-pointer ${onlyPending ? "border-amber-600 bg-amber-50 text-amber-800" : "border-slate-200 text-slate-800"}`}
+          >
+            Needs review{pendingReviewCount > 0 ? ` (${pendingReviewCount})` : ""}
+          </button>
         </div>
+      </div>
+
+      {toleranceKobo > 0 && (
+        <p className="text-xs text-slate-600">
+          A close is flagged when it is off by {formatKobo(toleranceKobo)} or more. Because the change bowl isn&apos;t
+          counted, a small over or short most shifts is normal and cancels out over time.
+        </p>
       )}
 
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
@@ -106,7 +140,7 @@ export default function SessionsPage() {
               <th className="px-4 py-2.5 font-semibold">Register</th>
               <th className="px-4 py-2.5 font-semibold">Opened</th>
               <th className="px-4 py-2.5 font-semibold">Status</th>
-              <th className="px-4 py-2.5 font-semibold text-right">Over / short</th>
+              <th className="px-4 py-2.5 font-semibold text-right">Over / short (₦500+ notes)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -163,6 +197,16 @@ export default function SessionsPage() {
                         {s.reviewStatus === "pending" && (
                           <span className="rounded-sm bg-amber-100 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5">review</span>
                         )}
+                        {/* Pre-fix shifts counted the opening figure with the
+                            change bowl inside it and the close without, so
+                            they all read short by about the bowl. Marked so
+                            an owner scrolling history doesn't read that as a
+                            cashier's variance. */}
+                        {!s.openingBasis && (
+                          <span className="rounded-sm bg-slate-100 text-slate-600 text-[10px] font-semibold px-1.5 py-0.5" title="Opened before the change bowl was excluded from the opening count - expect this to read short by about the size of the bowl.">
+                            old basis
+                          </span>
+                        )}
                       </span>
                     )}
                   </td>
@@ -170,7 +214,17 @@ export default function SessionsPage() {
                     {s.overShort == null ? (
                       "N/A"
                     ) : (
-                      <span className={s.overShort === 0 ? "text-slate-800" : "text-red-600"}>{formatKobo(s.overShort)}</span>
+                      // Red only when it actually cleared the threshold -
+                      // shouting at every non-zero figure is what made the
+                      // column meaningless once the bowl stopped being
+                      // counted into the drawer total.
+                      <span className={
+                        s.overShort === 0 || (toleranceKobo > 0 && Math.abs(s.overShort) < toleranceKobo)
+                          ? "text-slate-800"
+                          : "text-red-600"
+                      }>
+                        {formatKobo(s.overShort)}
+                      </span>
                     )}
                   </td>
                 </tr>

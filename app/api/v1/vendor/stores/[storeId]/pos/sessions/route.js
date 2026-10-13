@@ -5,6 +5,7 @@ import { posSessions, posRegisters, cashMovements } from "@/lib/db/schema.js";
 import { validate, openSessionSchema } from "@/lib/validate.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadRegister } from "@/lib/posAccess.js";
+import { DEFAULT_OVER_SHORT_TOLERANCE_KOBO, OPENING_BASIS, splitCountBreakdown } from "@/lib/pos.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 import { parsePagination } from "@/lib/pagination.js";
 import { isUniqueViolation } from "@/lib/dbErrors.js";
@@ -19,12 +20,19 @@ export async function GET(req, { params }) {
   const ctx = await posContext(req, storeId);
   if (ctx.error) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
-  const { page, pageSize, limit, offset } = parsePagination(new URL(req.url).searchParams);
+  const searchParams = new URL(req.url).searchParams;
+  const { page, pageSize, limit, offset } = parsePagination(searchParams);
 
-  const where = [eq(posRegisters.storeId, storeId)];
-  if (ctx.user.role === "staff" && ctx.user.branchId) where.push(eq(posRegisters.branchId, ctx.user.branchId));
+  // Store/branch scope, shared by the list and the unfiltered badge count.
+  const scopeWhere = [eq(posRegisters.storeId, storeId)];
+  if (ctx.user.role === "staff" && ctx.user.branchId) scopeWhere.push(eq(posRegisters.branchId, ctx.user.branchId));
+  // Filtered in SQL, not on the page, so `total` and the paging stay
+  // honest - an owner hunting the flagged closes was previously left to
+  // eyeball the whole list.
+  const where = [...scopeWhere];
+  if (searchParams.get("reviewStatus") === "pending") where.push(eq(posSessions.reviewStatus, "pending"));
 
-  const [rows, [{ total }]] = await Promise.all([
+  const [rows, [{ total }], [{ total: pendingReview }]] = await Promise.all([
     db
       .select({
         id: posSessions.id,
@@ -35,6 +43,9 @@ export async function GET(req, { params }) {
         openedBy: posSessions.openedBy,
         openedAt: posSessions.openedAt,
         openingFloat: posSessions.openingFloat,
+        // The list marks pre-fix shifts, which all read short by about the
+        // change pot and must not look like a cashier's variance.
+        openingBasis: posSessions.openingBasis,
         closedAt: posSessions.closedAt,
         expectedCash: posSessions.expectedCash,
         countedCash: posSessions.countedCash,
@@ -54,10 +65,21 @@ export async function GET(req, { params }) {
       .from(posSessions)
       .innerJoin(posRegisters, eq(posSessions.registerId, posRegisters.id))
       .where(and(...where)),
+    // Counted without the review filter applied, so the badge still reads
+    // the true outstanding total while the list itself is filtered.
+    db
+      .select({ total: count() })
+      .from(posSessions)
+      .innerJoin(posRegisters, eq(posSessions.registerId, posRegisters.id))
+      .where(and(...scopeWhere, eq(posSessions.reviewStatus, "pending"))),
   ]);
 
   return NextResponse.json({
     sessions: rows,
+    // So the list can colour an over/short by whether it actually cleared
+    // this store's threshold, instead of shouting at every non-zero value.
+    overShortToleranceKobo: ctx.store.posOverShortTolerance || DEFAULT_OVER_SHORT_TOLERANCE_KOBO,
+    pendingReviewCount: pendingReview,
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });
 }
@@ -75,13 +97,33 @@ export async function POST(req, { params }) {
   if (!register) return NextResponse.json({ error: "Register not found" }, { status: 404 });
   if (!register.isActive) return NextResponse.json({ error: "This register is retired" }, { status: 409 });
 
-  const floatKobo = toKobo(result.data.openingFloat);
+  // The opening figure is the COUNTABLE pile (notes >= CHANGE_FLOAT_BELOW)
+  // and never the change pot, because that is exactly what the close
+  // counts. When the notes are entered one by one the split is derived
+  // here rather than trusted from the device - same rule as the close
+  // route - and the pot comes along as a recorded figure only.
+  let floatKobo;
+  let openingChangeCash = null;
+  if (result.data.openingCountBreakdown) {
+    const split = splitCountBreakdown(result.data.openingCountBreakdown);
+    floatKobo = split.countedKobo;
+    openingChangeCash = split.changeFloatKobo;
+  } else {
+    floatKobo = toKobo(result.data.openingFloat);
+    openingChangeCash = result.data.openingChangeCash == null ? null : toKobo(result.data.openingChangeCash);
+  }
 
   try {
     const session = await db.transaction(async (tx) => {
       const [s] = await tx
         .insert(posSessions)
-        .values({ registerId: register.id, openedBy: ctx.user.id, openingFloat: floatKobo })
+        .values({
+          registerId: register.id,
+          openedBy: ctx.user.id,
+          openingFloat: floatKobo,
+          openingBasis: OPENING_BASIS.COUNTED_NOTES,
+          openingChangeCash,
+        })
         .returning();
       if (floatKobo > 0) {
         await tx.insert(cashMovements).values({
@@ -99,10 +141,16 @@ export async function POST(req, { params }) {
         actor: ctx.user,
         branchId: register.branchId,
         action: "register.open",
-        summary: `Opened ${register.name} with ${formatKobo(floatKobo)} float`,
+        summary: `Opened ${register.name} with ${formatKobo(floatKobo)} in countable notes`
+          + (openingChangeCash != null ? ` (change pot ${formatKobo(openingChangeCash)})` : ""),
         targetType: "session",
         targetId: session.id,
-        metadata: { registerName: register.name, openingFloatKobo: floatKobo },
+        metadata: {
+          registerName: register.name,
+          openingFloatKobo: floatKobo,
+          openingBasis: OPENING_BASIS.COUNTED_NOTES,
+          openingChangeCashKobo: openingChangeCash,
+        },
       }),
     );
     return NextResponse.json({ session }, { status: 201 });
