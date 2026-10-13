@@ -7,6 +7,7 @@ export default function AccountLayout({ children }) {
 
   const tabs = [
     { href: "/account/orders", label: "Orders" },
+    { href: "/account/wishlist", label: "Wishlist" },
     { href: "/account/addresses", label: "Addresses" },
     { href: "/account/profile", label: "Profile" },
   ];

@@ -13,6 +13,7 @@ import { useConfirm } from "@/hooks/useConfirm.js";
 import { formatKobo } from "@/lib/money.js";
 import { formatDateTime } from "@/lib/format.js";
 import { isEnterpriseStore } from "@/lib/storePlan.js";
+import { FeatureLocked } from "@/components/ui/FeatureLocked.js";
 
 // The back-office safe, as a running record. Cash arrives here when a
 // till drops it and leaves when a till is topped up - both of those are
@@ -73,7 +74,13 @@ export default function SafePage() {
   useEffect(() => { load(); }, [load]);
 
   if (!storesLoading && activeStore && !isEnterpriseStore(activeStore)) {
-    return <p className="text-sm text-slate-700">The safe is a Storezn Enterprise feature - contact the Storezn team.</p>;
+    return (
+      <FeatureLocked
+        plan="enterprise"
+        feature="The safe"
+        description="Keep a running record of the cash in your back office: what each till drops in, what it draws back out, and what you pay straight out of it."
+      />
+    );
   }
 
   const active = KINDS.find((entry) => entry.value === kind);

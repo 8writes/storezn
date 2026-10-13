@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -10,6 +9,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
+import { FeatureLocked } from "@/components/ui/FeatureLocked.js";
 
 const CHANNEL_LABEL = { online: "Online store", pos: "Register (POS)", manual: "Recorded past sales" };
 const TENDER_LABEL = { cash: "Cash", card: "POS / card", transfer: "Transfer", paystack: "Paystack", wallet: "Wallet", store_credit: "Store credit" };
@@ -163,14 +163,11 @@ export default function VendorReportsPage() {
   }
   if (locked) {
     return (
-      <div className="max-w-md mx-auto text-center bg-surface border border-slate-200 rounded-sm p-8 space-y-3 mt-6">
-        <h1 className="text-lg font-bold text-slate-900">The monthly report is a Storezn Enterprise feature</h1>
-        <p className="text-sm text-slate-800">
-          Enterprise adds a full month-end business &amp; forensic audit report: sales, tenders, cash reconciliation
-          per shift, and who did what. It&apos;s set up by the Storezn team.
-        </p>
-        <Link href="/vendor/plus" className="inline-block text-sm font-semibold text-brand-600 hover:text-brand-700">See Enterprise</Link>
-      </div>
+      <FeatureLocked
+        plan="enterprise"
+        feature="The monthly report"
+        description="A full month-end business and forensic audit report: sales, tenders, cash reconciliation per shift, and who did what."
+      />
     );
   }
 

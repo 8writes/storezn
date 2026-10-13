@@ -18,6 +18,7 @@ import { isPlusStore } from "@/lib/storePlan.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
+import { FeatureLocked } from "@/components/ui/FeatureLocked.js";
 
 // Manually recording a sale that already happened - in person, by phone,
 // by transfer. Recorded as paid, stock deducted right away. The live
@@ -140,19 +141,13 @@ export default function RecordPastSalePage() {
 
   if (activeStore && !isPlusStore(activeStore)) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <BackLink href="/vendor/orders" label="Back to orders" />
-        <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
-          <h1 className="text-lg font-bold text-slate-900">Recording past sales is a Storezn+ feature</h1>
-          <p className="text-sm text-slate-800 max-w-sm mx-auto">
-            Log sales made in person, by phone, or in cash so they show up in your order history and stock.
-            Upgrade to Storezn+ to record these sales without opening a POS register.
-          </p>
-          <Link href="/vendor/plus" className="inline-block">
-            <Button type="button">See Storezn+</Button>
-          </Link>
-        </div>
-      </div>
+      <FeatureLocked
+        plan="plus"
+        feature="Recording past sales"
+        description="Log sales made in person, by phone, or in cash so they show up in your order history and stock - without opening a POS register."
+        backHref="/vendor/orders"
+        backLabel="Back to orders"
+      />
     );
   }
 

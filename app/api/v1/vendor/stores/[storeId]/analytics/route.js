@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
-import { orders, orderItems, products, categories, customers, branches, refundRequests, stores, invoices, invoiceRequests } from "../../../../../../../lib/db/schema.js";
+import { orders, orderItems, products, categories, customers, branches, refundRequests, stores, invoices, invoiceRequests, storeVisits } from "../../../../../../../lib/db/schema.js";
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { LOW_STOCK_THRESHOLD } from "../../../../../../../lib/inventory.js";
@@ -99,6 +99,48 @@ export async function GET(req, { params }) {
     .select({ count: sql`count(*)`.mapWith(Number) })
     .from(customers)
     .where(and(eq(customers.storeId, storeId), inRange(customers.createdAt, from, to)));
+
+  // Unique visitors: one row per browser per day (see storeVisits), so a
+  // shopper who browses all afternoon counts once, and the same shopper
+  // returning next week counts again. Across a range we want distinct
+  // PEOPLE, not the sum of daily counts - someone who visited on three
+  // days is one visitor here, which is why this is a count(distinct) over
+  // the range rather than a sum of the daily series below.
+  //
+  // Only shoppers who accepted analytics cookies are recorded at all, so
+  // this is honestly an undercount, and the page says so.
+  const [visitorsRow] = await db
+    .select({ count: sql`count(distinct ${storeVisits.visitorId})`.mapWith(Number) })
+    .from(storeVisits)
+    .where(and(
+      eq(storeVisits.storeId, storeId),
+      sql`${storeVisits.visitDay} >= ${toDateOnly(from)}`,
+      sql`${storeVisits.visitDay} <= ${toDateOnly(to)}`,
+    ));
+
+  const [prevVisitorsRow] = await db
+    .select({ count: sql`count(distinct ${storeVisits.visitorId})`.mapWith(Number) })
+    .from(storeVisits)
+    .where(and(
+      eq(storeVisits.storeId, storeId),
+      sql`${storeVisits.visitDay} >= ${toDateOnly(prevFrom)}`,
+      sql`${storeVisits.visitDay} <= ${toDateOnly(prevTo)}`,
+    ));
+
+  const visitorDailyRows = await db
+    .select({
+      day: sql`${storeVisits.visitDay}::text`,
+      count: sql`count(distinct ${storeVisits.visitorId})`.mapWith(Number),
+    })
+    .from(storeVisits)
+    .where(and(
+      eq(storeVisits.storeId, storeId),
+      sql`${storeVisits.visitDay} >= ${toDateOnly(from)}`,
+      sql`${storeVisits.visitDay} <= ${toDateOnly(to)}`,
+    ))
+    .groupBy(storeVisits.visitDay)
+    .orderBy(storeVisits.visitDay);
+  const visitorsByDay = new Map(visitorDailyRows.map((row) => [row.day, row.count]));
 
   // One row per calendar day in range, zero-filled for days with no paid
   // orders - see the identical pattern (and reasoning) in the super-admin
@@ -270,8 +312,15 @@ export async function GET(req, { params }) {
       averageOrderValue: orderCount > 0 ? (summaryRow?.gmv || 0) / orderCount : 0,
       unitsSold: unitsRow?.units || 0,
       newCustomers: newCustomersRow?.count || 0,
+      uniqueVisitors: visitorsRow?.count || 0,
+      uniqueVisitorsChangePercent: pctChange(visitorsRow?.count || 0, prevVisitorsRow?.count || 0),
     },
-    daily: dailyRows.map((r) => ({ day: r.day, revenue: r.revenue, orderCount: r.order_count })),
+    daily: dailyRows.map((r) => ({
+      day: r.day,
+      revenue: r.revenue,
+      orderCount: r.order_count,
+      visitors: visitorsByDay.get(r.day) || 0,
+    })),
     statusBreakdown: statusRows.map((r) => ({ status: r.status, count: r.count })),
     channelBreakdown: channelRows.map((r) => ({ channel: r.isOffline ? "offline" : "online", revenue: r.revenue, count: r.count })),
     topProducts,

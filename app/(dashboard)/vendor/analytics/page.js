@@ -24,6 +24,7 @@ import {
   RotateCcw,
   CalendarClock,
   FileText,
+  Eye,
 } from "lucide-react";
 
 const BRAND = "#14915b";
@@ -243,7 +244,15 @@ export default function VendorAnalyticsPage() {
       ) : (
         <>
           {/* ---- KPIs ---- */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <StatCard
+              icon={Eye}
+              label="Unique visitors"
+              value={data.summary.uniqueVisitors ?? 0}
+              color="blue"
+              sub={<ChangeBadge percent={data.summary.uniqueVisitorsChangePercent} />}
+              title="People who opened your store in this period. Counted once per browser per day, and only for shoppers who accepted analytics cookies - so the real number is a little higher."
+            />
             <StatCard
               icon={Wallet}
               label="Revenue"
@@ -273,7 +282,6 @@ export default function VendorAnalyticsPage() {
             />
             <StatCard
               icon={Users}
-              className="col-span-2 sm:col-span-1"
               label="New customers"
               value={data.summary.newCustomers}
               color="brand"

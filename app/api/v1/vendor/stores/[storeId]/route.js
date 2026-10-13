@@ -8,6 +8,7 @@ import { deletePublicFile } from "../../../../../../lib/storage/index.js";
 import { claimStoreUploads, filterStoreOwnedUploadUrls, removeStoreUpload, getStoreStorageUsage } from "../../../../../../lib/storeUploads.js";
 import { isPlusStore, isEnterpriseStore, getEffectivePlan, getStorageLimitBytes, getPlusMonthlyPrice } from "../../../../../../lib/storePlan.js";
 import { isColorTooLight } from "../../../../../../lib/colorShades.js";
+import { logStoreActivity } from "../../../../../../lib/storeActivity.js";
 
 // The two upload-backed fields - PATCHing over (or clearing) either one
 // orphans the previous file in storage unless we clean it up here.
@@ -149,6 +150,23 @@ export async function PATCH(req, { params }) {
   }
 
   const [updated] = await db.update(stores).set(data).where(eq(stores.id, storeId)).returning();
+
+  // The business name is store identity - it's what shows on invoices,
+  // receipts, order emails and the marketplace listing, and every one of
+  // those reads it live, so a rename retroactively changes how past
+  // paperwork prints. Logged so the owner can see who changed it and what
+  // it used to be.
+  if (data.name && data.name !== store.name) {
+    after(() => logStoreActivity({
+      storeId,
+      actor: user,
+      action: "store.rename",
+      summary: `Business name: ${store.name} -> ${data.name}`,
+      targetType: "store",
+      targetId: storeId,
+      metadata: { from: store.name, to: data.name },
+    }));
+  }
 
   // The store row now references the new logo/favicon, so it stops being a
   // sweepable pending upload (see claimStoreUploads).

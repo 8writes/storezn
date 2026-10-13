@@ -10,6 +10,7 @@ import { Footer } from "@/components/storefront/Footer.js";
 import { WhatsAppButton } from "@/components/storefront/WhatsAppButton.js";
 import { StoreOfflineNotice } from "@/components/storefront/StoreOfflineNotice.js";
 import { MarketplaceBanner } from "@/components/storefront/MarketplaceBanner.js";
+import { VisitBeacon } from "@/components/storefront/VisitBeacon.js";
 import UpdatePrompt from "@/app/UpdatePrompt.js";
 import { isPlusStore } from "@/lib/storePlan.js";
 import { generateBrandShades } from "@/lib/colorShades.js";
@@ -108,6 +109,7 @@ export default async function StorefrontLayout({ children, params }) {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-12 flex-1 w-full">{children}</main>
       <Footer store={store} themed={themed} />
       <WhatsAppButton store={store} />
+      <VisitBeacon />
       <UpdatePrompt />
       {/* top-center, not top-right - the cart icon lives in that corner
           of the sticky header (see CartBadge above), and a toast stacking

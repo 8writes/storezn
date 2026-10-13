@@ -24,8 +24,9 @@ import { isColorTooLight } from "@/lib/colorShades.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "" };
+const EMPTY_FORM = { name: "", logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "" };
 
+const NAME_MAX = 120;
 const DESCRIPTION_MAX = 160;
 const DEFAULT_ACCENT = "#14915b";
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -88,6 +89,7 @@ export default function VendorSettingsPage() {
       .then((data) => {
         if (!alive) return;
         setForm({
+          name: data.store.name || "",
           logoUrl: data.store.logoUrl || "",
           faviconUrl: data.store.faviconUrl || "",
           socialLinks: { ...EMPTY_SOCIAL_LINKS, ...(data.store.socialLinks || {}) },
@@ -212,6 +214,13 @@ export default function VendorSettingsPage() {
     }
     if (form.storefrontAccentColor && isColorTooLight(form.storefrontAccentColor)) {
       toast.error("That color's too close to white - your header/footer text would be unreadable. Pick something darker.");
+      return;
+    }
+    // stores.name is notNull and the API rejects anything under two
+    // characters - caught here so an accidentally cleared field doesn't
+    // fail the entire settings save with a server-side message.
+    if (form.name.trim().length < 2) {
+      toast.error("Your business name can't be empty");
       return;
     }
     setSaving(true);
@@ -470,6 +479,32 @@ export default function VendorSettingsPage() {
 
             <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
               <SectionLabel>Branding</SectionLabel>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-sm font-medium text-slate-700">
+                    Business name
+                  </label>
+                  <InfoTip>
+                    Your store&apos;s name as customers see it - on your
+                    storefront, invoices, receipts and order emails. Your
+                    storefront address stays exactly the same.
+                  </InfoTip>
+                </div>
+                <Input
+                  value={form.name}
+                  maxLength={NAME_MAX}
+                  placeholder="Your business name"
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                />
+                {/* Every place the name appears reads it live, so a rename
+                    also changes how already-issued paperwork prints. Said
+                    plainly rather than discovered later. */}
+                <p className="text-xs text-slate-500">
+                  Changing this updates it everywhere, including on invoices and
+                  receipts you&apos;ve already sent.
+                </p>
+              </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-700">

@@ -176,6 +176,7 @@ const NAV_BY_ROLE = {
       title: "Finance",
       items: [
         { href: "/vendor/payouts", label: "Payouts", icon: Wallet },
+        { href: "/vendor/pos/registers", label: "Registers", icon: Calculator },
         { href: "/vendor/safe", label: "Safe", icon: Vault },
         { href: "/vendor/plus", label: "Storezn Plus", icon: Sparkles },
       ],
@@ -185,7 +186,6 @@ const NAV_BY_ROLE = {
       items: [
         { href: "/vendor/settings", label: "Store settings", icon: Settings },
         { href: "/vendor/shipping", label: "Shipping", icon: Truck },
-        { href: "/vendor/pos/registers", label: "Registers", icon: Calculator },
         { href: "/vendor/verification", label: "Verification", icon: ShieldCheck },
       ],
     },

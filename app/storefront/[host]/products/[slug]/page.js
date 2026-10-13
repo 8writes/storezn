@@ -12,6 +12,7 @@ import { AddToCartButton } from "@/components/storefront/AddToCartButton.js";
 import { ProductAssurances } from "@/components/storefront/ProductAssurances.js";
 import { ReviewsSection } from "@/components/storefront/ReviewsSection.js";
 import { ProductGallery } from "@/components/storefront/ProductGallery.js";
+import { WishlistButton } from "@/components/storefront/WishlistButton.js";
 import { ShareButton } from "@/components/storefront/ShareButton.js";
 import { BackButton } from "@/components/storefront/BackButton.js";
 import { ProductRail } from "@/components/storefront/ProductRail.js";
@@ -104,7 +105,10 @@ export default async function StorefrontProductPage({ params }) {
                   </span>
                 )}
               </div>
-              <ShareButton url={`${getStorefrontUrl(store)}/products/${product.slug}`} title={product.name} className="shrink-0 mt-1" />
+              <div className="flex shrink-0 items-center gap-1 mt-1">
+                <WishlistButton productId={product.id} className="!bg-transparent !shadow-none hover:!bg-slate-100" size={20} />
+                <ShareButton url={`${getStorefrontUrl(store)}/products/${product.slug}`} title={product.name} />
+              </div>
             </div>
             {product.sku && <p className="text-xs text-slate-700">SKU: {product.sku}</p>}
           </div>

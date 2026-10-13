@@ -47,6 +47,7 @@ import {
   catalogMeta,
 } from "@/lib/posOffline.js";
 import { Minus, Plus, Trash2, ShoppingCart, Pause, RotateCcw, X } from "lucide-react";
+import { FeatureLocked } from "@/components/ui/FeatureLocked.js";
 
 const isNetErr = (err) => !err || (!err?.status && !!networkErrorMessage(err));
 
@@ -243,19 +244,13 @@ export default function SellPage() {
 
   if (activeStore && !isEnterpriseStore(activeStore)) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <BackLink href="/vendor/orders" label="Back to orders" />
-        <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
-          <h1 className="text-lg font-bold text-slate-900">In-person selling is a Storezn Enterprise feature</h1>
-          <p className="text-sm text-slate-800 max-w-sm mx-auto">
-            Run a register to take sales in person - item-by-item ring-up, cash drawer, POS-machine and transfer payments,
-            shift Z-reports, and offline mode. Enterprise is set up by the Storezn team.
-          </p>
-          <Link href="/vendor/plus" className="inline-block">
-            <Button type="button">See Enterprise</Button>
-          </Link>
-        </div>
-      </div>
+      <FeatureLocked
+        plan="enterprise"
+        feature="In-person selling"
+        description="Run a register to take sales in person - item-by-item ring-up, cash drawer, POS-machine and transfer payments, shift Z-reports, and offline mode."
+        backHref="/vendor/orders"
+        backLabel="Back to orders"
+      />
     );
   }
 

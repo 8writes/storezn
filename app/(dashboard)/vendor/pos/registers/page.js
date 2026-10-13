@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/EmptyState.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { isEnterpriseStore } from "@/lib/storePlan.js";
 import { Calculator, Trash2, Check, X } from "lucide-react";
+import { FeatureLocked } from "@/components/ui/FeatureLocked.js";
 
 export default function RegistersPage() {
   const { user, token } = useAuth(true);
@@ -132,18 +133,13 @@ export default function RegistersPage() {
 
   if (!loading && store && !isEnterpriseStore(store)) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <BackLink href="/vendor/orders" label="Back to orders" />
-        <div className="bg-surface border border-slate-200 rounded-sm p-8 text-center space-y-3">
-          <h1 className="text-lg font-bold text-slate-900">Registers are a Storezn Enterprise feature</h1>
-          <p className="text-sm text-slate-800 max-w-sm mx-auto">
-            Enterprise adds the full in-person point-of-sale suite. It&apos;s set up by the Storezn team.
-          </p>
-          <Link href="/vendor/plus" className="inline-block">
-            <Button type="button">See Enterprise</Button>
-          </Link>
-        </div>
-      </div>
+      <FeatureLocked
+        plan="enterprise"
+        feature="Registers"
+        description="Enterprise adds the full in-person point-of-sale suite."
+        backHref="/vendor/orders"
+        backLabel="Back to orders"
+      />
     );
   }
 
