@@ -140,7 +140,7 @@ export default function SessionsPage() {
               <th className="px-4 py-2.5 font-semibold">Register</th>
               <th className="px-4 py-2.5 font-semibold">Opened</th>
               <th className="px-4 py-2.5 font-semibold">Status</th>
-              <th className="px-4 py-2.5 font-semibold text-right">Over / short (₦500+ notes)</th>
+              <th className="px-4 py-2.5 font-semibold text-right">Over / short</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

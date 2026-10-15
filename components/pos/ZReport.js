@@ -161,7 +161,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
               reliable measure of this shift.
             </p>
           )}
-          <Row label={countedNotesBasis ? `Opened with (₦${CHANGE_FLOAT_BELOW}+ notes)` : "Opening float"} value={signed(d.openingFloat)} />
+          <Row label="Opening float" value={signed(d.openingFloat)} />
           {isZ && summary.openingChangeCash != null && (
             <Row label="Change bowl at open" value={formatKobo(summary.openingChangeCash)} />
           )}
@@ -190,7 +190,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
             <Row label="Change given (POS / transfer overpayment)" value={signed(d.changeOut)} tone="neg" />
           )}
           <Row
-            label={countedNotesBasis ? `Expected (₦${CHANGE_FLOAT_BELOW}+ notes)` : "Expected in drawer"}
+            label="Expected in drawer"
             value={formatKobo(isZ ? summary.expectedCash : d.expectedCash)}
             strong
             rule
@@ -205,7 +205,7 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
           {isZ && (
             <>
               <Row
-                label={countedNotesBasis ? `Counted (₦${CHANGE_FLOAT_BELOW}+ notes)` : "Counted (physically)"}
+                label="Counted (physically)"
                 value={formatKobo(summary.countedCash)}
                 strong
                 rule
