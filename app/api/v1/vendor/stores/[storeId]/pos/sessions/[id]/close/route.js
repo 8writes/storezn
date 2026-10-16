@@ -45,10 +45,9 @@ export async function POST(req, { params }) {
 
       const summary = await buildPosSessionSummary(tx, session);
       const expectedCash = summary.drawer.expectedCash;
-      // Decided in lib/pos.js so it can be tested without a database -
-      // over/short is the figure staff are judged on. The change pot is
-      // recorded alongside the count and never inside it; see
-      // CHANGE_FLOAT_BELOW for why both sides must exclude it.
+      // Decided in lib/pos.js so it can be tested without a database. The
+      // notes counted are the counted cash; the change is its own typed
+      // total, recorded alongside the count and never inside it.
       const { countedCash, closingChangeCash, closeMethod } = resolveCloseCount({
         forced,
         countBreakdown,

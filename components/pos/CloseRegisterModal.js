@@ -1,33 +1,24 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { formatKobo } from "@/lib/money.js";
-import { CHANGE_FLOAT_BELOW, splitCountBreakdown } from "@/lib/pos.js";
 import { ZReport } from "./ZReport.js";
 
-// Nigerian cash denominations, high to low (naira), split by the pile
-// they belong to: counted cash (₦500 and up) and change (the small notes
-// kept for giving change, optional to enter).
-const COUNTED_DENOMS = [1000, 500];
-const POT_DENOMS = [200, 100, 50, 20, 10, 5];
-const DENOMS = [...COUNTED_DENOMS, ...POT_DENOMS];
+// Nigerian cash denominations, high to low (naira).
+const DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5];
 
-// Close flow: count the drawer -> confirm -> the Z report is shown for
-// printing. The count is recorded for what it is; nothing is compared
-// with an expected figure.
+// Close flow: count the drawer note by note, type the change as one
+// total -> the Z report is shown for printing. The count is recorded for
+// what it is; nothing is compared with an expected figure.
 //
 // onSubmit is called with one of:
-//   { countedCash }                  plain total (naira)
-//   { countBreakdown: {denom: qty} } note-by-note count
-//   { forced: true, forcedReason }   couldn't count - recorded as not counted
+//   { countBreakdown: {denom: qty}, closingChangeCash? }  the count
+//   { forced: true, forcedReason }                        couldn't count
+// (The API still accepts a plain { countedCash } total from older clients.)
 // and resolves to the closed session's zReport (or throws).
 export function CloseRegisterModal({ open, onClose, rejectedCount = 0, heldCount, pendingSync = 0, syncing = false, onSync, onSubmit }) {
-  // Notes-first: it's the mode where the server derives the split itself,
-  // so the counted pile and the bowl can't be confused with each other.
-  const [mode, setMode] = useState("notes"); // "notes" | "total"
   const [changeFloat, setChangeFloat] = useState("");
-  const [counted, setCounted] = useState("");
   const [qtys, setQtys] = useState({});
   const [forcing, setForcing] = useState(false);
   const [forcedReason, setForcedReason] = useState("");
@@ -35,39 +26,28 @@ export function CloseRegisterModal({ open, onClose, rejectedCount = 0, heldCount
   const [submitting, setSubmitting] = useState(false);
   const [zReport, setZReport] = useState(null);
 
-  // Notes under ₦500 are the change float, not takings - the same split
-  // the server applies when it stores the close (splitCountBreakdown), so
-  // the figure shown while counting is the figure that gets recorded.
-  const split = useMemo(() => {
-    const breakdown = {};
-    for (const d of DENOMS) if (Number(qtys[d]) > 0) breakdown[d] = Number(qtys[d]);
-    return splitCountBreakdown(breakdown);
-  }, [qtys]);
-  const breakdownKobo = split.countedKobo;
-  const changeFloatKobo = split.changeFloatKobo;
-  const countedKobo = mode === "notes" ? breakdownKobo : Math.round(Number(counted || 0) * 100);
+  // Every note counted is counted cash - the same sum the server makes
+  // from the breakdown, so what's shown here is what gets recorded.
+  const countedKobo = DENOMS.reduce((sum, d) => sum + d * 100 * (Number(qtys[d]) || 0), 0);
 
   if (!open) return null;
 
   const blocked = heldCount > 0;
   const needsAck = pendingSync > 0 && !ackProvisional;
-  const canSubmit = forcing
-    ? forcedReason.trim().length > 0
-    : mode === "notes"
-      ? breakdownKobo > 0 || changeFloatKobo > 0
-      : counted !== "";
+  // Anything typed counts as a count - including a deliberate 0, so a
+  // genuinely empty drawer can still be closed.
+  const entered = DENOMS.some((d) => qtys[d] != null && qtys[d] !== "") || changeFloat !== "";
+  const canSubmit = forcing ? forcedReason.trim().length > 0 : entered;
 
   const submit = async () => {
     setSubmitting(true);
     try {
       let payload;
       if (forcing) payload = { forced: true, forcedReason: forcedReason.trim() };
-      else if (mode === "notes") {
+      else {
         const countBreakdown = {};
         for (const d of DENOMS) if (Number(qtys[d]) > 0) countBreakdown[d] = Number(qtys[d]);
         payload = { countBreakdown };
-      } else {
-        payload = { countedCash: Number(counted || 0) };
         // Only when they actually typed one - blank means "not counted",
         // which the Z renders differently from a counted zero.
         if (changeFloat !== "") payload.closingChangeCash = Number(changeFloat || 0);
@@ -158,122 +138,47 @@ export function CloseRegisterModal({ open, onClose, rejectedCount = 0, heldCount
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-slate-600">
-                      Count the ₦500 and ₦1,000 notes only.
-                      <span className="block text-xs text-slate-600">
-                        Leave the change bowl alone &ndash; the small notes for giving change aren&apos;t part of this.
-                      </span>
-                    </p>
-                    <div className="flex gap-1 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setMode("total")}
-                        className={`px-2 py-1 rounded-sm border ${mode === "total" ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-800"}`}
-                      >
-                        Total
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMode("notes")}
-                        className={`px-2 py-1 rounded-sm border ${mode === "notes" ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-800"}`}
-                      >
-                        By notes
-                      </button>
+                  <div className="border border-slate-200 rounded-sm divide-y divide-slate-100">
+                    {DENOMS.map((d) => (
+                      <div key={d} className="flex items-center gap-3 px-3 py-1.5 text-sm">
+                        <span className="w-16 text-slate-600 tabular-nums">₦{d.toLocaleString()}</span>
+                        <span className="text-slate-300">×</span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          value={qtys[d] ?? ""}
+                          onChange={(e) => setQtys((q) => ({ ...q, [d]: e.target.value }))}
+                          placeholder="0"
+                          aria-label={`Number of ₦${d.toLocaleString()} notes`}
+                          className="w-16 px-2 py-1 border border-slate-300 rounded-sm text-sm tabular-nums outline-none focus:border-brand-500"
+                        />
+                        <span className="ml-auto tabular-nums text-slate-800">
+                          {formatKobo(d * 100 * (Number(qtys[d]) || 0))}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between px-3 py-2 text-sm font-semibold">
+                      <span>Counted cash</span>
+                      <span className="tabular-nums">{formatKobo(countedKobo)}</span>
                     </div>
                   </div>
 
-                  {mode === "total" ? (
+                  {/* One total, not note by note. Blank stays blank, so the Z
+                      says "not counted" rather than printing a made-up 0. */}
+                  <div className="space-y-1">
+                    <label htmlFor="close-change" className="text-sm font-medium text-slate-700">Change</label>
                     <input
+                      id="close-change"
                       type="number"
                       inputMode="decimal"
-                      autoFocus
-                      value={counted}
-                      onChange={(e) => setCounted(e.target.value)}
-                      placeholder="Total of ₦500 and ₦1,000 notes"
-                      className="w-full px-3 py-2.5 border border-slate-300 rounded-sm text-lg tabular-nums outline-none focus:border-brand-500"
+                      min="0"
+                      value={changeFloat}
+                      onChange={(e) => setChangeFloat(e.target.value)}
+                      placeholder="Total amount"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
                     />
-                  ) : null}
-                  {/* The bowl is recorded at close in this mode too. It was
-                      briefly dropped from here, which lost the shop the
-                      record they asked for. What made the old version
-                      confusing was the box ABOVE saying "counted cash
-                      total" - now that it names the notes, this one can't
-                      be mistaken for part of it. Blank stays blank: a
-                      guessed figure would print on the Z as if counted. */}
-                  {mode === "total" ? (
-                    <div className="space-y-1">
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        value={changeFloat}
-                        onChange={(e) => setChangeFloat(e.target.value)}
-                        placeholder="Change bowl in the drawer (optional)"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
-                      />
-                      <p className="text-xs text-slate-700">
-                        The small notes kept for giving change. Leave blank if nobody counted it.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="border border-slate-200 rounded-sm divide-y divide-slate-100">
-                      {COUNTED_DENOMS.map((d) => (
-                        <div key={d} className="flex items-center gap-3 px-3 py-1.5 text-sm">
-                          <span className="w-16 text-slate-600 tabular-nums">₦{d.toLocaleString()}</span>
-                          <span className="text-slate-300">×</span>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
-                            value={qtys[d] ?? ""}
-                            onChange={(e) => setQtys((q) => ({ ...q, [d]: e.target.value }))}
-                            placeholder="0"
-                            className="w-16 px-2 py-1 border border-slate-300 rounded-sm text-sm tabular-nums outline-none focus:border-brand-500"
-                          />
-                          <span className="ml-auto tabular-nums text-slate-800">
-                            {formatKobo(d * 100 * (Number(qtys[d]) || 0))}
-                          </span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between px-3 py-2 text-sm font-semibold">
-                        <span>Counted cash</span>
-                        <span className="tabular-nums">{formatKobo(breakdownKobo)}</span>
-                      </div>
-                      {/* Recorded at close, as the shop asked - visible, not
-                          behind a disclosure, since it's the only record of
-                          the change in the drawer. */}
-                      <div className="px-3 py-2 space-y-1">
-                        <p className="text-xs font-medium text-slate-700">
-                          Change
-                          <span className="block text-[11px] font-normal text-slate-600">
-                            Notes under ₦{CHANGE_FLOAT_BELOW}, kept for giving change. Leave blank if nobody counted it.
-                          </span>
-                        </p>
-                        {POT_DENOMS.map((d) => (
-                          <div key={d} className="flex items-center gap-3 text-sm">
-                            <span className="w-16 text-slate-600 tabular-nums">₦{d.toLocaleString()}</span>
-                            <span className="text-slate-300">×</span>
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              min="0"
-                              value={qtys[d] ?? ""}
-                              onChange={(e) => setQtys((q) => ({ ...q, [d]: e.target.value }))}
-                              placeholder="0"
-                              className="w-16 px-2 py-1 border border-slate-300 rounded-sm text-sm tabular-nums outline-none focus:border-brand-500"
-                            />
-                            <span className="ml-auto tabular-nums text-slate-800">
-                              {formatKobo(d * 100 * (Number(qtys[d]) || 0))}
-                            </span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between pt-1 text-sm">
-                          <span className="text-slate-700">Change total</span>
-                          <span className="tabular-nums text-slate-800">{formatKobo(changeFloatKobo)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  </div>
 
                   <button type="button" onClick={() => setForcing(true)} className="text-xs text-slate-800 hover:text-slate-700 hover:underline">
                     I can&apos;t count the drawer right now
