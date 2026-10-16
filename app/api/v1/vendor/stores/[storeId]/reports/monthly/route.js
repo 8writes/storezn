@@ -476,14 +476,8 @@ export async function GET(req, { params }) {
   if (provisionalShifts.length) {
     flags.push(`${provisionalShifts.length} shift${provisionalShifts.length === 1 ? "" : "s"} closed with sales still unsynced, figures provisional.`);
   }
-  const shortSessions = cashReconciliation.filter((r) => r.overShort < 0);
-  if (shortSessions.length) {
-    const t = shortSessions.reduce((s, r) => s + r.overShort, 0);
-    flags.push(`${shortSessions.length} shift${shortSessions.length === 1 ? "" : "s"} came up short: ${money(Math.abs(t))} in total.`);
-  }
-  for (const p of overShortByCashier) {
-    if (p.overShort < 0) flags.push(`${p.name}: ${money(Math.abs(p.overShort))} short across ${p.sessions} shift${p.sessions === 1 ? "" : "s"}.`);
-  }
+  // No "came up short" flags: the store records the drawer count for what
+  // it is and no longer compares it with an expected figure.
   for (const s of perStaff) {
     if (s.discountsValue + s.overridesValue >= 5000)
       flags.push(`${s.name} gave away ${money(s.discountsValue + s.overridesValue)} (${s.discountsCount} discounts, ${s.overrideLines} price overrides).`);

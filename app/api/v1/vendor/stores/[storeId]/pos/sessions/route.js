@@ -5,7 +5,7 @@ import { posSessions, posRegisters, cashMovements } from "@/lib/db/schema.js";
 import { validate, openSessionSchema } from "@/lib/validate.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadRegister } from "@/lib/posAccess.js";
-import { DEFAULT_OVER_SHORT_TOLERANCE_KOBO, OPENING_BASIS, splitCountBreakdown } from "@/lib/pos.js";
+import { OPENING_BASIS, splitCountBreakdown } from "@/lib/pos.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 import { parsePagination } from "@/lib/pagination.js";
 import { isUniqueViolation } from "@/lib/dbErrors.js";
@@ -43,12 +43,10 @@ export async function GET(req, { params }) {
         openedBy: posSessions.openedBy,
         openedAt: posSessions.openedAt,
         openingFloat: posSessions.openingFloat,
-        // The list marks pre-fix shifts, which all read short by about the
-        // change pot and must not look like a cashier's variance.
-        openingBasis: posSessions.openingBasis,
         closedAt: posSessions.closedAt,
         expectedCash: posSessions.expectedCash,
         countedCash: posSessions.countedCash,
+        closingChangeCash: posSessions.closingChangeCash,
         overShort: posSessions.overShort,
         closeMethod: posSessions.closeMethod,
         provisional: posSessions.provisional,
@@ -76,9 +74,6 @@ export async function GET(req, { params }) {
 
   return NextResponse.json({
     sessions: rows,
-    // So the list can colour an over/short by whether it actually cleared
-    // this store's threshold, instead of shouting at every non-zero value.
-    overShortToleranceKobo: ctx.store.posOverShortTolerance || DEFAULT_OVER_SHORT_TOLERANCE_KOBO,
     pendingReviewCount: pendingReview,
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });

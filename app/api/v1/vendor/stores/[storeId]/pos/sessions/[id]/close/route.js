@@ -6,7 +6,7 @@ import { validate, closeSessionSchema } from "@/lib/validate.js";
 import { toKobo, formatKobo } from "@/lib/money.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
 import { buildPosSessionSummary, lockPosSession } from "@/lib/posSession.js";
-import { openingBasisOf, posOverShortReview, resolveCloseCount } from "@/lib/pos.js";
+import { openingBasisOf, resolveCloseCount } from "@/lib/pos.js";
 import { logStoreActivity } from "@/lib/storeActivity.js";
 
 export async function POST(req, { params }) {
@@ -57,26 +57,19 @@ export async function POST(req, { params }) {
         expectedCash,
       });
 
+      // Still computed and stored - it costs nothing, and keeps the option
+      // of comparing again later - but it is no longer shown anywhere or
+      // used to judge a shift. The store's decision: the count is recorded
+      // for what it is. A shift is flagged only when the drawer wasn't
+      // counted at all, or when sales were still unsynced.
       const overShort = countedCash - expectedCash;
       const provisional = pendingSyncCount > 0;
-      // Per-store, replacing a flat ₦500 that flagged practically every
-      // close once the pot stopped being counted into the drawer figure.
-      const { reviewStatus, toleranceKobo } = posOverShortReview({
-        overShort,
-        forced,
-        provisional,
-        toleranceKobo: ctx.store.posOverShortTolerance,
-      });
+      const reviewStatus = forced || provisional ? "pending" : "ok";
       const zReport = {
         ...summary, countedCash, expectedCash, overShort, closedBy: ctx.user.id,
         closeMethod, provisional, pendingSyncCount, reviewStatus, closingChangeCash,
-        // Frozen into the snapshot so the Z describes itself forever: a
-        // later tolerance change must not silently re-judge a past shift,
-        // and the basis is what tells the reader whether the pot was
-        // inside the opening figure.
         openingBasis: openingBasisOf(session),
         openingChangeCash: session.openingChangeCash ?? null,
-        overShortToleranceKobo: toleranceKobo,
       };
       const [closed] = await tx.update(posSessions).set({
         status: "closed", closedBy: ctx.user.id, closedAt: new Date(), countedCash,
@@ -87,7 +80,7 @@ export async function POST(req, { params }) {
       if (!closed) {
         throw Object.assign(new Error("This session is already closed"), { code: "SESSION_CLOSED" });
       }
-      return { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod, closingChangeCash, toleranceKobo };
+      return { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod, closingChangeCash };
     });
   } catch (error) {
     if (["NOT_FOUND", "SESSION_CLOSED", "HELD_SALE"].includes(error.code)) {
@@ -96,26 +89,26 @@ export async function POST(req, { params }) {
     throw error;
   }
 
-  const { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod, toleranceKobo } = closeResult;
+  const { closed, summary, countedCash, expectedCash, overShort, provisional, reviewStatus, closeMethod, closingChangeCash } = closeResult;
   after(() => logStoreActivity({
     storeId,
     actor: ctx.user,
     branchId: row.register.branchId,
     action: "register.close",
     summary: `Closed ${row.register.name} - ${forced
-      ? `NOT COUNTED, used the system figure ${formatKobo(expectedCash)} (${forcedReason})`
-      : `counted ${formatKobo(countedCash)} vs expected ${formatKobo(expectedCash)}` +
-        (overShort === 0 ? " (balanced)" : ` (${overShort > 0 ? "over" : "short"} ${formatKobo(Math.abs(overShort))})`)}` +
+      ? `NOT COUNTED (${forcedReason})`
+      : `counted ${formatKobo(countedCash)}` +
+        (closingChangeCash != null ? ` + ${formatKobo(closingChangeCash)} change` : "")}` +
       (provisional ? ` - PROVISIONAL, ${pendingSyncCount} sale(s) not synced` : ""),
     targetType: "session",
     targetId: id,
     metadata: {
-      registerName: row.register.name, countedCashKobo: countedCash, expectedCashKobo: expectedCash,
-      overShortKobo: overShort, closeMethod, forcedReason: forced ? forcedReason : null,
+      registerName: row.register.name, countedCashKobo: countedCash, closingChangeCashKobo: closingChangeCash,
+      // Kept in the audit trail only; not shown to anyone.
+      expectedCashKobo: expectedCash, overShortKobo: overShort,
+      closeMethod, forcedReason: forced ? forcedReason : null,
       provisional, pendingSyncCount, reviewStatus, saleCount: summary.saleCount,
       grossSalesKobo: summary.grossSales,
-      // Why it was (or wasn't) flagged, so the audit trail stands alone.
-      overShortToleranceKobo: toleranceKobo,
     },
   }));
 

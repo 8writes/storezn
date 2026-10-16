@@ -228,11 +228,7 @@ export default function VendorReportsPage() {
             <Stat label="Returns" value={formatCurrency(s.returnsTotal)} sub={`${s.returnsCount} return${s.returnsCount === 1 ? "" : "s"}`} />
             <Stat label="Discounts given" value={formatCurrency(s.discountsGiven)} />
             <Stat label="New customers" value={s.newCustomers} />
-            <Stat
-              label="Cash over / short"
-              value={formatCurrency(s.cashOverShort)}
-              sub={`${s.registersClosed} register close${s.registersClosed === 1 ? "" : "s"}`}
-            />
+            <Stat label="Register closes" value={s.registersClosed} />
           </div>
 
           {report.reconciliation && (
@@ -245,7 +241,6 @@ export default function VendorReportsPage() {
                 <Recon label="Price overrides, value off catalogue" value={-report.reconciliation.overridesGivenTotal} />
                 <Recon label="Cash paid out / drops" value={-report.reconciliation.paidOutTotal} />
                 <Recon label="Cash paid in" value={report.reconciliation.paidInTotal} />
-                <Recon label="Drawer over / short (all shifts)" value={report.reconciliation.drawerVarianceTotal} flag />
                 <Recon label="Total not collected as sale" value={-report.reconciliation.moneyGivenAway} strong />
               </div>
             </div>
@@ -364,7 +359,6 @@ export default function VendorReportsPage() {
                       <th className="px-3 py-2 font-medium text-right">Returns</th>
                       <th className="px-3 py-2 font-medium text-right">Cash out</th>
                       <th className="px-3 py-2 font-medium text-right">Shifts</th>
-                      <th className="px-3 py-2 font-medium text-right">Over / short</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -391,9 +385,6 @@ export default function VendorReportsPage() {
                             {p.cashOutCount ? `${p.cashOutCount} · ${formatCurrency(p.cashOutValue)}` : "N/A"}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums text-slate-800">{p.shifts || 0}</td>
-                          <td className={`px-3 py-2 text-right tabular-nums font-medium ${p.overShort < 0 ? "text-red-600" : p.overShort > 0 ? "text-amber-600" : "text-slate-400"}`}>
-                            {p.shifts ? (p.overShort === 0 ? "balanced" : formatCurrency(p.overShort)) : "N/A"}
-                          </td>
                         </tr>
                       );
                     })}
@@ -405,21 +396,7 @@ export default function VendorReportsPage() {
 
           {report.cashReconciliation?.length > 0 && (
             <div className="border-t border-slate-100 pt-4 space-y-3">
-              <p className="text-sm font-semibold text-slate-700">Cash reconciliation: every shift closed this month</p>
-              {report.overShortByCashier?.length > 0 && (
-                <div className="border border-slate-200 rounded-sm divide-y divide-slate-100">
-                  {report.overShortByCashier.map((c) => (
-                    <div key={c.name} className="flex items-center justify-between gap-4 px-3 py-2 text-sm">
-                      <span className="text-slate-700">
-                        {c.name} <span className="text-slate-400">· {c.sessions} shift{c.sessions === 1 ? "" : "s"}</span>
-                      </span>
-                      <span className={`font-medium tabular-nums ${c.overShort < 0 ? "text-red-600" : c.overShort > 0 ? "text-amber-600" : "text-slate-800"}`}>
-                        {c.overShort === 0 ? "balanced" : `${c.overShort > 0 ? "over " : "short "}${formatCurrency(Math.abs(c.overShort))}`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className="text-sm font-semibold text-slate-700">Every shift closed this month</p>
               <div className="overflow-x-auto border border-slate-200 rounded-sm">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-slate-800 text-left">
@@ -427,9 +404,7 @@ export default function VendorReportsPage() {
                       <th className="px-3 py-2 font-medium">Closed</th>
                       <th className="px-3 py-2 font-medium">Register</th>
                       <th className="px-3 py-2 font-medium">Cashier</th>
-                      <th className="px-3 py-2 font-medium text-right">Expected</th>
                       <th className="px-3 py-2 font-medium text-right">Counted</th>
-                      <th className="px-3 py-2 font-medium text-right">Over / short</th>
                       <th className="px-3 py-2 font-medium">Close</th>
                     </tr>
                   </thead>
@@ -439,10 +414,8 @@ export default function VendorReportsPage() {
                         <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{formatDateTime(r.closedAt)}</td>
                         <td className="px-3 py-2 text-slate-700">{r.register}</td>
                         <td className="px-3 py-2 text-slate-700">{r.cashier}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.expected)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(r.counted)}</td>
-                        <td className={`px-3 py-2 text-right tabular-nums font-medium ${r.overShort < 0 ? "text-red-600" : r.overShort > 0 ? "text-amber-600" : "text-slate-400"}`}>
-                          {r.overShort === 0 ? "N/A" : formatCurrency(r.overShort)}
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {r.notCounted ? <span className="text-slate-400">-</span> : formatCurrency(r.counted)}
                         </td>
                         <td className="px-3 py-2 text-xs whitespace-nowrap">
                           {r.notCounted ? (

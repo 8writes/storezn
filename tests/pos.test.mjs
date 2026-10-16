@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_OVER_SHORT_TOLERANCE_KOBO, OPENING_BASIS, buildSessionSummary, canReplayOfflineSale, computeDrawer, openingBasisOf, posOverShortReview, posPriceAdjustmentPolicy, resolveCloseCount, splitCountBreakdown, validateTenders } from "../lib/pos.js";
+import { OPENING_BASIS, buildSessionSummary, canReplayOfflineSale, computeDrawer, openingBasisOf, posPriceAdjustmentPolicy, resolveCloseCount, splitCountBreakdown, validateTenders } from "../lib/pos.js";
 
 test("split tenders must settle the total exactly", () => {
   assert.deepEqual(validateTenders([
@@ -203,37 +203,10 @@ test("an uncounted pot is null, never a fabricated zero", () => {
   assert.equal(withPot.closingChangeCash, 4_000);
 });
 
-test("a forced close is square by construction but still goes to review", () => {
+test("a forced close records no count of its own", () => {
   const close = closeOf({ openingFloat: 500_000, movements: [{ kind: "cash_sale", amount: 70_000 }], forced: true });
   assert.equal(close.closeMethod, "forced_uncounted");
-  assert.equal(close.overShort, 0);
   assert.equal(close.closingChangeCash, null);
-  // Zero variance must NOT clear it - nobody counted the drawer.
-  assert.equal(posOverShortReview({ overShort: 0, forced: true, provisional: false, toleranceKobo: 500_000 }).reviewStatus, "pending");
-});
-
-test("review is triggered at the tolerance, not a kobo earlier", () => {
-  const review = (overShort) => posOverShortReview({ overShort, forced: false, provisional: false, toleranceKobo: 500_000 });
-  assert.equal(review(499_999).reviewStatus, "ok");
-  assert.equal(review(500_000).reviewStatus, "pending");
-  assert.equal(review(-500_000).reviewStatus, "pending"); // short counts the same as over
-  assert.equal(review(-499_999).reviewStatus, "ok");
-  assert.equal(review(499_999).overTolerance, false);
-  assert.equal(review(500_000).overTolerance, true);
-});
-
-test("unsynced sales send a close to review whatever the cash says", () => {
-  assert.equal(posOverShortReview({ overShort: 0, forced: false, provisional: true, toleranceKobo: 500_000 }).reviewStatus, "pending");
-});
-
-test("a missing or zero tolerance falls back to the default, it does not flag everything", () => {
-  // A 0 column read literally would make |overShort| >= 0 true for every
-  // close - exactly the noisy queue this replaced.
-  for (const toleranceKobo of [0, null, undefined, NaN, -1, "abc"]) {
-    const review = posOverShortReview({ overShort: 1_000, forced: false, provisional: false, toleranceKobo });
-    assert.equal(review.toleranceKobo, DEFAULT_OVER_SHORT_TOLERANCE_KOBO, `tolerance ${toleranceKobo}`);
-    assert.equal(review.reviewStatus, "ok", `status for tolerance ${toleranceKobo}`);
-  }
 });
 
 test("a shift with no recorded basis is read as the old all-cash one", () => {

@@ -7,25 +7,22 @@ import { CHANGE_FLOAT_BELOW, splitCountBreakdown } from "@/lib/pos.js";
 import { ZReport } from "./ZReport.js";
 
 // Nigerian cash denominations, high to low (naira), split by the pile
-// they belong to. The counted pile (₦500 and up) is what over/short is
-// measured on - at open and at close, the same notes both times. The
-// bowl is the small notes the shop never counts; entering them is
-// optional and never moves the counted figure.
+// they belong to: counted cash (₦500 and up) and change (the small notes
+// kept for giving change, optional to enter).
 const COUNTED_DENOMS = [1000, 500];
 const POT_DENOMS = [200, 100, 50, 20, 10, 5];
 const DENOMS = [...COUNTED_DENOMS, ...POT_DENOMS];
 
 // Close flow: count the drawer -> confirm -> the Z report is shown for
-// printing. It is a BLIND count - the expected figure and the over/short
-// are hidden until the count is submitted, so the number entered is an
-// honest count and not one typed to "balance".
+// printing. The count is recorded for what it is; nothing is compared
+// with an expected figure.
 //
 // onSubmit is called with one of:
 //   { countedCash }                  plain total (naira)
 //   { countBreakdown: {denom: qty} } note-by-note count
-//   { forced: true, forcedReason }   couldn't count - use the system figure
+//   { forced: true, forcedReason }   couldn't count - recorded as not counted
 // and resolves to the closed session's zReport (or throws).
-export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCashDeltaKobo = 0, rejectedCount = 0, heldCount, pendingSync = 0, syncing = false, onSync, onSubmit }) {
+export function CloseRegisterModal({ open, onClose, rejectedCount = 0, heldCount, pendingSync = 0, syncing = false, onSync, onSubmit }) {
   // Notes-first: it's the mode where the server derives the split itself,
   // so the counted pile and the bowl can't be confused with each other.
   const [mode, setMode] = useState("notes"); // "notes" | "total"
@@ -118,15 +115,6 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
                     {pendingSync} sale{pendingSync === 1 ? "" : "s"} on this device {pendingSync === 1 ? "hasn't" : "haven't"} synced.
                     You can still close, the Z will be marked <strong>provisional</strong> and will update when they sync.
                   </p>
-                  {offlineCashDeltaKobo !== 0 && (
-                    // The count stays blind - this is not what the drawer
-                    // should hold, it is how much of the cash in front of
-                    // them the server hasn't been told about, which is what
-                    // makes a provisional Z read short later.
-                    <p className="text-xs text-amber-800">
-                      That accounts for <strong className="tabular-nums">{formatKobo(offlineCashDeltaKobo)}</strong> of cash in this drawer.
-                    </p>
-                  )}
                   <Button type="button" size="sm" variant="outline" onClick={onSync} loading={syncing}>
                     {syncing ? "Syncing…" : `Try sync again`}
                   </Button>
@@ -153,7 +141,7 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
                 <div className="space-y-2">
                   <p className="text-sm text-slate-700 font-medium">Can&apos;t count the drawer?</p>
                   <p className="text-xs text-slate-800">
-                    The system&apos;s expected figure will be recorded and this shift will be flagged for the owner to review.
+                    The shift will be closed as &quot;not counted&quot; and flagged for the owner to review.
                     Say what stopped you counting.
                   </p>
                   <textarea
@@ -224,8 +212,7 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
                         className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
                       />
                       <p className="text-xs text-slate-700">
-                        The small notes kept for giving change. Recorded for your records &ndash; not takings, and it
-                        doesn&apos;t affect the over/short. Leave blank if nobody counted it.
+                        The small notes kept for giving change. Leave blank if nobody counted it.
                       </p>
                     </div>
                   ) : (
@@ -249,20 +236,17 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
                         </div>
                       ))}
                       <div className="flex justify-between px-3 py-2 text-sm font-semibold">
-                        <span>Counted (₦500 &amp; ₦1,000)</span>
+                        <span>Counted cash</span>
                         <span className="tabular-nums">{formatKobo(breakdownKobo)}</span>
                       </div>
-                      {/* Recorded at close, as the shop asked. Visible, not
-                          hidden behind a disclosure: this is the only
-                          record anyone has of the bowl. It stays OUT of the
-                          counted figure above either way, so entering it
-                          can never move over/short. */}
+                      {/* Recorded at close, as the shop asked - visible, not
+                          behind a disclosure, since it's the only record of
+                          the change in the drawer. */}
                       <div className="px-3 py-2 space-y-1">
                         <p className="text-xs font-medium text-slate-700">
-                          Change bowl
+                          Change
                           <span className="block text-[11px] font-normal text-slate-600">
-                            Notes under ₦{CHANGE_FLOAT_BELOW}. Recorded for your records &ndash; not takings, and it
-                            doesn&apos;t affect the figure above. Leave blank if nobody counted it.
+                            Notes under ₦{CHANGE_FLOAT_BELOW}, kept for giving change. Leave blank if nobody counted it.
                           </span>
                         </p>
                         {POT_DENOMS.map((d) => (
@@ -284,15 +268,13 @@ export function CloseRegisterModal({ open, onClose, expectedCashKobo, offlineCas
                           </div>
                         ))}
                         <div className="flex justify-between pt-1 text-sm">
-                          <span className="text-slate-700">Change bowl total</span>
+                          <span className="text-slate-700">Change total</span>
                           <span className="tabular-nums text-slate-800">{formatKobo(changeFloatKobo)}</span>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Deliberately NO expected / over-short shown here - it's a
-                      blind count. Both appear on the Z report after submit. */}
                   <button type="button" onClick={() => setForcing(true)} className="text-xs text-slate-800 hover:text-slate-700 hover:underline">
                     I can&apos;t count the drawer right now
                   </button>

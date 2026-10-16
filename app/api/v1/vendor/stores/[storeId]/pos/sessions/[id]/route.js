@@ -2,7 +2,7 @@ import { NextResponse, after } from "next/server";
 import { count, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db/index.js";
 import { posSessions, cashMovements, orders, orderTenders, posHeldSales, staff, users } from "@/lib/db/schema.js";
-import { toKobo, formatKobo } from "@/lib/money.js";
+import { toKobo } from "@/lib/money.js";
 import { buildSessionSummary } from "@/lib/pos.js";
 import { posContext, loadSession } from "@/lib/posAccess.js";
 import { validate, reviewSessionSchema } from "@/lib/validate.js";
@@ -230,11 +230,10 @@ export async function PATCH(req, { params }) {
       action: "register.close.reviewed",
       summary:
         `Reviewed & approved the close of ${row.register.name}` +
-        (Number(row.session.overShort) ? ` (${row.session.overShort > 0 ? "over" : "short"} ${formatKobo(Math.abs(row.session.overShort))})` : "") +
         (result.data.note ? ` · ${result.data.note}` : ""),
       targetType: "session",
       targetId: id,
-      metadata: { note: result.data.note || null, overShortKobo: row.session.overShort },
+      metadata: { note: result.data.note || null },
     }),
   );
 

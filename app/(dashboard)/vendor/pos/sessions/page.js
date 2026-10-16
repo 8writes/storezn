@@ -33,7 +33,6 @@ export default function SessionsPage() {
   const sessions = isCurrentStore ? feed.sessions : [];
   const pagination = isCurrentStore ? feed.pagination : null;
   const page = isCurrentStore ? feed.page : 1;
-  const toleranceKobo = isCurrentStore ? feed.toleranceKobo || 0 : 0;
   const pendingReviewCount = isCurrentStore ? feed.pendingReviewCount || 0 : 0;
   // Before a store is known we're waiting on the store list; after that,
   // on this store's first page. An account with no store at all settles on
@@ -70,7 +69,6 @@ export default function SessionsPage() {
               ? data.sessions
               : [...current.sessions, ...data.sessions],
           pagination: data.pagination || null,
-          toleranceKobo: data.overShortToleranceKobo || 0,
           pendingReviewCount: data.pendingReviewCount || 0,
         }));
       })
@@ -97,7 +95,7 @@ export default function SessionsPage() {
       <BackLink href="/vendor/pos/registers" label="Back to registers" />
       <PageHeader
         title="Register sessions"
-        description="Review register openings, closings, cash differences, and Z report history."
+        description="Review register openings, closings, cash counts, and Z report history."
       />
 
       <div className="flex flex-wrap items-center gap-3">
@@ -126,13 +124,6 @@ export default function SessionsPage() {
         </div>
       </div>
 
-      {toleranceKobo > 0 && (
-        <p className="text-xs text-slate-600">
-          A close is flagged when it is off by {formatKobo(toleranceKobo)} or more. Because the change bowl isn&apos;t
-          counted, a small over or short most shifts is normal and cancels out over time.
-        </p>
-      )}
-
       <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -140,7 +131,7 @@ export default function SessionsPage() {
               <th className="px-4 py-2.5 font-semibold">Register</th>
               <th className="px-4 py-2.5 font-semibold">Opened</th>
               <th className="px-4 py-2.5 font-semibold">Status</th>
-              <th className="px-4 py-2.5 font-semibold text-right">Over / short</th>
+              <th className="px-4 py-2.5 font-semibold text-right">Counted</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -197,35 +188,24 @@ export default function SessionsPage() {
                         {s.reviewStatus === "pending" && (
                           <span className="rounded-sm bg-amber-100 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5">review</span>
                         )}
-                        {/* Shifts opened before the opening count was asked
-                            for properly: almost all of them declared ₦0 and
-                            then counted a drawer that already had cash in
-                            it, so they read over by that amount. Marked so
-                            an owner doesn't read it as a cashier's variance
-                            - or trust it as a clean shift. */}
-                        {!s.openingBasis && (
-                          <span className="rounded-sm bg-slate-100 text-slate-600 text-[10px] font-semibold px-1.5 py-0.5" title="Opened before the opening count was asked for properly - the cash already in the drawer usually wasn't declared, so this figure includes it and isn't a reliable measure of the shift.">
-                            no opening count
-                          </span>
-                        )}
                       </span>
                     )}
                   </td>
+                  {/* The count for what it is - no comparison with an
+                      expected figure. Change is shown under it when the
+                      cashier counted it. */}
                   <td className="px-4 py-2.5 text-right tabular-nums">
-                    {s.overShort == null ? (
-                      "N/A"
+                    {s.status === "open" ? (
+                      <span className="text-slate-400">-</span>
+                    ) : s.closeMethod === "forced_uncounted" ? (
+                      <span className="text-red-600">Not counted</span>
                     ) : (
-                      // Red only when it actually cleared the threshold -
-                      // shouting at every non-zero figure is what made the
-                      // column meaningless once the bowl stopped being
-                      // counted into the drawer total.
-                      <span className={
-                        s.overShort === 0 || (toleranceKobo > 0 && Math.abs(s.overShort) < toleranceKobo)
-                          ? "text-slate-800"
-                          : "text-red-600"
-                      }>
-                        {formatKobo(s.overShort)}
-                      </span>
+                      <>
+                        <span className="text-slate-900">{formatKobo(s.countedCash ?? 0)}</span>
+                        {s.closingChangeCash != null && (
+                          <span className="block text-[11px] text-slate-500">+ {formatKobo(s.closingChangeCash)} change</span>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>

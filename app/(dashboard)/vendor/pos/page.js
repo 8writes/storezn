@@ -11,9 +11,7 @@ import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { formatCurrency, formatClockTime } from "@/lib/format.js";
-import { formatKobo, toKobo } from "@/lib/money.js";
 import { isEnterpriseStore } from "@/lib/storePlan.js";
-import { drawerDeltaFromTenders } from "@/lib/pos.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { RegisterBar } from "@/components/pos/RegisterBar.js";
@@ -364,22 +362,6 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   );
   const pendingSync = sessionQueuedSales.length;
   const rejectedCount = sessionQueuedSales.filter((sale) => sale.status === "rejected").length;
-  // What the drawer holds that the SERVER hasn't been told about yet.
-  // expectedCash only ever counts synced sales, so a cashier working
-  // offline saw a figure that silently excluded every sale they had just
-  // taken - and then closed the till against it. The payload's tenders are
-  // in naira (TenderPanel's units), so they convert before the kobo maths.
-  const offlineCashDeltaKobo = useMemo(
-    () => sessionQueuedSales.reduce((sum, sale) => {
-      const tenders = Array.isArray(sale.payload?.tenders) ? sale.payload.tenders : [];
-      return sum + drawerDeltaFromTenders(tenders.map((t) => ({
-        method: t.method,
-        amount: toKobo(t.amount),
-        changeGiven: toKobo(t.changeGiven || 0),
-      })));
-    }, 0),
-    [sessionQueuedSales],
-  );
 
   const loadLocalHeld = useCallback(async (sessionId) => {
     const rows = await listHeldSales(storeId, sessionId).catch(() => []);
@@ -1125,7 +1107,6 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         onToggleOfflineMode={toggleOfflineMode}
         catalog={catalog}
         onOpenOfflineSetup={() => setOfflineSetupOpen(true)}
-        offlineCashDeltaKobo={offlineCashDeltaKobo}
         onCashDrawer={() => {
           setCashOpen(true);
           // Best-effort: the sheet still works without it, it just can't
@@ -1387,8 +1368,6 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
         <CloseRegisterModal
           open
           onClose={() => setCloseOpen(false)}
-          expectedCashKobo={sessionData.summary?.drawer?.expectedCash ?? 0}
-          offlineCashDeltaKobo={offlineCashDeltaKobo}
           rejectedCount={rejectedCount}
           heldCount={heldCount}
           pendingSync={pendingSync}

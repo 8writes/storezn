@@ -24,7 +24,7 @@ import { isColorTooLight } from "@/lib/colorShades.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { name: "", posOverShortTolerance: "5000", logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "" };
+const EMPTY_FORM = { name: "", logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "" };
 
 const NAME_MAX = 120;
 const DESCRIPTION_MAX = 160;
@@ -90,9 +90,6 @@ export default function VendorSettingsPage() {
         if (!alive) return;
         setForm({
           name: data.store.name || "",
-          // Kobo in the column, naira in the form - converted back in the
-          // PATCH route, same boundary every POS money field crosses.
-          posOverShortTolerance: String(Math.round((data.store.posOverShortTolerance ?? 500_000) / 100)),
           logoUrl: data.store.logoUrl || "",
           faviconUrl: data.store.faviconUrl || "",
           socialLinks: { ...EMPTY_SOCIAL_LINKS, ...(data.store.socialLinks || {}) },
@@ -868,33 +865,6 @@ export default function VendorSettingsPage() {
                   }
                 />
               </div>
-            </div>
-          </div>
-
-          <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
-            <SectionLabel>Register &amp; till</SectionLabel>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <label className="text-sm font-medium text-slate-700">
-                  Cash difference before review (₦)
-                </label>
-                <InfoTip>
-                  A register close is flagged for you when the counted ₦500 and ₦1,000 notes are off by
-                  more than this. The change bowl isn&apos;t counted at open or at close, so a small over
-                  or short most shifts is normal and cancels out over time &ndash; set this around the size
-                  of your change bowl. ₦5,000 is a good starting point.
-                </InfoTip>
-              </div>
-              <Input
-                type="number"
-                min="0"
-                max="1000000"
-                className="max-w-32 mt-1.5"
-                value={form.posOverShortTolerance}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, posOverShortTolerance: e.target.value }))
-                }
-              />
             </div>
           </div>
 

@@ -12,8 +12,9 @@ function ago(iso) {
   return `${h}h ago`;
 }
 
-// Sticky status strip on the till: which register/shift is open, the
-// live expected-cash figure, offline state, and the shift actions.
+// Sticky status strip on the till: which register/shift is open, sales so
+// far, offline state, and the shift actions. No expected-cash figure - the
+// store records the drawer count for what it is.
 export function RegisterBar({
   registerName,
   session,
@@ -26,19 +27,12 @@ export function RegisterBar({
   onToggleOfflineMode,
   catalog,
   onOpenOfflineSetup,
-  offlineCashDeltaKobo = 0,
   onCashDrawer,
   onRefund,
   onXReport,
   onCloseRegister,
   networkOffline = false,
 }) {
-  const expected = summary?.drawer?.expectedCash ?? session?.openingFloat ?? 0;
-  // expectedCash counts only what the server knows about. Anything still
-  // queued on this device is physically in the drawer but missing from
-  // that figure, so show the number the cashier can actually check
-  // against the cash in front of them.
-  const withOffline = expected + offlineCashDeltaKobo;
   return (
     <div className="bg-surface border border-slate-200 rounded-sm px-4 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
       <span className="flex items-center gap-1.5 font-semibold text-slate-900">
@@ -75,14 +69,6 @@ export function RegisterBar({
       </span>
       <span className="text-slate-800">
         Open since {formatClockTime(session.openedAt)}
-      </span>
-      <span className="text-slate-800">
-        Drawer <span className="font-medium text-slate-900 tabular-nums">{formatKobo(withOffline)}</span>
-        {offlineCashDeltaKobo !== 0 && (
-          <span className="ml-1 text-xs text-amber-700" title={`${formatKobo(expected)} confirmed by the server, plus ${pendingSync} unsynced sale(s)`}>
-            incl. {pendingSync} unsynced
-          </span>
-        )}
       </span>
       {summary && (
         <span className="text-slate-800">

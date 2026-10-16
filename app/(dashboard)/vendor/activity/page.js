@@ -107,8 +107,11 @@ function activityCopy(row) {
   if (row.action === "register.close") {
     return {
       title: `Closed ${meta.registerName || "the register"}`,
-      detail: `Counted ${formatKobo(meta.countedCashKobo || 0)} · Expected ${formatKobo(meta.expectedCashKobo || 0)}`,
-      extra: `Difference: ${formatKobo(meta.overShortKobo || 0)}${meta.provisional ? " · Pending offline sales" : ""}`,
+      detail: meta.closeMethod === "forced_uncounted"
+        ? "Not counted"
+        : `Counted ${formatKobo(meta.countedCashKobo || 0)}`
+          + (meta.closingChangeCashKobo != null ? ` + ${formatKobo(meta.closingChangeCashKobo)} change` : ""),
+      extra: meta.provisional ? "Pending offline sales" : undefined,
     };
   }
   return { title: (KIND[row.action] || {}).label || row.action, detail: row.summary };
