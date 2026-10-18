@@ -8,17 +8,18 @@ import { ZReport } from "./ZReport.js";
 // Nigerian cash denominations, high to low (naira).
 const DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5];
 
-// Close flow: count the drawer note by note, type the change as one
-// total -> the Z report is shown for printing. The count is recorded for
-// what it is; nothing is compared with an expected figure.
+// Close flow: count the whole drawer note by note, ₦1,000 down to ₦5 -
+// change included, since the small notes are in the list - then the Z
+// report is shown for printing. The count is recorded for what it is;
+// nothing is compared with an expected figure.
 //
 // onSubmit is called with one of:
-//   { countBreakdown: {denom: qty}, closingChangeCash? }  the count
-//   { forced: true, forcedReason }                        couldn't count
-// (The API still accepts a plain { countedCash } total from older clients.)
+//   { countBreakdown: {denom: qty} }  the count
+//   { forced: true, forcedReason }    couldn't count
+// (The API still accepts a plain { countedCash } total and a separate
+// closingChangeCash from older clients.)
 // and resolves to the closed session's zReport (or throws).
 export function CloseRegisterModal({ open, onClose, rejectedCount = 0, heldCount, pendingSync = 0, syncing = false, onSync, onSubmit }) {
-  const [changeFloat, setChangeFloat] = useState("");
   const [qtys, setQtys] = useState({});
   const [forcing, setForcing] = useState(false);
   const [forcedReason, setForcedReason] = useState("");
@@ -36,7 +37,7 @@ export function CloseRegisterModal({ open, onClose, rejectedCount = 0, heldCount
   const needsAck = pendingSync > 0 && !ackProvisional;
   // Anything typed counts as a count - including a deliberate 0, so a
   // genuinely empty drawer can still be closed.
-  const entered = DENOMS.some((d) => qtys[d] != null && qtys[d] !== "") || changeFloat !== "";
+  const entered = DENOMS.some((d) => qtys[d] != null && qtys[d] !== "");
   const canSubmit = forcing ? forcedReason.trim().length > 0 : entered;
 
   const submit = async () => {
@@ -48,9 +49,6 @@ export function CloseRegisterModal({ open, onClose, rejectedCount = 0, heldCount
         const countBreakdown = {};
         for (const d of DENOMS) if (Number(qtys[d]) > 0) countBreakdown[d] = Number(qtys[d]);
         payload = { countBreakdown };
-        // Only when they actually typed one - blank means "not counted",
-        // which the Z renders differently from a counted zero.
-        if (changeFloat !== "") payload.closingChangeCash = Number(changeFloat || 0);
       }
       const z = await onSubmit(payload);
       if (z) setZReport(z);
@@ -162,22 +160,6 @@ export function CloseRegisterModal({ open, onClose, rejectedCount = 0, heldCount
                       <span>Counted cash</span>
                       <span className="tabular-nums">{formatKobo(countedKobo)}</span>
                     </div>
-                  </div>
-
-                  {/* One total, not note by note. Blank stays blank, so the Z
-                      says "not counted" rather than printing a made-up 0. */}
-                  <div className="space-y-1">
-                    <label htmlFor="close-change" className="text-sm font-medium text-slate-700">Change</label>
-                    <input
-                      id="close-change"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      value={changeFloat}
-                      onChange={(e) => setChangeFloat(e.target.value)}
-                      placeholder="Total amount"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-sm text-base tabular-nums outline-none focus:border-brand-500"
-                    />
                   </div>
 
                   <button type="button" onClick={() => setForcing(true)} className="text-xs text-slate-800 hover:text-slate-700 hover:underline">

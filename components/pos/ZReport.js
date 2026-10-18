@@ -186,9 +186,12 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
               ) : (
                 <>
                   <Row label="Counted cash" value={formatKobo(summary.countedCash)} strong />
-                  {/* null (not 0) means the change wasn't counted - don't
-                      invent a zero. */}
-                  {summary.closingChangeCash != null ? (
+                  {/* The close now counts every note from ₦1,000 to ₦5, so
+                      the change is already inside "Counted cash" and has no
+                      line of its own. Older shifts typed the change as a
+                      separate total - show it, and the drawer total, only
+                      for those. */}
+                  {summary.closingChangeCash != null && (
                     <>
                       <Row label="Change" value={formatKobo(summary.closingChangeCash)} />
                       <Row
@@ -198,8 +201,6 @@ export function ZReport({ summary, title = "X report", movements = [] }) {
                         rule
                       />
                     </>
-                  ) : (
-                    <p className="text-[11px] text-slate-400 pt-1">Change: not counted this shift.</p>
                   )}
                 </>
               )}
