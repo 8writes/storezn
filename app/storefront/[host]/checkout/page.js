@@ -373,7 +373,7 @@ export default function CheckoutPage() {
           {isUsd && (
             <p className="rounded-sm bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-800">
               You&apos;ll be charged <strong className="tabular-nums">{formatNaira(cart.total ?? cart.subtotal)}</strong> (naira).
-              Dollar prices are a guide at the {rate.label} rate; your bank may convert at its own rate.
+              Your bank may convert at its own rate.
             </p>
           )}
         </div>
