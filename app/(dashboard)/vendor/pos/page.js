@@ -12,6 +12,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { formatCurrency, formatClockTime } from "@/lib/format.js";
 import { isEnterpriseStore } from "@/lib/storePlan.js";
+import { InternationalCardCheckbox } from "@/components/ui/InternationalCardCheckbox.js";
 import { computeWholesalePrice } from "@/lib/pricing.js";
 import { ProductPicker } from "@/components/pos/ProductPicker.js";
 import { RegisterBar } from "@/components/pos/RegisterBar.js";
@@ -272,6 +273,7 @@ export default function SellPage() {
           key={storeId}
           storeId={storeId}
           storeName={activeStore?.name || ""}
+          internationalStore={!!activeStore?.internationalPaymentsEnabled}
           token={token}
           user={user}
           apiFetch={apiFetch}
@@ -289,7 +291,7 @@ export default function SellPage() {
 /* Live till - a register session is required                         */
 /* ------------------------------------------------------------------ */
 
-function TillMode({ storeId, storeName, token, user, apiFetch, registers, reloadRegisters }) {
+function TillMode({ storeId, storeName, internationalStore = false, token, user, apiFetch, registers, reloadRegisters }) {
   const router = useRouter();
   const isOwner = user?.role === "vendor" || user?.role === "super_admin";
   const actorId = user?.id || null;
@@ -314,6 +316,9 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
   const [invoiceRequestQuantity, setInvoiceRequestQuantity] = useState(1);
   const [invoiceRequestAnswers, setInvoiceRequestAnswers] = useState({});
   const [invoiceRequestSubmitting, setInvoiceRequestSubmitting] = useState(false);
+  // Quote request only (never a till sale): the customer will pay the
+  // invoice with a card from outside Nigeria - see InternationalCardCheckbox.
+  const [invoiceRequestInternational, setInvoiceRequestInternational] = useState(false);
   const [saleKey, setSaleKey] = useState(null);
   const [orderNo, setOrderNo] = useState(null);
   const [editKey, setEditKey] = useState(null);
@@ -731,11 +736,13 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
           buyerPhone: buyer.phone.trim(),
           branchId: sessionData?.register?.branchId || undefined,
           note: buyer.note || undefined,
+          ...(internationalStore ? { international: invoiceRequestInternational } : {}),
           items: [{ productId: product.id, variantId: variant?.id || null, quantity, customerFields: invoiceRequestAnswers }],
         }),
       });
       toast.success("Invoice request added. Open Invoices to price and send it.");
       setInvoiceRequest(null);
+      setInvoiceRequestInternational(false);
     } catch (err) {
       toast.error(err.message || "Could not create invoice request");
     } finally {
@@ -1326,6 +1333,7 @@ function TillMode({ storeId, storeName, token, user, apiFetch, registers, reload
               <Input label="Customer name" required value={buyer.name} onChange={(event) => setBuyer((current) => ({ ...current, name: event.target.value }))} />
               <Input type="email" label="Customer email" required value={invoiceRequestEmail} onChange={(event) => setInvoiceRequestEmail(event.target.value)} />
               <Input type="tel" label="Customer phone or WhatsApp" required value={buyer.phone} onChange={(event) => setBuyer((current) => ({ ...current, phone: event.target.value }))} />
+              {internationalStore && <InternationalCardCheckbox checked={invoiceRequestInternational} onChange={setInvoiceRequestInternational} />}
               {(Array.isArray(invoiceRequest.product.customerFields) ? invoiceRequest.product.customerFields : []).map((field) => (
                 <div key={field.id} className="space-y-1">
                   {field.type === "checkbox" ? (

@@ -5,11 +5,13 @@ import { Heart, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { safeFetch } from "@/lib/fetchError.js";
-import { formatCurrency } from "@/lib/format.js";
+import { useMoney } from "@/components/storefront/Money.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 
 export default function WishlistPage() {
   const { token, loading: authLoading } = useCustomerAuth();
+  // ₦ or $ - whichever the customer is viewing (display only).
+  const { format } = useMoney();
   const [items, setItems] = useState(null);
   const [removing, setRemoving] = useState("");
 
@@ -91,7 +93,7 @@ export default function WishlistPage() {
                 {item.product.name}
               </Link>
               <p className="mt-0.5 text-sm text-slate-700">
-                {invoiceOnly ? "Price on request" : formatCurrency(price)}
+                {invoiceOnly ? "Price on request" : format(price)}
               </p>
               {/* A saved item can be archived or sold out after it was
                   saved. It stays on the list - quietly dropping something

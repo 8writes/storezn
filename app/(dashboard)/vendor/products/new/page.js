@@ -97,6 +97,7 @@ export default function VendorNewProductPage() {
   const [addingCategory, setAddingCategory] = useState(false);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [branchCount, setBranchCount] = useState(1);
+  const [usdRate, setUsdRate] = useState(null);
   const [branches, setBranches] = useState([]);
   // Set only for a branch-scoped staff member - they stock their own
   // branch, not the whole list (which they can't see).
@@ -141,6 +142,8 @@ export default function VendorNewProductPage() {
         setBranchCount(data.branchCount || 1);
         setBranches(Array.isArray(data.branches) ? data.branches : []);
         setMyBranch(data.myBranch || null);
+        // "≈ $" hints beside prices - only for stores that show dollars.
+        setUsdRate(data.store?.internationalPaymentsEnabled ? data.usdRate?.rate || null : null);
       })
       .catch(() => {});
     apiFetch(`/api/v1/vendor/stores/${storeId}/product-form-preferences`)
@@ -429,7 +432,7 @@ export default function VendorNewProductPage() {
               required
             />
             <Select label="Selling method" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
-            {form.saleMode === "fixed_price" && <PriceInput label="Price" placeholder="0.00" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />}
+            {form.saleMode === "fixed_price" && <PriceInput label="Price" placeholder="0.00" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} usdRate={usdRate} required />}
             <Select label="Type" options={PRODUCT_TYPE_OPTIONS} value={form.productType} onChange={(v) => setForm((f) => ({ ...f, productType: v }))} />
             {hasField("condition") && form.productType === "physical" && (
               <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
@@ -442,6 +445,7 @@ export default function VendorNewProductPage() {
             value={form.variants}
             invoiceRequired={form.saleMode === "invoice_required"}
             onChange={(variants) => setForm((f) => ({ ...f, variants }))}
+            usdRate={usdRate}
           />}
 
           {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
@@ -562,7 +566,7 @@ export default function VendorNewProductPage() {
                   )}
                 </div>}
               </div>
-              {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />}
+              {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} usdRate={usdRate} />}
               {hasField("description") && <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
               {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
           </div>

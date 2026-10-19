@@ -4,6 +4,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, Loader2, X, SlidersHorizontal } from "lucide-react";
 import { Select } from "@/components/ui/Select.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
+import { useMoney } from "@/components/storefront/Money.js";
 import { Button } from "@/components/ui/Button.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
@@ -21,6 +22,10 @@ export function StorefrontFilters({ categories, themed = false }) {
   const [q, setQ] = useState(searchParams.get("q") || "");
   const [modalOpen, setModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  // The URL's min/max are ALWAYS naira (that's what the product query
+  // filters on). A customer viewing dollars types and sees dollars; the
+  // modal converts at the edges.
+  const { format, isUsd, rate } = useMoney();
 
   const push = (params) => {
     startTransition(() => {
@@ -126,7 +131,11 @@ export function StorefrontFilters({ categories, themed = false }) {
           {categoryName && <Chip label={categoryName} onClear={() => setParam("category", "")} />}
           {(min || max) && (
             <Chip
-              label={`${min ? `₦${Number(min).toLocaleString("en-NG")}` : "₦0"} – ${max ? `₦${Number(max).toLocaleString("en-NG")}` : "any"}`}
+              label={
+                isUsd
+                  ? `${min ? format(min) : format(0)} – ${max ? format(max) : "any"}`
+                  : `${min ? `₦${Number(min).toLocaleString("en-NG")}` : "₦0"} – ${max ? `₦${Number(max).toLocaleString("en-NG")}` : "any"}`
+              }
               onClear={() => {
                 const params = new URLSearchParams(searchParams.toString());
                 params.delete("min");
@@ -147,6 +156,7 @@ export function StorefrontFilters({ categories, themed = false }) {
           categories={categories}
           themed={themed}
           initial={{ category, sort, min, max, discounted }}
+          usdRate={isUsd ? rate.rate : null}
           onApply={applyModal}
           onClose={() => setModalOpen(false)}
         />
@@ -169,12 +179,20 @@ function Chip({ label, onClear }) {
 // Bottom sheet on phones, centred card on desktop - capped at 85vh with
 // its own scrolling body. Holds its own draft state; nothing touches the
 // URL until "Apply".
-function FilterModal({ categories, themed, initial, onApply, onClose }) {
+//
+// usdRate is set while the customer views dollars: the price boxes then
+// show and take dollars, converted from/to the naira the URL holds.
+const nairaToShown = (ngn, usdRate) =>
+  ngn && usdRate ? String(Math.round((Number(ngn) / usdRate) * 100) / 100) : ngn;
+const shownToNaira = (value, usdRate) =>
+  value && usdRate ? String(Math.round(Number(value) * usdRate)) : value;
+
+function FilterModal({ categories, themed, initial, usdRate = null, onApply, onClose }) {
   useModalScrollLock(true);
   const [category, setCategory] = useState(initial.category);
   const [sort, setSort] = useState(initial.sort);
-  const [min, setMin] = useState(initial.min);
-  const [max, setMax] = useState(initial.max);
+  const [min, setMin] = useState(() => nairaToShown(initial.min, usdRate));
+  const [max, setMax] = useState(() => nairaToShown(initial.max, usdRate));
   const [discounted, setDiscounted] = useState(initial.discounted);
 
   const reset = () => {
@@ -228,7 +246,7 @@ function FilterModal({ categories, themed, initial, onApply, onClose }) {
           )}
 
           <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Price range (₦)</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Price range ({usdRate ? "$" : "₦"})</p>
             <div className="flex items-center gap-2">
               <PriceInput value={min} onChange={setMin} placeholder="Min" />
               <span className="text-slate-400">–</span>
@@ -268,7 +286,13 @@ function FilterModal({ categories, themed, initial, onApply, onClose }) {
             type="button"
             size="sm"
             className="ml-auto"
-            onClick={() => onApply({ category, sort, min, max, discounted: discounted ? "1" : "" })}
+            onClick={() => onApply({
+              category,
+              sort,
+              min: shownToNaira(min, usdRate),
+              max: shownToNaira(max, usdRate),
+              discounted: discounted ? "1" : "",
+            })}
           >
             Apply
           </Button>

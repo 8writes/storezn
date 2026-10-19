@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
-import { formatCurrency } from "@/lib/format.js";
+import { useMoney } from "@/components/storefront/Money.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
 import { safeFetch } from "@/lib/fetchError.js";
 
@@ -17,6 +17,8 @@ const MANUAL_ADDRESS_ID = "__manual__";
 
 export default function CheckoutPage() {
   const { user, token, loading: authLoading } = useCustomerAuth();
+  // ₦ or $ for display; formatNaira for the amount actually charged.
+  const { format, formatNaira, isUsd, rate } = useMoney();
 
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,11 +30,23 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const submitLockRef = useRef(false);
+  // "Paying with a card from outside Nigeria" (stores that accept
+  // international payments only). null = the customer hasn't touched it,
+  // so it follows the view: on while browsing in $, off in ₦. Derived
+  // rather than copied into state, so it's right even when the view only
+  // settles after hydration.
+  const [foreignCardChoice, setForeignCardChoice] = useState(null);
+  const foreignCard = foreignCardChoice ?? isUsd;
+  // Read inside loadCart via a ref so loadCart's identity (and the effects
+  // keyed on it) doesn't change when the switch flips - the dedicated
+  // effect below refetches instead.
+  const internationalRef = useRef(false);
 
   const loadCart = useCallback(async ({ state = "", city = "" } = {}) => {
     const params = new URLSearchParams();
     if (state) params.set("state", state);
     if (city) params.set("city", city);
+    if (internationalRef.current) params.set("international", "1");
     const url = params.toString() ? `/api/v1/storefront/cart?${params}` : "/api/v1/storefront/cart";
     const res = await safeFetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -73,6 +87,25 @@ export default function CheckoutPage() {
   // again regardless - this is UX, not the control.
   const undeliverable = needsShipping && !!effectiveState && cart?.deliverable === false;
   const effectiveCity = needsShipping ? (selectedAddress?.city || manualAddress.city) : "";
+  // Only stores that accept international payments offer the choice; the
+  // server ignores it everywhere else anyway (lib/feePolicy.js).
+  const intlAvailable = !!cart?.internationalPaymentsEnabled;
+  const international = intlAvailable && foreignCard;
+
+  // Reprice when the foreign-card switch flips, so the gateway fee and the
+  // total shown always match what checkout will charge. The ref is synced
+  // first (effects run in order), so this fetch - and the address refetch
+  // below - read the new value.
+  const cartLoaded = !!cart;
+  useEffect(() => {
+    internationalRef.current = international;
+    if (!cartLoaded || !intlAvailable) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadCart({ state: effectiveState, city: effectiveCity }).catch(() => {});
+    // Deliberately keyed on the switch only - address changes have their
+    // own refetch below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [international]);
 
   const cleanManualAddress = () => ({
     ...manualAddress,
@@ -134,6 +167,7 @@ export default function CheckoutPage() {
       const payload = {};
       if (!user) payload.guestEmail = guestEmail.trim();
       if (note.trim()) payload.note = note.trim();
+      if (intlAvailable) payload.international = international;
       if (needsShipping) {
         if (usesSavedAddress && addressId) payload.addressId = addressId;
         else payload.shippingAddress = cleanManualAddress();
@@ -259,12 +293,46 @@ export default function CheckoutPage() {
           <Textarea label="Order note (optional)" placeholder="Special instructions for this order..." rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
 
+        {/* Shown in both views on a store that accepts international
+            payments: someone browsing in naira can still be paying with a
+            foreign card, and has to be charged the right fee for it. */}
+        {intlAvailable && (
+          <div className="pt-6 border-t border-slate-200">
+            <label className="flex items-start justify-between gap-4 cursor-pointer">
+              <span>
+                <span className="block text-sm font-medium text-slate-900">Paying with a card from outside Nigeria</span>
+                <span className="block text-xs text-slate-700 mt-0.5">
+                  {international
+                    ? "You'll pay by card or Apple Pay. The international card fee applies."
+                    : "Turn this on if your card was issued outside Nigeria."}
+                </span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={international}
+                aria-label="Paying with a card from outside Nigeria"
+                onClick={() => setForeignCardChoice(!international)}
+                className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer ${
+                  international ? "bg-brand-600" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    international ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </label>
+          </div>
+        )}
+
         <div className="space-y-2 pt-6 border-t border-slate-200">
           <p className="text-xs font-medium text-slate-700 uppercase tracking-wide mb-3">Order summary</p>
           {cart.items.map((item) => (
             <div key={item.id} className="flex justify-between text-sm text-slate-700">
               <span>{item.product.name}{item.variant ? ` (${Object.values(item.variant.options).join(", ")})` : ""} × {item.quantity}</span>
-              <span>{formatCurrency(item.lineTotal)}</span>
+              <span>{format(item.lineTotal)}</span>
             </div>
           ))}
           {needsShipping && (
@@ -275,7 +343,7 @@ export default function CheckoutPage() {
                   ? "Enter your address"
                   : cart.shippingFeeTBD
                   ? "To be determined"
-                  : formatCurrency(cart.shippingFee || 0)}
+                  : format(cart.shippingFee || 0)}
               </span>
             </div>
           )}
@@ -287,7 +355,7 @@ export default function CheckoutPage() {
           {cart.feeChargedToCustomer && cart.platformFee > 0 && (
             <div className="flex justify-between text-sm text-slate-700">
               <span>Paystack Gateway Fee</span>
-              <span>{formatCurrency(cart.platformFee)}</span>
+              <span>{format(cart.platformFee)}</span>
             </div>
           )}
           {!cart.feeChargedToCustomer && cart.platformFeeShortfall > 0 && (!needsShipping || effectiveState) && (
@@ -297,8 +365,17 @@ export default function CheckoutPage() {
           )}
           <div className="flex justify-between pt-2 border-t border-slate-100 font-semibold text-slate-900 text-base">
             <span>Total</span>
-            <span>{formatCurrency(cart.total ?? cart.subtotal)}</span>
+            <span>{format(cart.total ?? cart.subtotal)}</span>
           </div>
+          {/* Dollars are a guide only - Paystack charges the naira. Said
+              plainly here, right above Pay now, so a customer viewing $ is
+              never surprised by a naira line on their card statement. */}
+          {isUsd && (
+            <p className="rounded-sm bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-800">
+              You&apos;ll be charged <strong className="tabular-nums">{formatNaira(cart.total ?? cart.subtotal)}</strong> (naira).
+              Dollar prices are a guide at the {rate.label} rate; your bank may convert at its own rate.
+            </p>
+          )}
         </div>
 
         <Button

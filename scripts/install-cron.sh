@@ -17,6 +17,7 @@ printf '5 * * * * /bin/sh %s fail-stale-transactions\n' "$SCRIPT" >> "${TMPDIR:-
 printf '17 */6 * * * /bin/sh %s settlement-poll\n' "$SCRIPT" >> "${TMPDIR:-/tmp}/storezn-crontab.$$"
 printf '29 3 * * * /bin/sh %s cleanup-stale-data\n' "$SCRIPT" >> "${TMPDIR:-/tmp}/storezn-crontab.$$"
 printf '*/5 * * * * /bin/sh %s invoice-maintenance\n' "$SCRIPT" >> "${TMPDIR:-/tmp}/storezn-crontab.$$"
+printf '41 * * * * /bin/sh %s fx-rates\n' "$SCRIPT" >> "${TMPDIR:-/tmp}/storezn-crontab.$$"
 crontab "${TMPDIR:-/tmp}/storezn-crontab.$$"
 rm -f "${TMPDIR:-/tmp}/storezn-crontab.$$"
 echo "Storezn cron jobs installed."

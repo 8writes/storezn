@@ -1,10 +1,13 @@
 "use client";
 import { Plus, X } from "lucide-react";
 import { InfoTip } from "@/components/ui/InfoTip.js";
+import { UsdHint } from "@/components/ui/UsdHint.js";
 
 // Bundle / wholesale pricing. value is [{ bundleQty, unitPrice }] (or
 // null). Emits null when there are no rows so the field clears cleanly.
-export function WholesaleTierEditor({ value, onChange }) {
+// usdRate (optional) shows "≈ $" beside each unit price for stores that
+// offer dollar prices on their storefront.
+export function WholesaleTierEditor({ value, onChange, usdRate = null }) {
   const rows = Array.isArray(value) ? value : [];
 
   const emit = (next) => onChange(next.length ? next : null);
@@ -50,6 +53,7 @@ export function WholesaleTierEditor({ value, onChange }) {
                 className="w-24 px-2 py-1.5 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
               />
               <span className="text-xs text-slate-800 shrink-0">each</span>
+              <UsdHint ngn={r.unitPrice} rate={usdRate} className="shrink-0" />
               <button type="button" onClick={() => remove(i)} className="ml-auto text-slate-400 hover:text-red-600 cursor-pointer shrink-0">
                 <X size={15} />
               </button>

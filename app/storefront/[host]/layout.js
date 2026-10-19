@@ -14,6 +14,9 @@ import { VisitBeacon } from "@/components/storefront/VisitBeacon.js";
 import UpdatePrompt from "@/app/UpdatePrompt.js";
 import { isPlusStore } from "@/lib/storePlan.js";
 import { generateBrandShades } from "@/lib/colorShades.js";
+import { getUsdRate } from "@/lib/fxRates.js";
+import { CurrencyProvider } from "@/components/storefront/Money.js";
+import { CurrencyToggle } from "@/components/storefront/CurrencyToggle.js";
 
 // Uses the vendor's own uploaded logo as the browser tab icon on their
 // storefront (falls back to the platform default when they haven't set
@@ -70,8 +73,18 @@ export default async function StorefrontLayout({ children, params }) {
   // renders the platform default brand-* ramp already in globals.css.
   const themed = isPlusStore(store) && !!store.storefrontAccentColor;
   const accentStyle = themed ? generateBrandShades(store.storefrontAccentColor) : undefined;
+  // Dollar DISPLAY (lib/fxDisplay.js): resolved once here, cached, and
+  // shared with every price on the page through CurrencyProvider. null when
+  // the store hasn't switched it on or no current rate exists - then the
+  // ₦/$ switch simply isn't shown.
+  const usdRate = store.internationalPaymentsEnabled ? await getUsdRate(store.usdRateProvider) : null;
 
   return (
+    <CurrencyProvider
+      rate={usdRate}
+      defaultCurrency={store.internationalPaymentsEnabled ? "USD" : "NGN"}
+      international={!!store.internationalPaymentsEnabled}
+    >
     <div className="min-h-screen bg-white flex flex-col" style={accentStyle} data-cookie-site-name={store.name}>
       <Suspense fallback={null}>
         <MarketplaceBanner storeName={store.name} />
@@ -100,7 +113,8 @@ export default async function StorefrontLayout({ children, params }) {
               </>
             )}
           </Link>
-          <div className={`flex items-center gap-6 ${themed ? "text-white" : "text-slate-700"}`}>
+          <div className={`flex items-center gap-4 sm:gap-6 ${themed ? "text-white" : "text-slate-700"}`}>
+            <CurrencyToggle themed={themed} />
             <AccountMenu />
             <CartBadge />
           </div>
@@ -121,5 +135,6 @@ export default async function StorefrontLayout({ children, params }) {
           cramped in a way it doesn't on desktop's wider header. */}
       <Toaster position="top-center" offset="90px" mobileOffset="120px" closeButton={true} />
     </div>
+    </CurrencyProvider>
   );
 }

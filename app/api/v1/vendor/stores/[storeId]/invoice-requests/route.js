@@ -60,7 +60,11 @@ export async function POST(req, { params }) {
   }
   const requestNumber = `REQ-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
   const [request] = await db.transaction(async (tx) => {
-    const [created] = await tx.insert(invoiceRequests).values({ storeId, branchId: branch.id, requestNumber, guestEmail: result.data.guestEmail, buyerName: result.data.buyerName, buyerPhone: result.data.buyerPhone, note: result.data.note || null, status: "new", createdBy: user.id }).returning();
+    // The vendor marks the quote as paid with a card from outside Nigeria on
+    // the customer's behalf - honoured only when the store accepts
+    // international payments, exactly like the storefront quote form.
+    const international = !!store.internationalPaymentsEnabled && result.data.international === true;
+    const [created] = await tx.insert(invoiceRequests).values({ storeId, branchId: branch.id, requestNumber, guestEmail: result.data.guestEmail, buyerName: result.data.buyerName, buyerPhone: result.data.buyerPhone, note: result.data.note || null, international, status: "new", createdBy: user.id }).returning();
     await tx.insert(invoiceRequestItems).values(rows.map(({ product, variant, item }) => ({ requestId: created.id, productId: product.id, variantId: variant?.id || null, productName: product.name, variantLabel: variant ? Object.entries(variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, quantity: item.quantity, customerFields: item.customerFields || {} })));
     return [created];
   });

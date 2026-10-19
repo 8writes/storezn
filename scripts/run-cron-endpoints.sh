@@ -13,6 +13,7 @@ case "$job" in
   settlement-poll) endpoint="/api/cron/settlement-poll" ;;
   cleanup-stale-data) endpoint="/api/cron/cleanup-stale-data" ;;
   invoice-maintenance) endpoint="/api/cron/invoice-maintenance" ;;
+  fx-rates) endpoint="/api/cron/fx-rates" ;;
   *) echo "Unknown Storezn cron job: $job" >&2; exit 2 ;;
 esac
 

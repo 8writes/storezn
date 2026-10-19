@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
+import { UsdHint } from "@/components/ui/UsdHint.js";
 
 const emptyDimension = () => ({ name: "", values: "" });
 
@@ -13,7 +14,7 @@ const cartesian = (dimensions) =>
 
 const keyFor = (options) => JSON.stringify(Object.entries(options).sort(([a], [b]) => a.localeCompare(b)));
 
-export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired = false }) {
+export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired = false, usdRate = null }) {
   const [dimensions, setDimensions] = useState([emptyDimension()]);
   const [message, setMessage] = useState("");
   const [variantsCollapsed, setVariantsCollapsed] = useState(false);
@@ -190,6 +191,7 @@ export function NewProductVariantsEditor({ value = [], onChange, invoiceRequired
                         className="w-full px-3 py-2 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
                       />
                     </div>
+                    {!invoiceRequired && <UsdHint ngn={variant.price} rate={usdRate} />}
                   </div>
                 ))}
               </div>

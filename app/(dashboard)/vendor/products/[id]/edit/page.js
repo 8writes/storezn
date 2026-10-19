@@ -8,6 +8,7 @@ import { useConfirm } from "@/hooks/useConfirm.js";
 import { Input } from "@/components/ui/Input.js";
 import { BarcodeScanButton } from "@/components/pos/BarcodeScanButton.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
+import { UsdHint } from "@/components/ui/UsdHint.js";
 import { WholesaleTierEditor } from "@/components/ui/WholesaleTierEditor.js";
 import { Textarea } from "@/components/ui/Textarea.js";
 import { SizeGuideEditor, normalizeSizeGuide } from "@/components/ui/SizeGuideEditor.js";
@@ -100,6 +101,7 @@ export default function VendorProductEditPage({ params }) {
   // >1 means the plain Stock field below is redundant/ambiguous (which
   // branch would it even mean?), so it's disabled in favor of the panel.
   const [branchCount, setBranchCount] = useState(1);
+  const [usdRate, setUsdRate] = useState(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoUploadStatus, setVideoUploadStatus] = useState("");
   const [videoUploadProgress, setVideoUploadProgress] = useState(null);
@@ -141,6 +143,8 @@ export default function VendorProductEditPage({ params }) {
         setSuspension(product.suspendedAt ? { reason: product.suspendedReason } : null);
         setCategories(categoriesData.categories);
         setBranchCount(storeData.branchCount || 1);
+        // "≈ $" hints beside prices - only for stores that show dollars.
+        setUsdRate(storeData.store?.internationalPaymentsEnabled ? storeData.usdRate?.rate || null : null);
       })
       .catch((err) => toast.error(err.message || "Failed to load product"))
       .finally(() => setLoading(false));
@@ -413,7 +417,7 @@ export default function VendorProductEditPage({ params }) {
             />
           )}
           <Select label="Selling method" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
-          {form.saleMode === "fixed_price" && <PriceInput label="Price" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} required />}
+          {form.saleMode === "fixed_price" && <PriceInput label="Price" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} usdRate={usdRate} required />}
           {hasField("discount") && form.saleMode === "fixed_price" && <div>
             <div className="flex items-center gap-1.5 mb-1">
               <label className="text-sm font-medium text-slate-700">Discount %</label>
@@ -476,7 +480,7 @@ export default function VendorProductEditPage({ params }) {
         </FormSection>
 
         {(hasField("priceTiers") || hasField("description") || hasField("sizeGuide") || hasField("customerFields")) && <FormSection title="Details customers see" description="Add buying guidance, sizing, wholesale tiers, or custom information customers must provide.">
-        {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} />}
+        {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} usdRate={usdRate} />}
 
         {hasField("description") && <Textarea label="Description" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
         {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
@@ -613,6 +617,7 @@ export default function VendorProductEditPage({ params }) {
         branchCount={branchCount}
         standardEnabled={form.allowStandardVariant !== false}
         onToggleStandard={(v) => setForm((f) => ({ ...f, allowStandardVariant: v }))}
+        usdRate={usdRate}
       />}
 
       <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
@@ -643,7 +648,7 @@ const VARIANT_PAGE = 8;
 // lib/db/schema.js). The builder below takes 1-3 option dimensions
 // (name + comma-separated values each) and creates one variant per
 // combination; price and stock are set by editing each variant after.
-function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEnabled, onToggleStandard }) {
+function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEnabled, onToggleStandard, usdRate }) {
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dims, setDims] = useState([{ name: "", values: "" }]);
@@ -1057,6 +1062,10 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
                       Cancel
                     </Button>
                   </div>
+                  {/* Under the row, not inside the price cell: the row is
+                      bottom-aligned, so a hint in one cell would knock it
+                      out of line with Stock and the buttons. */}
+                  <UsdHint ngn={editForm.price} rate={usdRate} className="sm:col-span-3 -mt-1" />
                 </div>
               )}
             </div>

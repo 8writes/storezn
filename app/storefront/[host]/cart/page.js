@@ -4,12 +4,14 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Trash2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
-import { formatCurrency } from "@/lib/format.js";
+import { useMoney } from "@/components/storefront/Money.js";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { safeFetch } from "@/lib/fetchError.js";
 
 export default function CartPage() {
   const { token, loading: authLoading } = useCustomerAuth();
+  // ₦ or $ - whichever the customer is viewing (display only).
+  const { format } = useMoney();
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -106,7 +108,7 @@ export default function CartPage() {
               {item.variant && (
                 <p className="text-xs text-slate-700 mt-0.5">{Object.entries(item.variant.options).map(([k, v]) => `${k}: ${v}`).join(", ")}</p>
               )}
-              <p className="text-sm text-slate-800 mt-1">{formatCurrency(item.unitPrice)}</p>
+              <p className="text-sm text-slate-800 mt-1">{format(item.unitPrice)}</p>
             </div>
 
             <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-4 pl-24 sm:pl-0">
@@ -129,7 +131,7 @@ export default function CartPage() {
                   <Plus size={13} />
                 </button>
               </div>
-              <p className="sm:w-24 text-right text-sm font-medium text-slate-900">{formatCurrency(item.lineTotal)}</p>
+              <p className="sm:w-24 text-right text-sm font-medium text-slate-900">{format(item.lineTotal)}</p>
               <button
                 type="button"
                 disabled={busyId === item.id}
@@ -146,7 +148,7 @@ export default function CartPage() {
 
       <div className="flex items-center justify-between">
         <span className="text-base font-medium text-slate-700">Subtotal</span>
-        <span className="text-xl font-semibold text-slate-900">{formatCurrency(cart.subtotal)}</span>
+        <span className="text-xl font-semibold text-slate-900">{format(cart.subtotal)}</span>
       </div>
 
       <Link href="/checkout">

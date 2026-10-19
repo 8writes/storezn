@@ -36,6 +36,7 @@ import { logStoreActivity } from "../../../../../../../lib/storeActivity.js";
 import { buildPublicAppUrl } from "../../../../../../../lib/requestUrl.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
 import { isUniqueViolation } from "@/lib/dbErrors.js";
+import { resolveFeePolicy } from "@/lib/feePolicy.js";
 
 const invoiceNumber = () =>
   `INV-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
@@ -108,6 +109,7 @@ export async function GET(req, { params }) {
       flatFeeAmount: order?.flatFeeAmount ?? 0,
       vendorPayoutAmount: order?.vendorPayoutAmount ?? invoice.totalAmount,
       feeChargedToCustomer: order?.feeChargedToCustomer ?? false,
+      international: order?.international ?? false,
     })),
     pagination: {
       page,
@@ -115,16 +117,24 @@ export async function GET(req, { params }) {
       total: totalNumber,
       totalPages: Math.max(1, Math.ceil(totalNumber / pageSize)),
     },
-    feePolicy: {
-      commissionRatePercent:
-        store.commissionRatePercent ??
-        settings?.defaultCommissionRatePercent ??
-        5,
-      flatFee: settings?.defaultFlatFee ?? 0,
-      maxCommissionAmount: settings?.maxCommissionAmount ?? null,
-      feeChargedToCustomer: store.feeChargedToCustomer ?? true,
-    },
+    // Both fee sets, from the same resolver the invoice POST uses, so the
+    // quote screen previews exactly what will be charged: the local one,
+    // and the international one for a request whose customer said they'll
+    // pay with a foreign card.
+    feePolicy: feePolicyForPreview(resolveFeePolicy({ store, settings, international: false })),
+    intlFeePolicy: store.internationalPaymentsEnabled
+      ? feePolicyForPreview(resolveFeePolicy({ store, settings, international: true }))
+      : null,
   });
+}
+
+function feePolicyForPreview(policy) {
+  return {
+    commissionRatePercent: policy.commissionRatePercent,
+    flatFee: policy.flatFee,
+    maxCommissionAmount: policy.maxCommissionAmount,
+    feeChargedToCustomer: policy.feeChargedToCustomer,
+  };
 }
 
 async function handlePost(req, { params }) {
@@ -242,21 +252,23 @@ async function handlePost(req, { params }) {
       { status: 400 },
     );
   const settings = settingsRows[0];
-  const commissionRatePercent =
-    store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
-  const feeChargedToCustomer = store.feeChargedToCustomer ?? true;
+  // Local or international fees, decided by what the customer said on the
+  // quote request ("paying with a card from outside Nigeria") - the same
+  // resolver checkout uses (lib/feePolicy.js). Fixed now, because an
+  // invoice's total can't change once it's sent and paid in parts.
+  const feePolicy = resolveFeePolicy({ store, settings, international: request.international === true });
+  const { commissionRatePercent, feeChargedToCustomer } = feePolicy;
   const totals = computeOrderTotals({
     subtotal,
     shippingFee: 0,
     commissionRatePercent,
-    flatFee: settings?.defaultFlatFee ?? 0,
+    flatFee: feePolicy.flatFee,
     feeChargedToCustomer,
-    maxCommissionAmount: settings?.maxCommissionAmount,
+    maxCommissionAmount: feePolicy.maxCommissionAmount,
   });
-  const configuredFlatFee = Math.max(0, Number(settings?.defaultFlatFee) || 0);
   if (
     !feeChargedToCustomer &&
-    configuredFlatFee > totals.flatFeeAmount + 0.001
+    feePolicy.flatFee > totals.flatFeeAmount + 0.001
   ) {
     return NextResponse.json(
       {
@@ -328,6 +340,9 @@ async function handlePost(req, { params }) {
     flatFeeAmount: totals.flatFeeAmount,
     vendorPayoutAmount: totals.vendorPayoutAmount,
     feeChargedToCustomer,
+    // Snapshotted like a checkout order; the invoice pay route reads it to
+    // offer card + Apple Pay only.
+    international: feePolicy.international,
     note: invoice.note,
     isOffline: !!request.createdBy,
     channel: request.createdBy ? "manual" : "online",
@@ -497,6 +512,7 @@ async function handlePost(req, { params }) {
         flatFeeAmount: totals.flatFeeAmount,
         vendorPayoutAmount: totals.vendorPayoutAmount,
         feeChargedToCustomer,
+        international: feePolicy.international,
       },
       order,
     },

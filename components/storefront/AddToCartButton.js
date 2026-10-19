@@ -4,7 +4,7 @@ import { Minus, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button.js";
 import { SizeGuideButton } from "@/components/storefront/SizeGuideButton.js";
-import { formatCurrency } from "@/lib/format.js";
+import { useMoney } from "@/components/storefront/Money.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
@@ -39,6 +39,13 @@ export function AddToCartButton({
 }) {
   const { user, token, loading: authLoading } = useCustomerAuth();
   const { confirm, confirmDialog } = useConfirm();
+  // ₦ or $ - whichever the customer is viewing (display only).
+  const { format, isUsd, internationalStore } = useMoney();
+  // Quote requests ask the same "card from outside Nigeria?" question as
+  // checkout, because the invoice's fee is fixed when the vendor creates
+  // it. null = untouched, so it follows the view ($ = on).
+  const [foreignCardChoice, setForeignCardChoice] = useState(null);
+  const quoteInternational = internationalStore && (foreignCardChoice ?? isUsd);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState({});
   const [useBase, setUseBase] = useState(false);
@@ -160,7 +167,13 @@ export function AddToCartButton({
       const res = await fetch("/api/v1/storefront/invoice-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ guestEmail: email, buyerName: name, buyerPhone: phone, items: [{ productId, variantId: matchedVariant?.id || null, quantity, customerFields: answers }] }),
+        body: JSON.stringify({
+          guestEmail: email,
+          buyerName: name,
+          buyerPhone: phone,
+          items: [{ productId, variantId: matchedVariant?.id || null, quantity, customerFields: answers }],
+          ...(internationalStore ? { international: quoteInternational } : {}),
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Could not submit quote request");
@@ -219,10 +232,10 @@ export function AddToCartButton({
     <>
     <div className="space-y-5">
       <div className="flex items-baseline gap-2.5">
-        <p className="text-2xl font-medium text-slate-900">{invoiceRequired ? "Price on request" : formatCurrency(price)}</p>
+        <p className="text-2xl font-medium text-slate-900">{invoiceRequired ? "Price on request" : format(price)}</p>
         {showDiscount && (
           <>
-            <p className="text-base text-slate-400 line-through">{formatCurrency(basePrice)}</p>
+            <p className="text-base text-slate-400 line-through">{format(basePrice)}</p>
             <span className="text-xs font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-sm">
               -{baseDiscountPercent}%
             </span>
@@ -340,9 +353,9 @@ export function AddToCartButton({
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         <div className="shrink-0">
-          <p className="text-lg font-semibold text-slate-900 leading-none">{invoiceRequired ? "Quote" : formatCurrency(price)}</p>
+          <p className="text-lg font-semibold text-slate-900 leading-none">{invoiceRequired ? "Quote" : format(price)}</p>
           {showDiscount && (
-            <p className="text-xs text-slate-400 line-through leading-none mt-0.5">{formatCurrency(basePrice)}</p>
+            <p className="text-xs text-slate-400 line-through leading-none mt-0.5">{format(basePrice)}</p>
           )}
         </div>
         <div className="flex-1">{cta}</div>
@@ -374,6 +387,36 @@ export function AddToCartButton({
             <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Customer name *</span><input type="text" required value={buyerName} onChange={(e) => setBuyerName(e.target.value)} autoComplete="name" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-base sm:text-sm" /></label>
             <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Email *</span><input type="email" required value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} autoComplete="email" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-base sm:text-sm" /></label>
             <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Phone or WhatsApp *</span><input type="tel" required value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} autoComplete="tel" className="w-full border border-slate-300 rounded-sm px-3 py-2 text-base sm:text-sm" /></label>
+            {/* Same question as checkout, asked here because the invoice's
+                fee is fixed when the vendor creates it. */}
+            {internationalStore && (
+              <div className="flex items-start justify-between gap-4 rounded-sm border border-slate-200 px-3 py-2.5">
+                <span>
+                  <span className="block text-sm font-medium text-slate-900">Paying with a card from outside Nigeria</span>
+                  <span className="block text-xs text-slate-700 mt-0.5">
+                    {quoteInternational
+                      ? "You'll pay the invoice by card or Apple Pay. The international card fee applies."
+                      : "Turn this on if your card was issued outside Nigeria."}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={quoteInternational}
+                  aria-label="Paying with a card from outside Nigeria"
+                  onClick={() => setForeignCardChoice(!quoteInternational)}
+                  className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer ${
+                    quoteInternational ? "bg-brand-600" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                      quoteInternational ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
             {customerFields.map((field) => (
               <label key={field.id} className="block space-y-1">
                 <span className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</span>

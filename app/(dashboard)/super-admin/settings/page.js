@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input.js";
 import { Button } from "@/components/ui/Button.js";
 import { PushNotificationToggle } from "@/components/ui/PushNotificationToggle.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, formatDateTime } from "@/lib/format.js";
 
 export default function SuperAdminSettingsPage() {
   const { token } = useAuth(true);
@@ -17,6 +17,14 @@ export default function SuperAdminSettingsPage() {
   const [rate, setRate] = useState("");
   const [cap, setCap] = useState("");
   const [flatFee, setFlatFee] = useState("");
+  const [intlRate, setIntlRate] = useState("");
+  const [intlCap, setIntlCap] = useState("");
+  const [intlFlatFee, setIntlFlatFee] = useState("");
+  // The manual dollar rate (₦ per $1). Sent only when it actually changed,
+  // so a Save from any other card can never clear or alter it.
+  const [usdRate, setUsdRate] = useState("");
+  const [savedUsdRate, setSavedUsdRate] = useState("");
+  const [usdRateSetAt, setUsdRateSetAt] = useState(null);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [plusPrice, setPlusPrice] = useState("");
   const [plusDiscount, setPlusDiscount] = useState("");
@@ -28,6 +36,10 @@ export default function SuperAdminSettingsPage() {
   const [plusBranchLimit, setPlusBranchLimit] = useState("");
   const [databaseAccess, setDatabaseAccess] = useState(null);
   const [loading, setLoading] = useState(true);
+  // True only once the real settings have arrived. save() sends EVERY field,
+  // so saving after a failed load would overwrite live fees, the Storezn+
+  // price and every plan limit with the empty boxes - read as 0.
+  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [togglingMaintenance, setTogglingMaintenance] = useState(false);
   const numericPlusPrice = Number(plusPrice) || 0;
@@ -41,6 +53,9 @@ export default function SuperAdminSettingsPage() {
         setRate(String(data.settings.defaultCommissionRatePercent));
         setCap(data.settings.maxCommissionAmount != null ? String(data.settings.maxCommissionAmount) : "");
         setFlatFee(String(data.settings.defaultFlatFee ?? 0));
+        setIntlRate(String(data.settings.intlCommissionRatePercent ?? 3.9));
+        setIntlCap(data.settings.intlMaxCommissionAmount != null ? String(data.settings.intlMaxCommissionAmount) : "");
+        setIntlFlatFee(String(data.settings.intlFlatFee ?? 100));
         setMaintenanceMode(!!data.settings.maintenanceMode);
         setPlusPrice(String(data.settings.plusMonthlyPrice ?? 5000));
         setPlusDiscount(data.settings.plusIntroDiscountPercent != null ? String(data.settings.plusIntroDiscountPercent) : "");
@@ -51,6 +66,11 @@ export default function SuperAdminSettingsPage() {
         setFreeBranchLimit(String(data.settings.freeBranchLimit ?? 1));
         setPlusBranchLimit(String(data.settings.plusBranchLimit ?? 5));
         setDatabaseAccess(data.databaseAccess || null);
+        const loadedRate = data.manualUsdRate?.rate != null ? String(data.manualUsdRate.rate) : "";
+        setUsdRate(loadedRate);
+        setSavedUsdRate(loadedRate);
+        setUsdRateSetAt(data.manualUsdRate?.setAt || null);
+        setLoaded(true);
       })
       .catch((err) => toast.error(err.message || "Failed to load settings"))
       .finally(() => setLoading(false));
@@ -58,14 +78,46 @@ export default function SuperAdminSettingsPage() {
   }, [token]);
 
   const save = async () => {
+    if (!loaded) {
+      toast.error("Settings didn't load, so nothing was saved. Refresh the page and try again.");
+      return;
+    }
+    // A cleared box must never be saved as 0 - Number("") is 0, which would
+    // make commission free, Storezn+ free, or a plan limit zero. Only the
+    // optional fields (caps, flat fees, intro discount) may be left blank,
+    // and those already have an explicit meaning when empty.
+    const required = [
+      [rate, "Default commission rate"],
+      [intlRate, "International commission rate"],
+      [plusPrice, "Storezn+ monthly price"],
+      [freeStorageMb, "Free storage"],
+      [plusStorageMb, "Storezn+ storage"],
+      [freeStaffLimit, "Free staff limit"],
+      [plusStaffLimit, "Storezn+ staff limit"],
+      [freeBranchLimit, "Free branch limit"],
+      [plusBranchLimit, "Storezn+ branch limit"],
+    ];
+    const missing = required.find(([value]) => String(value).trim() === "" || !Number.isFinite(Number(value)));
+    if (missing) {
+      toast.error(`${missing[1]} can't be empty`);
+      return;
+    }
+    const usdRateChanged = usdRate.trim() !== savedUsdRate.trim();
+    if (usdRateChanged && usdRate.trim() !== "" && !(Number(usdRate) >= 100 && Number(usdRate) <= 100000)) {
+      toast.error("Dollar rate must be between ₦100 and ₦100,000 per $1");
+      return;
+    }
     setSaving(true);
     try {
-      await apiFetch("/api/v1/super-admin/settings", {
+      const saved = await apiFetch("/api/v1/super-admin/settings", {
         method: "PATCH",
         body: JSON.stringify({
           defaultCommissionRatePercent: Number(rate),
           maxCommissionAmount: cap.trim() === "" ? null : Number(cap),
           defaultFlatFee: flatFee.trim() === "" ? 0 : Number(flatFee),
+          intlCommissionRatePercent: Number(intlRate),
+          intlMaxCommissionAmount: intlCap.trim() === "" ? null : Number(intlCap),
+          intlFlatFee: intlFlatFee.trim() === "" ? 0 : Number(intlFlatFee),
           plusMonthlyPrice: Number(plusPrice),
           plusIntroDiscountPercent: plusDiscount.trim() === "" ? null : Number(plusDiscount),
           freeStorageMb: Number(freeStorageMb),
@@ -74,8 +126,13 @@ export default function SuperAdminSettingsPage() {
           plusStaffLimit: Number(plusStaffLimit),
           freeBranchLimit: Number(freeBranchLimit),
           plusBranchLimit: Number(plusBranchLimit),
+          ...(usdRateChanged ? { manualUsdRate: usdRate.trim() === "" ? null : Number(usdRate) } : {}),
         }),
       });
+      const savedRate = saved?.manualUsdRate?.rate != null ? String(saved.manualUsdRate.rate) : "";
+      setUsdRate(savedRate);
+      setSavedUsdRate(savedRate);
+      setUsdRateSetAt(saved?.manualUsdRate?.setAt || null);
       toast.success("Platform settings saved");
     } catch (err) {
       toast.error(err.message || "Failed to save settings");
@@ -214,7 +271,41 @@ export default function SuperAdminSettingsPage() {
               A fixed amount charged on every order on top of the commission above. Counts toward the cap above (which the commission makes room for), 0 disables it.
             </p>
           </div>
-          <Button onClick={save} loading={saving}>Save</Button>
+          <Button onClick={save} loading={saving} disabled={!loaded}>Save</Button>
+          </div>
+
+          {/* Used instead of the commission settings above for an order the
+              customer marked as paid with a card from outside Nigeria, on a
+              store that accepts international payments (lib/feePolicy.js). */}
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-700">International payments</p>
+            <p className="text-xs text-slate-800 mt-1">
+              Applies when a customer pays with a card from outside Nigeria on a store that accepts international
+              payments - Paystack charges those cards more. A store&apos;s custom commission rate never applies to these.
+            </p>
+          </div>
+          <Input label="International commission rate (%)" type="number" min="0" max="100" step="0.1" value={intlRate} onChange={(e) => setIntlRate(e.target.value)} />
+          <Input label="International fee cap (₦ per order, optional)" type="number" min="0" step="1" placeholder="No cap" value={intlCap} onChange={(e) => setIntlCap(e.target.value)} />
+          <Input label="International flat fee (₦ per order)" type="number" min="0" step="1" value={intlFlatFee} onChange={(e) => setIntlFlatFee(e.target.value)} />
+          <div>
+            <Input
+              label="Dollar rate (₦ per $1)"
+              type="number"
+              min="100"
+              step="0.01"
+              placeholder="e.g. 1550"
+              value={usdRate}
+              onChange={(e) => setUsdRate(e.target.value)}
+            />
+            <p className="text-xs text-slate-800 mt-1">
+              Used to show dollar prices on stores that pick &quot;Storezn rate&quot; - and by every international
+              store when no other rate is available. Display only: customers are always charged in naira. It stays
+              until you change it. Leave blank to remove it.
+              {usdRateSetAt ? ` Last set ${formatDateTime(usdRateSetAt)}.` : ""}
+            </p>
+          </div>
+          <Button onClick={save} loading={saving} disabled={!loaded}>Save</Button>
           </div>
 
           <div id="storezn-plus-pricing" className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4 scroll-mt-6">
@@ -249,7 +340,7 @@ export default function SuperAdminSettingsPage() {
               <Input label="Free plan branch limit" type="number" min="1" step="1" value={freeBranchLimit} onChange={(e) => setFreeBranchLimit(e.target.value)} />
               <Input label="Storezn+ branch limit" type="number" min="1" step="1" value={plusBranchLimit} onChange={(e) => setPlusBranchLimit(e.target.value)} />
             </div>
-            <Button onClick={save} loading={saving}>Save</Button>
+            <Button onClick={save} loading={saving} disabled={!loaded}>Save</Button>
           </div>
         </>
       )}

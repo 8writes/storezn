@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
+import { InternationalCardCheckbox } from "@/components/ui/InternationalCardCheckbox.js";
 import { Button } from "@/components/ui/Button.js";
 import { Select } from "@/components/ui/Select.js";
 import { Input } from "@/components/ui/Input.js";
@@ -142,13 +143,13 @@ export default function VendorInvoicesPage() {
         />
       )}
 
-      {manualOpen && <ManualQuoteModal storeId={storeId} apiFetch={apiFetch} confirm={confirm} onClose={() => setManualOpen(false)} onCreated={() => { setManualOpen(false); loadData(); }} />}
+      {manualOpen && <ManualQuoteModal storeId={storeId} internationalStore={!!stores.find((s) => s.id === storeId)?.internationalPaymentsEnabled} apiFetch={apiFetch} confirm={confirm} onClose={() => setManualOpen(false)} onCreated={() => { setManualOpen(false); loadData(); }} />}
       {confirmDialog}
     </div>
   );
 }
 
-function ManualQuoteModal({ storeId, apiFetch, confirm, onClose, onCreated }) {
+function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confirm, onClose, onCreated }) {
   const [products, setProducts] = useState([]);
   const [productLoading, setProductLoading] = useState(true);
   const [selectedKey, setSelectedKey] = useState("");
@@ -157,6 +158,8 @@ function ManualQuoteModal({ storeId, apiFetch, confirm, onClose, onCreated }) {
   const [guestEmail, setGuestEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [note, setNote] = useState("");
+  // Customer will pay with a foreign card - see InternationalCardCheckbox.
+  const [international, setInternational] = useState(false);
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -212,6 +215,7 @@ function ManualQuoteModal({ storeId, apiFetch, confirm, onClose, onCreated }) {
           guestEmail: guestEmail.trim(),
           buyerPhone: buyerPhone.trim(),
           note: note.trim() || undefined,
+          ...(internationalStore ? { international } : {}),
           items: [{ productId: selected.product.id, variantId: selected.variant?.id || null, quantity, customerFields: answers }],
         }),
       });
@@ -236,6 +240,7 @@ function ManualQuoteModal({ storeId, apiFetch, confirm, onClose, onCreated }) {
           <Input label="Customer email" type="email" required value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} />
           <Input label="Customer phone or WhatsApp" type="tel" required value={buyerPhone} onChange={(event) => setBuyerPhone(event.target.value)} />
           {fields.map((field) => <label key={field.id} className="block space-y-1"><span className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</span>{field.type === "textarea" ? <textarea rows={3} value={answers[field.id] || ""} onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" /> : field.type === "select" ? <select value={answers[field.id] || ""} onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm"><option value="">Select</option>{(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}</select> : field.type === "checkbox" ? <input type="checkbox" checked={answers[field.id] === true} onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.checked }))} /> : <input type={field.type === "number" || field.type === "date" ? field.type : "text"} value={answers[field.id] || ""} onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />}{field.helpText && <span className="block text-xs text-slate-600">{field.helpText}</span>}</label>)}
+          {internationalStore && <InternationalCardCheckbox checked={international} onChange={setInternational} />}
           <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Note (optional)</span><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" /></label>
         </div>
         <div className="p-4 border-t border-slate-200 flex gap-3"><Button variant="outline" fullWidth onClick={onClose} disabled={submitting}>Cancel</Button><Button fullWidth onClick={submit} loading={submitting}>Add request</Button></div>

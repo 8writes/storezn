@@ -10,6 +10,8 @@ import { z } from "zod";
 import { buildPublicAppUrl } from "../../../../../../lib/requestUrl.js";
 import { invoicePaymentReference, isInvoicePaymentAuthorizationExpired, reconcileInvoicePayment } from "../../../../../../lib/invoicePayments.js";
 import { sendInvoicePaymentNotifications } from "../../../../../../lib/invoiceNotifications.js";
+import { getUsdRate } from "../../../../../../lib/fxRates.js";
+import { INTERNATIONAL_CHANNELS } from "../../../../../../lib/feePolicy.js";
 
 const paymentEmailSchema = z.string().trim().toLowerCase().email("Enter a valid email address");
 
@@ -30,8 +32,15 @@ export async function GET(req, { params }) {
     commissionAmount: orders.commissionAmount,
     flatFeeAmount: orders.flatFeeAmount,
     feeChargedToCustomer: orders.feeChargedToCustomer,
+    international: orders.international,
   }).from(orders).where(eq(orders.id, row.invoice.orderId)).limit(1) : [];
+  // Same dollar view as the storefront (display only - Paystack charges the
+  // naira below): opens in $ on a store that accepts international
+  // payments, at that store's chosen rate.
+  const usdRate = row.store.internationalPaymentsEnabled ? await getUsdRate(row.store.usdRateProvider) : null;
   return NextResponse.json({
+    usdRate,
+    internationalPaymentsEnabled: !!row.store.internationalPaymentsEnabled,
     invoice: {
       invoiceNumber: row.invoice.invoiceNumber,
       status: row.invoice.status,
@@ -44,6 +53,9 @@ export async function GET(req, { params }) {
       commissionAmount: order?.feeChargedToCustomer ? order.commissionAmount : 0,
       flatFeeAmount: order?.feeChargedToCustomer ? order.flatFeeAmount : 0,
       feeChargedToCustomer: order?.feeChargedToCustomer ?? false,
+      // Priced with the international card fee (the customer said so on the
+      // quote request) - payment then offers card + Apple Pay only.
+      international: order?.international ?? false,
       currency: row.invoice.currency,
       buyerName: row.invoice.buyerName,
       note: row.invoice.note,
@@ -113,6 +125,7 @@ async function handlePost(req, { params }) {
           reference: prepared.expiredExisting.paymentReference,
           amountPaid: transaction.amountPaid,
           paidAt: new Date(),
+          cardCountry: transaction.cardCountry,
         });
         if (result.applied) await sendInvoicePaymentNotifications(result);
         if (result.fullyPaid) return NextResponse.json({ error: "This invoice is already paid" }, { status: 409 });
@@ -149,6 +162,9 @@ async function handlePost(req, { params }) {
       // ratio (see computeOrderTotals).
       split: { subAccountCode, amount: payment.amount * (order.vendorPayoutAmount / Math.max(order.totalAmount, 1)) },
       metadata: { invoiceId: invoice.id, orderId: order.id, invoiceNumber: invoice.invoiceNumber },
+      // Priced with the international card fee on the quote request, so
+      // offer the methods a foreign card can actually use.
+      channels: order.international ? INTERNATIONAL_CHANNELS : undefined,
     });
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     await db.update(invoicePayments).set({ authorizationUrl: paystackData.authorizationUrl, authorizationExpiresAt: expiresAt, updatedAt: new Date() }).where(eq(invoicePayments.id, payment.id));

@@ -65,6 +65,9 @@ async function handlePost(req) {
       buyerName: result.data.buyerName,
       buyerPhone: result.data.buyerPhone,
       note: result.data.note || null,
+      // Only meaningful on a store that accepts international payments -
+      // anywhere else the answer is ignored, same as at checkout.
+      international: !!store.internationalPaymentsEnabled && result.data.international === true,
       status: "new",
     }).returning();
     await tx.insert(invoiceRequestItems).values(items.map((item) => ({

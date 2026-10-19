@@ -15,6 +15,7 @@ import { ProductGallery } from "@/components/storefront/ProductGallery.js";
 import { WishlistButton } from "@/components/storefront/WishlistButton.js";
 import { ShareButton } from "@/components/storefront/ShareButton.js";
 import { BackButton } from "@/components/storefront/BackButton.js";
+import { Money } from "@/components/storefront/Money.js";
 import { ProductRail } from "@/components/storefront/ProductRail.js";
 import { getSimilarStorefrontProducts } from "@/lib/storefrontProducts.js";
 
@@ -124,7 +125,7 @@ export default async function StorefrontProductPage({ params }) {
                   .map((t, i) => (
                     <li key={i} className="flex justify-between gap-4">
                       <span>Bundle of {t.bundleQty}</span>
-                      <span className="font-medium text-slate-900">{formatCurrency(t.unitPrice)} each</span>
+                      <span className="font-medium text-slate-900"><Money amount={t.unitPrice} /> each</span>
                     </li>
                   ))}
               </ul>

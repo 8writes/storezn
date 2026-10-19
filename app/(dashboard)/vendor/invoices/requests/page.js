@@ -34,6 +34,7 @@ export default function VendorInvoiceRequestsPage() {
   const [plan, setPlan] = useState("full");
   const [guestEmail, setGuestEmail] = useState("");
   const [feePolicy, setFeePolicy] = useState(null);
+  const [intlFeePolicy, setIntlFeePolicy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
@@ -53,6 +54,7 @@ export default function VendorInvoiceRequestsPage() {
         setRequestTotal(Number(requestData.total) || (requestData.requests || []).length);
         setPagination(requestData.pagination || null);
         setFeePolicy(invoiceData.feePolicy || null);
+        setIntlFeePolicy(invoiceData.intlFeePolicy || null);
       })
       .catch((err) => toast.error(err.message || "Failed to load quote requests"))
       .finally(() => setLoading(false));
@@ -69,14 +71,19 @@ export default function VendorInvoiceRequestsPage() {
     () => (selected?.items || []).reduce((sum, item) => sum + (Number(prices[`${item.productId}:${item.variantId || ""}`]) || 0) * item.quantity, 0),
     [selected, prices],
   );
+  // The customer answered "paying with a card from outside Nigeria" on the
+  // quote request; the invoice is priced with whichever fee set that means
+  // (the server decides the same way - see lib/feePolicy.js).
+  const selectedInternational = !!selected?.request?.international && !!intlFeePolicy;
+  const activeFeePolicy = selectedInternational ? intlFeePolicy : feePolicy;
   const invoiceTotals = useMemo(() => computeOrderTotals({
     subtotal: total,
     shippingFee: 0,
-    commissionRatePercent: feePolicy?.commissionRatePercent ?? 0,
-    flatFee: feePolicy?.flatFee ?? 0,
-    feeChargedToCustomer: feePolicy?.feeChargedToCustomer ?? false,
-    maxCommissionAmount: feePolicy?.maxCommissionAmount,
-  }), [total, feePolicy]);
+    commissionRatePercent: activeFeePolicy?.commissionRatePercent ?? 0,
+    flatFee: activeFeePolicy?.flatFee ?? 0,
+    feeChargedToCustomer: activeFeePolicy?.feeChargedToCustomer ?? false,
+    maxCommissionAmount: activeFeePolicy?.maxCommissionAmount,
+  }), [total, activeFeePolicy]);
   const normalizedSearch = search.trim().toLowerCase();
   const visibleRequests = useMemo(() => requests.filter(({ request, items }) => {
     if (status !== "all" && request.status !== status) return false;
@@ -229,11 +236,12 @@ export default function VendorInvoiceRequestsPage() {
               })}
             </div>
             <div className="border-t border-slate-200 pt-4 space-y-3">
+              {selectedInternational && <p className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800">The customer will pay with a card from outside Nigeria, so the international card fee applies and they&apos;ll pay by card or Apple Pay.</p>}
               <div className="flex justify-between text-sm"><span>Quote subtotal</span><strong>{formatCurrency(total)}</strong></div>
-              {feePolicy?.feeChargedToCustomer && invoiceTotals.commissionAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Paystack Gateway Fee ({feePolicy.commissionRatePercent}%)</span><strong>{formatCurrency(invoiceTotals.commissionAmount)}</strong></div>}
-              {feePolicy?.feeChargedToCustomer && invoiceTotals.flatFeeAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Flat fee</span><strong>{formatCurrency(invoiceTotals.flatFeeAmount)}</strong></div>}
+              {activeFeePolicy?.feeChargedToCustomer && invoiceTotals.commissionAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>{selectedInternational ? "International card fee" : "Paystack Gateway Fee"} ({activeFeePolicy.commissionRatePercent}%)</span><strong>{formatCurrency(invoiceTotals.commissionAmount)}</strong></div>}
+              {activeFeePolicy?.feeChargedToCustomer && invoiceTotals.flatFeeAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Flat fee</span><strong>{formatCurrency(invoiceTotals.flatFeeAmount)}</strong></div>}
               <div className="flex justify-between text-sm"><span>Customer total</span><strong>{formatCurrency(invoiceTotals.totalAmount)}</strong></div>
-              {!feePolicy?.feeChargedToCustomer && invoiceTotals.platformFeeAmount > 0 && <p className="text-xs text-slate-600">Your store absorbs {formatCurrency(invoiceTotals.platformFeeAmount)} in Paystack Gateway Fees.</p>}
+              {!activeFeePolicy?.feeChargedToCustomer && invoiceTotals.platformFeeAmount > 0 && <p className="text-xs text-slate-600">Your store absorbs {formatCurrency(invoiceTotals.platformFeeAmount)} in Paystack Gateway Fees.</p>}
               <Select label="Payment plan" options={[{ value: "full", label: "Full payment" }, { value: "deposit", label: "50/50 deposit" }]} value={plan} onChange={setPlan} />
               {plan === "deposit" && <div className="flex justify-between text-sm text-slate-700"><span>First payment (50%)</span><strong>{formatCurrency(Math.round(invoiceTotals.totalAmount * 50) / 100)}</strong></div>}
               <Button onClick={createInvoice} loading={sending} fullWidth>Create invoice and copy link</Button>

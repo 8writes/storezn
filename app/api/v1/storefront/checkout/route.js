@@ -9,6 +9,7 @@ import { resolveCart, getCartWithItems, computeCartTotals, abandonPendingCheckou
 import { generateOrderNumber, computeOrderTotals } from "../../../../../lib/orders.js";
 import { resolveShippingFee, canDeliverTo, undeliverableMessage } from "../../../../../lib/shipping.js";
 import { initializeTransaction } from "../../../../../lib/paystack.js";
+import { INTERNATIONAL_CHANNELS, resolveFeePolicy } from "../../../../../lib/feePolicy.js";
 import { resolveStoreSubAccountCode, SUBACCOUNT_UNAVAILABLE_MESSAGE } from "../../../../../lib/storeSubAccount.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { reserveStock, restockItems, resolveFulfillingBranch, OutOfStockError } from "../../../../../lib/inventory.js";
@@ -66,6 +67,9 @@ async function startCheckoutPayment({ attempt, email, customerName, redirectUrl,
     reference: paymentReference,
     redirectUrl,
     split: { subAccountCode, amount: attempt.vendorPayoutAmount },
+    // An international card payment only offers card + Apple Pay; a local
+    // one offers everything the account has enabled.
+    channels: attempt.international ? INTERNATIONAL_CHANNELS : undefined,
   });
   const confirmedReference = paystackData.reference || paymentReference;
 
@@ -171,10 +175,11 @@ async function handlePost(req) {
   }
 
   const [settings] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
-  const commissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
-  // The vendor's own choice for their store (see updateVendorStoreSchema),
-  // not a platform-wide setting.
-  const feeChargedToCustomer = store.feeChargedToCustomer ?? true;
+  // Local or international fees (lib/feePolicy.js) - international only
+  // when this store accepts it AND the customer said they're paying with a
+  // card from outside Nigeria. The same resolver priced the cart preview.
+  const feePolicy = resolveFeePolicy({ store, settings, international: result.data.international === true });
+  const { commissionRatePercent, feeChargedToCustomer } = feePolicy;
   const { subtotal } = computeCartTotals(items);
   const { fee: resolvedShippingFee, isTBD: shippingFeeTBD } = needsShipping
     ? await resolveShippingFee(store, shippingAddress)
@@ -184,12 +189,11 @@ async function handlePost(req) {
     subtotal,
     shippingFee,
     commissionRatePercent,
-    flatFee: settings?.defaultFlatFee ?? 0,
+    flatFee: feePolicy.flatFee,
     feeChargedToCustomer,
-    maxCommissionAmount: settings?.maxCommissionAmount,
+    maxCommissionAmount: feePolicy.maxCommissionAmount,
   });
-  const configuredFlatFee = Math.max(0, Number(settings?.defaultFlatFee) || 0);
-  if (!feeChargedToCustomer && configuredFlatFee > flatFeeAmount + 0.001) {
+  if (!feeChargedToCustomer && feePolicy.flatFee > flatFeeAmount + 0.001) {
     return NextResponse.json(
       { error: "This order total is too low for the store to absorb the full Paystack Gateway Fee. Add more items or choose a different store." },
       { status: 422 },
@@ -263,6 +267,7 @@ async function handlePost(req) {
           flatFeeAmount,
           vendorPayoutAmount,
           feeChargedToCustomer,
+          international: feePolicy.international,
           shippingAddress,
           note: note || null,
           items: attemptItems,

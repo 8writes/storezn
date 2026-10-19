@@ -2,11 +2,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { formatCurrency } from "@/lib/format.js";
+import { useMoney } from "@/components/storefront/Money.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { ImageDisclaimerBadge } from "@/components/storefront/ImageDisclaimerBadge.js";
 
 function RailCard({ p }) {
+  // ₦ or $ - whichever the customer is viewing (display only).
+  const { format } = useMoney();
   const effectivePrice = getEffectivePrice(p.price, p.discountPercent);
   const invoiceRequired = p.saleMode === "invoice_required";
   return (
@@ -39,8 +41,8 @@ function RailCard({ p }) {
       <div className="mt-2 space-y-0.5">
         <p className="text-sm text-slate-800 group-hover:text-slate-950 transition-colors truncate">{p.name}</p>
         <p className="flex items-baseline gap-1.5">
-          <span className="text-sm font-medium text-slate-900">{invoiceRequired ? "Price on request" : formatCurrency(effectivePrice)}</span>
-          {!invoiceRequired && p.discountPercent > 0 && <span className="text-xs text-slate-400 line-through">{formatCurrency(p.price)}</span>}
+          <span className="text-sm font-medium text-slate-900">{invoiceRequired ? "Price on request" : format(effectivePrice)}</span>
+          {!invoiceRequired && p.discountPercent > 0 && <span className="text-xs text-slate-400 line-through">{format(p.price)}</span>}
         </p>
       </div>
     </Link>

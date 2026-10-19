@@ -8,6 +8,8 @@ import { deletePublicFile } from "../../../../../../lib/storage/index.js";
 import { claimStoreUploads, filterStoreOwnedUploadUrls, removeStoreUpload, getStoreStorageUsage } from "../../../../../../lib/storeUploads.js";
 import { isPlusStore, isEnterpriseStore, getEffectivePlan, getStorageLimitBytes, getPlusMonthlyPrice } from "../../../../../../lib/storePlan.js";
 import { isColorTooLight } from "../../../../../../lib/colorShades.js";
+import { getUsdRate, listUsdRates } from "../../../../../../lib/fxRates.js";
+import { resolveFeePolicy } from "../../../../../../lib/feePolicy.js";
 import { logStoreActivity } from "../../../../../../lib/storeActivity.js";
 
 // The two upload-backed fields - PATCHing over (or clearing) either one
@@ -65,8 +67,28 @@ export async function GET(req, { params }) {
       ? branchRows.find((b) => b.id === user.branchId) || null
       : undefined;
 
+  // Dollar display (lib/fxRates.js): every provider's current figure for
+  // the settings picker, plus the one this store would show - which the
+  // product forms use for the "≈ $" hint while a price is typed. Display
+  // only; nothing is charged at these rates.
+  const [usdRates, usdRate] = await Promise.all([
+    listUsdRates(),
+    getUsdRate(store.usdRateProvider),
+  ]);
+
+  // The fees an international card payment would carry (lib/feePolicy.js),
+  // shown to the vendor beside the local ones.
+  const intlFees = resolveFeePolicy({ store: { ...store, internationalPaymentsEnabled: true }, settings, international: true });
+
   return NextResponse.json({
     store,
+    usdRates,
+    usdRate,
+    international: {
+      commissionRatePercent: intlFees.commissionRatePercent,
+      flatFee: intlFees.flatFee,
+      maxCommissionAmount: intlFees.maxCommissionAmount,
+    },
     effectiveCommissionRatePercent,
     effectiveFlatFee,
     isPlus,

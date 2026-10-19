@@ -19,12 +19,13 @@ import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { Select } from "@/components/ui/Select.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { formatCurrency, formatBytes } from "@/lib/format.js";
+import { rateAge } from "@/lib/fxDisplay.js";
 import { NIGERIA_STATE_OPTIONS } from "@/lib/nigeria.js";
 import { isColorTooLight } from "@/lib/colorShades.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { name: "", logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "" };
+const EMPTY_FORM = { name: "", logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "", internationalPaymentsEnabled: false, usdRateProvider: "manual" };
 
 const NAME_MAX = 120;
 const DESCRIPTION_MAX = 160;
@@ -73,6 +74,15 @@ export default function VendorSettingsPage() {
   const [storageLimitBytes, setStorageLimitBytes] = useState(0);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [isPlus, setIsPlus] = useState(false);
+  // Every provider's current USD rate, for the international payments
+  // section's rate picker, and the fee an international card payment carries.
+  const [usdRates, setUsdRates] = useState([]);
+  const [intlFees, setIntlFees] = useState(null);
+  // A store can hold a source that isn't offered any more (Wise without an
+  // API token) - it already falls back to the first offered one, so show that.
+  const selectedRateProvider = usdRates.some((r) => r.provider === form.usdRateProvider)
+    ? form.usdRateProvider
+    : usdRates[0]?.provider;
 
   // `loading` starts true and is only cleared once this settles - it is
   // never set synchronously here, which is what caused a cascading render
@@ -101,7 +111,15 @@ export default function VendorSettingsPage() {
           description: data.store.description || "",
           showDescription: data.store.showDescription !== false,
           storefrontAccentColor: data.store.storefrontAccentColor || "",
+          internationalPaymentsEnabled: !!data.store.internationalPaymentsEnabled,
+          // What the radio shows is what gets saved: a source that isn't
+          // offered (Wise with no token) becomes the first offered one.
+          usdRateProvider: (data.usdRates || []).some((r) => r.provider === data.store.usdRateProvider)
+            ? data.store.usdRateProvider
+            : data.usdRates?.[0]?.provider || "manual",
         });
+        setUsdRates(data.usdRates || []);
+        setIntlFees(data.international || null);
         setCommissionRate(data.effectiveCommissionRatePercent);
         setFlatFee(data.effectiveFlatFee || 0);
         setIsPlus(!!data.isPlus);
@@ -866,6 +884,94 @@ export default function VendorSettingsPage() {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Prices and what Paystack charges stay in naira - the dollar
+              view is display only (lib/fxDisplay.js). What changes for an
+              international card payment is the fee (lib/feePolicy.js). */}
+          <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
+            <SectionLabel>International payments</SectionLabel>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Accept international payments</p>
+                <p className="text-xs text-slate-800 mt-0.5">
+                  Your storefront opens in dollars, and customers can switch to naira. You still set prices in
+                  naira, and customers are always charged in naira.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.internationalPaymentsEnabled}
+                aria-label="Accept international payments"
+                onClick={() => setForm((f) => ({ ...f, internationalPaymentsEnabled: !f.internationalPaymentsEnabled }))}
+                className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer ${
+                  form.internationalPaymentsEnabled ? "bg-brand-600" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
+                    form.internationalPaymentsEnabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {form.internationalPaymentsEnabled && intlFees && (
+              <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-800 space-y-1">
+                <p>
+                  At checkout, customers say whether they&apos;re paying with a card from outside Nigeria. If they are,
+                  they pay by card or Apple Pay, and the Paystack Gateway Fee is{" "}
+                  <strong className="tabular-nums">
+                    {intlFees.commissionRatePercent}%{intlFees.flatFee > 0 ? ` + ${formatCurrency(intlFees.flatFee)}` : ""}
+                  </strong>
+                  {intlFees.maxCommissionAmount != null ? `, capped at ${formatCurrency(intlFees.maxCommissionAmount)}` : ""}.
+                </p>
+                <p>Everyone else pays your normal fee, with every payment method.</p>
+              </div>
+            )}
+
+            {form.internationalPaymentsEnabled && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-slate-700">Dollar prices use the exchange rate from</p>
+                <div className="space-y-2">
+                  {usdRates.map((r) => (
+                    <label
+                      key={r.provider}
+                      className={`flex items-center justify-between gap-3 rounded-sm border px-3 py-2.5 cursor-pointer ${
+                        selectedRateProvider === r.provider ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <input
+                          type="radio"
+                          name="usdRateProvider"
+                          value={r.provider}
+                          checked={selectedRateProvider === r.provider}
+                          onChange={() => setForm((f) => ({ ...f, usdRateProvider: r.provider }))}
+                          className="cursor-pointer"
+                        />
+                        <span className="text-sm text-slate-900">{r.label}</span>
+                      </span>
+                      <span className="text-right text-xs tabular-nums">
+                        {r.rate && !r.stale ? (
+                          <>
+                            <span className="block text-sm text-slate-900">$1 = {formatCurrency(r.rate)}</span>
+                            <span className="text-slate-500">updated {rateAge(r.fetchedAt)}</span>
+                          </>
+                        ) : (
+                          <span className="text-amber-700">No current rate</span>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-600">
+                  Rates refresh every hour. If your chosen source has no current rate, the other is used, and if
+                  neither does, the dollar switch is hidden until one comes back.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="sticky bottom-0 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 bg-surface/95 backdrop-blur-sm border-t border-slate-200">

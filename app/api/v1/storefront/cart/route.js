@@ -13,6 +13,7 @@ import { withApiMonitoring } from "../../../../../lib/apiMonitoring.js";
 import { checkRateLimit } from "../../../../../lib/rateLimit.js";
 import { sql } from "drizzle-orm";
 import { isUniqueViolation } from "../../../../../lib/dbErrors.js";
+import { resolveFeePolicy } from "../../../../../lib/feePolicy.js";
 
 function withGuestTokenCookie(res, guestToken, isNewToken) {
   if (isNewToken) {
@@ -65,9 +66,18 @@ async function handleGet(req) {
   // rest of the form; POST /checkout re-checks it regardless.
   const deliverable = !needsShipping || !state ? true : canDeliverTo(store, state);
 
-  const fees = await computeDisplayFees(store, totals.subtotal, shippingFee);
+  // The checkout page's "paying with a card from outside Nigeria" choice -
+  // only honoured on a store that accepts international payments (see
+  // lib/feePolicy.js), so the preview always matches what checkout charges.
+  const international = url.searchParams.get("international") === "1";
+  const fees = await computeDisplayFees(store, totals.subtotal, shippingFee, international);
 
-  return NextResponse.json({ items, ...totals, shippingFee, shippingFeeTBD, deliverable, deliveryStates: store.deliveryStates ?? null, ...fees });
+  return NextResponse.json({
+    items, ...totals, shippingFee, shippingFeeTBD, deliverable,
+    deliveryStates: store.deliveryStates ?? null,
+    internationalPaymentsEnabled: !!store.internationalPaymentsEnabled,
+    ...fees,
+  });
 }
 
 // Live preview of what checkout will actually charge/split, so the cart
@@ -76,25 +86,24 @@ async function handleGet(req) {
 // for real - see lib/orders.js's computeOrderTotals for the shared math.
 // store.feeChargedToCustomer is the vendor's own choice for their store
 // (see updateVendorStoreSchema), not a platform-wide setting.
-async function computeDisplayFees(store, subtotal, shippingFee) {
+async function computeDisplayFees(store, subtotal, shippingFee, international = false) {
   const [settings] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
-  const commissionRatePercent = store.commissionRatePercent ?? settings?.defaultCommissionRatePercent ?? 5;
-  const feeChargedToCustomer = store.feeChargedToCustomer ?? true;
+  const policy = resolveFeePolicy({ store, settings, international });
   const { totalAmount, platformFeeAmount, flatFeeAmount } = computeOrderTotals({
     subtotal,
     shippingFee,
-    commissionRatePercent,
-    flatFee: settings?.defaultFlatFee ?? 0,
-    feeChargedToCustomer,
-    maxCommissionAmount: settings?.maxCommissionAmount,
+    commissionRatePercent: policy.commissionRatePercent,
+    flatFee: policy.flatFee,
+    feeChargedToCustomer: policy.feeChargedToCustomer,
+    maxCommissionAmount: policy.maxCommissionAmount,
   });
-  const configuredFlatFee = Math.max(0, Number(settings?.defaultFlatFee) || 0);
-  const platformFeeShortfall = !feeChargedToCustomer
-    ? Math.max(0, configuredFlatFee - flatFeeAmount)
+  const platformFeeShortfall = !policy.feeChargedToCustomer
+    ? Math.max(0, policy.flatFee - flatFeeAmount)
     : 0;
   return {
-    feeChargedToCustomer,
-    platformFee: feeChargedToCustomer ? platformFeeAmount : 0,
+    feeChargedToCustomer: policy.feeChargedToCustomer,
+    international: policy.international,
+    platformFee: policy.feeChargedToCustomer ? platformFeeAmount : 0,
     platformFeeShortfall,
     total: totalAmount,
   };

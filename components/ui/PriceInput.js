@@ -1,5 +1,6 @@
 "use client";
 import { Input } from "./Input.js";
+import { UsdHint } from "./UsdHint.js";
 
 function formatDisplay(raw) {
   if (!raw) return "";
@@ -13,7 +14,11 @@ function formatDisplay(raw) {
 // unformatted numeric string (no commas) - same contract as a plain
 // number input - so callers just Number(value) it like any other price
 // field, they don't need to know this renders differently.
-export function PriceInput({ label, value, onChange, ...props }) {
+//
+// usdRate (optional, naira per dollar): shows "≈ $9.68" under the field
+// for stores that offer dollar prices on their storefront. Without it the
+// markup is exactly what it always was, so no other caller's layout moves.
+export function PriceInput({ label, value, onChange, usdRate, ...props }) {
   const handleChange = (e) => {
     // Strip everything but digits and keep only the first decimal point.
     const raw = e.target.value.replace(/,/g, "").replace(/[^\d.]/g, "");
@@ -22,7 +27,7 @@ export function PriceInput({ label, value, onChange, ...props }) {
     onChange(cleaned);
   };
 
-  return (
+  const input = (
     <Input
       label={label}
       type="text"
@@ -31,5 +36,12 @@ export function PriceInput({ label, value, onChange, ...props }) {
       onChange={handleChange}
       {...props}
     />
+  );
+  if (!usdRate) return input;
+  return (
+    <div>
+      {input}
+      <UsdHint ngn={value} rate={usdRate} className="mt-1" />
+    </div>
   );
 }
