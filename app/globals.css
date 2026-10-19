@@ -238,6 +238,16 @@ body {
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), transparent);
 }
 
+/* Sidebar labels are pure white on the dark theme. The vendor sidebar uses
+   slate text, which the dark ramp above turns into a light GREY (#aeb7c2)
+   rather than white - this lifts just the sidebar's labels, group titles
+   and buttons to #fff. Light mode is untouched (white on a white panel
+   would vanish), and the active link keeps its brand colour (it isn't
+   tagged). Unlayered, so it outranks the Tailwind utility it overrides. */
+[data-theme="dark"] .nav-text-strong {
+  color: #fff;
+}
+
 .scrollbar-none {
   scrollbar-width: none;
   -ms-overflow-style: none;

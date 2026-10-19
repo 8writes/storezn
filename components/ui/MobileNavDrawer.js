@@ -49,13 +49,13 @@ export function MobileNavDrawer({ open, onClose, title, children, footer, muted 
         } ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className={`flex items-center justify-between px-4 h-16 border-b shrink-0 ${muted ? "border-slate-200" : "border-slate-800"}`}>
-          <span className={`font-semibold ${muted ? "text-slate-900" : "text-white"}`}>{title}</span>
+          <span className={`font-semibold ${muted ? "nav-text-strong text-slate-900" : "text-white"}`}>{title}</span>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close menu"
             className={`w-9 h-9 -mr-2 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-              muted ? "text-slate-800 hover:text-slate-900 hover:bg-slate-100" : "text-white/70 hover:text-white hover:bg-white/10"
+              muted ? "nav-text-strong text-slate-800 hover:text-slate-900 hover:bg-slate-100" : "text-white hover:bg-white/10"
             }`}
           >
             <X size={20} />

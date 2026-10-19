@@ -417,7 +417,7 @@ export default function VendorProductEditPage({ params }) {
             />
           )}
           <Select label="Selling method" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
-          {form.saleMode === "fixed_price" && <PriceInput label="Price" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} usdRate={usdRate} required />}
+          {form.saleMode === "fixed_price" && <PriceInput label="Price" leadingText="₦" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} usdRate={usdRate} required />}
           {hasField("discount") && form.saleMode === "fixed_price" && <div>
             <div className="flex items-center gap-1.5 mb-1">
               <label className="text-sm font-medium text-slate-700">Discount %</label>
@@ -1042,6 +1042,7 @@ function VariantsManager({ storeId, productId, apiFetch, branchCount, standardEn
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
                   <PriceInput
                     label="Price override"
+                    leadingText="₦"
                     value={editForm.price}
                     onChange={(val) => setEditForm((f) => ({ ...f, price: val }))}
                   />

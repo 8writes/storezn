@@ -254,7 +254,7 @@ const NAV_BY_ROLE = {
 function NavPending({ muted }) {
   const { pending } = useLinkStatus();
   if (!pending) return null;
-  return <Loader2 size={15} className={`ml-auto shrink-0 animate-spin ${muted ? "text-brand-600" : "text-white/70"}`} />;
+  return <Loader2 size={15} className={`ml-auto shrink-0 animate-spin ${muted ? "text-brand-600" : "text-white"}`} />;
 }
 
 function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false, collapsed = false }) {
@@ -283,7 +283,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
               onClick={() => toggleNavGroup(group.title)}
               aria-expanded={open}
               className={`w-full flex items-center gap-1.5 px-4 pt-4 pb-1.5 text-[13px] font-bold uppercase tracking-wide first:pt-3 cursor-pointer transition-colors ${
-                muted ? "text-slate-700 hover:text-slate-900" : "text-white/75 hover:text-white"
+                muted ? "nav-text-strong text-slate-700 hover:text-slate-900" : "text-white"
               }`}
             >
               {group.title}
@@ -291,7 +291,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
               {!open && (
                 <span
                   className={`ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
-                    muted ? "bg-slate-100 text-slate-700" : "bg-white/10 text-white/70"
+                    muted ? "nav-text-strong bg-slate-100 text-slate-700" : "bg-white/10 text-white"
                   }`}
                 >
                   {group.items.length}
@@ -308,7 +308,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
                   key={href}
                   aria-disabled="true"
                   title={collapsed ? `${label}, unavailable while offline` : "Unavailable while offline"}
-                  className={`${base} ${muted ? "border-l-2 border-transparent text-slate-600" : "text-white"} opacity-40 cursor-not-allowed select-none`}
+                  className={`${base} ${muted ? "nav-text-strong border-l-2 border-transparent text-slate-600" : "text-white"} opacity-40 cursor-not-allowed select-none`}
                 >
                   <Icon size={18} />
                   {!collapsed && label}
@@ -332,7 +332,7 @@ function NavLinks({ groups, pathname, onNavigate, muted = false, offline = false
                     ? `${base} border-l-2 transition-colors ${
                         pathname === href
                           ? "border-brand-500 bg-brand-50 text-brand-700"
-                          : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          : "nav-text-strong border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                       }`
                     : `${base} transition-colors ${
                         pathname === href
@@ -463,7 +463,7 @@ export default function DashboardLayout({ children }) {
             onClick={toggleNav}
             title={navCollapsed ? "Expand menu" : "Collapse menu"}
             className={`w-full flex items-center gap-3 py-2.5 cursor-pointer text-sm font-medium ${navCollapsed ? "justify-center px-0" : "px-4"} ${
-              isVendor ? "text-slate-800 hover:bg-slate-50 hover:text-slate-900" : "text-white/70 hover:bg-white/10 hover:text-white"
+              isVendor ? "nav-text-strong text-slate-800 hover:bg-slate-50 hover:text-slate-900" : "text-white hover:bg-white/10"
             }`}
           >
             {navCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -476,7 +476,7 @@ export default function DashboardLayout({ children }) {
             title={navOffline ? "Unavailable while offline" : navCollapsed ? "Sign out" : undefined}
             className={`w-full flex items-center gap-3 py-3 text-sm font-medium ${navCollapsed ? "justify-center px-0" : "px-4"} ${
               navOffline ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-            } ${isVendor ? "text-slate-600 hover:bg-slate-50 hover:text-red-600" : "text-white hover:bg-white/10"}`}
+            } ${isVendor ? "nav-text-strong text-slate-600 hover:bg-slate-50 hover:text-red-600" : "text-white hover:bg-white/10"}`}
           >
             <LogOut size={18} />
             {!navCollapsed && "Sign out"}
@@ -516,7 +516,7 @@ export default function DashboardLayout({ children }) {
                 disabled={navOffline}
                 title={navOffline ? "Unavailable while offline" : undefined}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium ${
-                  isVendor ? "text-slate-600 hover:bg-slate-50 hover:text-red-600" : "text-white hover:bg-white/10"
+                  isVendor ? "nav-text-strong text-slate-600 hover:bg-slate-50 hover:text-red-600" : "text-white hover:bg-white/10"
                 } ${navOffline ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <LogOut size={18} />
