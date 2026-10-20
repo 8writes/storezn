@@ -377,7 +377,8 @@ export default function VendorSettingsPage() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-800">
                       Used across logos, favicons, and product photos
-                    </span>
+                    </span> 
+                    <br/>
                     <span
                       className={
                         storageUsedBytes >= storageLimitBytes
