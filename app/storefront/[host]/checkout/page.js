@@ -133,7 +133,7 @@ export default function CheckoutPage() {
     city: manualAddress.city.trim(),
     state: manualAddress.state.trim(),
     country: normaliseCountry(manualAddress.country),
-    postalCode: manualAbroad ? manualAddress.postalCode.trim() : "",
+    postalCode: manualAddress.postalCode.trim(),
   });
 
   const validateCheckout = () => {
@@ -294,7 +294,6 @@ export default function CheckoutPage() {
                   <>
                     <Input label="State / province / region (optional)" value={manualAddress.state} onChange={(e) => setManualAddress((a) => ({ ...a, state: e.target.value }))} error={fieldErrors.state} maxLength={120} />
                     <Input label="City / town" value={manualAddress.city} onChange={(e) => setManualAddress((a) => ({ ...a, city: e.target.value }))} error={fieldErrors.city} maxLength={120} required />
-                    <Input label="Postal / ZIP code (optional)" value={manualAddress.postalCode} onChange={(e) => setManualAddress((a) => ({ ...a, postalCode: e.target.value }))} maxLength={20} />
                   </>
                 ) : (
                   <>
@@ -317,6 +316,7 @@ export default function CheckoutPage() {
                     />
                   </>
                 )}
+                <Input label={manualAbroad ? "Postal / ZIP code (optional)" : "Postal code (optional)"} value={manualAddress.postalCode} onChange={(e) => setManualAddress((a) => ({ ...a, postalCode: e.target.value }))} maxLength={20} />
                 {undeliverable && (
                   <p className="sm:col-span-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                     Sorry, this store isn&apos;t currently delivering to {undeliverableWhere}. Choose another delivery{" "}

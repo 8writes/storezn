@@ -115,11 +115,12 @@ test("the refusal names the country abroad and the state at home", () => {
   assert.equal(undeliverableMessage({ country: "Nigeria", state: "Kano" }), "Sorry, this store isn't currently delivering to Kano.");
 });
 
-test("address place line: Nigerian addresses unchanged, abroad adds postcode and country", async () => {
+test("address place line: postcode when given, country only abroad", async () => {
   const { formatAddressPlace } = await import("../lib/countries.js");
   assert.equal(formatAddressPlace({ city: "Ikeja", state: "Lagos", country: "Nigeria" }), "Ikeja, Lagos");
   assert.equal(formatAddressPlace({ city: "Ikeja", state: "Lagos" }), "Ikeja, Lagos");
-  assert.equal(formatAddressPlace({ city: "Ikeja", state: "Lagos", postalCode: "100001" }), "Ikeja, Lagos");
+  assert.equal(formatAddressPlace({ city: "Ikeja", state: "Lagos", postalCode: "100001" }), "Ikeja, Lagos, 100001");
+  assert.equal(formatAddressPlace({ city: "Ikeja", state: "Lagos", postalCode: "  " }), "Ikeja, Lagos");
   assert.equal(
     formatAddressPlace({ city: "Manchester", state: "", postalCode: "M1 1AA", country: "united kingdom" }),
     "Manchester, M1 1AA, United Kingdom",

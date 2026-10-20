@@ -73,7 +73,7 @@ export default function CustomerAddressesPage() {
       const res = await safeFetch("/api/v1/customer/addresses", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(abroad ? form : { ...form, postalCode: "" }),
+        body: JSON.stringify(form),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -146,7 +146,6 @@ export default function CustomerAddressesPage() {
             <>
               <Input label="State / province / region (optional)" value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} maxLength={120} />
               <Input label="City / town" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} maxLength={120} required />
-              <Input label="Postal / ZIP code (optional)" value={form.postalCode} onChange={(e) => setForm((f) => ({ ...f, postalCode: e.target.value }))} maxLength={20} />
             </>
           ) : (
             <>
@@ -167,6 +166,7 @@ export default function CustomerAddressesPage() {
               />
             </>
           )}
+          <Input label={abroad ? "Postal / ZIP code (optional)" : "Postal code (optional)"} value={form.postalCode} onChange={(e) => setForm((f) => ({ ...f, postalCode: e.target.value }))} maxLength={20} />
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
