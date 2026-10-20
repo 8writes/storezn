@@ -966,7 +966,7 @@ export default function VendorSettingsPage() {
                   ))}
                 </div>
                 <p className="text-xs text-slate-600">
-                  Rates refresh every hour. If your chosen source has no current rate, the other is used, and if
+                  Rates refresh periodically. If your chosen source has no current rate, the other is used, and if
                   neither does, the dollar switch is hidden until one comes back.
                 </p>
               </div>
