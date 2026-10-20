@@ -27,7 +27,11 @@ export default async function StorefrontHomePage({ params, searchParams }) {
   const categoryId = sp.category || undefined;
   const minPrice = sp.min ? Number(sp.min) : null;
   const maxPrice = sp.max ? Number(sp.max) : null;
-  const sort = sp.sort || "newest";
+  // Shuffled unless the shopper picks a sort. A fresh seed per page load
+  // gives each visit its own order; the grid passes the same seed to "Load
+  // more" so later pages continue this shuffle (see getStorefrontProducts).
+  const sort = sp.sort || "random";
+  const seed = sort === "random" ? crypto.randomUUID().replace(/-/g, "").slice(0, 16) : "";
   const discountedOnly = sp.discounted === "1";
 
   // The featured / on-sale rails are a landing-page flourish - hidden the
@@ -36,7 +40,7 @@ export default async function StorefrontHomePage({ params, searchParams }) {
   const filtering = !!(q || categoryId || minPrice || maxPrice || discountedOnly);
 
   const [{ list, total }, categoryList, rails] = await Promise.all([
-    getStorefrontProducts({ storeId: store.id, page: 1, pageSize: PAGE_SIZE, q, categoryId, minPrice, maxPrice, sort, discountedOnly }),
+    getStorefrontProducts({ storeId: store.id, page: 1, pageSize: PAGE_SIZE, q, categoryId, minPrice, maxPrice, sort, discountedOnly, seed }),
     db.select().from(categories).where(eq(categories.storeId, store.id)).orderBy(categories.name),
     filtering ? Promise.resolve({ featured: [], discounted: [] }) : getStorefrontRails({ storeId: store.id }),
   ]);
@@ -89,10 +93,10 @@ export default async function StorefrontHomePage({ params, searchParams }) {
           <p className="text-center text-slate-700 py-24">{filtering ? "No products match your filters." : "No products yet, check back soon."}</p>
         ) : (
           <StorefrontProductGrid
-            key={`${q || ""}-${categoryId || ""}-${sort}-${minPrice || ""}-${maxPrice || ""}-${discountedOnly ? "d" : ""}`}
+            key={`${q || ""}-${categoryId || ""}-${sort}-${seed}-${minPrice || ""}-${maxPrice || ""}-${discountedOnly ? "d" : ""}`}
             initialProducts={list}
             total={total}
-            filters={{ q: q || "", category: categoryId || "", sort, min: minPrice || "", max: maxPrice || "", discounted: discountedOnly ? "1" : "" }}
+            filters={{ q: q || "", category: categoryId || "", sort, ...(seed ? { seed } : {}), min: minPrice || "", max: maxPrice || "", discounted: discountedOnly ? "1" : "" }}
             storeState={storeState}
           />
         )}

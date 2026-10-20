@@ -8,7 +8,10 @@ import { useMoney } from "@/components/storefront/Money.js";
 import { Button } from "@/components/ui/Button.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
+// "random" is the default: a shuffled order, fresh on each visit (see
+// getStorefrontProducts). Picking any other sort replaces it.
 const SORT_OPTIONS = [
+  { value: "random", label: "Shuffled" },
   { value: "newest", label: "Newest" },
   { value: "price_asc", label: "Price: low to high" },
   { value: "price_desc", label: "Price: high to low" },
@@ -42,20 +45,20 @@ export function StorefrontFilters({ categories, themed = false }) {
   };
 
   const category = searchParams.get("category") || "";
-  const sort = searchParams.get("sort") || "newest";
+  const sort = searchParams.get("sort") || "random";
   const min = searchParams.get("min") || "";
   const max = searchParams.get("max") || "";
   const discounted = searchParams.get("discounted") === "1";
 
   const activeCount =
-    (category ? 1 : 0) + (sort !== "newest" ? 1 : 0) + (min ? 1 : 0) + (max ? 1 : 0) + (discounted ? 1 : 0);
+    (category ? 1 : 0) + (sort !== "random" ? 1 : 0) + (min ? 1 : 0) + (max ? 1 : 0) + (discounted ? 1 : 0);
 
   const categoryName = categories.find((c) => c.id === category)?.name;
 
   const applyModal = (next) => {
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, val] of Object.entries(next)) {
-      if (val && !(key === "sort" && val === "newest")) params.set(key, val);
+      if (val && !(key === "sort" && val === "random")) params.set(key, val);
       else params.delete(key);
     }
     push(params);
@@ -144,7 +147,7 @@ export function StorefrontFilters({ categories, themed = false }) {
               }}
             />
           )}
-          {sort !== "newest" && <Chip label={SORT_LABEL[sort]} onClear={() => setParam("sort", "")} />}
+          {sort !== "random" && <Chip label={SORT_LABEL[sort]} onClear={() => setParam("sort", "")} />}
           <button type="button" onClick={clearAll} className="text-slate-800 hover:text-slate-800 underline cursor-pointer">
             Clear all
           </button>
@@ -197,12 +200,12 @@ function FilterModal({ categories, themed, initial, usdRate = null, onApply, onC
 
   const reset = () => {
     setCategory("");
-    setSort("newest");
+    setSort("random");
     setMin("");
     setMax("");
     setDiscounted(false);
   };
-  const anyDraft = category || sort !== "newest" || min || max || discounted;
+  const anyDraft = category || sort !== "random" || min || max || discounted;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none sm:p-4">

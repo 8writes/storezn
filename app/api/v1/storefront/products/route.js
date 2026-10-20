@@ -19,9 +19,12 @@ export async function GET(req) {
   const categoryId = searchParams.get("category") || undefined;
   const minPrice = searchParams.get("min") ? Number(searchParams.get("min")) : null;
   const maxPrice = searchParams.get("max") ? Number(searchParams.get("max")) : null;
-  const sort = searchParams.get("sort") || "newest";
+  // Shuffled by default, continuing the same order the page started with
+  // (seed) - see getStorefrontProducts.
+  const sort = searchParams.get("sort") || "random";
+  const seed = searchParams.get("seed") || null;
   const discountedOnly = searchParams.get("discounted") === "1";
 
-  const { list, total } = await getStorefrontProducts({ storeId: store.id, page, pageSize: Math.min(PAGE_SIZE, pageSize), q, categoryId, minPrice, maxPrice, sort, discountedOnly });
+  const { list, total } = await getStorefrontProducts({ storeId: store.id, page, pageSize: Math.min(PAGE_SIZE, pageSize), q, categoryId, minPrice, maxPrice, sort, discountedOnly, seed });
   return NextResponse.json({ products: list, total, pagination: { page, pageSize: Math.min(PAGE_SIZE, pageSize), totalPages: Math.max(1, Math.ceil(total / Math.min(PAGE_SIZE, pageSize))) } });
 }
