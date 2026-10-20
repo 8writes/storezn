@@ -84,6 +84,10 @@ export default async function StorefrontLayout({ children, params }) {
       rate={usdRate}
       defaultCurrency={store.internationalPaymentsEnabled ? "USD" : "NGN"}
       international={!!store.internationalPaymentsEnabled}
+      delivery={{
+        international: !!store.internationalDeliveryEnabled,
+        countries: store.internationalDeliveryEnabled && store.deliveryCountries?.length ? store.deliveryCountries : null,
+      }}
     >
     <div className="min-h-screen bg-white flex flex-col" style={accentStyle} data-cookie-site-name={store.name}>
       <Suspense fallback={null}>

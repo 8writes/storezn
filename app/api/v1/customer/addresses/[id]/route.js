@@ -4,6 +4,7 @@ import { addresses } from "../../../../../../lib/db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getUser } from "../../../../../../lib/auth.js";
 import { validate, updateAddressSchema } from "../../../../../../lib/validate.js";
+import { normaliseCountry } from "../../../../../../lib/countries.js";
 
 async function loadOwnedAddress(user, id) {
   const [row] = await db.select().from(addresses).where(and(eq(addresses.id, id), eq(addresses.userId, user.id))).limit(1);
@@ -27,7 +28,12 @@ export async function PATCH(req, { params }) {
     if (result.data.isDefault) {
       await tx.update(addresses).set({ isDefault: false }).where(eq(addresses.userId, user.id));
     }
-    const [row] = await tx.update(addresses).set(result.data).where(eq(addresses.id, id)).returning();
+    const changes = { ...result.data };
+    if ("country" in changes) changes.country = normaliseCountry(changes.country);
+    // NOT NULL column: a cleared state (fine abroad) is stored as "".
+    if ("state" in changes) changes.state = changes.state || "";
+    if ("postalCode" in changes) changes.postalCode = changes.postalCode || null;
+    const [row] = await tx.update(addresses).set(changes).where(eq(addresses.id, id)).returning();
     return row;
   });
 

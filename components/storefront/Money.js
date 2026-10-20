@@ -26,10 +26,19 @@ const UsdRateContext = createContext(null);
 // international: the store accepts international payments, so checkout and
 // the quote form ask whether the customer is paying with a foreign card.
 // (Separate from `rate` - a store can accept them while no rate exists.)
-export function CurrencyProvider({ rate, defaultCurrency = "NGN", international = false, children }) {
+// delivery: { international, countries } - whether the store delivers
+// outside Nigeria and where (countries null = anywhere), for address forms
+// that don't load the cart. Not money, but it's the one store-wide context
+// the storefront already has.
+export function CurrencyProvider({ rate, defaultCurrency = "NGN", international = false, delivery = null, children }) {
   return (
-    <UsdRateContext.Provider value={{ rate: rate || null, defaultCurrency, international }}>{children}</UsdRateContext.Provider>
+    <UsdRateContext.Provider value={{ rate: rate || null, defaultCurrency, international, delivery }}>{children}</UsdRateContext.Provider>
   );
+}
+
+export function useStoreDelivery() {
+  const delivery = useContext(UsdRateContext)?.delivery;
+  return { international: !!delivery?.international, countries: delivery?.countries ?? null };
 }
 
 export function useUsdRate() {

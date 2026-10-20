@@ -16,6 +16,7 @@ import { PriceInput } from "@/components/ui/PriceInput.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { toNaira } from "@/lib/money.js";
 import { downloadOrderPdf } from "@/lib/orderPdf.js";
+import { formatAddressPlace } from "@/lib/countries.js";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", abandoned: "slate", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
 const NEXT_ACTIONS = {
@@ -299,7 +300,7 @@ export default function VendorOrderDetailPage({ params }) {
           <p className="font-semibold text-slate-700 mb-1">Ship to</p>
           <p>{order.shippingAddress.fullName}</p>
           <p>{order.shippingAddress.line1}{order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}</p>
-          <p>{order.shippingAddress.city}, {order.shippingAddress.state}</p>
+          <p>{formatAddressPlace(order.shippingAddress)}</p>
           <p className="flex items-center gap-1.5">
             {order.shippingAddress.phone}
             <CopyButton value={order.shippingAddress.phone} label="Copy phone number" />

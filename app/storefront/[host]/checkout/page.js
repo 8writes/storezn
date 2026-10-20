@@ -10,9 +10,10 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { useMoney } from "@/components/storefront/Money.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
+import { COUNTRY_OPTIONS, NIGERIA, normaliseCountry } from "@/lib/countries.js";
 import { safeFetch } from "@/lib/fetchError.js";
 
-const EMPTY_ADDRESS = { fullName: "", phone: "", line1: "", line2: "", city: "", state: "", country: "Nigeria" };
+const EMPTY_ADDRESS = { fullName: "", phone: "", line1: "", line2: "", city: "", state: "", country: NIGERIA, postalCode: "" };
 const MANUAL_ADDRESS_ID = "__manual__";
 
 export default function CheckoutPage() {
@@ -42,8 +43,9 @@ export default function CheckoutPage() {
   // effect below refetches instead.
   const internationalRef = useRef(false);
 
-  const loadCart = useCallback(async ({ state = "", city = "" } = {}) => {
+  const loadCart = useCallback(async ({ country = "", state = "", city = "" } = {}) => {
     const params = new URLSearchParams();
+    if (country && country !== NIGERIA) params.set("country", country);
     if (state) params.set("state", state);
     if (city) params.set("city", city);
     if (internationalRef.current) params.set("international", "1");
@@ -80,13 +82,28 @@ export default function CheckoutPage() {
   const needsShipping = cart?.items?.some((i) => i.product.productType === "physical");
   const usesSavedAddress = !!user && addresses.length > 0 && addressId !== MANUAL_ADDRESS_ID;
   const selectedAddress = usesSavedAddress ? addresses.find((a) => a.id === addressId) : null;
-  const effectiveState = needsShipping ? (selectedAddress?.state || manualAddress.state) : "";
-  // The cart endpoint re-answers this every time the state changes (see
+  const effectiveCountry = normaliseCountry(selectedAddress ? selectedAddress.country : manualAddress.country);
+  const abroad = effectiveCountry !== NIGERIA;
+  const effectiveState = needsShipping ? (selectedAddress ? selectedAddress.state || "" : manualAddress.state) : "";
+  const effectiveCity = needsShipping ? (selectedAddress ? selectedAddress.city || "" : manualAddress.city) : "";
+  // Enough to price delivery: a Nigerian address needs its state; one
+  // abroad can be priced from its country alone (see lib/shipping.js).
+  const hasDestination = needsShipping && (abroad || !!effectiveState);
+  const destination = { country: effectiveCountry, state: effectiveState, city: effectiveCity };
+  // The cart endpoint re-answers this every time the address changes (see
   // its `deliverable`), so the shopper is told before filling in the rest
   // of the form rather than at the payment step. POST /checkout refuses it
   // again regardless - this is UX, not the control.
-  const undeliverable = needsShipping && !!effectiveState && cart?.deliverable === false;
-  const effectiveCity = needsShipping ? (selectedAddress?.city || manualAddress.city) : "";
+  const undeliverable = hasDestination && cart?.deliverable === false;
+  const undeliverableWhere = abroad ? effectiveCountry : effectiveState;
+  // A country picker only when the store delivers abroad - Nigeria plus the
+  // countries it ships to (all of them when it hasn't limited the list).
+  const intlDelivery = !!cart?.internationalDeliveryEnabled;
+  const shipsTo = Array.isArray(cart?.deliveryCountries) && cart.deliveryCountries.length > 0 ? cart.deliveryCountries : null;
+  const countryOptions = shipsTo
+    ? COUNTRY_OPTIONS.filter((o) => o.value === NIGERIA || shipsTo.includes(o.value))
+    : COUNTRY_OPTIONS;
+  const manualAbroad = normaliseCountry(manualAddress.country) !== NIGERIA;
   // Only stores that accept international payments offer the choice; the
   // server ignores it everywhere else anyway (lib/feePolicy.js).
   const intlAvailable = !!cart?.internationalPaymentsEnabled;
@@ -101,7 +118,7 @@ export default function CheckoutPage() {
     internationalRef.current = international;
     if (!cartLoaded || !intlAvailable) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadCart({ state: effectiveState, city: effectiveCity }).catch(() => {});
+    loadCart(destination).catch(() => {});
     // Deliberately keyed on the switch only - address changes have their
     // own refetch below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,7 +132,8 @@ export default function CheckoutPage() {
     line2: manualAddress.line2.trim(),
     city: manualAddress.city.trim(),
     state: manualAddress.state.trim(),
-    country: manualAddress.country || "Nigeria",
+    country: normaliseCountry(manualAddress.country),
+    postalCode: manualAbroad ? manualAddress.postalCode.trim() : "",
   });
 
   const validateCheckout = () => {
@@ -134,8 +152,12 @@ export default function CheckoutPage() {
         if (!address.fullName) errors.fullName = "Full name is required";
         if (!address.phone) errors.phone = "Phone number is required";
         if (!address.line1) errors.line1 = "Address line is required";
-        if (!address.state) errors.state = "State is required";
-        if (!address.city) errors.city = "City/LGA is required";
+        if (manualAbroad) {
+          if (!address.city) errors.city = "City / town is required";
+        } else {
+          if (!address.state) errors.state = "State is required";
+          if (!address.city) errors.city = "City/LGA is required";
+        }
       }
     }
 
@@ -146,13 +168,16 @@ export default function CheckoutPage() {
   // Refetches the cart's totals with the currently selected/entered
   // delivery address, so the shipping fee (and dependent Total) update
   // live as the shopper picks a saved address or types one in - see
-  // GET /api/v1/storefront/cart's ?state=&city= handling.
+  // GET /api/v1/storefront/cart's ?country=&state=&city= handling. Abroad,
+  // state and city are typed free text, so that refetch waits for a pause
+  // in typing instead of firing on every key.
   useEffect(() => {
-    if (!needsShipping || !effectiveState) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadCart({ state: effectiveState, city: effectiveCity })
-      .catch(() => {});
-  }, [loadCart, needsShipping, effectiveState, effectiveCity]);
+    if (!hasDestination) return undefined;
+    const timer = setTimeout(() => {
+      loadCart({ country: effectiveCountry, state: effectiveState, city: effectiveCity }).catch(() => {});
+    }, abroad ? 400 : 0);
+    return () => clearTimeout(timer);
+  }, [loadCart, hasDestination, abroad, effectiveCountry, effectiveState, effectiveCity]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,7 +210,7 @@ export default function CheckoutPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 409) {
-          await loadCart({ state: effectiveState, city: effectiveCity }).catch(() => null);
+          await loadCart(destination).catch(() => null);
         }
         throw new Error(data.error || "Checkout failed");
       }
@@ -238,7 +263,7 @@ export default function CheckoutPage() {
               <Select
                 label="Deliver to"
                 options={[
-                  ...addresses.map((a) => ({ value: a.id, label: `${a.fullName}, ${a.line1}, ${a.city}` })),
+                  ...addresses.map((a) => ({ value: a.id, label: `${a.fullName}, ${a.line1}, ${a.city}${normaliseCountry(a.country) !== NIGERIA ? `, ${normaliseCountry(a.country)}` : ""}` })),
                   { value: MANUAL_ADDRESS_ID, label: "Use a new address" },
                 ]}
                 value={addressId}
@@ -254,29 +279,50 @@ export default function CheckoutPage() {
                 <Input label="Phone" value={manualAddress.phone} onChange={(e) => setManualAddress((a) => ({ ...a, phone: e.target.value }))} error={fieldErrors.phone} required />
                 <Input label="Address line 1" className="sm:col-span-2" value={manualAddress.line1} onChange={(e) => setManualAddress((a) => ({ ...a, line1: e.target.value }))} error={fieldErrors.line1} required />
                 <Input label="Address line 2 (optional)" className="sm:col-span-2" value={manualAddress.line2} onChange={(e) => setManualAddress((a) => ({ ...a, line2: e.target.value }))} />
-                <Select
-                  label="State"
-                  options={NIGERIA_STATE_OPTIONS}
-                  value={manualAddress.state}
-                  onChange={(v) => setManualAddress((a) => ({ ...a, state: v, city: "" }))}
-                  error={fieldErrors.state}
-                  required
-                />
+                {intlDelivery && (
+                  <div className="sm:col-span-2">
+                    <Select
+                      label="Country"
+                      options={countryOptions}
+                      value={normaliseCountry(manualAddress.country)}
+                      onChange={(v) => setManualAddress((a) => ({ ...a, country: v || NIGERIA, state: "", city: "", postalCode: "" }))}
+                      required
+                    />
+                  </div>
+                )}
+                {manualAbroad ? (
+                  <>
+                    <Input label="State / province / region (optional)" value={manualAddress.state} onChange={(e) => setManualAddress((a) => ({ ...a, state: e.target.value }))} error={fieldErrors.state} maxLength={120} />
+                    <Input label="City / town" value={manualAddress.city} onChange={(e) => setManualAddress((a) => ({ ...a, city: e.target.value }))} error={fieldErrors.city} maxLength={120} required />
+                    <Input label="Postal / ZIP code (optional)" value={manualAddress.postalCode} onChange={(e) => setManualAddress((a) => ({ ...a, postalCode: e.target.value }))} maxLength={20} />
+                  </>
+                ) : (
+                  <>
+                    <Select
+                      label="State"
+                      options={NIGERIA_STATE_OPTIONS}
+                      value={manualAddress.state}
+                      onChange={(v) => setManualAddress((a) => ({ ...a, state: v, city: "" }))}
+                      error={fieldErrors.state}
+                      required
+                    />
+                    <Select
+                      label="City/LGA"
+                      options={getLgaOptions(manualAddress.state)}
+                      value={manualAddress.city}
+                      onChange={(v) => setManualAddress((a) => ({ ...a, city: v }))}
+                      disabled={!manualAddress.state}
+                      error={fieldErrors.city}
+                      required
+                    />
+                  </>
+                )}
                 {undeliverable && (
-                  <p className="sm:col-span-2 -mt-1 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    Sorry, this store isn&apos;t currently delivering to {effectiveState}. Choose another delivery state, or
-                    contact the seller.
+                  <p className="sm:col-span-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Sorry, this store isn&apos;t currently delivering to {undeliverableWhere}. Choose another delivery{" "}
+                    {manualAbroad ? "country" : "state"}, or contact the seller.
                   </p>
                 )}
-                <Select
-                  label="City/LGA"
-                  options={getLgaOptions(manualAddress.state)}
-                  value={manualAddress.city}
-                  onChange={(v) => setManualAddress((a) => ({ ...a, city: v }))}
-                  disabled={!manualAddress.state}
-                  error={fieldErrors.city}
-                  required
-                />
               </div>
             )}
           </div>
@@ -284,8 +330,8 @@ export default function CheckoutPage() {
 
         {undeliverable && usesSavedAddress && (
           <p className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Sorry, this store isn&apos;t currently delivering to {effectiveState}. Pick a different address, or contact the
-            seller.
+            Sorry, this store isn&apos;t currently delivering to {undeliverableWhere}. Pick a different address, or contact
+            the seller.
           </p>
         )}
 
@@ -339,7 +385,7 @@ export default function CheckoutPage() {
             <div className="flex justify-between pt-2 border-t border-slate-100 text-sm text-slate-700">
               <span>Shipping</span>
               <span>
-                {!effectiveState
+                {!hasDestination
                   ? "Enter your address"
                   : cart.shippingFeeTBD
                   ? "To be determined"
@@ -347,7 +393,7 @@ export default function CheckoutPage() {
               </span>
             </div>
           )}
-          {needsShipping && effectiveState && cart.shippingFeeTBD && (
+          {hasDestination && cart.shippingFeeTBD && (
             <p className="text-xs text-slate-800 -mt-1">
             You won&apos;t be charged for delivery now, it&apos;s arranged directly with the seller.
             </p>
@@ -358,7 +404,7 @@ export default function CheckoutPage() {
               <span>{format(cart.platformFee)}</span>
             </div>
           )}
-          {!cart.feeChargedToCustomer && cart.platformFeeShortfall > 0 && (!needsShipping || effectiveState) && (
+          {!cart.feeChargedToCustomer && cart.platformFeeShortfall > 0 && (!needsShipping || hasDestination) && (
             <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               This order is too small for the store to absorb its full Paystack Gateway Fee. Add more items to continue.
             </div>
@@ -383,7 +429,7 @@ export default function CheckoutPage() {
           fullWidth
           size="lg"
           loading={submitting}
-          disabled={undeliverable || (cart.platformFeeShortfall > 0 && (!needsShipping || effectiveState))}
+          disabled={undeliverable || (cart.platformFeeShortfall > 0 && (!needsShipping || hasDestination))}
         >
           {undeliverable ? "Not delivering to your location" : "Pay now"}
         </Button>

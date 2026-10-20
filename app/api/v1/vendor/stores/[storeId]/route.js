@@ -10,6 +10,7 @@ import { isPlusStore, isEnterpriseStore, getEffectivePlan, getStorageLimitBytes,
 import { isColorTooLight } from "../../../../../../lib/colorShades.js";
 import { getUsdRate, listUsdRates } from "../../../../../../lib/fxRates.js";
 import { resolveFeePolicy } from "../../../../../../lib/feePolicy.js";
+import { NIGERIA, normaliseCountry } from "../../../../../../lib/countries.js";
 import { logStoreActivity } from "../../../../../../lib/storeActivity.js";
 
 // The two upload-backed fields - PATCHing over (or clearing) either one
@@ -169,6 +170,12 @@ export async function PATCH(req, { params }) {
   if (Array.isArray(data.deliveryStates)) {
     const cleaned = [...new Set(data.deliveryStates.map((entry) => String(entry).trim()).filter(Boolean))];
     data.deliveryStates = cleaned.length > 0 ? cleaned : null;
+  }
+  // Countries abroad, in their standard spelling, de-duplicated. Nigeria is
+  // dropped - it's governed by deliveryStates. Empty means "anywhere".
+  if (Array.isArray(data.deliveryCountries)) {
+    const cleaned = [...new Set(data.deliveryCountries.map((entry) => normaliseCountry(entry)))].filter((name) => name !== NIGERIA);
+    data.deliveryCountries = cleaned.length > 0 ? cleaned : null;
   }
 
   const [updated] = await db.update(stores).set(data).where(eq(stores.id, storeId)).returning();

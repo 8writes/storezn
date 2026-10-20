@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Truck, ShieldCheck, RotateCcw } from "lucide-react";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
+import { formatAddressPlace } from "@/lib/countries.js";
 
 // The trust/logistics block under the buy box: where it ships to (the
 // shopper's own saved address if they're signed in), a payment/privacy
@@ -45,7 +46,7 @@ export function ProductAssurances({ returnWindowDays, productType }) {
             <span>
               Shipping to{" "}
               <span className="font-medium text-slate-900">
-                {[address.line1, address.city, address.state]
+                {[address.line1, formatAddressPlace(address)]
                   .filter(Boolean)
                   .join(", ")}
               </span>{" "}

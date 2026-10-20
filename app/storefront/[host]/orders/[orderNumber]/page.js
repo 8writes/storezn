@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { useCustomerAuth } from "@/hooks/useCustomerAuth.js";
 import { safeFetch } from "@/lib/fetchError.js";
+import { formatAddressPlace } from "@/lib/countries.js";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", refund_requested: "amber", refunded: "slate", refund_declined: "red", abandoned: "red" };
 
@@ -99,7 +100,7 @@ export default function OrderConfirmationPage() {
             <p className="font-semibold text-slate-700 mb-1">Shipping to</p>
             <p>{order.shippingAddress.fullName}</p>
             <p>{order.shippingAddress.line1}{order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}</p>
-            <p>{order.shippingAddress.city}, {order.shippingAddress.state}</p>
+            <p>{formatAddressPlace(order.shippingAddress)}</p>
             <p>{order.shippingAddress.phone}</p>
           </div>
           <div className="pt-3 border-t border-slate-100">

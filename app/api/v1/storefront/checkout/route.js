@@ -8,6 +8,7 @@ import { validate, checkoutSchema } from "../../../../../lib/validate.js";
 import { resolveCart, getCartWithItems, computeCartTotals, abandonPendingCheckoutForCart, GUEST_CART_COOKIE } from "../../../../../lib/cart.js";
 import { generateOrderNumber, computeOrderTotals } from "../../../../../lib/orders.js";
 import { resolveShippingFee, canDeliverTo, undeliverableMessage } from "../../../../../lib/shipping.js";
+import { normaliseCountry } from "../../../../../lib/countries.js";
 import { initializeTransaction } from "../../../../../lib/paystack.js";
 import { INTERNATIONAL_CHANNELS, resolveFeePolicy } from "../../../../../lib/feePolicy.js";
 import { resolveStoreSubAccountCode, SUBACCOUNT_UNAVAILABLE_MESSAGE } from "../../../../../lib/storeSubAccount.js";
@@ -166,9 +167,12 @@ async function handlePost(req) {
     // The authoritative delivery-area check. The cart preview flags this
     // earlier for the UI, but a saved address, a stale tab or a direct API
     // call can all reach here with a state the vendor does not serve.
-    if (!canDeliverTo(store, shippingAddress.state)) {
+    // Snapshot the country in its canonical spelling (a saved address from
+    // before this existed has "Nigeria" from the column default).
+    shippingAddress = { ...shippingAddress, country: normaliseCountry(shippingAddress.country) };
+    if (!canDeliverTo(store, shippingAddress)) {
       return NextResponse.json(
-        { error: undeliverableMessage(shippingAddress.state), code: "UNDELIVERABLE_STATE" },
+        { error: undeliverableMessage(shippingAddress), code: "UNDELIVERABLE_STATE" },
         { status: 409 },
       );
     }

@@ -4,6 +4,8 @@ import { shippingRates, stores } from "../../../../../../../lib/db/schema.js";
 import { eq } from "drizzle-orm";
 import { getUser, canManageStore } from "../../../../../../../lib/auth.js";
 import { validate, createShippingRateSchema } from "../../../../../../../lib/validate.js";
+import { NIGERIA, normaliseCountry } from "../../../../../../../lib/countries.js";
+import { isUniqueViolation } from "../../../../../../../lib/dbErrors.js";
 
 async function loadStore(storeId) {
   const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
@@ -19,7 +21,7 @@ export async function GET(req, { params }) {
   if (!store) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   if (!canManageStore(user, store)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const rows = await db.select().from(shippingRates).where(eq(shippingRates.storeId, storeId)).orderBy(shippingRates.state, shippingRates.city);
+  const rows = await db.select().from(shippingRates).where(eq(shippingRates.storeId, storeId)).orderBy(shippingRates.country, shippingRates.state, shippingRates.city);
   return NextResponse.json({ shippingRates: rows });
 }
 
@@ -42,19 +44,32 @@ export async function POST(req, { params }) {
 
   const result = validate(createShippingRateSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-  const { state, city, fee } = result.data;
+  const country = normaliseCountry(result.data.country);
+  const state = result.data.state || null;
+  const city = result.data.city || null;
+  const { fee } = result.data;
 
+  // One rate per place (country + state + city), case-insensitively - the
+  // unique index uq_shipping_rates_store_place is the backstop.
+  const same = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
   const existingRows = await db.select().from(shippingRates).where(eq(shippingRates.storeId, storeId));
   const duplicate = existingRows.find(
-    (r) => r.state.toLowerCase() === state.toLowerCase() && (city ? r.city?.toLowerCase() === city.toLowerCase() : !r.city),
+    (r) => same(normaliseCountry(r.country), country) && same(r.state, state) && same(r.city, city),
   );
   if (duplicate) {
-    return NextResponse.json({ error: city ? "A rate for that state and city already exists" : "A state-wide rate already exists for that state" }, { status: 409 });
+    const where = city ? `${city}, ${state}` : state ? `${state}${country === NIGERIA ? "" : `, ${country}`}` : country;
+    return NextResponse.json({ error: `There's already a delivery rate for ${where}` }, { status: 409 });
   }
 
-  const [created] = await db
-    .insert(shippingRates)
-    .values({ storeId, state, city: city || null, fee })
-    .returning();
-  return NextResponse.json({ shippingRate: created }, { status: 201 });
+  try {
+    const [created] = await db
+      .insert(shippingRates)
+      .values({ storeId, country, state, city, fee })
+      .returning();
+    return NextResponse.json({ shippingRate: created }, { status: 201 });
+  } catch (err) {
+    // Lost a race with an identical add (double-click) - same answer.
+    if (isUniqueViolation(err)) return NextResponse.json({ error: "That delivery rate already exists" }, { status: 409 });
+    throw err;
+  }
 }

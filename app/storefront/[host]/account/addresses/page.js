@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/Input.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
+import { useStoreDelivery } from "@/components/storefront/Money.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
+import { COUNTRY_OPTIONS, NIGERIA, formatAddressPlace } from "@/lib/countries.js";
 import { safeFetch } from "@/lib/fetchError.js";
 
-const EMPTY_FORM = { fullName: "", phone: "", line1: "", line2: "", city: "", state: "", isDefault: false };
+const EMPTY_FORM = { fullName: "", phone: "", line1: "", line2: "", city: "", state: "", country: NIGERIA, postalCode: "", isDefault: false };
 
 export default function CustomerAddressesPage() {
   const router = useRouter();
@@ -23,6 +25,13 @@ export default function CustomerAddressesPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  // A country picker only when this store delivers abroad - Nigeria plus
+  // the countries it ships to (all of them when it hasn't limited the list).
+  const delivery = useStoreDelivery();
+  const countryOptions = delivery.countries
+    ? COUNTRY_OPTIONS.filter((o) => o.value === NIGERIA || delivery.countries.includes(o.value))
+    : COUNTRY_OPTIONS;
+  const abroad = form.country !== NIGERIA;
 
   // One fetch path, cancellable. `loading` starts true and is only cleared
   // when a fetch settles; `refresh()` turns it back on after a mutation,
@@ -64,7 +73,7 @@ export default function CustomerAddressesPage() {
       const res = await safeFetch("/api/v1/customer/addresses", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
+        body: JSON.stringify(abroad ? form : { ...form, postalCode: "" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -106,7 +115,7 @@ export default function CustomerAddressesPage() {
               <div className="text-sm text-slate-700">
                 <p className="font-medium text-slate-900">{a.fullName} {a.isDefault && <Badge color="green">Default</Badge>}</p>
                 <p>{a.line1}{a.line2 ? `, ${a.line2}` : ""}</p>
-                <p>{a.city}, {a.state}</p>
+                <p>{formatAddressPlace(a)}</p>
                 <p>{a.phone}</p>
               </div>
               <button type="button" onClick={() => handleDelete(a.id)} className="text-sm text-red-600 hover:underline cursor-pointer">Remove</button>
@@ -122,21 +131,42 @@ export default function CustomerAddressesPage() {
           <Input label="Phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} required />
           <Input label="Address line 1" className="sm:col-span-2" value={form.line1} onChange={(e) => setForm((f) => ({ ...f, line1: e.target.value }))} required />
           <Input label="Address line 2 (optional)" className="sm:col-span-2" value={form.line2} onChange={(e) => setForm((f) => ({ ...f, line2: e.target.value }))} />
-          <Select
-            label="State"
-            options={NIGERIA_STATE_OPTIONS}
-            value={form.state}
-            onChange={(v) => setForm((f) => ({ ...f, state: v, city: "" }))}
-            required
-          />
-          <Select
-            label="City/LGA"
-            options={getLgaOptions(form.state)}
-            value={form.city}
-            onChange={(v) => setForm((f) => ({ ...f, city: v }))}
-            disabled={!form.state}
-            required
-          />
+          {delivery.international && (
+            <div className="sm:col-span-2">
+              <Select
+                label="Country"
+                options={countryOptions}
+                value={form.country}
+                onChange={(v) => setForm((f) => ({ ...f, country: v || NIGERIA, state: "", city: "", postalCode: "" }))}
+                required
+              />
+            </div>
+          )}
+          {abroad ? (
+            <>
+              <Input label="State / province / region (optional)" value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} maxLength={120} />
+              <Input label="City / town" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} maxLength={120} required />
+              <Input label="Postal / ZIP code (optional)" value={form.postalCode} onChange={(e) => setForm((f) => ({ ...f, postalCode: e.target.value }))} maxLength={20} />
+            </>
+          ) : (
+            <>
+              <Select
+                label="State"
+                options={NIGERIA_STATE_OPTIONS}
+                value={form.state}
+                onChange={(v) => setForm((f) => ({ ...f, state: v, city: "" }))}
+                required
+              />
+              <Select
+                label="City/LGA"
+                options={getLgaOptions(form.state)}
+                value={form.city}
+                onChange={(v) => setForm((f) => ({ ...f, city: v }))}
+                disabled={!form.state}
+                required
+              />
+            </>
+          )}
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
