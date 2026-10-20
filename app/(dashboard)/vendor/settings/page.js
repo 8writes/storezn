@@ -920,14 +920,12 @@ export default function VendorSettingsPage() {
             {form.internationalPaymentsEnabled && intlFees && (
               <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-800 space-y-1">
                 <p>
-                  At checkout, customers say whether they&apos;re paying with a card from outside Nigeria. If they are,
-                  they pay by card or Apple Pay, and the Paystack Gateway Fee is{" "}
+                  Customers can pay by card or Apple Pay, and the Paystack Gateway Fee is{" "}
                   <strong className="tabular-nums">
                     {intlFees.commissionRatePercent}%{intlFees.flatFee > 0 ? ` + ${formatCurrency(intlFees.flatFee)}` : ""}
                   </strong>
                   {intlFees.maxCommissionAmount != null ? `, capped at ${formatCurrency(intlFees.maxCommissionAmount)}` : ""}.
                 </p>
-                <p>Everyone else pays your normal fee, with every payment method.</p>
               </div>
             )}
 
