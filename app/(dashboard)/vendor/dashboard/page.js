@@ -19,6 +19,7 @@ import {
   ClipboardList,
   CalendarClock,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -120,7 +121,7 @@ function buildSetupSteps({
 // Only shortcuts the vendor can actually use: recording an offline sale is
 // a Storezn+ feature (a free store would land on an upgrade screen), and
 // Verification drops out once it's approved.
-function SHORTCUTS(storeId, isOwner, { canRecordOrder = false, verified = false } = {}) {
+function SHORTCUTS(storeId, isOwner, { canRecordOrder = false, verified = false, canUpgrade = false } = {}) {
   const shortcuts = [
     {
       label: "Add product",
@@ -137,6 +138,9 @@ function SHORTCUTS(storeId, isOwner, { canRecordOrder = false, verified = false 
   // member's shortcuts entirely rather than linking somewhere they'd
   // just get turned away from.
   if (isOwner) {
+    // Last on the list, and only while there's something to upgrade to -
+    // a store already on Storezn+ or Enterprise doesn't get the nudge.
+    if (canUpgrade) shortcuts.push({ label: "Upgrade business", icon: Sparkles, href: "/vendor/plus" });
     shortcuts.splice(
       2,
       0,
@@ -253,6 +257,7 @@ export default function VendorDashboardPage() {
   const isOwner = user?.role === "vendor";
   const shortcuts = SHORTCUTS(storeId, isOwner, {
     canRecordOrder: !!store && isPlusStore(store),
+    canUpgrade: !!store && !isPlusStore(store),
     verified: verification?.approvalStatus === "approved",
   });
   const steps =
@@ -533,8 +538,10 @@ export default function VendorDashboardPage() {
             </p>
             {/* Phones: compact buttons in two even columns. */}
             <div className="sm:hidden grid grid-cols-2 gap-2">
-              {shortcuts.map(({ label, icon: Icon, href, onClick }) => {
-                const chip = "flex items-center gap-2 h-10 px-3 rounded-sm border border-slate-200 bg-surface text-sm font-medium text-slate-800 active:bg-brand-50 cursor-pointer min-w-0";
+              {shortcuts.map(({ label, icon: Icon, href, onClick }, index) => {
+                // An odd last button takes the whole row instead of half.
+                const span = shortcuts.length % 2 === 1 && index === shortcuts.length - 1 ? "col-span-2 " : "";
+                const chip = span + "flex items-center gap-2 h-10 px-3 rounded-sm border border-slate-200 bg-surface text-sm font-medium text-slate-800 active:bg-brand-50 cursor-pointer min-w-0";
                 const content = (<><Icon size={16} className="shrink-0 text-brand-700" /><span className="truncate">{label}</span></>);
                 return href ? (
                   <Link key={label} href={href} className={chip}>{content}</Link>
