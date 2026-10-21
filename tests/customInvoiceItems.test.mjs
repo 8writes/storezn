@@ -48,3 +48,23 @@ test("a vendor's invoice can leave customer details blank; a storefront request 
   assert.equal(validate(createVendorInvoiceRequestSchema, { items, guestEmail: "not-an-email" }).ok, false);
   assert.equal(validate(createInvoiceRequestSchema, { items: [{ productId: "p1", quantity: 1 }] }).ok, false);
 });
+
+test("deposit percent: optional, whole number, 10-90", () => {
+  const base = { requestId: "r1", plan: "deposit", items: [{ requestItemId: "l1", quantity: 1, unitPrice: 1000 }] };
+  assert.equal(validate(createInvoiceSchema, base).ok, true);
+  assert.equal(validate(createInvoiceSchema, { ...base, depositPercent: 30 }).ok, true);
+  assert.equal(validate(createInvoiceSchema, { ...base, depositPercent: 5 }).ok, false);
+  assert.equal(validate(createInvoiceSchema, { ...base, depositPercent: 95 }).ok, false);
+  assert.equal(validate(createInvoiceSchema, { ...base, depositPercent: 33.5 }).ok, false);
+});
+
+test("editing an invoice: every line needs a positive price; plan + deposit rules apply", async () => {
+  const { updateInvoiceSchema } = await import("../lib/validate.js");
+  const base = { action: "update", plan: "full", items: [{ id: "i1", unitPrice: 5000 }] };
+  assert.equal(validate(updateInvoiceSchema, base).ok, true);
+  assert.equal(validate(updateInvoiceSchema, { ...base, items: [{ id: "i1", unitPrice: 0 }] }).ok, false);
+  assert.equal(validate(updateInvoiceSchema, { ...base, plan: "deposit", depositPercent: 30 }).ok, true);
+  assert.equal(validate(updateInvoiceSchema, { ...base, plan: "deposit", depositPercent: 95 }).ok, false);
+  assert.equal(validate(updateInvoiceSchema, { ...base, guestEmail: "" }).ok, true);
+  assert.equal(validate(updateInvoiceSchema, { ...base, action: "cancel" }).ok, false);
+});

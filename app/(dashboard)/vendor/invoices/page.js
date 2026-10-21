@@ -12,7 +12,7 @@ import { InternationalCardCheckbox } from "@/components/ui/InternationalCardChec
 import { Button } from "@/components/ui/Button.js";
 import { Select } from "@/components/ui/Select.js";
 import { Input } from "@/components/ui/Input.js";
-import { formatCurrency } from "@/lib/format.js";
+import { formatCurrency, formatDate } from "@/lib/format.js";
 import { customerFieldEntries } from "@/lib/customerFields.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
@@ -23,6 +23,7 @@ import { SearchInput } from "@/components/ui/SearchInput.js";
 import { EmptyState } from "@/components/ui/EmptyState.js";
 import { Badge } from "@/components/ui/Badge.js";
 import { invoiceStatus } from "@/lib/invoiceLabels.js";
+import { QuotePricingModal } from "@/components/invoices/QuotePricingModal.js";
 
 export default function VendorInvoicesPage() {
   const router = useRouter();
@@ -36,6 +37,10 @@ export default function VendorInvoicesPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [manualOpen, setManualOpen] = useState(false);
+  // The quote just created in "Create invoice" - opened straight into
+  // "Set prices" here, so the vendor carries on without leaving the page.
+  const [pricingRow, setPricingRow] = useState(null);
+  const [pricing, setPricing] = useState({ feePolicy: null, intlFeePolicy: null, usdRate: null });
   const { confirm, confirmDialog } = useConfirm();
   useModalScrollLock(manualOpen);
 
@@ -60,6 +65,7 @@ export default function VendorInvoicesPage() {
         setRequestCount(Number(requestData.total) || (requestData.requests || []).length);
         setInvoices(invoiceData.invoices || []);
         setPagination(invoiceData.pagination || null);
+        setPricing({ feePolicy: invoiceData.feePolicy || null, intlFeePolicy: invoiceData.intlFeePolicy || null, usdRate: invoiceData.usdRate || null });
       })
       .catch((err) => toast.error(err.message || "Failed to load invoice requests"))
   }, [token, storeId, page, apiFetch]);
@@ -92,7 +98,7 @@ export default function VendorInvoicesPage() {
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/invoices/${invoiceId}`, { method: "PATCH", body: JSON.stringify({ action: "cancel" }) });
       setInvoices((rows) => rows.map((row) => row.id === invoiceId ? { ...row, status: "cancelled", amountDue: 0 } : row));
-      toast.success("Invoice cancelled and held stock was released");
+      toast.success("Invoice cancelled");
     } catch (err) {
       toast.error(err.message || "Could not cancel invoice");
     }
@@ -100,70 +106,104 @@ export default function VendorInvoicesPage() {
 
   if (!storesLoading && stores.length === 0) return <p className="text-sm text-slate-700">No store set up yet.</p>;
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-5">
       <PageHeader
         title="Invoices"
         description="Send a payment link for anything you sell, and see who has paid."
-        actions={
-          <div className="grid grid-cols-2 gap-2 sm:flex">
-            <Link href="/vendor/invoices/requests"><Button variant="secondary">Quote requests{requestCount > 0 ? ` (${requestCount})` : ""}</Button></Link>
-            <Button onClick={() => setManualOpen(true)}>Create invoice</Button>
-          </div>
-        }
+        actions={<Button onClick={() => setManualOpen(true)}>Create invoice</Button>}
       />
 
-      <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-        <SearchInput value={search} onSearch={setSearch} placeholder="Search invoices" className="flex-1" />
-        <div className="sm:w-52"><Select value={status} onChange={setStatus} options={[{ value: "all", label: "All invoices" }, ...["sent", "partially_paid", "paid", "expired", "cancelled"].map((value) => ({ value, label: invoiceStatus(value).label }))]} /></div>
+      {requestCount > 0 && (
+        <Link
+          href="/vendor/invoices/requests"
+          className="flex items-center justify-between gap-3 rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 hover:bg-amber-100/70 transition-colors"
+        >
+          <span className="text-sm font-medium text-amber-900">
+            {requestCount} quote request{requestCount === 1 ? "" : "s"} waiting for your price
+          </span>
+          <ChevronRight size={18} className="shrink-0 text-amber-700" aria-hidden="true" />
+        </Link>
+      )}
+
+      {invoices.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <SearchInput value={search} onSearch={setSearch} placeholder="Search invoices" className="flex-1" />
+          <div className="sm:w-48"><Select value={status} onChange={setStatus} options={[{ value: "all", label: "All invoices" }, ...["sent", "partially_paid", "paid", "expired", "cancelled"].map((value) => ({ value, label: invoiceStatus(value).label }))]} /></div>
         </div>
-      </div>
+      )}
 
       {visibleInvoices.length > 0 ? (
-        <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200">
-
-          {visibleInvoices.map((invoice) => (
-            <div
-              key={invoice.id}
-              role="link"
-              tabIndex={0}
-              onClick={() => router.push(`/vendor/invoices/${invoice.id}?storeId=${storeId}`)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  router.push(`/vendor/invoices/${invoice.id}?storeId=${storeId}`);
-                }
-              }}
-              className="p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-slate-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
-            >
-              <div className="min-w-0">
-                <p className="font-medium text-slate-900 truncate">{invoice.buyerName || invoice.buyerPhone || invoice.guestEmail || "Customer not added yet"}</p>
-                <p className="text-xs text-slate-600">{invoice.invoiceNumber}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="text-right mr-1">
-                  <p className="text-sm font-semibold text-slate-900 tabular-nums">{formatCurrency(invoice.totalAmount)}</p>
-                  {invoice.status === "partially_paid" && <p className="text-xs text-slate-600 tabular-nums">{formatCurrency(invoice.amountPaid)} paid</p>}
-                </div>
-                <Badge color={invoiceStatus(invoice.status).color}>{invoiceStatus(invoice.status).label}</Badge>
-                <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); copyInvoiceLink(invoice.shareToken); }}>Copy link</Button>
-                {invoice.status === "sent" && <Button size="sm" variant="secondary" onClick={(event) => { event.stopPropagation(); cancelInvoice(invoice.id); }}>Cancel</Button>}
-                <ChevronRight size={17} className="text-slate-400" aria-hidden="true" />
-              </div>
-            </div>
-          ))}
+        <>
+          <ul className="space-y-2">
+            {visibleInvoices.map((invoice) => {
+              const st = invoiceStatus(invoice.status);
+              const name = invoice.buyerName || invoice.buyerPhone || invoice.guestEmail;
+              const open = () => router.push(`/vendor/invoices/${invoice.id}?storeId=${storeId}`);
+              const payable = ["sent", "partially_paid"].includes(invoice.status);
+              return (
+                <li
+                  key={invoice.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={open}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      open();
+                    }
+                  }}
+                  className="rounded-sm border border-slate-200 bg-surface p-4 shadow-xs cursor-pointer transition-colors hover:border-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={`font-semibold truncate ${name ? "text-slate-900" : "text-slate-500"}`}>{name || "Customer not added yet"}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{invoice.invoiceNumber} · {formatDate(invoice.createdAt)}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-semibold text-slate-900 tabular-nums">{formatCurrency(invoice.totalAmount)}</p>
+                      {invoice.status === "partially_paid" && <p className="text-xs text-slate-600 tabular-nums">{formatCurrency(invoice.amountPaid)} paid</p>}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <Badge color={st.color}>{st.label}</Badge>
+                    {payable && (
+                      <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+                        <Button size="sm" variant="outline" onClick={() => copyInvoiceLink(invoice.shareToken)}>Copy link</Button>
+                        {invoice.status === "sent" && Number(invoice.amountPaid || 0) === 0 && (
+                          <Button size="sm" variant="ghost" onClick={() => cancelInvoice(invoice.id)}>Cancel</Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
           <Pagination pagination={pagination} onPageChange={setPage} />
-        </section>
+        </>
       ) : (
         <EmptyState
           icon={FileText}
           title={search || status !== "all" ? "No matching invoices" : "No invoices yet"}
           description={search || status !== "all" ? "Try another search or filter." : "Create an invoice and send the payment link to your customer."}
-          action={<Button type="button" onClick={() => setManualOpen(true)}>Create invoice</Button>}
+          action={search || status !== "all" ? undefined : <Button type="button" onClick={() => setManualOpen(true)}>Create invoice</Button>}
         />
       )}
 
-      {manualOpen && storeId && <ManualQuoteModal storeId={storeId} internationalStore={!!stores.find((s) => s.id === storeId)?.internationalPaymentsEnabled} apiFetch={apiFetch} confirm={confirm} onClose={() => setManualOpen(false)} onCreated={(request) => { setManualOpen(false); router.push(`/vendor/invoices/requests?open=${request.id}`); }} />}
+      {manualOpen && storeId && <ManualQuoteModal storeId={storeId} internationalStore={!!stores.find((s) => s.id === storeId)?.internationalPaymentsEnabled} apiFetch={apiFetch} confirm={confirm} onClose={() => setManualOpen(false)} onCreated={(row) => { setManualOpen(false); setRequestCount((n) => n + 1); setPricingRow(row); }} />}
+      {pricingRow && (
+        <QuotePricingModal
+          key={pricingRow.request.id}
+          storeId={storeId}
+          apiFetch={apiFetch}
+          row={pricingRow}
+          feePolicy={pricing.feePolicy}
+          intlFeePolicy={pricing.intlFeePolicy}
+          usdRate={pricing.usdRate}
+          // Closing without creating leaves it under Quote requests.
+          onClose={() => setPricingRow(null)}
+        />
+      )}
       {confirmDialog}
     </div>
   );
@@ -265,7 +305,7 @@ function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confi
           items,
         }),
       });
-      onCreated(data.request);
+      onCreated({ request: data.request, items: data.items || [] });
     } catch (error) {
       toast.error(error.message || "Could not create quote request");
     } finally {

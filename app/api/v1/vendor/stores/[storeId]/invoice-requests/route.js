@@ -65,14 +65,14 @@ export async function POST(req, { params }) {
     rows.push({ product, variant, item: { ...item, customerFields: snapshotCustomerFieldAnswers(product.customerFields, answers.data) } });
   }
   const requestNumber = `REQ-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
-  const [request] = await db.transaction(async (tx) => {
+  const [request, items] = await db.transaction(async (tx) => {
     // The vendor marks the quote as paid with a card from outside Nigeria on
     // the customer's behalf - honoured only when the store accepts
     // international payments, exactly like the storefront quote form.
     const international = !!store.internationalPaymentsEnabled && result.data.international === true;
     const [created] = await tx.insert(invoiceRequests).values({ storeId, branchId: branch.id, requestNumber, guestEmail: result.data.guestEmail || null, buyerName: result.data.buyerName || null, buyerPhone: result.data.buyerPhone || null, note: result.data.note || null, international, status: "new", createdBy: user.id }).returning();
-    await tx.insert(invoiceRequestItems).values(rows.map(({ product, variant, item }) => ({ requestId: created.id, productId: product?.id || null, variantId: variant?.id || null, productName: product ? product.name : item.customName, variantLabel: variant ? Object.entries(variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, quantity: item.quantity, customerFields: item.customerFields || {} })));
-    return [created];
+    const insertedItems = await tx.insert(invoiceRequestItems).values(rows.map(({ product, variant, item }) => ({ requestId: created.id, productId: product?.id || null, variantId: variant?.id || null, productName: product ? product.name : item.customName, variantLabel: variant ? Object.entries(variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, quantity: item.quantity, customerFields: item.customerFields || {} }))).returning();
+    return [created, insertedItems];
   });
   after(() => logStoreActivity({
     storeId,
@@ -83,5 +83,7 @@ export async function POST(req, { params }) {
     targetId: request.id,
     metadata: { itemCount: rows.length, buyerName: request.buyerName || null, buyerPhone: request.buyerPhone || null },
   }));
-  return NextResponse.json({ request }, { status: 201 });
+  // The lines come back too, so the vendor's screen can open "Set prices"
+  // for this quote straight away.
+  return NextResponse.json({ request, items }, { status: 201 });
 }

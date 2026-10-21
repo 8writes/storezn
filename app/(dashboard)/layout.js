@@ -372,6 +372,11 @@ export default function DashboardLayout({ children }) {
   // panel vanished seconds before the new page arrived.
   const [drawerOpenedAt, setDrawerOpenedAt] = useState(null);
   const drawerOpen = drawerOpenedAt !== null && drawerOpenedAt === pathname;
+  // Forget it once the page has changed. Leaving it set meant that coming
+  // back to the page the drawer was opened on (e.g. a dashboard shortcut
+  // to Invoices) popped the drawer open again by itself. Adjusted during
+  // render, React's pattern for state derived from a changed value.
+  if (drawerOpenedAt !== null && drawerOpenedAt !== pathname) setDrawerOpenedAt(null);
   const closeDrawer = () => setDrawerOpenedAt(null);
   const [offline, setOffline] = useState(() => isOffline());
   // Desktop sidebar collapse (icons only), remembered per browser. Both

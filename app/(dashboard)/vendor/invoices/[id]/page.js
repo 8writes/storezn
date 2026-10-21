@@ -3,7 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Copy, ExternalLink, MessageCircle } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, MessageCircle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -17,7 +17,8 @@ import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
-import { invoiceStatus, paymentKindLabel, paymentStatus, whatsappInvoiceUrl } from "@/lib/invoiceLabels.js";
+import { EditInvoiceModal } from "@/components/invoices/EditInvoiceModal.js";
+import { depositPercentOf, invoiceStatus, paymentKindLabel, paymentStatus, whatsappInvoiceUrl } from "@/lib/invoiceLabels.js";
 
 export default function VendorInvoiceDetailPage({ params }) {
   const { id } = use(params);
@@ -34,6 +35,10 @@ export default function VendorInvoiceDetailPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [activeItem, setActiveItem] = useState(null);
+  // Fee settings + dollar rate for the edit window's live totals - fetched
+  // when it opens (the same numbers the server prices with).
+  const [editPricing, setEditPricing] = useState(null);
+  const [openingEdit, setOpeningEdit] = useState(false);
 
   const load = useCallback(() => {
     if (!token || !storeId || !id) return;
@@ -57,6 +62,18 @@ export default function VendorInvoiceDetailPage({ params }) {
       toast.success("Payment link copied");
     } catch {
       toast.error("Could not copy the payment link");
+    }
+  };
+
+  const openEdit = async () => {
+    setOpeningEdit(true);
+    try {
+      const pricingData = await apiFetch(`/api/v1/vendor/stores/${storeId}/invoices?pageSize=1`);
+      setEditPricing({ feePolicy: pricingData.feePolicy || null, intlFeePolicy: pricingData.intlFeePolicy || null, usdRate: pricingData.usdRate || null });
+    } catch (error) {
+      toast.error(error.message || "Could not open the invoice for editing");
+    } finally {
+      setOpeningEdit(false);
     }
   };
 
@@ -90,9 +107,12 @@ export default function VendorInvoiceDetailPage({ params }) {
   const subtotal = items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
   const platformFee = Number(order?.commissionAmount || 0) + Number(order?.flatFeeAmount || 0);
   const canCancel = invoice.status === "sent" && Number(invoice.amountPaid || 0) === 0;
+  // Editable until any money comes in, and not while the customer is mid-payment.
+  const canEdit = canCancel && !payments.some((payment) => payment.status === "pending");
   const status = invoiceStatus(invoice.status);
   const payable = ["sent", "partially_paid"].includes(invoice.status);
   const whatsappUrl = whatsappInvoiceUrl({ phone: invoice.buyerPhone, storeName, link: paymentUrl });
+  const depositPercent = invoice.plan === "deposit" ? depositPercentOf(invoice) : null;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -122,7 +142,12 @@ export default function VendorInvoiceDetailPage({ params }) {
           </a>
         </div>
       )}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        {canEdit && (
+          <button type="button" onClick={openEdit} disabled={openingEdit} className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline cursor-pointer disabled:opacity-50">
+            <Pencil size={14} /> {openingEdit ? "Opening..." : "Edit invoice"}
+          </button>
+        )}
         <a href={paymentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline">
           <ExternalLink size={14} /> See what the customer sees
         </a>
@@ -176,12 +201,12 @@ export default function VendorInvoiceDetailPage({ params }) {
         )}
         <div className="flex justify-between font-semibold text-slate-900 pt-2 border-t border-slate-100"><span>Customer pays</span><span className="tabular-nums">{formatCurrency(invoice.totalAmount)}</span></div>
         {Number(invoice.amountPaid) > 0 && <div className="flex justify-between text-green-700"><span>Paid so far</span><span className="tabular-nums">{formatCurrency(invoice.amountPaid)}</span></div>}
-        {payable && <div className="flex justify-between font-semibold text-slate-900"><span>{invoice.plan === "deposit" && Number(invoice.amountPaid) === 0 ? "First payment (50%)" : "Still to pay"}</span><span className="tabular-nums">{formatCurrency(invoice.amountDue)}</span></div>}
+        {payable && <div className="flex justify-between font-semibold text-slate-900"><span>{invoice.plan === "deposit" && Number(invoice.amountPaid) === 0 ? `First payment${depositPercent ? ` (${depositPercent}%)` : ""}` : "Still to pay"}</span><span className="tabular-nums">{formatCurrency(invoice.amountDue)}</span></div>}
         {order && <div className="flex justify-between text-slate-700 pt-2 border-t border-slate-100"><span>You receive</span><span className="tabular-nums">{formatCurrency(order.vendorPayoutAmount)}</span></div>}
       </section>
 
       <section className="bg-surface border border-slate-200 rounded-sm p-5 space-y-2 text-sm">
-        <div className="flex justify-between gap-3"><span className="text-slate-600">Payment</span><span className="text-slate-900 text-right">{invoice.plan === "deposit" ? "50% now, 50% later" : "All at once"}</span></div>
+        <div className="flex justify-between gap-3"><span className="text-slate-600">Payment</span><span className="text-slate-900 text-right">{invoice.plan === "deposit" ? (depositPercent ? `${depositPercent}% now, the rest later` : "Part now, the rest later") : "All at once"}</span></div>
         {invoice.expiresAt && payable && <div className="flex justify-between gap-3"><span className="text-slate-600">Link works until</span><span className="text-slate-900 text-right">{formatDateTime(invoice.expiresAt)}</span></div>}
         {invoice.paidAt && <div className="flex justify-between gap-3"><span className="text-slate-600">Paid on</span><span className="text-slate-900 text-right">{formatDateTime(invoice.paidAt)}</span></div>}
         {invoice.note && <div className="pt-2 border-t border-slate-100"><p className="text-slate-600 mb-1">Note</p><p className="text-slate-900 whitespace-pre-wrap">{invoice.note}</p></div>}
@@ -209,6 +234,22 @@ export default function VendorInvoiceDetailPage({ params }) {
         <div className="flex justify-end">
           <Button variant="danger" onClick={cancelInvoice} loading={cancelling}>Cancel invoice</Button>
         </div>
+      )}
+
+      {editPricing && (
+        <EditInvoiceModal
+          storeId={storeId}
+          apiFetch={apiFetch}
+          invoice={invoice}
+          items={items}
+          order={order}
+          pricing={editPricing}
+          onClose={() => setEditPricing(null)}
+          onSaved={() => {
+            setEditPricing(null);
+            load();
+          }}
+        />
       )}
 
       <OrderItemModal

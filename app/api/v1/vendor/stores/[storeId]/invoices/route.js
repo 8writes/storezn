@@ -313,7 +313,7 @@ async function handlePost(req, { params }) {
   }
   const depositAmount =
     result.data.plan === "deposit"
-      ? Math.round(totals.totalAmount * 50) / 100
+      ? Math.round(totals.totalAmount * (result.data.depositPercent ?? 50)) / 100
       : totals.totalAmount;
   const invoiceId = crypto.randomUUID();
   const orderId = crypto.randomUUID();
