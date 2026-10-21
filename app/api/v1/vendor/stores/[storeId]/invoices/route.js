@@ -37,6 +37,7 @@ import { buildPublicAppUrl } from "../../../../../../../lib/requestUrl.js";
 import { parsePagination } from "../../../../../../../lib/pagination.js";
 import { isUniqueViolation } from "@/lib/dbErrors.js";
 import { resolveFeePolicy } from "@/lib/feePolicy.js";
+import { getUsdRate } from "@/lib/fxRates.js";
 
 const invoiceNumber = () =>
   `INV-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
@@ -125,6 +126,9 @@ export async function GET(req, { params }) {
     intlFeePolicy: store.internationalPaymentsEnabled
       ? feePolicyForPreview(resolveFeePolicy({ store, settings, international: true }))
       : null,
+    // Naira per $1 for the "≈ $" hints while pricing a quote - same as the
+    // product form. Only for stores that show dollar prices; display only.
+    usdRate: store.internationalPaymentsEnabled ? (await getUsdRate(store.usdRateProvider))?.rate || null : null,
   });
 }
 
@@ -302,7 +306,7 @@ async function handlePost(req, { params }) {
     return NextResponse.json(
       {
         error:
-          "This invoice total is too low for the store to absorb the full Paystack Gateway Fee. Increase the quoted price before creating the invoice.",
+          "This invoice total is too low for the store to absorb the full Processing Fee. Increase the quoted price before creating the invoice.",
       },
       { status: 422 },
     );

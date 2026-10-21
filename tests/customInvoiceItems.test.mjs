@@ -39,3 +39,12 @@ test("pricing a quote: custom lines are named by request line, products still wo
   assert.equal(ok.ok, true);
   assert.equal(validate(createInvoiceSchema, { requestId: "r1", items: [{ quantity: 1, unitPrice: 5 }] }).ok, false);
 });
+
+test("a vendor's invoice can leave customer details blank; a storefront request can't", async () => {
+  const { createVendorInvoiceRequestSchema } = await import("../lib/validate.js");
+  const items = [{ customName: "Sofa", quantity: 1 }];
+  assert.equal(validate(createVendorInvoiceRequestSchema, { items }).ok, true);
+  assert.equal(validate(createVendorInvoiceRequestSchema, { items, buyerName: "", guestEmail: "", buyerPhone: "" }).ok, true);
+  assert.equal(validate(createVendorInvoiceRequestSchema, { items, guestEmail: "not-an-email" }).ok, false);
+  assert.equal(validate(createInvoiceRequestSchema, { items: [{ productId: "p1", quantity: 1 }] }).ok, false);
+});

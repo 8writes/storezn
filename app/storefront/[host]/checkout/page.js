@@ -591,7 +591,7 @@ export default function CheckoutPage() {
           )}
           {cart.feeChargedToCustomer && cart.platformFee > 0 && (
             <div className="flex justify-between text-sm text-slate-700">
-              <span>Paystack Gateway Fee</span>
+              <span>Processing Fee</span>
               <span>{format(cart.platformFee)}</span>
             </div>
           )}
@@ -600,7 +600,7 @@ export default function CheckoutPage() {
             (!needsShipping || hasDestination) && (
               <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 This order is too small for the store to absorb its full
-                Paystack Gateway Fee. Add more items to continue.
+                Processing Fee. Add more items to continue.
               </div>
             )}
           <div className="flex justify-between pt-2 border-t border-slate-100 font-semibold text-slate-900 text-base">

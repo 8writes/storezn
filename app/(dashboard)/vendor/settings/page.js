@@ -819,7 +819,7 @@ export default function VendorSettingsPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-slate-700">
-                    Who pays the Paystack Gateway Fee?
+                    Who pays the Processing Fee?
                   </label>
                   {commissionRate != null && (
                     <Badge color="slate">
@@ -829,7 +829,7 @@ export default function VendorSettingsPage() {
                   )}
                   <InfoTip>
                     {form.feeChargedToCustomer
-                      ? 'Shown as a separate "Paystack Gateway Fee" at checkout, added on top of the total. You receive your full subtotal + shipping.'
+                      ? 'Shown as a separate "Processing Fee" at checkout, added on top of the total. You receive your full subtotal + shipping.'
                       : "Commission is deducted from your payout. Customers never see it, they just pay the order total."}
                   </InfoTip>
                 </div>
@@ -921,7 +921,7 @@ export default function VendorSettingsPage() {
             {form.internationalPaymentsEnabled && intlFees && (
               <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-800 space-y-1">
                 <p>
-                  Customers can pay by card or Apple Pay, and the Paystack Gateway Fee is{" "}
+                  Customers can pay by card or Apple Pay, and the Processing Fee is{" "}
                   <strong className="tabular-nums">
                     {intlFees.commissionRatePercent}%{intlFees.flatFee > 0 ? ` + ${formatCurrency(intlFees.flatFee)}` : ""}
                   </strong>

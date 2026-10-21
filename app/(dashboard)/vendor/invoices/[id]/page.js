@@ -3,7 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -17,28 +17,16 @@ import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
-
-const STATUS_COLOR = {
-  draft: "slate",
-  sent: "amber",
-  partially_paid: "blue",
-  paid: "green",
-  expired: "red",
-  void: "slate",
-  cancelled: "red",
-};
-
-const PAYMENT_STATUS_COLOR = { pending: "amber", partially_paid: "blue", paid: "green", failed: "red" };
-
-function label(value) {
-  return String(value || "").replaceAll("_", " ");
-}
+import { invoiceStatus, paymentKindLabel, paymentStatus, whatsappInvoiceUrl } from "@/lib/invoiceLabels.js";
 
 export default function VendorInvoiceDetailPage({ params }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
-  const { storeId: activeStoreId } = useVendorStore();
+  const { storeId: activeStoreId, stores } = useVendorStore();
   const storeId = searchParams.get("storeId") || activeStoreId;
+  // Just created from the pricing screen - lead with "send it".
+  const justCreated = searchParams.get("created") === "1";
+  const storeName = stores.find((s) => s.id === storeId)?.name || "";
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const { confirm, confirmDialog } = useConfirm();
@@ -102,37 +90,58 @@ export default function VendorInvoiceDetailPage({ params }) {
   const subtotal = items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
   const platformFee = Number(order?.commissionAmount || 0) + Number(order?.flatFeeAmount || 0);
   const canCancel = invoice.status === "sent" && Number(invoice.amountPaid || 0) === 0;
+  const status = invoiceStatus(invoice.status);
+  const payable = ["sent", "partially_paid"].includes(invoice.status);
+  const whatsappUrl = whatsappInvoiceUrl({ phone: invoice.buyerPhone, storeName, link: paymentUrl });
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {confirmDialog}
       <BackLink href="/vendor/invoices" label="Back to invoices" />
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">{invoice.invoiceNumber}</h1>
-          <p className="text-sm text-slate-700">Created {formatDateTime(invoice.createdAt)}</p>
+      {justCreated && payable && (
+        <div className="rounded-sm border border-green-200 bg-green-50 p-4 space-y-1">
+          <p className="flex items-center gap-2 font-semibold text-green-900"><CheckCircle2 size={18} /> Invoice created</p>
+          <p className="text-sm text-green-900">Now send the payment link to your customer.</p>
         </div>
-        <Badge color={STATUS_COLOR[invoice.status] || "slate"}>{label(invoice.status)}</Badge>
+      )}
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-slate-900 truncate">{invoice.buyerName || "Invoice"}</h1>
+          <p className="text-sm text-slate-700">{invoice.invoiceNumber} · {formatDateTime(invoice.createdAt)}</p>
+        </div>
+        <Badge color={status.color}>{status.label}</Badge>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        <Button size="sm" onClick={copyPaymentLink}>Copy payment link</Button>
-        <a href={paymentUrl} target="_blank" rel="noreferrer">
-          <Button size="sm" variant="outline"><ExternalLink size={14} /> Open invoice</Button>
+      {payable && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button onClick={copyPaymentLink}><Copy size={15} /> Copy link</Button>
+          <a href={whatsappUrl} target="_blank" rel="noreferrer" className="block">
+            <Button variant="outline" fullWidth><MessageCircle size={15} /> Send on WhatsApp</Button>
+          </a>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <a href={paymentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline">
+          <ExternalLink size={14} /> See what the customer sees
         </a>
         {order?.id && (
-          <Link href={`/vendor/orders/${order.id}?storeId=${storeId}`}>
-            <Button size="sm" variant="outline">View related order</Button>
-          </Link>
+          <Link href={`/vendor/orders/${order.id}?storeId=${storeId}`} className="font-medium text-brand-700 hover:underline">View order</Link>
         )}
       </div>
 
       <section className="bg-surface border border-slate-200 rounded-sm p-5 text-sm text-slate-700 space-y-1">
         <p className="font-semibold text-slate-900 mb-2">Customer</p>
-        <p>{invoice.buyerName || "No customer name"}</p>
-        {invoice.guestEmail && <p className="flex items-center gap-1.5">{invoice.guestEmail}<CopyButton value={invoice.guestEmail} label="Copy email" /></p>}
-        {invoice.buyerPhone && <p className="flex items-center gap-1.5">{invoice.buyerPhone}<CopyButton value={invoice.buyerPhone} label="Copy phone number" /></p>}
+        {!invoice.buyerName && !invoice.guestEmail && !invoice.buyerPhone ? (
+          <p className="text-slate-600">Not added yet. The customer fills in their details when they pay.</p>
+        ) : (
+          <>
+            <p>{invoice.buyerName || "Name not added yet"}</p>
+            {invoice.buyerPhone && <p className="flex items-center gap-1.5">{invoice.buyerPhone}<CopyButton value={invoice.buyerPhone} label="Copy phone number" /></p>}
+            {invoice.guestEmail && <p className="flex items-center gap-1.5">{invoice.guestEmail}<CopyButton value={invoice.guestEmail} label="Copy email" /></p>}
+          </>
+        )}
       </section>
 
       <section className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
@@ -161,44 +170,36 @@ export default function VendorInvoiceDetailPage({ params }) {
       </section>
 
       <section className="bg-surface border border-slate-200 rounded-sm p-5 space-y-2 text-sm">
-        <div className="flex justify-between text-slate-700"><span>Items subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-        {order && (
-          <div className="flex justify-between text-slate-700">
-            <span>Paystack Gateway Fee ({order.commissionRatePercent}%{Number(order.flatFeeAmount) > 0 ? ` + ${formatCurrency(order.flatFeeAmount)}` : ""})</span>
-            <span>{order.feeChargedToCustomer ? "+" : "-"}{formatCurrency(platformFee)}</span>
-          </div>
+        <div className="flex justify-between text-slate-700"><span>Items</span><span className="tabular-nums">{formatCurrency(subtotal)}</span></div>
+        {order?.feeChargedToCustomer && platformFee > 0 && (
+          <div className="flex justify-between text-slate-700"><span>Processing Fee</span><span className="tabular-nums">+{formatCurrency(platformFee)}</span></div>
         )}
-        <div className="flex justify-between font-semibold text-slate-900 pt-2 border-t border-slate-100"><span>Invoice total</span><span>{formatCurrency(invoice.totalAmount)}</span></div>
-        <div className="flex justify-between text-brand-700"><span>Paid</span><span>{formatCurrency(invoice.amountPaid)}</span></div>
-        <div className="flex justify-between font-semibold text-slate-900"><span>Currently due</span><span>{formatCurrency(invoice.amountDue)}</span></div>
-        {order && <div className="flex justify-between text-slate-700"><span>Your total payout</span><span>{formatCurrency(order.vendorPayoutAmount)}</span></div>}
+        <div className="flex justify-between font-semibold text-slate-900 pt-2 border-t border-slate-100"><span>Customer pays</span><span className="tabular-nums">{formatCurrency(invoice.totalAmount)}</span></div>
+        {Number(invoice.amountPaid) > 0 && <div className="flex justify-between text-green-700"><span>Paid so far</span><span className="tabular-nums">{formatCurrency(invoice.amountPaid)}</span></div>}
+        {payable && <div className="flex justify-between font-semibold text-slate-900"><span>{invoice.plan === "deposit" && Number(invoice.amountPaid) === 0 ? "First payment (50%)" : "Still to pay"}</span><span className="tabular-nums">{formatCurrency(invoice.amountDue)}</span></div>}
+        {order && <div className="flex justify-between text-slate-700 pt-2 border-t border-slate-100"><span>You receive</span><span className="tabular-nums">{formatCurrency(order.vendorPayoutAmount)}</span></div>}
       </section>
 
-      <section className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3 text-sm">
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-semibold text-slate-900">Invoice details</p>
-          <Badge color="slate">{invoice.plan === "deposit" ? "50% deposit" : "Full payment"}</Badge>
-        </div>
-        {invoice.sentAt && <div className="flex justify-between gap-3"><span className="text-slate-600">Sent</span><span className="text-slate-900 text-right">{formatDateTime(invoice.sentAt)}</span></div>}
-        {invoice.expiresAt && <div className="flex justify-between gap-3"><span className="text-slate-600">Expires</span><span className="text-slate-900 text-right">{formatDateTime(invoice.expiresAt)}</span></div>}
-        {invoice.paidAt && <div className="flex justify-between gap-3"><span className="text-slate-600">Paid</span><span className="text-slate-900 text-right">{formatDateTime(invoice.paidAt)}</span></div>}
+      <section className="bg-surface border border-slate-200 rounded-sm p-5 space-y-2 text-sm">
+        <div className="flex justify-between gap-3"><span className="text-slate-600">Payment</span><span className="text-slate-900 text-right">{invoice.plan === "deposit" ? "50% now, 50% later" : "All at once"}</span></div>
+        {invoice.expiresAt && payable && <div className="flex justify-between gap-3"><span className="text-slate-600">Link works until</span><span className="text-slate-900 text-right">{formatDateTime(invoice.expiresAt)}</span></div>}
+        {invoice.paidAt && <div className="flex justify-between gap-3"><span className="text-slate-600">Paid on</span><span className="text-slate-900 text-right">{formatDateTime(invoice.paidAt)}</span></div>}
         {invoice.note && <div className="pt-2 border-t border-slate-100"><p className="text-slate-600 mb-1">Note</p><p className="text-slate-900 whitespace-pre-wrap">{invoice.note}</p></div>}
       </section>
 
       <section className="bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
-        <p className="text-sm font-semibold text-slate-900">Payment history</p>
+        <p className="text-sm font-semibold text-slate-900">Payments</p>
         {payments.length === 0 ? (
-          <p className="text-sm text-slate-600">No payment attempts yet.</p>
+          <p className="text-sm text-slate-600">No payments yet.</p>
         ) : payments.map((payment) => (
           <div key={payment.id} className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900 capitalize">{label(payment.kind)} payment</p>
-              <p className="text-xs text-slate-600 break-all">{payment.paymentReference}</p>
-              <p className="text-xs text-slate-600">Started {formatDateTime(payment.createdAt)}{payment.paidAt ? ` - paid ${formatDateTime(payment.paidAt)}` : ""}</p>
+              <p className="text-sm font-medium text-slate-900" title={payment.paymentReference}>{paymentKindLabel(payment.kind)}</p>
+              <p className="text-xs text-slate-600">{formatDateTime(payment.paidAt || payment.createdAt)}</p>
             </div>
             <div className="text-right space-y-1">
-              <p className="text-sm font-semibold text-slate-900">{formatCurrency(payment.amount)}</p>
-              <Badge color={PAYMENT_STATUS_COLOR[payment.status] || "slate"}>{label(payment.status)}</Badge>
+              <p className="text-sm font-semibold text-slate-900 tabular-nums">{formatCurrency(payment.amount)}</p>
+              <Badge color={paymentStatus(payment.status).color}>{paymentStatus(payment.status).label}</Badge>
             </div>
           </div>
         ))}

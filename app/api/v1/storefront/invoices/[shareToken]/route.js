@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../../../../../lib/db/index.js";
-import { invoiceItems, invoicePayments, invoices, orders, stores } from "../../../../../../lib/db/schema.js";
+import { invoiceItems, invoicePayments, invoiceRequests, invoices, orders, stores } from "../../../../../../lib/db/schema.js";
 import { initializeTransaction, verifyTransaction } from "../../../../../../lib/paystack.js";
 import { resolveStoreSubAccountCode, SUBACCOUNT_UNAVAILABLE_MESSAGE } from "../../../../../../lib/storeSubAccount.js";
 import { withApiMonitoring } from "../../../../../../lib/apiMonitoring.js";
@@ -14,6 +14,29 @@ import { getUsdRate } from "../../../../../../lib/fxRates.js";
 import { INTERNATIONAL_CHANNELS } from "../../../../../../lib/feePolicy.js";
 
 const paymentEmailSchema = z.string().trim().toLowerCase().email("Enter a valid email address");
+const buyerNameSchema = z.string().trim().min(1, "Enter your name").max(150);
+const buyerPhoneSchema = z.string().trim().min(5, "Enter your phone number").max(30);
+
+// A vendor can send an invoice without the customer's details. Whatever's
+// missing, the customer must give before paying - checked here, saved to
+// the invoice, its order and its request inside the payment transaction.
+function missingBuyerDetails(invoice, body) {
+  const errors = [];
+  const details = {};
+  if (!invoice.guestEmail) {
+    const parsed = paymentEmailSchema.safeParse(body?.email);
+    if (parsed.success) details.guestEmail = parsed.data; else errors.push(parsed.error.issues[0]?.message || "Enter a valid email address");
+  }
+  if (!invoice.buyerName) {
+    const parsed = buyerNameSchema.safeParse(body?.name ?? "");
+    if (parsed.success) details.buyerName = parsed.data; else errors.push(parsed.error.issues[0]?.message);
+  }
+  if (!invoice.buyerPhone) {
+    const parsed = buyerPhoneSchema.safeParse(body?.phone ?? "");
+    if (parsed.success) details.buyerPhone = parsed.data; else errors.push(parsed.error.issues[0]?.message);
+  }
+  return { details, error: errors[0] || null };
+}
 
 async function loadInvoice(shareToken) {
   const [row] = await db.select({ invoice: invoices, store: stores }).from(invoices).innerJoin(stores, eq(stores.id, invoices.storeId)).where(eq(invoices.shareToken, shareToken)).limit(1);
@@ -63,6 +86,8 @@ export async function GET(req, { params }) {
       paidAt: row.invoice.paidAt,
       orderStatus: order?.status || null,
       requiresPaymentEmail: !row.invoice.guestEmail,
+      requiresBuyerName: !row.invoice.buyerName,
+      requiresBuyerPhone: !row.invoice.buyerPhone,
       isExpired: row.invoice.status === "expired" || (row.invoice.status === "sent" && row.invoice.expiresAt && new Date(row.invoice.expiresAt).getTime() <= Date.now()),
     },
     items: items.map((item) => ({ id: item.id, productName: item.productName, variantLabel: item.variantLabel, quantity: item.quantity, unitPrice: item.unitPrice, lineTotal: item.lineTotal, customerFields: item.customerFields })),
@@ -80,12 +105,10 @@ async function handlePost(req, { params }) {
   if (!["sent", "partially_paid"].includes(invoice.status)) return NextResponse.json({ error: "This invoice is not payable" }, { status: 409 });
   if (invoice.status === "sent" && invoice.expiresAt && new Date(invoice.expiresAt).getTime() <= Date.now()) return NextResponse.json({ error: "This invoice has expired" }, { status: 409 });
   const body = await req.json().catch(() => ({}));
-  let paymentEmail = invoice.guestEmail;
-  if (!paymentEmail) {
-    const parsedEmail = paymentEmailSchema.safeParse(body?.email);
-    if (!parsedEmail.success) return NextResponse.json({ error: parsedEmail.error.issues[0]?.message || "Enter a valid email address" }, { status: 400 });
-    paymentEmail = parsedEmail.data;
-  }
+  const { details: newDetails, error: detailsError } = missingBuyerDetails(invoice, body);
+  if (detailsError) return NextResponse.json({ error: detailsError }, { status: 400 });
+  const paymentEmail = invoice.guestEmail || newDetails.guestEmail;
+  const buyerName = invoice.buyerName || newDetails.buyerName;
   const [order] = await db.select().from(orders).where(eq(orders.id, invoice.orderId)).limit(1);
   if (!order || invoice.amountDue <= 0) return NextResponse.json({ error: "This invoice is already paid" }, { status: 409 });
   // Resolved BEFORE a payment row is created, and fatal if missing - the
@@ -100,9 +123,21 @@ async function handlePost(req, { params }) {
     prepared = await db.transaction(async (tx) => {
       const [lockedInvoice] = await tx.select().from(invoices).where(eq(invoices.id, invoice.id)).for("update").limit(1);
       if (!lockedInvoice || !["sent", "partially_paid"].includes(lockedInvoice.status) || (lockedInvoice.status === "sent" && lockedInvoice.expiresAt && new Date(lockedInvoice.expiresAt).getTime() <= Date.now())) return { unavailable: true };
-      if (!lockedInvoice.guestEmail) {
-        await tx.update(invoices).set({ guestEmail: paymentEmail, updatedAt: new Date() }).where(eq(invoices.id, lockedInvoice.id));
-        await tx.update(orders).set({ guestEmail: paymentEmail, updatedAt: new Date() }).where(eq(orders.id, order.id));
+      // Fill in only what's still blank - never overwrite details the
+      // vendor (or an earlier payment attempt) already recorded.
+      const fill = {};
+      for (const key of ["guestEmail", "buyerName", "buyerPhone"]) {
+        if (!lockedInvoice[key] && newDetails[key]) fill[key] = newDetails[key];
+      }
+      if (Object.keys(fill).length > 0) {
+        await tx.update(invoices).set({ ...fill, updatedAt: new Date() }).where(eq(invoices.id, lockedInvoice.id));
+        const orderFill = Object.fromEntries(Object.entries(fill).filter(([key]) => !order[key]));
+        if (Object.keys(orderFill).length > 0) await tx.update(orders).set({ ...orderFill, updatedAt: new Date() }).where(eq(orders.id, order.id));
+        if (lockedInvoice.requestId) {
+          const [request] = await tx.select().from(invoiceRequests).where(eq(invoiceRequests.id, lockedInvoice.requestId)).limit(1);
+          const requestFill = request ? Object.fromEntries(Object.entries(fill).filter(([key]) => !request[key])) : {};
+          if (Object.keys(requestFill).length > 0) await tx.update(invoiceRequests).set({ ...requestFill, updatedAt: new Date() }).where(eq(invoiceRequests.id, request.id));
+        }
       }
       const [existing] = await tx.select().from(invoicePayments).where(and(eq(invoicePayments.invoiceId, invoice.id), eq(invoicePayments.status, "pending"))).limit(1);
       // A Paystack authorization URL can remain payable after our local
@@ -154,7 +189,7 @@ async function handlePost(req, { params }) {
     const paystackData = await initializeTransaction({
       amount: payment.amount,
       email: paymentEmail,
-      name: invoice.buyerName || undefined,
+      name: buyerName || undefined,
       reference,
       redirectUrl: buildPublicAppUrl(req, `/invoice/${shareToken}`),
       // A part-payment splits the same way the whole order would: the

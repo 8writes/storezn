@@ -21,6 +21,8 @@ import { Pagination } from "@/components/ui/Pagination.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { EmptyState } from "@/components/ui/EmptyState.js";
+import { Badge } from "@/components/ui/Badge.js";
+import { invoiceStatus } from "@/lib/invoiceLabels.js";
 
 export default function VendorInvoicesPage() {
   const router = useRouter();
@@ -101,25 +103,25 @@ export default function VendorInvoicesPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
         title="Invoices"
-        description="Share secure payment links by email, WhatsApp, or anywhere else, then track partial and full payments."
+        description="Send a payment link for anything you sell, and see who has paid."
         actions={
-          <>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Link href="/vendor/invoices/requests"><Button variant="secondary">Quote requests{requestCount > 0 ? ` (${requestCount})` : ""}</Button></Link>
-            <Button onClick={() => setManualOpen(true)}>New offline quote</Button>
-          </>
+            <Button onClick={() => setManualOpen(true)}>Create invoice</Button>
+          </div>
         }
       />
 
       <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row gap-3">
-        <SearchInput value={search} onSearch={setSearch} placeholder="Search number, customer, phone, email, or product" className="flex-1" />
-        <div className="sm:w-52"><Select value={status} onChange={setStatus} options={[{ value: "all", label: "All statuses" }, { value: "sent", label: "Sent" }, { value: "partially_paid", label: "Partially paid" }, { value: "paid", label: "Paid" }, { value: "cancelled", label: "Cancelled" }, { value: "expired", label: "Expired" }]} /></div>
+        <SearchInput value={search} onSearch={setSearch} placeholder="Search invoices" className="flex-1" />
+        <div className="sm:w-52"><Select value={status} onChange={setStatus} options={[{ value: "all", label: "All invoices" }, ...["sent", "partially_paid", "paid", "expired", "cancelled"].map((value) => ({ value, label: invoiceStatus(value).label }))]} /></div>
         </div>
       </div>
 
       {visibleInvoices.length > 0 ? (
         <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200">
-          <div className="p-4"><h2 className="font-semibold text-slate-900">Sent invoices</h2></div>
+
           {visibleInvoices.map((invoice) => (
             <div
               key={invoice.id}
@@ -134,9 +136,16 @@ export default function VendorInvoicesPage() {
               }}
               className="p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-slate-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
             >
-              <div><p className="font-medium text-slate-900">{invoice.invoiceNumber}</p><p className="text-sm text-slate-600">{invoice.guestEmail || invoice.buyerPhone || "Share by link"} - {invoice.status}</p></div>
+              <div className="min-w-0">
+                <p className="font-medium text-slate-900 truncate">{invoice.buyerName || invoice.buyerPhone || invoice.guestEmail || "Customer not added yet"}</p>
+                <p className="text-xs text-slate-600">{invoice.invoiceNumber}</p>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold text-slate-900 mr-1">{formatCurrency(invoice.amountPaid)} / {formatCurrency(invoice.totalAmount)}</p>
+                <div className="text-right mr-1">
+                  <p className="text-sm font-semibold text-slate-900 tabular-nums">{formatCurrency(invoice.totalAmount)}</p>
+                  {invoice.status === "partially_paid" && <p className="text-xs text-slate-600 tabular-nums">{formatCurrency(invoice.amountPaid)} paid</p>}
+                </div>
+                <Badge color={invoiceStatus(invoice.status).color}>{invoiceStatus(invoice.status).label}</Badge>
                 <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); copyInvoiceLink(invoice.shareToken); }}>Copy link</Button>
                 {invoice.status === "sent" && <Button size="sm" variant="secondary" onClick={(event) => { event.stopPropagation(); cancelInvoice(invoice.id); }}>Cancel</Button>}
                 <ChevronRight size={17} className="text-slate-400" aria-hidden="true" />
@@ -149,12 +158,12 @@ export default function VendorInvoicesPage() {
         <EmptyState
           icon={FileText}
           title={search || status !== "all" ? "No matching invoices" : "No invoices yet"}
-          description={search || status !== "all" ? "Try another search or status filter." : "Create an offline quote or prepare invoices from quote requests."}
-          action={<Button type="button" onClick={() => setManualOpen(true)}>New offline quote</Button>}
+          description={search || status !== "all" ? "Try another search or filter." : "Create an invoice and send the payment link to your customer."}
+          action={<Button type="button" onClick={() => setManualOpen(true)}>Create invoice</Button>}
         />
       )}
 
-      {manualOpen && storeId && <ManualQuoteModal storeId={storeId} internationalStore={!!stores.find((s) => s.id === storeId)?.internationalPaymentsEnabled} apiFetch={apiFetch} confirm={confirm} onClose={() => setManualOpen(false)} onCreated={() => { setManualOpen(false); loadData(); }} />}
+      {manualOpen && storeId && <ManualQuoteModal storeId={storeId} internationalStore={!!stores.find((s) => s.id === storeId)?.internationalPaymentsEnabled} apiFetch={apiFetch} confirm={confirm} onClose={() => setManualOpen(false)} onCreated={(request) => { setManualOpen(false); router.push(`/vendor/invoices/requests?open=${request.id}`); }} />}
       {confirmDialog}
     </div>
   );
@@ -219,7 +228,6 @@ function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confi
   const removeLine = (uid) => setLines((current) => (current.length > 1 ? current.filter((line) => line.uid !== uid) : current));
 
   const submit = async () => {
-    if (!buyerName.trim() || !guestEmail.trim() || !buyerPhone.trim()) return toast.error("Customer name, email, and phone are required");
     const items = [];
     const seen = new Set();
     for (const [index, line] of lines.entries()) {
@@ -242,13 +250,13 @@ function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confi
       if (missingField) return toast.error(`${selected.label}: ${missingField.label} is required`);
       items.push({ productId: selected.product.id, variantId: selected.variant?.id || null, quantity: line.quantity, customerFields: line.answers });
     }
-    const approved = await confirm({ title: "Create this offline quote request?", description: "It will appear in the quote queue so you can set the prices and send the invoice.", confirmLabel: "Create request" });
-    if (!approved) return;
     setSubmitting(true);
     try {
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests`, {
+      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/invoice-requests`, {
         method: "POST",
         body: JSON.stringify({
+          // All optional - the customer fills in whatever's missing on the
+          // invoice before they pay.
           buyerName: buyerName.trim(),
           guestEmail: guestEmail.trim(),
           buyerPhone: buyerPhone.trim(),
@@ -257,8 +265,7 @@ function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confi
           items,
         }),
       });
-      toast.success("Offline quote request created");
-      onCreated();
+      onCreated(data.request);
     } catch (error) {
       toast.error(error.message || "Could not create quote request");
     } finally {
@@ -270,7 +277,7 @@ function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confi
     <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center overscroll-none">
       <div className="fixed inset-0 bg-black/50" onClick={submitting ? undefined : onClose} />
       <div className="relative w-full sm:max-w-lg max-h-[92dvh] flex flex-col bg-surface rounded-t-sm sm:rounded-sm shadow-xl">
-        <div className="p-4 border-b border-slate-200 flex items-start justify-between gap-3"><div><h2 className="font-semibold text-slate-900">New offline quote</h2><p className="text-sm text-slate-600 mt-1">For a walk-in, phone, or WhatsApp customer.</p></div><button type="button" onClick={onClose} disabled={submitting} aria-label="Close" className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"><X size={19} /></button></div>
+        <div className="p-4 border-b border-slate-200 flex items-start justify-between gap-3"><div><h2 className="font-semibold text-slate-900">Create invoice</h2><p className="text-sm text-slate-600 mt-1">Add what you&apos;re selling. You&apos;ll set the prices next.</p></div><button type="button" onClick={onClose} disabled={submitting} aria-label="Close" className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"><X size={19} /></button></div>
         <div className="p-4 overflow-y-auto overscroll-contain space-y-4">
           <div className="space-y-3">
             <p className="text-sm font-medium text-slate-700">Items</p>
@@ -316,13 +323,21 @@ function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confi
               </Button>
             )}
           </div>
-          <Input label="Customer name" required value={buyerName} onChange={(event) => setBuyerName(event.target.value)} />
-          <Input label="Customer email" type="email" required value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} />
-          <Input label="Customer phone or WhatsApp" type="tel" required value={buyerPhone} onChange={(event) => setBuyerPhone(event.target.value)} />
+          <div className="space-y-3 border-t border-slate-200 pt-4">
+            <div>
+              <p className="text-sm font-medium text-slate-700">Customer <span className="font-normal text-slate-500">(optional)</span></p>
+              <p className="text-xs text-slate-600 mt-0.5">Leave blank and the customer fills these in when they pay.</p>
+            </div>
+            <Input label="Name" value={buyerName} onChange={(event) => setBuyerName(event.target.value)} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Phone or WhatsApp" type="tel" value={buyerPhone} onChange={(event) => setBuyerPhone(event.target.value)} />
+              <Input label="Email" type="email" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} />
+            </div>
+          </div>
           {internationalStore && <InternationalCardCheckbox checked={international} onChange={setInternational} />}
           <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Note (optional)</span><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" /></label>
         </div>
-        <div className="p-4 border-t border-slate-200 flex gap-3"><Button variant="outline" fullWidth onClick={onClose} disabled={submitting}>Cancel</Button><Button fullWidth onClick={submit} loading={submitting}>Add request</Button></div>
+        <div className="p-4 border-t border-slate-200 flex gap-3"><Button variant="outline" fullWidth onClick={onClose} disabled={submitting}>Cancel</Button><Button fullWidth onClick={submit} loading={submitting}>Next: set prices</Button></div>
       </div>
     </div>
   );

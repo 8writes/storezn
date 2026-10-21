@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FileText, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Button } from "@/components/ui/Button.js";
-import { Select } from "@/components/ui/Select.js";
+import { Input } from "@/components/ui/Input.js";
+import { PriceInput } from "@/components/ui/PriceInput.js";
+import { UsdHint } from "@/components/ui/UsdHint.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 import { customerFieldEntries } from "@/lib/customerFields.js";
 import { useConfirm } from "@/hooks/useConfirm.js";
-import { getPlatformUrl } from "@/lib/storeUrl.js";
 import { computeOrderTotals } from "@/lib/orders.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { EmptyState } from "@/components/ui/EmptyState.js";
@@ -22,6 +24,7 @@ import { OrderItemModal } from "@/components/ui/OrderItemModal.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
 export default function VendorInvoiceRequestsPage() {
+  const router = useRouter();
   const { token } = useAuth(true);
   const { apiFetch } = useApi(token);
   const { stores, storeId, loading: storesLoading } = useVendorStore();
@@ -35,11 +38,17 @@ export default function VendorInvoiceRequestsPage() {
   const [guestEmail, setGuestEmail] = useState("");
   const [feePolicy, setFeePolicy] = useState(null);
   const [intlFeePolicy, setIntlFeePolicy] = useState(null);
+  const [usdRate, setUsdRate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
   const [activeItem, setActiveItem] = useState(null);
+  // Arriving from "Create invoice" (?open=<request id>): open that request
+  // straight away so the vendor carries on setting prices. Read once from
+  // the URL; state rather than rendered, so no hydration mismatch.
+  const [openOnLoad, setOpenOnLoad] = useState(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("open"),
+  );
   const { confirm, confirmDialog } = useConfirm();
 
   const loadData = useCallback(() => {
@@ -55,6 +64,7 @@ export default function VendorInvoiceRequestsPage() {
         setPagination(requestData.pagination || null);
         setFeePolicy(invoiceData.feePolicy || null);
         setIntlFeePolicy(invoiceData.intlFeePolicy || null);
+        setUsdRate(invoiceData.usdRate || null);
       })
       .catch((err) => toast.error(err.message || "Failed to load quote requests"))
       .finally(() => setLoading(false));
@@ -86,18 +96,26 @@ export default function VendorInvoiceRequestsPage() {
   }), [total, activeFeePolicy]);
   const normalizedSearch = search.trim().toLowerCase();
   const visibleRequests = useMemo(() => requests.filter(({ request, items }) => {
-    if (status !== "all" && request.status !== status) return false;
     if (!normalizedSearch) return true;
     return [request.requestNumber, request.buyerName, request.guestEmail, request.buyerPhone, ...items.map((item) => item.productName)]
       .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
-  }), [requests, status, normalizedSearch]);
+  }), [requests, normalizedSearch]);
 
-  const selectRequest = (request, items) => {
+  const selectRequest = useCallback((request, items) => {
     setSelectedId(request.id);
     setGuestEmail(request.guestEmail || "");
     setPlan("full");
     setPrices(Object.fromEntries(items.map((item) => [item.id, ""])));
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!openOnLoad || loading) return;
+    const row = requests.find(({ request }) => request.id === openOnLoad);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpenOnLoad(null);
+    router.replace("/vendor/invoices/requests", { scroll: false });
+    if (row) selectRequest(row.request, row.items);
+  }, [openOnLoad, loading, requests, router, selectRequest]);
 
   const createInvoice = async () => {
     if (!selected) return;
@@ -110,15 +128,9 @@ export default function VendorInvoiceRequestsPage() {
       unitPrice: Number(prices[item.id]),
     }));
     if (items.some((item) => !Number.isFinite(item.unitPrice) || item.unitPrice <= 0)) {
-      toast.error("Add a valid price for every item");
+      toast.error("Add a price for every item");
       return;
     }
-    const approved = await confirm({
-      title: "Create and send this invoice?",
-      description: `${formatCurrency(invoiceTotals.totalAmount)} will be sent with the ${plan === "deposit" ? "50/50" : "full payment"} plan.`,
-      confirmLabel: "Create invoice",
-    });
-    if (!approved) return;
     setSending(true);
     try {
       const email = guestEmail.trim() || selected.request.guestEmail || "";
@@ -126,12 +138,9 @@ export default function VendorInvoiceRequestsPage() {
         method: "POST",
         body: JSON.stringify({ requestId: selected.request.id, guestEmail: email || undefined, plan, items }),
       });
-      const copied = await navigator.clipboard?.writeText(getPlatformUrl(`/invoice/${data.invoice.shareToken}`)).then(() => true).catch(() => false);
-      toast.success(copied ? "Invoice created. Its payment link was copied." : "Invoice created. Use the invoice page to copy its link.");
-      setRequests((rows) => rows.filter((row) => row.request.id !== selected.request.id));
-      setRequestTotal((value) => Math.max(0, value - 1));
-      setSelectedId("");
-      setPrices({});
+      // Straight to the finished invoice, where the link is ready to copy
+      // or send on WhatsApp.
+      router.push(`/vendor/invoices/${data.invoice.id}?storeId=${storeId}&created=1`);
     } catch (err) {
       toast.error(err.message || "Could not create invoice");
     } finally {
@@ -161,32 +170,31 @@ export default function VendorInvoiceRequestsPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
         title="Quote requests"
-        description="Set a price for customer requests and send a secure invoice."
+        description="Customers waiting for your price. Open one, add prices, and send the invoice."
         actions={<Link href="/vendor/invoices"><Button variant="outline">Back to invoices</Button></Link>}
       />
 
       <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row gap-3">
-        <SearchInput value={search} onSearch={setSearch} placeholder="Search request, customer, phone, email, or product" className="flex-1" />
-        <div className="sm:w-52"><Select value={status} onChange={setStatus} options={[{ value: "all", label: "All statuses" }, { value: "new", label: "New" }, { value: "reviewing", label: "Reviewing" }, { value: "quoted", label: "Quoted" }]} /></div>
+        <SearchInput value={search} onSearch={setSearch} placeholder="Search requests" className="flex-1" />
         </div>
       </div>
 
       <section className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-200">
-          <div className="p-4"><h2 className="font-semibold text-slate-900">Open requests ({requestTotal})</h2></div>
+          <div className="p-4"><h2 className="font-semibold text-slate-900">Waiting for your price ({requestTotal})</h2></div>
           {loading ? <p className="p-4 text-sm text-slate-600">Loading requests...</p> : visibleRequests.length === 0 ? (
             <EmptyState
               icon={FileText}
-              title={search || status !== "all" ? "No matching quote requests" : "No quote requests yet"}
-              description={search || status !== "all" ? "Try another search or status filter." : "Customer quote requests and offline quote requests will appear here."}
+              title={search ? "No matching requests" : "Nothing waiting"}
+              description={search ? "Try another search." : "When a customer asks for a price, it shows up here."}
               className="border-0 bg-transparent py-10"
             />
           ) : visibleRequests.map(({ request, items }) => (
             <div key={request.id} className="flex items-start gap-2 p-4 hover:bg-slate-50"><button type="button" onClick={() => selectRequest(request, items)} className="flex-1 min-w-0 text-left cursor-pointer">
-              <div className="flex items-center justify-between gap-3"><span className="font-semibold text-slate-900">{request.requestNumber}</span><span className="text-xs text-slate-600">{formatDate(request.createdAt)}</span></div>
-              <p className="text-sm text-slate-700 mt-1">{request.buyerName || request.guestEmail || request.buyerPhone || "Guest buyer"}</p>
-              <p className="text-xs text-slate-600 mt-1">{items.length} item{items.length === 1 ? "" : "s"} - {request.status}</p>
-            </button><Button size="sm" variant="secondary" onClick={() => cancelRequest(request)}>Cancel</Button></div>
+              <div className="flex items-center justify-between gap-3"><span className="font-semibold text-slate-900 truncate">{request.buyerName || request.buyerPhone || request.guestEmail || "Customer not added yet"}</span><span className="text-xs text-slate-600 shrink-0">{formatDate(request.createdAt)}</span></div>
+              <p className="text-sm text-slate-700 mt-1 truncate">{items.map((item) => `${item.productName} × ${item.quantity}`).join(", ")}</p>
+              <p className="text-xs font-medium text-brand-700 mt-1">Set prices →</p>
+            </button><Button size="sm" variant="ghost" onClick={() => cancelRequest(request)}>Cancel</Button></div>
           ))}
           <Pagination pagination={pagination} onPageChange={setPage} />
       </section>
@@ -196,12 +204,14 @@ export default function VendorInvoiceRequestsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={sending ? undefined : () => setSelectedId("")} />
           <div role="dialog" aria-modal="true" aria-labelledby="quote-request-dialog-title" className="relative z-10 flex max-h-[92dvh] w-full flex-col rounded-t-sm bg-surface shadow-xl sm:max-w-2xl sm:rounded-sm">
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-4 sm:p-5">
-              <div className="min-w-0"><h2 id="quote-request-dialog-title" className="font-semibold text-slate-900">{selected.request.requestNumber}</h2><p className="mt-0.5 text-sm text-slate-600">{selected.request.guestEmail || selected.request.buyerPhone || "No contact details - share the link manually"}</p></div>
+              <div className="min-w-0"><h2 id="quote-request-dialog-title" className="font-semibold text-slate-900">Set prices</h2><p className="mt-0.5 text-sm text-slate-600 truncate">{[selected.request.buyerName, selected.request.buyerPhone, selected.request.guestEmail].filter(Boolean).join(" · ") || "No customer details yet - they'll add them when paying"}</p></div>
               <button type="button" aria-label="Close quote request" disabled={sending} onClick={() => setSelectedId("")} className="shrink-0 rounded-sm p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"><X size={20} /></button>
             </div>
             <div className="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
               <div className="space-y-5">
-            <input type="email" placeholder="Customer email (optional)" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
+            {!selected.request.guestEmail && (
+              <Input label="Customer email (optional)" hint="We'll email them the invoice. You can also send the link yourself." type="email" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} />
+            )}
             <div className="space-y-3">
               {selected.items.map((item) => {
                 const key = item.id;
@@ -209,7 +219,7 @@ export default function VendorInvoiceRequestsPage() {
                 const unitPrice = Number(prices[key]) || 0;
                 return (
                   <div key={item.id} className="rounded-sm border border-slate-200 p-3 space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7rem] gap-3 items-end">
+                    <div className="grid grid-cols-[minmax(0,1fr)_8.5rem] gap-3 items-center">
                       <button
                         type="button"
                         onClick={() => setActiveItem({ ...item, unitPrice, lineTotal: unitPrice * item.quantity })}
@@ -218,7 +228,7 @@ export default function VendorInvoiceRequestsPage() {
                         <p className="text-sm font-medium text-slate-900">{item.productName}</p>
                         <p className="text-xs text-slate-600">Qty {item.quantity}{item.variantLabel ? ` - ${item.variantLabel}` : ""}{item.productId ? "" : " - Custom item"}</p>
                       </button>
-                      <input type="number" min="0.01" step="0.01" placeholder="Price" value={prices[key] || ""} onChange={(event) => setPrices((current) => ({ ...current, [key]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-2 py-2 text-sm" />
+                      <PriceInput aria-label={`Price each for ${item.productName}`} placeholder="Price each" leadingText="₦" value={prices[key] || ""} onChange={(value) => setPrices((current) => ({ ...current, [key]: value }))} usdRate={usdRate} />
                     </div>
                     {details.length > 0 && (
                       <div className="bg-slate-50 border border-slate-200 rounded-sm p-3">
@@ -238,15 +248,25 @@ export default function VendorInvoiceRequestsPage() {
               })}
             </div>
             <div className="border-t border-slate-200 pt-4 space-y-3">
-              {selectedInternational && <p className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800">The customer will pay with a card from outside Nigeria, so the international card fee applies and they&apos;ll pay by card or Apple Pay.</p>}
-              <div className="flex justify-between text-sm"><span>Quote subtotal</span><strong>{formatCurrency(total)}</strong></div>
-              {activeFeePolicy?.feeChargedToCustomer && invoiceTotals.commissionAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>{selectedInternational ? "International card fee" : "Paystack Gateway Fee"} ({activeFeePolicy.commissionRatePercent}%)</span><strong>{formatCurrency(invoiceTotals.commissionAmount)}</strong></div>}
-              {activeFeePolicy?.feeChargedToCustomer && invoiceTotals.flatFeeAmount > 0 && <div className="flex justify-between text-sm text-slate-700"><span>Flat fee</span><strong>{formatCurrency(invoiceTotals.flatFeeAmount)}</strong></div>}
-              <div className="flex justify-between text-sm"><span>Customer total</span><strong>{formatCurrency(invoiceTotals.totalAmount)}</strong></div>
-              {!activeFeePolicy?.feeChargedToCustomer && invoiceTotals.platformFeeAmount > 0 && <p className="text-xs text-slate-600">Your store absorbs {formatCurrency(invoiceTotals.platformFeeAmount)} in Paystack Gateway Fees.</p>}
-              <Select label="Payment plan" options={[{ value: "full", label: "Full payment" }, { value: "deposit", label: "50/50 deposit" }]} value={plan} onChange={setPlan} />
-              {plan === "deposit" && <div className="flex justify-between text-sm text-slate-700"><span>First payment (50%)</span><strong>{formatCurrency(Math.round(invoiceTotals.totalAmount * 50) / 100)}</strong></div>}
-              <Button onClick={createInvoice} loading={sending} fullWidth>Create invoice and copy link</Button>
+              {selectedInternational && <p className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800">The customer is paying with a card from outside Nigeria, so the higher processing fee applies.</p>}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-slate-700">How should they pay?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[["full", "All at once"], ["deposit", "50% now, 50% later"]].map(([value, text]) => (
+                    <button key={value} type="button" aria-pressed={plan === value} onClick={() => setPlan(value)} className={`rounded-sm border px-3 py-2.5 text-sm font-medium cursor-pointer transition-colors ${plan === value ? "border-brand-600 bg-brand-50 text-brand-800" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
+                      {text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-sm bg-slate-50 border border-slate-200 p-3 space-y-1.5 text-sm">
+                <div className="flex justify-between text-slate-700"><span>Items</span><span className="tabular-nums">{formatCurrency(total)}</span></div>
+                {activeFeePolicy?.feeChargedToCustomer && invoiceTotals.platformFeeAmount > 0 && <div className="flex justify-between text-slate-700"><span>Processing Fee</span><span className="tabular-nums">+{formatCurrency(invoiceTotals.platformFeeAmount)}</span></div>}
+                <div className="flex justify-between font-semibold text-slate-900"><span>Customer pays</span><span className="text-right tabular-nums">{formatCurrency(invoiceTotals.totalAmount)}<UsdHint ngn={invoiceTotals.totalAmount} rate={usdRate} className="font-normal" /></span></div>
+                {plan === "deposit" && <div className="flex justify-between text-slate-700"><span>First payment</span><span className="tabular-nums">{formatCurrency(Math.round(invoiceTotals.totalAmount * 50) / 100)}</span></div>}
+                <div className="flex justify-between text-slate-700 pt-1.5 border-t border-slate-200"><span>You receive</span><span className="tabular-nums">{formatCurrency(invoiceTotals.vendorPayoutAmount)}</span></div>
+              </div>
+              <Button onClick={createInvoice} loading={sending} fullWidth>Create invoice</Button>
             </div>
               </div>
             </div>

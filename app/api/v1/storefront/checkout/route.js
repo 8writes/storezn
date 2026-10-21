@@ -199,7 +199,7 @@ async function handlePost(req) {
   });
   if (!feeChargedToCustomer && feePolicy.flatFee > flatFeeAmount + 0.001) {
     return NextResponse.json(
-      { error: "This order total is too low for the store to absorb the full Paystack Gateway Fee. Add more items or choose a different store." },
+      { error: "This order total is too low for the store to absorb the full Processing Fee. Add more items or choose a different store." },
       { status: 422 },
     );
   }

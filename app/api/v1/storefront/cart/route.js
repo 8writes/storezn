@@ -92,7 +92,7 @@ async function handleGet(req) {
 }
 
 // Live preview of what checkout will actually charge/split, so the cart
-// and checkout pages can show the same "Paystack Gateway Fee"/shipping lines (or
+// and checkout pages can show the same "Processing Fee"/shipping lines (or
 // hide them entirely) that POST /api/v1/storefront/checkout will compute
 // for real - see lib/orders.js's computeOrderTotals for the shared math.
 // store.feeChargedToCustomer is the vendor's own choice for their store

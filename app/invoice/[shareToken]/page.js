@@ -16,7 +16,8 @@ export default function PublicInvoicePage({ params }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [paymentError, setPaymentError] = useState("");
-  const [email, setEmail] = useState("");
+  // Only asked for when the seller didn't add them to the invoice.
+  const [details, setDetails] = useState({ name: "", phone: "", email: "" });
   const [paying, setPaying] = useState(false);
 
   useEffect(() => {
@@ -31,12 +32,20 @@ export default function PublicInvoicePage({ params }) {
 
   const pay = async () => {
     setPaymentError("");
+    const inv = data?.invoice || {};
+    if (inv.requiresBuyerName && !details.name.trim()) return setPaymentError("Enter your name");
+    if (inv.requiresBuyerPhone && details.phone.trim().length < 5) return setPaymentError("Enter your phone number");
+    if (inv.requiresPaymentEmail && !/^[^s@]+@[^s@]+.[^s@]+$/.test(details.email.trim())) return setPaymentError("Enter a valid email address");
     setPaying(true);
     try {
       const res = await safeFetch(`/api/v1/storefront/invoices/${shareToken}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(email.trim() ? { email: email.trim() } : {}),
+        body: JSON.stringify({
+          ...(inv.requiresBuyerName ? { name: details.name.trim() } : {}),
+          ...(inv.requiresBuyerPhone ? { phone: details.phone.trim() } : {}),
+          ...(inv.requiresPaymentEmail ? { email: details.email.trim() } : {}),
+        }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "Could not start payment");
@@ -61,8 +70,8 @@ export default function PublicInvoicePage({ params }) {
     >
       <InvoiceView
         data={data}
-        email={email}
-        setEmail={setEmail}
+        details={details}
+        setDetails={setDetails}
         pay={pay}
         paying={paying}
         paymentError={paymentError}
@@ -71,7 +80,7 @@ export default function PublicInvoicePage({ params }) {
   );
 }
 
-function InvoiceView({ data, email, setEmail, pay, paying, paymentError }) {
+function InvoiceView({ data, details, setDetails, pay, paying, paymentError }) {
   const { format, formatNaira, isUsd } = useMoney();
   const { invoice, items, store } = data;
   const paid = invoice.status === "paid";
@@ -142,28 +151,26 @@ function InvoiceView({ data, email, setEmail, pay, paying, paymentError }) {
           )}
           {invoice.commissionAmount > 0 && (
             <div className="flex justify-between text-sm text-slate-700">
-              <span>{invoice.international ? "International card fee" : "Paystack Gateway Fee"} ({invoice.commissionRatePercent}%)</span>
-              <span>{format(invoice.commissionAmount)}</span>
-            </div>
-          )}
-          {invoice.flatFeeAmount > 0 && (
-            <div className="flex justify-between text-sm text-slate-700">
-              <span>Flat fee</span>
-              <span>{format(invoice.flatFeeAmount)}</span>
+              <span>Processing Fee</span>
+              <span>{format(invoice.commissionAmount + invoice.flatFeeAmount)}</span>
             </div>
           )}
           <div className="flex justify-between font-semibold text-slate-900">
             <span>Total</span>
             <span>{format(invoice.totalAmount)}</span>
           </div>
-          <div className="flex justify-between text-sm text-slate-700">
-            <span>Paid</span>
-            <span>{format(invoice.amountPaid)}</span>
-          </div>
-          <div className="flex justify-between text-sm font-semibold text-brand-700">
-            <span>Due now</span>
-            <span>{format(invoice.amountDue)}</span>
-          </div>
+          {invoice.amountPaid > 0 && (
+            <div className="flex justify-between text-sm text-slate-700">
+              <span>Already paid</span>
+              <span>{format(invoice.amountPaid)}</span>
+            </div>
+          )}
+          {!paid && (
+            <div className="flex justify-between text-sm font-semibold text-brand-700">
+              <span>To pay now</span>
+              <span>{format(invoice.amountDue)}</span>
+            </div>
+          )}
         </div>
         <div className="pt-6 space-y-3">
           {invoice.orderStatus && invoice.amountPaid > 0 && (
@@ -196,14 +203,19 @@ function InvoiceView({ data, email, setEmail, pay, paying, paymentError }) {
             </p>
           ) : (
             <>
-              {invoice.requiresPaymentEmail && (
-                <Input
-                  type="email"
-                  label="Email for payment receipt"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                />
+              {(invoice.requiresBuyerName || invoice.requiresBuyerPhone || invoice.requiresPaymentEmail) && (
+                <div className="space-y-3 rounded-sm border border-slate-200 p-4">
+                  <p className="text-sm font-semibold text-slate-900">Your details</p>
+                  {invoice.requiresBuyerName && (
+                    <Input label="Full name" autoComplete="name" value={details.name} onChange={(e) => setDetails((d) => ({ ...d, name: e.target.value }))} maxLength={150} required />
+                  )}
+                  {invoice.requiresBuyerPhone && (
+                    <Input label="Phone number" type="tel" autoComplete="tel" value={details.phone} onChange={(e) => setDetails((d) => ({ ...d, phone: e.target.value }))} maxLength={30} required />
+                  )}
+                  {invoice.requiresPaymentEmail && (
+                    <Input label="Email (for your receipt)" type="email" autoComplete="email" value={details.email} onChange={(e) => setDetails((d) => ({ ...d, email: e.target.value }))} required />
+                  )}
+                </div>
               )}
               {paymentError && (
                 <p className="text-sm text-red-700">{paymentError}</p>
