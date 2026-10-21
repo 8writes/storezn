@@ -107,7 +107,7 @@ export async function GET(req, { params }) {
       .where(and(inMonth, isSale, eq(orders.isOffline, false))),
     db
       .select({
-        productId: orderItems.productId,
+        productId: sql`max(${orderItems.productId})`,
         name: sql`max(${orderItems.productName})`,
         qty: sql`sum(${orderItems.quantity})`.mapWith(Number),
         revenue: sql`sum(${orderItems.lineTotal})`.mapWith(Number),
@@ -115,19 +115,19 @@ export async function GET(req, { params }) {
       .from(orderItems)
       .innerJoin(orders, eq(orders.id, orderItems.orderId))
       .where(and(inMonth, isSale))
-      .groupBy(orderItems.productId)
+      .groupBy(sql`coalesce(${orderItems.productId}, 'custom:' || ${orderItems.productName})`)
       .orderBy(sql`sum(${orderItems.lineTotal}) desc`)
       .limit(10),
     db
       .select({
-        productId: orderItems.productId,
+        productId: sql`max(${orderItems.productId})`,
         name: sql`max(${orderItems.productName})`,
         qty: sql`sum(${orderItems.quantity})`.mapWith(Number),
       })
       .from(orderItems)
       .innerJoin(orders, eq(orders.id, orderItems.orderId))
       .where(and(inMonth, isSale))
-      .groupBy(orderItems.productId)
+      .groupBy(sql`coalesce(${orderItems.productId}, 'custom:' || ${orderItems.productName})`)
       .orderBy(sql`sum(${orderItems.quantity}) desc`)
       .limit(10),
     // Every product sold this month, no cap - the full ledger, not just
@@ -138,7 +138,7 @@ export async function GET(req, { params }) {
     // priceChangedProductIds below).
     db
       .select({
-        productId: orderItems.productId,
+        productId: sql`max(${orderItems.productId})`,
         name: sql`max(${orderItems.productName})`,
         qty: sql`sum(${orderItems.quantity})`.mapWith(Number),
         revenue: sql`sum(${orderItems.lineTotal})`.mapWith(Number),
@@ -150,7 +150,7 @@ export async function GET(req, { params }) {
       .from(orderItems)
       .innerJoin(orders, eq(orders.id, orderItems.orderId))
       .where(and(inMonth, isSale))
-      .groupBy(orderItems.productId)
+      .groupBy(sql`coalesce(${orderItems.productId}, 'custom:' || ${orderItems.productName})`)
       .orderBy(sql`sum(${orderItems.lineTotal}) desc`),
     db
       .select({
@@ -161,7 +161,7 @@ export async function GET(req, { params }) {
       })
       .from(orderItems)
       .innerJoin(orders, eq(orders.id, orderItems.orderId))
-      .innerJoin(products, eq(products.id, orderItems.productId))
+      .leftJoin(products, eq(products.id, orderItems.productId))
       .leftJoin(categories, eq(categories.id, products.categoryId))
       .where(and(inMonth, isSale))
       .groupBy(products.categoryId)

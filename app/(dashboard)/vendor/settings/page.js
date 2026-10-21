@@ -19,13 +19,13 @@ import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { Select } from "@/components/ui/Select.js";
 import { uploadFile } from "@/lib/clientUpload.js";
 import { formatCurrency, formatBytes } from "@/lib/format.js";
-import { rateAge } from "@/lib/fxDisplay.js";
+import { DEFAULT_FX_PROVIDER, rateAge } from "@/lib/fxDisplay.js";
 import { NIGERIA_STATE_OPTIONS } from "@/lib/nigeria.js";
 import { isColorTooLight } from "@/lib/colorShades.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { name: "", logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "", internationalPaymentsEnabled: false, usdRateProvider: "manual" };
+const EMPTY_FORM = { name: "", logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "", internationalPaymentsEnabled: false, usdRateProvider: DEFAULT_FX_PROVIDER };
 
 const NAME_MAX = 120;
 const DESCRIPTION_MAX = 160;
@@ -116,7 +116,7 @@ export default function VendorSettingsPage() {
           // offered (Wise with no token) becomes the first offered one.
           usdRateProvider: (data.usdRates || []).some((r) => r.provider === data.store.usdRateProvider)
             ? data.store.usdRateProvider
-            : data.usdRates?.[0]?.provider || "manual",
+            : data.usdRates?.[0]?.provider || DEFAULT_FX_PROVIDER,
         });
         setUsdRates(data.usdRates || []);
         setIntlFees(data.international || null);

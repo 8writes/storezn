@@ -20,6 +20,10 @@ async function handlePost(req) {
   if (!store || !isStoreLive(store)) return NextResponse.json({ error: "Store not found" }, { status: 404 });
   const body = await req.json().catch(() => null);
   const result = validate(createInvoiceRequestSchema, body || {});
+  // Custom (typed-in) lines are a vendor tool for offline quotes only.
+  if (result.ok && result.data.items.some((item) => !item.productId)) {
+    return NextResponse.json({ error: "Choose a product for every line" }, { status: 400 });
+  }
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
   const user = await getUser(req);

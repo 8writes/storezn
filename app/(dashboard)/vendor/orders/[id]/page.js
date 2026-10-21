@@ -455,7 +455,7 @@ export default function VendorOrderDetailPage({ params }) {
 
       <OrderItemModal
         item={activeItem}
-        productHref={activeItem ? `/vendor/products/${activeItem.productId}?storeId=${storeId}` : null}
+        productHref={activeItem?.productId ? `/vendor/products/${activeItem.productId}?storeId=${storeId}` : null}
         onClose={() => setActiveItem(null)}
       />
     </div>

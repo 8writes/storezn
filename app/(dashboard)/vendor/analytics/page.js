@@ -469,7 +469,7 @@ export default function VendorAnalyticsPage() {
                 <ul className="divide-y divide-slate-100">
                   {data.topProducts.map((p) => (
                     <li
-                      key={p.productId}
+                      key={p.productId || `custom:${p.name}`}
                       className="flex items-center gap-3 px-5 py-3"
                     >
                       {p.image ? (

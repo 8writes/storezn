@@ -5,7 +5,6 @@ import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { getUser, requireRole } from "../../../../../lib/auth.js";
 import { validate, updatePlatformSettingsSchema } from "../../../../../lib/validate.js";
 import { createPlan, updatePlan } from "../../../../../lib/paystack.js";
-import { getManualUsdRate, setManualUsdRate } from "../../../../../lib/fxRates.js";
 
 async function getOrCreateSettings() {
   const [row] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
@@ -38,9 +37,7 @@ export async function GET(req) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const settings = await getOrCreateSettings();
-  // The manual dollar rate lives with the fetched ones in exchange_rates,
-  // not on platform_settings - it's one more rate source (lib/fxRates.js).
-  return NextResponse.json({ settings, manualUsdRate: await getManualUsdRate(), databaseAccess: getDatabaseAccess() });
+  return NextResponse.json({ settings, databaseAccess: getDatabaseAccess() });
 }
 
 export async function PATCH(req) {
@@ -56,16 +53,7 @@ export async function PATCH(req) {
 
   const current = await getOrCreateSettings();
 
-  // Not a platform_settings column - saved to exchange_rates as the
-  // "manual" source, then removed from the column update below.
-  const { manualUsdRate, ...settingsFields } = result.data;
-  if (manualUsdRate !== undefined) {
-    try {
-      await setManualUsdRate(manualUsdRate);
-    } catch (err) {
-      return NextResponse.json({ error: err.message }, { status: err.status || 500 });
-    }
-  }
+  const settingsFields = result.data;
 
   // Keep the Storezn+ Paystack Plan's price in sync with this single
   // source of truth - create it once (first time a price is saved),
@@ -111,5 +99,5 @@ export async function PATCH(req) {
     .where(eq(platformSettings.id, "singleton"))
     .returning();
 
-  return NextResponse.json({ settings: updated, manualUsdRate: await getManualUsdRate() });
+  return NextResponse.json({ settings: updated });
 }

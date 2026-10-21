@@ -104,23 +104,28 @@ test("rate age reads naturally", () => {
 });
 
 // ---------------------------------------------------------------------
-// The platform owner's manual rate (set in super-admin).
+// The old manual "Storezn rate" is retired - a store still pointing at it,
+// or a leftover row, must never be served.
 // ---------------------------------------------------------------------
 
-test("a manually-set rate never goes stale", () => {
-  const rows = [{ provider: "manual", ngnPerUnit: 1550, fetchedAt: new Date(NOW - 90 * 24 * 3_600_000) }];
+test("a store still set to the retired manual rate gets the market rate", () => {
+  const rows = [
+    { provider: "manual", ngnPerUnit: 1550, fetchedAt: hoursAgo(1) },
+    { provider: "market", ngnPerUnit: 1330, fetchedAt: hoursAgo(1) },
+  ];
   const chosen = chooseRate(rows, "manual", NOW);
-  assert.equal(chosen.provider, "manual");
-  assert.equal(chosen.rate, 1550);
+  assert.equal(chosen.provider, "market");
+  assert.equal(chosen.rate, 1330);
+  assert.equal(chosen.isFallback, false);
 });
 
-test("a store set to Wise with no Wise rate falls back to the manual rate first", () => {
+test("a store set to Wise with no Wise rate falls back to the market rate", () => {
   const rows = [
-    { provider: "manual", ngnPerUnit: 1550, fetchedAt: hoursAgo(500) },
+    { provider: "manual", ngnPerUnit: 1550, fetchedAt: hoursAgo(1) },
     { provider: "market", ngnPerUnit: 1330, fetchedAt: hoursAgo(1) },
   ];
   const chosen = chooseRate(rows, "wise", NOW);
-  assert.equal(chosen.provider, "manual");
+  assert.equal(chosen.provider, "market");
   assert.equal(chosen.isFallback, true);
 });
 
@@ -132,6 +137,6 @@ test("a store that picked the market rate still gets the market rate", () => {
   assert.equal(chooseRate(rows, "market", NOW).provider, "market");
 });
 
-test("the manual rate is a registered, selectable source", () => {
-  assert.equal(isFxProvider("manual"), true);
+test("the manual rate is no longer a selectable source", () => {
+  assert.equal(isFxProvider("manual"), false);
 });

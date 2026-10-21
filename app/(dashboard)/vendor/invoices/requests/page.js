@@ -68,7 +68,7 @@ export default function VendorInvoiceRequestsPage() {
   const selected = requests.find((row) => row.request.id === selectedId) || null;
   useModalScrollLock(!!selected);
   const total = useMemo(
-    () => (selected?.items || []).reduce((sum, item) => sum + (Number(prices[`${item.productId}:${item.variantId || ""}`]) || 0) * item.quantity, 0),
+    () => (selected?.items || []).reduce((sum, item) => sum + (Number(prices[item.id]) || 0) * item.quantity, 0),
     [selected, prices],
   );
   // The customer answered "paying with a card from outside Nigeria" on the
@@ -96,16 +96,18 @@ export default function VendorInvoiceRequestsPage() {
     setSelectedId(request.id);
     setGuestEmail(request.guestEmail || "");
     setPlan("full");
-    setPrices(Object.fromEntries(items.map((item) => [`${item.productId}:${item.variantId || ""}`, ""])));
+    setPrices(Object.fromEntries(items.map((item) => [item.id, ""])));
   };
 
   const createInvoice = async () => {
     if (!selected) return;
+    // Keyed by request line, so a custom (product-less) line prices the same
+    // way as a catalogue one.
     const items = selected.items.map((item) => ({
-      productId: item.productId,
-      variantId: item.variantId || null,
+      requestItemId: item.id,
+      ...(item.productId ? { productId: item.productId, variantId: item.variantId || null } : {}),
       quantity: item.quantity,
-      unitPrice: Number(prices[`${item.productId}:${item.variantId || ""}`]),
+      unitPrice: Number(prices[item.id]),
     }));
     if (items.some((item) => !Number.isFinite(item.unitPrice) || item.unitPrice <= 0)) {
       toast.error("Add a valid price for every item");
@@ -202,7 +204,7 @@ export default function VendorInvoiceRequestsPage() {
             <input type="email" placeholder="Customer email (optional)" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />
             <div className="space-y-3">
               {selected.items.map((item) => {
-                const key = `${item.productId}:${item.variantId || ""}`;
+                const key = item.id;
                 const details = customerFieldEntries(item.customerFields);
                 const unitPrice = Number(prices[key]) || 0;
                 return (
@@ -214,7 +216,7 @@ export default function VendorInvoiceRequestsPage() {
                         className="min-w-0 text-left cursor-pointer rounded-sm hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                       >
                         <p className="text-sm font-medium text-slate-900">{item.productName}</p>
-                        <p className="text-xs text-slate-600">Qty {item.quantity}{item.variantLabel ? ` - ${item.variantLabel}` : ""}</p>
+                        <p className="text-xs text-slate-600">Qty {item.quantity}{item.variantLabel ? ` - ${item.variantLabel}` : ""}{item.productId ? "" : " - Custom item"}</p>
                       </button>
                       <input type="number" min="0.01" step="0.01" placeholder="Price" value={prices[key] || ""} onChange={(event) => setPrices((current) => ({ ...current, [key]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-2 py-2 text-sm" />
                     </div>

@@ -41,16 +41,22 @@ export async function POST(req, { params }) {
     ? stockBranchForUser(branchRows, user)
     : branchRows.find((row) => row.id === result.data.branchId) || stockBranchForUser(branchRows, user);
   if (!branch) return NextResponse.json({ error: STAFF_BRANCH_REQUIRED_MESSAGE }, { status: 409 });
-  const ids = [...new Set(result.data.items.map((item) => item.productId))];
+  const ids = [...new Set(result.data.items.map((item) => item.productId).filter(Boolean))];
   const variants = [...new Set(result.data.items.map((item) => item.variantId).filter(Boolean))];
   const [productsRows, variantsRows] = await Promise.all([
-    db.select().from(products).where(and(eq(products.storeId, storeId), inArray(products.id, ids), eq(products.isActive, true), isNull(products.suspendedAt))),
+    ids.length ? db.select().from(products).where(and(eq(products.storeId, storeId), inArray(products.id, ids), eq(products.isActive, true), isNull(products.suspendedAt))) : [],
     variants.length ? db.select().from(productVariants).where(inArray(productVariants.id, variants)) : [],
   ]);
   const productById = new Map(productsRows.map((product) => [product.id, product]));
   const variantById = new Map(variantsRows.map((variant) => [variant.id, variant]));
   const rows = [];
   for (const item of result.data.items) {
+    // A custom line: just a name and a quantity, priced on the next step
+    // like any other line. No product, no stock, no customer fields.
+    if (!item.productId) {
+      rows.push({ product: null, variant: null, item: { ...item, customerFields: {} } });
+      continue;
+    }
     const product = productById.get(item.productId);
     const variant = item.variantId ? variantById.get(item.variantId) : null;
     if (!product || product.saleMode !== "invoice_required" || (item.variantId && (!variant || variant.productId !== product.id || !variant.isActive))) return NextResponse.json({ error: "POS invoice requests only accept active invoice-required products" }, { status: 409 });
@@ -65,7 +71,7 @@ export async function POST(req, { params }) {
     // international payments, exactly like the storefront quote form.
     const international = !!store.internationalPaymentsEnabled && result.data.international === true;
     const [created] = await tx.insert(invoiceRequests).values({ storeId, branchId: branch.id, requestNumber, guestEmail: result.data.guestEmail, buyerName: result.data.buyerName, buyerPhone: result.data.buyerPhone, note: result.data.note || null, international, status: "new", createdBy: user.id }).returning();
-    await tx.insert(invoiceRequestItems).values(rows.map(({ product, variant, item }) => ({ requestId: created.id, productId: product.id, variantId: variant?.id || null, productName: product.name, variantLabel: variant ? Object.entries(variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, quantity: item.quantity, customerFields: item.customerFields || {} })));
+    await tx.insert(invoiceRequestItems).values(rows.map(({ product, variant, item }) => ({ requestId: created.id, productId: product?.id || null, variantId: variant?.id || null, productName: product ? product.name : item.customName, variantLabel: variant ? Object.entries(variant.options || {}).map(([key, value]) => `${key}: ${value}`).join(", ") : null, quantity: item.quantity, customerFields: item.customerFields || {} })));
     return [created];
   });
   after(() => logStoreActivity({

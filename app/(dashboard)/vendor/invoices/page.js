@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, FileText, Minus, Plus, X } from "lucide-react";
+import { ChevronRight, FileText, Minus, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -149,18 +149,23 @@ export default function VendorInvoicesPage() {
   );
 }
 
+// One line on an offline quote: a product from the store, or a custom item
+// typed in by name for something the vendor never added to the platform.
+// Custom lines carry no stock and no customer fields; both kinds are priced
+// on the next step (quote requests).
+let nextLineUid = 1;
+const newLine = (kind = "product") => ({ uid: nextLineUid++, kind, key: "", name: "", quantity: 1, answers: {} });
+
 function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confirm, onClose, onCreated }) {
   const [products, setProducts] = useState([]);
   const [productLoading, setProductLoading] = useState(true);
-  const [selectedKey, setSelectedKey] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [lines, setLines] = useState(() => [newLine()]);
   const [buyerName, setBuyerName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [note, setNote] = useState("");
   // Customer will pay with a foreign card - see InternationalCardCheckbox.
   const [international, setInternational] = useState(false);
-  const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -196,15 +201,37 @@ function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confi
     for (const variant of variants) options.push({ value: `${product.id}:${variant.id}`, label: `${product.name} - ${Object.values(variant.options || {}).join(" / ")}`, searchText: `${product.sku || ""} ${variant.sku || ""}`, product, variant });
     return options;
   }), [products]);
-  const selected = choices.find((choice) => choice.value === selectedKey) || null;
-  const fields = Array.isArray(selected?.product.customerFields) ? selected.product.customerFields : [];
+  const choiceOptions = useMemo(() => choices.map(({ value, label, searchText }) => ({ value, label, searchText })), [choices]);
+  const noProducts = !productLoading && choices.length === 0;
+
+  const updateLine = (uid, patch) => setLines((current) => current.map((line) => (line.uid === uid ? { ...line, ...patch } : line)));
+  const removeLine = (uid) => setLines((current) => (current.length > 1 ? current.filter((line) => line.uid !== uid) : current));
 
   const submit = async () => {
-    if (!selected) return toast.error("Select a product");
     if (!buyerName.trim() || !guestEmail.trim() || !buyerPhone.trim()) return toast.error("Customer name, email, and phone are required");
-    const missingField = fields.find((field) => field.required && (field.type === "checkbox" ? answers[field.id] !== true : !String(answers[field.id] ?? "").trim()));
-    if (missingField) return toast.error(`${missingField.label} is required`);
-    const approved = await confirm({ title: "Create this offline quote request?", description: "It will appear in the quote queue so you can set the price and send the invoice.", confirmLabel: "Create request" });
+    const items = [];
+    const seen = new Set();
+    for (const [index, line] of lines.entries()) {
+      const label = `Line ${index + 1}`;
+      if (line.kind === "custom") {
+        const name = line.name.trim();
+        if (!name) return toast.error(`${label}: enter the item name`);
+        const dupe = `custom:${name.toLowerCase()}`;
+        if (seen.has(dupe)) return toast.error(`"${name}" is listed twice - change the quantity instead`);
+        seen.add(dupe);
+        items.push({ customName: name, quantity: line.quantity });
+        continue;
+      }
+      const selected = choices.find((choice) => choice.value === line.key);
+      if (!selected) return toast.error(`${label}: select a product, or switch it to a custom item`);
+      if (seen.has(line.key)) return toast.error(`${selected.label} is listed twice - change the quantity instead`);
+      seen.add(line.key);
+      const fields = Array.isArray(selected.product.customerFields) ? selected.product.customerFields : [];
+      const missingField = fields.find((field) => field.required && (field.type === "checkbox" ? line.answers[field.id] !== true : !String(line.answers[field.id] ?? "").trim()));
+      if (missingField) return toast.error(`${selected.label}: ${missingField.label} is required`);
+      items.push({ productId: selected.product.id, variantId: selected.variant?.id || null, quantity: line.quantity, customerFields: line.answers });
+    }
+    const approved = await confirm({ title: "Create this offline quote request?", description: "It will appear in the quote queue so you can set the prices and send the invoice.", confirmLabel: "Create request" });
     if (!approved) return;
     setSubmitting(true);
     try {
@@ -216,7 +243,7 @@ function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confi
           buyerPhone: buyerPhone.trim(),
           note: note.trim() || undefined,
           ...(internationalStore ? { international } : {}),
-          items: [{ productId: selected.product.id, variantId: selected.variant?.id || null, quantity, customerFields: answers }],
+          items,
         }),
       });
       toast.success("Offline quote request created");
@@ -234,12 +261,53 @@ function ManualQuoteModal({ storeId, internationalStore = false, apiFetch, confi
       <div className="relative w-full sm:max-w-lg max-h-[92dvh] flex flex-col bg-surface rounded-t-sm sm:rounded-sm shadow-xl">
         <div className="p-4 border-b border-slate-200 flex items-start justify-between gap-3"><div><h2 className="font-semibold text-slate-900">New offline quote</h2><p className="text-sm text-slate-600 mt-1">For a walk-in, phone, or WhatsApp customer.</p></div><button type="button" onClick={onClose} disabled={submitting} aria-label="Close" className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"><X size={19} /></button></div>
         <div className="p-4 overflow-y-auto overscroll-contain space-y-4">
-          <Select label="Product or variant" value={selectedKey} onChange={(value) => { setSelectedKey(value); setAnswers({}); }} options={choices.map(({ value, label, searchText }) => ({ value, label, searchText }))} placeholder={productLoading ? "Loading products..." : "Select product"} loading={productLoading} />
-          <div className="space-y-1"><p className="text-sm font-medium text-slate-700">Quantity</p><div className="inline-grid grid-cols-[2.75rem_4rem_2.75rem] h-11 border border-slate-300 rounded-sm overflow-hidden"><button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Decrease quantity" className="grid place-items-center text-brand-700 hover:bg-brand-50 cursor-pointer"><Minus size={17} /></button><output className="grid place-items-center border-x border-slate-300 text-sm font-semibold tabular-nums">{quantity}</output><button type="button" onClick={() => setQuantity((value) => Math.min(100000, value + 1))} aria-label="Increase quantity" className="grid place-items-center text-brand-700 hover:bg-brand-50 cursor-pointer"><Plus size={17} /></button></div></div>
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-slate-700">Items</p>
+            {lines.map((line, index) => {
+              const selected = line.kind === "product" ? choices.find((choice) => choice.value === line.key) || null : null;
+              const fields = Array.isArray(selected?.product.customerFields) ? selected.product.customerFields : [];
+              const setAnswer = (id, value) => updateLine(line.uid, { answers: { ...line.answers, [id]: value } });
+              return (
+                <div key={line.uid} className="rounded-sm border border-slate-200 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="inline-flex rounded-sm border border-slate-300 p-0.5 text-xs" role="group" aria-label={`Line ${index + 1} type`}>
+                      {[["product", "From your products"], ["custom", "Custom item"]].map(([kind, label]) => (
+                        <button
+                          key={kind}
+                          type="button"
+                          aria-pressed={line.kind === kind}
+                          onClick={() => updateLine(line.uid, { kind, key: "", name: "", answers: {} })}
+                          className={`rounded-sm px-2.5 py-1 cursor-pointer ${line.kind === kind ? "bg-brand-600 text-white" : "text-slate-700 hover:bg-slate-50"}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {lines.length > 1 && (
+                      <button type="button" onClick={() => removeLine(line.uid)} aria-label={`Remove line ${index + 1}`} className="p-1 text-slate-500 hover:text-red-600 cursor-pointer"><Trash2 size={16} /></button>
+                    )}
+                  </div>
+                  {line.kind === "custom" ? (
+                    <Input label="Item name" placeholder="e.g. Custom 3-seater sofa" maxLength={200} value={line.name} onChange={(event) => updateLine(line.uid, { name: event.target.value })} />
+                  ) : (
+                    <>
+                      <Select label="Product or variant" value={line.key} onChange={(value) => updateLine(line.uid, { key: value, answers: {} })} options={choiceOptions} placeholder={productLoading ? "Loading products..." : noProducts ? "No quote products - use a custom item" : "Select product"} loading={productLoading} disabled={noProducts} />
+                      {fields.map((field) => <label key={field.id} className="block space-y-1"><span className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</span>{field.type === "textarea" ? <textarea rows={3} value={line.answers[field.id] || ""} onChange={(event) => setAnswer(field.id, event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" /> : field.type === "select" ? <select value={line.answers[field.id] || ""} onChange={(event) => setAnswer(field.id, event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm"><option value="">Select</option>{(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}</select> : field.type === "checkbox" ? <input type="checkbox" checked={line.answers[field.id] === true} onChange={(event) => setAnswer(field.id, event.target.checked)} /> : <input type={field.type === "number" || field.type === "date" ? field.type : "text"} value={line.answers[field.id] || ""} onChange={(event) => setAnswer(field.id, event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />}{field.helpText && <span className="block text-xs text-slate-600">{field.helpText}</span>}</label>)}
+                    </>
+                  )}
+                  <div className="space-y-1"><p className="text-sm font-medium text-slate-700">Quantity</p><div className="inline-grid grid-cols-[2.75rem_4rem_2.75rem] h-11 border border-slate-300 rounded-sm overflow-hidden"><button type="button" onClick={() => updateLine(line.uid, { quantity: Math.max(1, line.quantity - 1) })} aria-label="Decrease quantity" className="grid place-items-center text-brand-700 hover:bg-brand-50 cursor-pointer"><Minus size={17} /></button><output className="grid place-items-center border-x border-slate-300 text-sm font-semibold tabular-nums">{line.quantity}</output><button type="button" onClick={() => updateLine(line.uid, { quantity: Math.min(100000, line.quantity + 1) })} aria-label="Increase quantity" className="grid place-items-center text-brand-700 hover:bg-brand-50 cursor-pointer"><Plus size={17} /></button></div></div>
+                </div>
+              );
+            })}
+            {lines.length < 100 && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setLines((current) => [...current, newLine(noProducts ? "custom" : "product")])}>
+                <Plus size={15} /> Add another item
+              </Button>
+            )}
+          </div>
           <Input label="Customer name" required value={buyerName} onChange={(event) => setBuyerName(event.target.value)} />
           <Input label="Customer email" type="email" required value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} />
           <Input label="Customer phone or WhatsApp" type="tel" required value={buyerPhone} onChange={(event) => setBuyerPhone(event.target.value)} />
-          {fields.map((field) => <label key={field.id} className="block space-y-1"><span className="text-sm font-medium text-slate-700">{field.label}{field.required ? " *" : ""}</span>{field.type === "textarea" ? <textarea rows={3} value={answers[field.id] || ""} onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" /> : field.type === "select" ? <select value={answers[field.id] || ""} onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm"><option value="">Select</option>{(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}</select> : field.type === "checkbox" ? <input type="checkbox" checked={answers[field.id] === true} onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.checked }))} /> : <input type={field.type === "number" || field.type === "date" ? field.type : "text"} value={answers[field.id] || ""} onChange={(event) => setAnswers((current) => ({ ...current, [field.id]: event.target.value }))} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" />}{field.helpText && <span className="block text-xs text-slate-600">{field.helpText}</span>}</label>)}
           {internationalStore && <InternationalCardCheckbox checked={international} onChange={setInternational} />}
           <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Note (optional)</span><textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm" /></label>
         </div>

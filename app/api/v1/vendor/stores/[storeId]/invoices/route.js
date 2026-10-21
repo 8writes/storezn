@@ -178,24 +178,35 @@ async function handlePost(req, { params }) {
       item,
     ]),
   );
+  const requestItemById = new Map(requestedItems.map((item) => [item.id, item]));
+  // Each priced line resolves to its request line - by id when the client
+  // sends one (always, for a custom line), else by product + option.
+  const resolvedItems = result.data.items.map((item) => {
+    const requestItem = item.requestItemId
+      ? requestItemById.get(item.requestItemId)
+      : requestItemByKey.get(`${item.productId}:${item.variantId || ""}`);
+    return { item, requestItem };
+  });
   const productIds = [
-    ...new Set(result.data.items.map((item) => item.productId)),
+    ...new Set(resolvedItems.map(({ requestItem }) => requestItem?.productId).filter(Boolean)),
   ];
   const variantIds = [
-    ...new Set(result.data.items.map((item) => item.variantId).filter(Boolean)),
+    ...new Set(resolvedItems.map(({ requestItem }) => requestItem?.variantId).filter(Boolean)),
   ];
   const [productRows, variantRows, settingsRows] = await Promise.all([
-    db
-      .select()
-      .from(products)
-      .where(
-        and(
-          eq(products.storeId, storeId),
-          inArray(products.id, productIds),
-          eq(products.isActive, true),
-          isNull(products.suspendedAt),
-        ),
-      ),
+    productIds.length
+      ? db
+          .select()
+          .from(products)
+          .where(
+            and(
+              eq(products.storeId, storeId),
+              inArray(products.id, productIds),
+              eq(products.isActive, true),
+              isNull(products.suspendedAt),
+            ),
+          )
+      : [],
     variantIds.length
       ? db
           .select()
@@ -211,17 +222,39 @@ async function handlePost(req, { params }) {
     variantRows.map((variant) => [variant.id, variant]),
   );
   const lines = [];
-  for (const item of result.data.items) {
-    const requestItem = requestItemByKey.get(
-      `${item.productId}:${item.variantId || ""}`,
-    );
-    const product = productById.get(item.productId);
-    const variant = item.variantId ? variantById.get(item.variantId) : null;
+  const usedRequestItems = new Set();
+  for (const { item, requestItem } of resolvedItems) {
+    if (!requestItem || usedRequestItems.has(requestItem.id)) {
+      return NextResponse.json(
+        { error: "Invoice items must come from the selected request" },
+        { status: 400 },
+      );
+    }
+    usedRequestItems.add(requestItem.id);
+    if (item.quantity > requestItem.quantity)
+      return NextResponse.json(
+        { error: `Quantity for ${requestItem.productName} exceeds the request` },
+        { status: 400 },
+      );
+    // A custom line the vendor typed on an offline quote - no product
+    // behind it, so nothing to check against the catalogue or hold.
+    if (!requestItem.productId) {
+      lines.push({
+        product: null,
+        variant: null,
+        name: requestItem.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        customerFields: {},
+      });
+      continue;
+    }
+    const product = productById.get(requestItem.productId);
+    const variant = requestItem.variantId ? variantById.get(requestItem.variantId) : null;
     if (
-      !requestItem ||
       !product ||
       product.saleMode !== "invoice_required" ||
-      (item.variantId &&
+      (requestItem.variantId &&
         (!variant || variant.productId !== product.id || !variant.isActive))
     ) {
       return NextResponse.json(
@@ -229,14 +262,10 @@ async function handlePost(req, { params }) {
         { status: 400 },
       );
     }
-    if (item.quantity > requestItem.quantity)
-      return NextResponse.json(
-        { error: `Quantity for ${product.name} exceeds the request` },
-        { status: 400 },
-      );
     lines.push({
       product,
       variant,
+      name: product.name,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       customerFields: requestItem.customerFields || {},
@@ -298,7 +327,7 @@ async function handlePost(req, { params }) {
       { status: 400 },
     );
   const physicalLines = lines.filter(
-    (line) => line.product.productType === "physical",
+    (line) => line.product?.productType === "physical",
   );
   const invoice = {
     id: invoiceId,
@@ -417,9 +446,9 @@ async function handlePost(req, { params }) {
       await tx.insert(invoiceItems).values(
         lines.map((line) => ({
           invoiceId,
-          productId: line.product.id,
+          productId: line.product?.id || null,
           variantId: line.variant?.id || null,
-          productName: line.product.name,
+          productName: line.name,
           variantLabel: line.variant
             ? Object.entries(line.variant.options || {})
                 .map(([key, value]) => `${key}: ${value}`)
@@ -434,10 +463,10 @@ async function handlePost(req, { params }) {
       await tx.insert(orderItems).values(
         lines.map((line) => ({
           orderId,
-          productId: line.product.id,
+          productId: line.product?.id || null,
           variantId: line.variant?.id || null,
-          productName: line.product.name,
-          productImage: line.product.images?.[0] || null,
+          productName: line.name,
+          productImage: line.product?.images?.[0] || null,
           variantLabel: line.variant
             ? Object.entries(line.variant.options || {})
                 .map(([key, value]) => `${key}: ${value}`)

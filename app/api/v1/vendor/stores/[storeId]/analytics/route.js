@@ -174,7 +174,7 @@ export async function GET(req, { params }) {
 
   const topProducts = await db
     .select({
-      productId: orderItems.productId,
+      productId: sql`max(${orderItems.productId})`,
       name: sql`max(${orderItems.productName})`,
       image: sql`max(${orderItems.productImage})`,
       revenue: sql`coalesce(sum(case when ${orders.totalAmount} > 0 then ${orderItems.lineTotal} * least(${orders.amountPaid} / ${orders.totalAmount}, 1) else 0 end), 0)`.mapWith(Number),
@@ -183,7 +183,7 @@ export async function GET(req, { params }) {
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
     .where(and(...revenueConditions, inRange(receivedAt, from, to)))
-    .groupBy(orderItems.productId)
+    .groupBy(sql`coalesce(${orderItems.productId}, 'custom:' || ${orderItems.productName})`)
     .orderBy(desc(sql`coalesce(sum(case when ${orders.totalAmount} > 0 then ${orderItems.lineTotal} * least(${orders.amountPaid} / ${orders.totalAmount}, 1) else 0 end), 0)`))
     .limit(10);
 
@@ -195,7 +195,7 @@ export async function GET(req, { params }) {
     })
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
-    .innerJoin(products, eq(orderItems.productId, products.id))
+    .leftJoin(products, eq(orderItems.productId, products.id))
     .leftJoin(categories, eq(products.categoryId, categories.id))
     .where(and(...revenueConditions, inRange(receivedAt, from, to)))
     .groupBy(categories.id, categories.name)

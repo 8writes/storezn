@@ -506,6 +506,7 @@ async function handlePost(req) {
       branchName = branch?.name || null;
     }
     for (const item of items) {
+      if (!item.productId) continue; // custom invoice line - no stock
       const condition = item.variantId
         ? and(eq(productBranchStock.variantId, item.variantId), eq(productBranchStock.branchId, order.branchId))
         : and(eq(productBranchStock.productId, item.productId), isNull(productBranchStock.variantId), eq(productBranchStock.branchId, order.branchId));
