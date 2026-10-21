@@ -23,7 +23,7 @@ export function ProductFormFieldsButton({ fields, visibleFields, onToggle, savin
   return (
     <>
       {compact ? (
-        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline cursor-pointer">
+        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 h-8 rounded-sm border border-slate-300 bg-surface px-2.5 text-xs font-medium text-slate-700 shadow-xs hover:border-brand-400 hover:text-brand-700 transition-colors cursor-pointer">
           <SlidersHorizontal size={13} /> Show / hide fields
         </button>
       ) : (

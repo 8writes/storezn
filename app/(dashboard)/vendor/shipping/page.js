@@ -1,19 +1,25 @@
 "use client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Select } from "@/components/ui/Select.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Button } from "@/components/ui/Button.js";
-import { PageHeader } from "@/components/ui/PageHeader.js";
+import { Input } from "@/components/ui/Input.js";
+import { Switch } from "@/components/ui/Switch.js";
+import { FormSection } from "@/components/ui/FormSection.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency } from "@/lib/format.js";
-import { Input } from "@/components/ui/Input.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
 import { COUNTRY_OPTIONS, FOREIGN_COUNTRY_OPTIONS, NIGERIA } from "@/lib/countries.js";
+
+// Shipping settings, top to bottom in the order a vendor thinks about them:
+// what delivery costs, where they deliver, whether they deliver abroad, and
+// (optional) fixed fees for particular places. The first three save with
+// the Save button; place fees save as they're added.
 
 const EMPTY_RATE_FORM = { country: NIGERIA, state: "", city: "", fee: "" };
 
@@ -23,12 +29,9 @@ export default function VendorShippingPage() {
 
   const { stores, storeId, loading: storesLoading } = useVendorStore();
   // The loaded form is tagged with the store it came from, so switching
-  // stores shows the skeleton again instead of briefly showing the previous
-  // store's numbers - and `loading` is derived from that rather than being
-  // set synchronously inside the effect below.
+  // stores shows the skeleton again instead of the previous store's numbers.
   const [loaded, setLoaded] = useState(null);
   const form = loaded?.storeId === storeId ? loaded.form : null;
-  const loading = !form;
   const [saving, setSaving] = useState(false);
 
   const setForm = (next) =>
@@ -38,11 +41,7 @@ export default function VendorShippingPage() {
     }));
 
   useEffect(() => {
-    // Also gated on token, not just storeId - see VendorStoreContext.js:
-    // storeId can already be populated (shared context, not remounted)
-    // before this page's own token has resolved on a client-side
-    // navigation, which would otherwise fire this fetch with no
-    // Authorization header.
+    // Gated on token too - storeId can be ready before this page's token.
     if (!token || !storeId) return undefined;
     let alive = true;
     apiFetch(`/api/v1/vendor/stores/${storeId}`)
@@ -53,13 +52,9 @@ export default function VendorShippingPage() {
           form: {
             defaultShippingFee: String(data.store.defaultShippingFee ?? 0),
             defaultShippingIsTBD: data.store.defaultShippingIsTBD ?? true,
-            deliveryStates: Array.isArray(data.store.deliveryStates) && data.store.deliveryStates.length > 0
-              ? data.store.deliveryStates
-              : null,
+            deliveryStates: Array.isArray(data.store.deliveryStates) && data.store.deliveryStates.length > 0 ? data.store.deliveryStates : null,
             internationalDeliveryEnabled: !!data.store.internationalDeliveryEnabled,
-            deliveryCountries: Array.isArray(data.store.deliveryCountries) && data.store.deliveryCountries.length > 0
-              ? data.store.deliveryCountries
-              : null,
+            deliveryCountries: Array.isArray(data.store.deliveryCountries) && data.store.deliveryCountries.length > 0 ? data.store.deliveryCountries : null,
             intlDefaultShippingFee: String(data.store.intlDefaultShippingFee ?? 0),
             intlDefaultShippingIsTBD: data.store.intlDefaultShippingIsTBD ?? true,
           },
@@ -78,7 +73,7 @@ export default function VendorShippingPage() {
     setSaving(true);
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify(form) });
-      toast.success("Shipping settings saved");
+      toast.success("Shipping saved");
     } catch (err) {
       toast.error(err.message || "Failed to save shipping settings");
     } finally {
@@ -86,442 +81,304 @@ export default function VendorShippingPage() {
     }
   };
 
-  if (!storesLoading && stores.length === 0) {
-    return <p className="text-sm text-slate-700">No store set up yet.</p>;
-  }
+  if (!storesLoading && stores.length === 0) return <p className="text-sm text-slate-700">No store set up yet.</p>;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <PageHeader
-        title="Shipping"
-        description="Set default delivery pricing and add fixed rates for locations where you already know the cost."
-      />
+    <div className="mx-auto max-w-3xl space-y-4">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">Shipping</h1>
+        <p className="mt-1 text-sm text-slate-700">What delivery costs and where you deliver.</p>
+      </div>
 
-      {loading || !form ? (
+      {!form ? (
         <FormSkeleton fields={3} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <form onSubmit={handleSave} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700">Default delivery fee in Nigeria</label>
-              <p className="text-xs text-slate-800 mt-0.5">
-                Used on any Nigerian order that needs shipping, unless one of your rates matches the delivery state/city.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, defaultShippingIsTBD: true }))}
-                className={`text-left rounded-sm border p-3 cursor-pointer transition-colors ${
-                  form.defaultShippingIsTBD ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <p className="text-sm font-semibold text-slate-900">To be determined</p>
-                <p className="text-xs text-slate-800 mt-0.5">Recommended</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, defaultShippingIsTBD: false }))}
-                className={`text-left rounded-sm border p-3 cursor-pointer transition-colors ${
-                  !form.defaultShippingIsTBD ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <p className="text-sm font-semibold text-slate-900">Fixed amount</p>
-                <p className="text-xs text-slate-800 mt-0.5">Same fee every time</p>
-              </button>
-            </div>
-
-            {form.defaultShippingIsTBD ? (
-              <p className="text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-sm p-3">
-                Buyers won&apos;t be charged shipping at checkout for orders that fall under this default - they&apos;ll be told
-                you confirm delivery pricing after they order. You&apos;ll record the real delivery fee on each order once you
-                know it (for your own records).
-              </p>
-            ) : (
-              <PriceInput
-                label="Fee"
-                leadingText="₦"
-                className="max-w-xs"
-                value={form.defaultShippingFee}
-                onChange={(v) => setForm((f) => ({ ...f, defaultShippingFee: v }))}
+        <>
+          <form onSubmit={handleSave} className="space-y-4">
+            <FormSection title="Delivery fee">
+              <FeeChoice
+                tbd={form.defaultShippingIsTBD}
+                fee={form.defaultShippingFee}
+                onTbdChange={(tbd) => setForm((f) => ({ ...f, defaultShippingIsTBD: tbd }))}
+                onFeeChange={(fee) => setForm((f) => ({ ...f, defaultShippingFee: fee }))}
+                tbdHint="Customers pay for delivery later. You agree the cost after they order."
+                fixedHint="Every order pays this, unless you set a fee for their area below."
               />
-            )}
+            </FormSection>
 
-            <div className="border-t border-slate-200 pt-4 space-y-3">
-              <div>
-                <label className="text-sm font-medium text-slate-700">Where you deliver</label>
-                <p className="text-xs text-slate-800 mt-0.5">
-                  A buyer whose delivery state isn&apos;t covered is told you don&apos;t deliver there, and can&apos;t check out.
-                  Digital products are unaffected.
-                </p>
+            <FormSection title="Where you deliver in Nigeria">
+              <div className="space-y-3">
+                <Choice
+                  options={[
+                    { value: "all", label: "Anywhere in Nigeria" },
+                    { value: "some", label: "Only some states" },
+                  ]}
+                  value={form.deliveryStates === null ? "all" : "some"}
+                  onChange={(v) => setForm((f) => ({ ...f, deliveryStates: v === "all" ? null : f.deliveryStates ?? [] }))}
+                />
+                {form.deliveryStates !== null && (
+                  <CheckList
+                    options={NIGERIA_STATE_OPTIONS}
+                    selected={form.deliveryStates}
+                    onChange={(deliveryStates) => setForm((f) => ({ ...f, deliveryStates }))}
+                    searchPlaceholder="Search states"
+                    emptyWarning="Pick at least one state - with none picked you deliver anywhere."
+                    allowSelectAll
+                  />
+                )}
               </div>
+            </FormSection>
 
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, deliveryStates: null }))}
-                  className={`rounded-sm border p-3 text-left cursor-pointer transition-colors ${
-                    form.deliveryStates === null ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="block text-sm font-medium text-slate-900">Anywhere in Nigeria</span>
-                  <span className="mt-0.5 block text-xs text-slate-800">Every state. This is the default.</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, deliveryStates: f.deliveryStates ?? [] }))}
-                  className={`rounded-sm border p-3 text-left cursor-pointer transition-colors ${
-                    form.deliveryStates !== null ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="block text-sm font-medium text-slate-900">Only selected states</span>
-                  <span className="mt-0.5 block text-xs text-slate-800">Pick the states you serve.</span>
-                </button>
-              </div>
-
-              {form.deliveryStates !== null && (
-                <>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-slate-800">
-                      {form.deliveryStates.length} of {NIGERIA_STATE_OPTIONS.length} selected
-                    </span>
-                    <div className="flex gap-2 text-xs">
-                      <button type="button" onClick={() => setForm((f) => ({ ...f, deliveryStates: NIGERIA_STATE_OPTIONS.map((o) => o.value) }))} className="cursor-pointer text-brand-700 underline hover:text-brand-800">
-                        Select all
-                      </button>
-                      <button type="button" onClick={() => setForm((f) => ({ ...f, deliveryStates: [] }))} className="cursor-pointer text-slate-700 underline hover:text-slate-900">
-                        Clear
-                      </button>
+            <FormSection title="Outside Nigeria">
+              <div className="space-y-4">
+                <Switch
+                  checked={form.internationalDeliveryEnabled}
+                  onChange={(value) => setForm((f) => ({ ...f, internationalDeliveryEnabled: value }))}
+                  label="Deliver to other countries"
+                  description="Customers abroad can enter an address in their country."
+                />
+                {form.internationalDeliveryEnabled && (
+                  <>
+                    <Choice
+                      options={[
+                        { value: "all", label: "Any country" },
+                        { value: "some", label: "Only some countries" },
+                      ]}
+                      value={form.deliveryCountries === null ? "all" : "some"}
+                      onChange={(v) => setForm((f) => ({ ...f, deliveryCountries: v === "all" ? null : f.deliveryCountries ?? [] }))}
+                    />
+                    {form.deliveryCountries !== null && (
+                      <CheckList
+                        options={FOREIGN_COUNTRY_OPTIONS}
+                        selected={form.deliveryCountries}
+                        onChange={(deliveryCountries) => setForm((f) => ({ ...f, deliveryCountries }))}
+                        searchPlaceholder="Search countries"
+                        emptyWarning="Pick at least one country - with none picked you deliver anywhere."
+                      />
+                    )}
+                    <div className="space-y-2 border-t border-slate-200 pt-4">
+                      <p className="text-sm font-medium text-slate-700">Delivery fee abroad</p>
+                      <FeeChoice
+                        tbd={form.intlDefaultShippingIsTBD}
+                        fee={form.intlDefaultShippingFee}
+                        onTbdChange={(tbd) => setForm((f) => ({ ...f, intlDefaultShippingIsTBD: tbd }))}
+                        onFeeChange={(fee) => setForm((f) => ({ ...f, intlDefaultShippingFee: fee }))}
+                        tbdHint="You agree the cost after they order."
+                        fixedHint="Every order abroad pays this, unless you set a fee for their country below."
+                      />
                     </div>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto rounded-sm border border-slate-200 p-2 grid grid-cols-2 gap-1">
-                    {NIGERIA_STATE_OPTIONS.map((option) => {
-                      const on = form.deliveryStates.includes(option.value);
-                      return (
-                        <label key={option.value} className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={() => setForm((f) => ({
-                              ...f,
-                              deliveryStates: on
-                                ? f.deliveryStates.filter((v) => v !== option.value)
-                                : [...f.deliveryStates, option.value],
-                            }))}
-                            className="size-4 shrink-0 accent-brand-600"
-                          />
-                          <span className="truncate">{option.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  {form.deliveryStates.length === 0 && (
-                    <p className="rounded-sm border border-amber-200 bg-amber-100 p-2.5 text-xs text-amber-900">
-                      No state selected - saving this leaves you delivering anywhere, since &ldquo;nowhere&rdquo; would close your store to every physical order.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-
-            <AbroadDeliverySection form={form} setForm={setForm} />
+                  </>
+                )}
+              </div>
+            </FormSection>
 
             <Button type="submit" loading={saving} fullWidth>Save</Button>
           </form>
 
-          <ShippingRatesManager storeId={storeId} apiFetch={apiFetch} token={token} />
+          <PlaceFees storeId={storeId} apiFetch={apiFetch} token={token} abroad={form.internationalDeliveryEnabled} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// Two side-by-side options, one selected.
+function Choice({ options, value, onChange }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`rounded-sm border px-3 py-2.5 text-sm font-medium text-left cursor-pointer transition-colors ${
+            value === option.value ? "border-brand-600 bg-brand-50 text-brand-800" : "border-slate-200 text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// "Agree after order" or a fixed ₦ amount.
+function FeeChoice({ tbd, fee, onTbdChange, onFeeChange, tbdHint, fixedHint }) {
+  return (
+    <div className="space-y-3">
+      <Choice
+        options={[
+          { value: "tbd", label: "Agree after order" },
+          { value: "fixed", label: "Fixed fee" },
+        ]}
+        value={tbd ? "tbd" : "fixed"}
+        onChange={(v) => onTbdChange(v === "tbd")}
+      />
+      {tbd ? (
+        <p className="text-xs text-slate-600">{tbdHint}</p>
+      ) : (
+        <div className="space-y-1">
+          <PriceInput label="Fee" leadingText="₦" className="max-w-xs" value={fee} onChange={onFeeChange} />
+          <p className="text-xs text-slate-600">{fixedHint}</p>
         </div>
       )}
     </div>
   );
 }
 
-// A city/LGA-specific rate beats a state-wide one, which beats a
-// country-wide one, which beats the store's default fee (local or abroad) -
-// see lib/shipping.js's resolveShippingFee.
-function ShippingRatesManager({ storeId, apiFetch, token }) {
+// Searchable tick list (states or countries).
+function CheckList({ options, selected, onChange, searchPlaceholder, emptyWarning, allowSelectAll = false }) {
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLowerCase();
+  const visible = query ? options.filter((o) => o.label.toLowerCase().includes(query)) : options;
+  const toggle = (value) => onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="flex-1"><Input placeholder={searchPlaceholder} value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <span className="shrink-0 text-xs text-slate-600 tabular-nums">{selected.length} picked</span>
+      </div>
+      <div className="max-h-64 overflow-y-auto rounded-sm border border-slate-200 p-1.5 grid grid-cols-1 sm:grid-cols-2 gap-0.5">
+        {visible.map((option) => (
+          <label key={option.value} className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" checked={selected.includes(option.value)} onChange={() => toggle(option.value)} className="size-4 shrink-0 accent-brand-600" />
+            <span className="truncate">{option.label}</span>
+          </label>
+        ))}
+        {visible.length === 0 && <p className="px-2 py-1.5 text-sm text-slate-600">No match.</p>}
+      </div>
+      <div className="flex gap-3 text-xs">
+        {allowSelectAll && (
+          <button type="button" onClick={() => onChange(options.map((o) => o.value))} className="font-medium text-brand-700 hover:underline cursor-pointer">Pick all</button>
+        )}
+        {selected.length > 0 && <button type="button" onClick={() => onChange([])} className="font-medium text-slate-700 hover:underline cursor-pointer">Clear</button>}
+      </div>
+      {selected.length === 0 && <p className="text-xs text-amber-800">{emptyWarning}</p>}
+    </div>
+  );
+}
+
+function placeLabel(rate) {
+  const country = rate.country || NIGERIA;
+  const abroad = country !== NIGERIA;
+  const suffix = abroad ? `, ${country}` : "";
+  if (rate.city) return `${rate.city}, ${rate.state}${suffix}`;
+  if (rate.state) return `${rate.state}${suffix}`;
+  return country;
+}
+
+// Fixed fees for particular places - the most specific match wins (a city
+// beats its state, a state beats its whole country), and everywhere else
+// pays the fee above. See lib/shipping.js's resolveShippingFee.
+function PlaceFees({ storeId, apiFetch, token, abroad }) {
   const [rates, setRates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState(EMPTY_RATE_FORM);
   const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState(EMPTY_RATE_FORM);
+  const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
   const load = () => {
     apiFetch(`/api/v1/vendor/stores/${storeId}/shipping-rates`)
       .then((data) => setRates(data.shippingRates))
-      .catch((err) => toast.error(err.message || "Failed to load shipping rates"))
+      .catch((err) => toast.error(err.message || "Failed to load fees"))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    // Also gated on token, not just storeId - same client-navigation race
-    // as the parent page's own effect (see there for the full
-    // explanation).
     if (!token || !storeId) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId]);
 
-  const handleAdd = async (e) => {
-    e.preventDefault();
-    setAdding(true);
+  const nigeria = form.country === NIGERIA;
+
+  const add = async () => {
+    if (nigeria && !form.state) return toast.error("Pick a state");
+    if (!(Number(form.fee) >= 0) || form.fee === "") return toast.error("Enter the fee");
+    setSaving(true);
     try {
       const payload = { country: form.country, fee: Number(form.fee) };
       if (form.state.trim()) payload.state = form.state.trim();
       if (form.city.trim()) payload.city = form.city.trim();
       await apiFetch(`/api/v1/vendor/stores/${storeId}/shipping-rates`, { method: "POST", body: JSON.stringify(payload) });
       setForm(EMPTY_RATE_FORM);
-      toast.success("Shipping rate added");
+      setAdding(false);
+      toast.success("Fee added");
       load();
     } catch (err) {
-      toast.error(err.message || "Failed to add shipping rate");
+      toast.error(err.message || "Failed to add the fee");
     } finally {
-      setAdding(false);
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (rateId) => {
+  const remove = async (rateId) => {
     setDeletingId(rateId);
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/shipping-rates/${rateId}`, { method: "DELETE" });
       setRates((r) => r.filter((x) => x.id !== rateId));
     } catch (err) {
-      toast.error(err.message || "Failed to remove shipping rate");
+      toast.error(err.message || "Failed to remove the fee");
     } finally {
       setDeletingId(null);
     }
   };
 
   return (
-    <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
-      <div>
-        <p className="text-sm font-semibold text-slate-700">Shipping rates by location</p>
-        <p className="text-xs text-slate-800">
-          Add a fixed rate for places you already know the cost for. The most specific one wins: a city beats its
-          state, and a state beats its whole country. Everywhere else uses your default fee.
-        </p>
-      </div>
-
-      {!loading && rates.length > 0 && (
-        <div className="divide-y divide-slate-100 border border-slate-100 rounded-sm">
-          {rates.map((r) => (
-            <div key={r.id} className="flex items-center justify-between p-3 text-sm">
-              <div>
-                <p className="text-slate-900">{rateLabel(r)}</p>
-                <p className="text-xs text-slate-800">{formatCurrency(r.fee)}</p>
-              </div>
-              <button type="button" onClick={() => handleDelete(r.id)} disabled={deletingId === r.id} className="text-slate-700 hover:text-red-600 disabled:opacity-50 cursor-pointer">
-                <Trash2 size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-        <div className="sm:col-span-2">
-          <Select
-            label="Country"
-            options={COUNTRY_OPTIONS}
-            value={form.country}
-            onChange={(v) => setForm((f) => ({ ...f, country: v || NIGERIA, state: "", city: "" }))}
-            required
-          />
-        </div>
-        {form.country === NIGERIA ? (
-          <>
-            <Select
-              label="State"
-              options={NIGERIA_STATE_OPTIONS}
-              value={form.state}
-              onChange={(v) => setForm((f) => ({ ...f, state: v, city: "" }))}
-              required
-            />
-            <Select
-              label="City/LGA (optional)"
-              options={getLgaOptions(form.state)}
-              value={form.city}
-              onChange={(v) => setForm((f) => ({ ...f, city: v }))}
-              disabled={!form.state}
-              placeholder="Whole state"
-            />
-          </>
-        ) : (
-          <>
-            {/* Abroad there's no fixed list - leave both blank for a rate
-                that covers the whole country. */}
-            <Input
-              label="State / region (optional)"
-              placeholder={`Whole of ${form.country}`}
-              value={form.state}
-              onChange={(e) => setForm((f) => ({ ...f, state: e.target.value, city: e.target.value.trim() ? f.city : "" }))}
-              maxLength={100}
-            />
-            <Input
-              label="City (optional)"
-              placeholder={form.state.trim() ? "Whole state / region" : "Add a state / region first"}
-              value={form.city}
-              onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-              disabled={!form.state.trim()}
-              maxLength={100}
-            />
-          </>
+    <FormSection
+      title="Fees for specific places"
+      description="Optional. A different fee for a state, city or country. Saved as you add them."
+    >
+      <div className="space-y-3">
+        {!loading && rates.length > 0 && (
+          <ul className="divide-y divide-slate-100 rounded-sm border border-slate-200">
+            {rates.map((rate) => (
+              <li key={rate.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+                <span className="min-w-0 truncate text-slate-900">{placeLabel(rate)}</span>
+                <span className="flex items-center gap-3 shrink-0">
+                  <span className="font-medium text-slate-900 tabular-nums">{formatCurrency(rate.fee)}</span>
+                  <button type="button" onClick={() => remove(rate.id)} disabled={deletingId === rate.id} aria-label={`Remove fee for ${placeLabel(rate)}`} className="p-1 text-slate-500 hover:text-red-600 disabled:opacity-50 cursor-pointer">
+                    <Trash2 size={15} />
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
-        <PriceInput label="Fee" leadingText="₦" value={form.fee} onChange={(v) => setForm((f) => ({ ...f, fee: v }))} required />
-        <Button type="submit" size="sm" variant="outline" loading={adding} fullWidth>
-          Add rate
-        </Button>
-      </form>
-    </div>
-  );
-}
 
-function rateLabel(rate) {
-  const country = rate.country || NIGERIA;
-  const abroad = country !== NIGERIA;
-  const suffix = abroad ? `, ${country}` : "";
-  if (rate.city) return `${rate.city}, ${rate.state}${suffix}`;
-  if (rate.state) return `${rate.state}${suffix} (whole ${abroad ? "region" : "state"})`;
-  return `${country} (whole country)`;
-}
-
-// Delivery outside Nigeria - its own switch, separate from "Accept
-// international payments". Nothing here changes Nigerian delivery above.
-function AbroadDeliverySection({ form, setForm }) {
-  const [search, setSearch] = useState("");
-  const selected = form.deliveryCountries;
-  const query = search.trim().toLowerCase();
-  const visible = query ? FOREIGN_COUNTRY_OPTIONS.filter((o) => o.label.toLowerCase().includes(query)) : FOREIGN_COUNTRY_OPTIONS;
-
-  return (
-    <div className="border-t border-slate-200 pt-4 space-y-3">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <label className="text-sm font-medium text-slate-700">Deliver outside Nigeria</label>
-          <p className="text-xs text-slate-800 mt-0.5">
-            Let customers abroad enter an address in their own country. Separate from accepting international payments.
-          </p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={form.internationalDeliveryEnabled}
-          aria-label="Deliver outside Nigeria"
-          onClick={() => setForm((f) => ({ ...f, internationalDeliveryEnabled: !f.internationalDeliveryEnabled }))}
-          className={`shrink-0 relative w-12 h-7 rounded-full transition-colors cursor-pointer ${
-            form.internationalDeliveryEnabled ? "bg-brand-600" : "bg-slate-300"
-          }`}
-        >
-          <span
-            className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-surface shadow transition-transform ${
-              form.internationalDeliveryEnabled ? "translate-x-5" : "translate-x-0"
-            }`}
-          />
-        </button>
-      </div>
-
-      {form.internationalDeliveryEnabled && (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setForm((f) => ({ ...f, deliveryCountries: null }))}
-              className={`rounded-sm border p-3 text-left cursor-pointer transition-colors ${
-                selected === null ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <span className="block text-sm font-medium text-slate-900">Anywhere in the world</span>
-              <span className="mt-0.5 block text-xs text-slate-800">Every country.</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setForm((f) => ({ ...f, deliveryCountries: f.deliveryCountries ?? [] }))}
-              className={`rounded-sm border p-3 text-left cursor-pointer transition-colors ${
-                selected !== null ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <span className="block text-sm font-medium text-slate-900">Only selected countries</span>
-              <span className="mt-0.5 block text-xs text-slate-800">Pick the countries you ship to.</span>
-            </button>
-          </div>
-
-          {selected !== null && (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-slate-800">{selected.length} selected</span>
-                <button type="button" onClick={() => setForm((f) => ({ ...f, deliveryCountries: [] }))} className="cursor-pointer text-xs text-slate-700 underline hover:text-slate-900">
-                  Clear
-                </button>
-              </div>
-              <Input placeholder="Search countries" value={search} onChange={(e) => setSearch(e.target.value)} />
-              <div className="max-h-64 overflow-y-auto rounded-sm border border-slate-200 p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
-                {visible.map((option) => {
-                  const on = selected.includes(option.value);
-                  return (
-                    <label key={option.value} className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => setForm((f) => ({
-                          ...f,
-                          deliveryCountries: on
-                            ? f.deliveryCountries.filter((v) => v !== option.value)
-                            : [...f.deliveryCountries, option.value],
-                        }))}
-                        className="size-4 shrink-0 accent-brand-600"
-                      />
-                      <span className="truncate">{option.label}</span>
-                    </label>
-                  );
-                })}
-                {visible.length === 0 && <p className="px-2 py-1.5 text-sm text-slate-700">No country matches.</p>}
-              </div>
-              {selected.length === 0 && (
-                <p className="rounded-sm border border-amber-200 bg-amber-100 p-2.5 text-xs text-amber-900">
-                  No country selected - saving this leaves you delivering anywhere in the world.
-                </p>
-              )}
-            </>
-          )}
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700">Default delivery fee abroad</p>
-            <p className="text-xs text-slate-800">For an address abroad that none of your rates match.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, intlDefaultShippingIsTBD: true }))}
-                className={`text-left rounded-sm border p-3 cursor-pointer transition-colors ${
-                  form.intlDefaultShippingIsTBD ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <p className="text-sm font-semibold text-slate-900">To be determined</p>
-                <p className="text-xs text-slate-800 mt-0.5">You confirm it after they order</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, intlDefaultShippingIsTBD: false }))}
-                className={`text-left rounded-sm border p-3 cursor-pointer transition-colors ${
-                  !form.intlDefaultShippingIsTBD ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <p className="text-sm font-semibold text-slate-900">Fixed amount</p>
-                <p className="text-xs text-slate-800 mt-0.5">Same fee for every country</p>
-              </button>
-            </div>
-            {!form.intlDefaultShippingIsTBD && (
-              <PriceInput
-                label="Fee abroad"
-                leadingText="₦"
-                className="max-w-xs"
-                value={form.intlDefaultShippingFee}
-                onChange={(v) => setForm((f) => ({ ...f, intlDefaultShippingFee: v }))}
-              />
+        {adding ? (
+          <div className="rounded-sm border border-slate-200 p-3 space-y-3">
+            {abroad && (
+              <Select label="Country" options={COUNTRY_OPTIONS} value={form.country} onChange={(v) => setForm((f) => ({ ...f, country: v || NIGERIA, state: "", city: "" }))} />
             )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {nigeria ? (
+                <>
+                  <Select label="State" options={NIGERIA_STATE_OPTIONS} value={form.state} onChange={(v) => setForm((f) => ({ ...f, state: v, city: "" }))} />
+                  <Select label="City/LGA (optional)" options={getLgaOptions(form.state)} value={form.city} onChange={(v) => setForm((f) => ({ ...f, city: v }))} disabled={!form.state} placeholder="Whole state" />
+                </>
+              ) : (
+                <>
+                  <Input label="State / region (optional)" placeholder={`All of ${form.country}`} value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value, city: e.target.value.trim() ? f.city : "" }))} maxLength={100} />
+                  <Input label="City (optional)" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} disabled={!form.state.trim()} maxLength={100} />
+                </>
+              )}
+              <PriceInput label="Fee" leadingText="₦" value={form.fee} onChange={(v) => setForm((f) => ({ ...f, fee: v }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" onClick={() => { setAdding(false); setForm(EMPTY_RATE_FORM); }} disabled={saving}>Cancel</Button>
+              <Button type="button" onClick={add} loading={saving}>Add fee</Button>
+            </div>
           </div>
-        </>
-      )}
-    </div>
+        ) : (
+          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
+            <Plus size={15} /> Add a fee for a place
+          </Button>
+        )}
+      </div>
+    </FormSection>
   );
 }

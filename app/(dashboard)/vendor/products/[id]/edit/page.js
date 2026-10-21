@@ -19,6 +19,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { CategoryPicker } from "@/components/ui/CategoryPicker.js";
 import { ProductMediaField } from "@/components/ui/ProductMediaField.js";
 import { FormSection } from "@/components/ui/FormSection.js";
+import { moreOptionsSummary } from "@/lib/productFormSummary.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
@@ -48,8 +49,8 @@ const CONDITION_OPTIONS = [
 ];
 
 const SALE_MODE_OPTIONS = [
-  { value: "fixed_price", label: "Fixed price - customers buy straight away" },
-  { value: "invoice_required", label: "Price agreed per customer - they request a quote" },
+  { value: "fixed_price", label: "Fixed Price" },
+  { value: "invoice_required", label: "Request a Quote" },
 ];
 
 const PRODUCT_FORM_FIELDS = [
@@ -452,6 +453,16 @@ export default function VendorProductEditPage({ params }) {
               onVideoUpload={handleVideoUpload}
               onRemoveVideo={removeVideo}
             />
+            {hasField("photos") && (
+              <div className="mt-5 border-t border-slate-200 pt-4">
+                <Switch
+                  checked={!!form.imageDisclaimer}
+                  onChange={(value) => setForm((f) => ({ ...f, imageDisclaimer: value }))}
+                  label="Photos are for illustration only"
+                  description={`Shows "${IMAGE_DISCLAIMER_TEXT}" on the photos - for a sample or supplier photo.`}
+                />
+              </div>
+            )}
           </FormSection>
         )}
 
@@ -466,7 +477,7 @@ export default function VendorProductEditPage({ params }) {
 
         <FormSection
           title="More options"
-          description={moreOpen ? undefined : "Discounts, cost price, wholesale, SKU and more"}
+          description={moreOpen ? undefined : moreOptionsSummary(["discount", "costPrice", "priceTiers", "customerFields", "sku", "expiryDate", "slug"], hasField)}
           collapsible
           open={moreOpen}
           onToggle={() => setMoreOpenChoice(!moreOpen)}
@@ -522,14 +533,6 @@ export default function VendorProductEditPage({ params }) {
               </div>
             )}
 
-            {hasField("photos") && (
-              <Switch
-                checked={!!form.imageDisclaimer}
-                onChange={(value) => setForm((f) => ({ ...f, imageDisclaimer: value }))}
-                label="Photos are for illustration only"
-                description={`Shows "${IMAGE_DISCLAIMER_TEXT}" on the photos - for a sample or supplier photo.`}
-              />
-            )}
           </div>
         </FormSection>
 
