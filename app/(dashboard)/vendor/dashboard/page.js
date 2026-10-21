@@ -18,6 +18,7 @@ import {
   ListChecks,
   ClipboardList,
   CalendarClock,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -127,6 +128,8 @@ function SHORTCUTS(storeId, isOwner, { canRecordOrder = false, verified = false 
       href: `/vendor/products/new?storeId=${storeId}`,
     },
     ...(canRecordOrder ? [{ label: "Record a sale", icon: ClipboardList, href: "/vendor/orders/new" }] : []),
+    // Opens the invoices page with the "New offline quote" form already up.
+    { label: "Create invoice", icon: FileText, href: "/vendor/invoices?new=1" },
     { label: "Customers", icon: Users, href: "/vendor/customers" },
   ];
   // Payouts, store settings, verification, and the setup guide are all
@@ -137,6 +140,7 @@ function SHORTCUTS(storeId, isOwner, { canRecordOrder = false, verified = false 
     shortcuts.splice(
       2,
       0,
+      { label: "Shipping", icon: Truck, href: "/vendor/shipping" },
       { label: "Payouts", icon: Wallet, href: "/vendor/payouts" },
       { label: "Store settings", icon: Settings, href: "/vendor/settings" },
       ...(verified ? [] : [{ label: "Verification", icon: ShieldCheck, href: "/vendor/verification" }]),
@@ -342,7 +346,8 @@ export default function VendorDashboardPage() {
           store ? "Here's how your store is doing today." : undefined
         }
         actions={
-          <>
+          // Side by side on phones too, rather than two full-width rows.
+          <div className={`grid gap-2 sm:flex sm:items-center ${isOwner && steps.length > 0 && !allStepsDone ? "grid-cols-2" : "grid-cols-1"}`}>
             {isOwner && steps.length > 0 && !allStepsDone && (
               <Button
                 type="button"
@@ -358,7 +363,7 @@ export default function VendorDashboardPage() {
                 <HelpCircle size={15} /> Help
               </Button>
             </Link>
-          </>
+          </div>
         }
       />
 
@@ -526,11 +531,11 @@ export default function VendorDashboardPage() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2 sm:mb-2.5">
               Quick actions
             </p>
-            {/* Phones: compact buttons that wrap onto a second line if needed. */}
-            <div className="sm:hidden flex flex-wrap gap-2">
+            {/* Phones: compact buttons in two even columns. */}
+            <div className="sm:hidden grid grid-cols-2 gap-2">
               {shortcuts.map(({ label, icon: Icon, href, onClick }) => {
-                const chip = "inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-slate-200 bg-surface text-sm font-medium text-slate-800 active:bg-brand-50 cursor-pointer";
-                const content = (<><Icon size={15} className="text-brand-700" />{label}</>);
+                const chip = "flex items-center gap-2 h-10 px-3 rounded-sm border border-slate-200 bg-surface text-sm font-medium text-slate-800 active:bg-brand-50 cursor-pointer min-w-0";
+                const content = (<><Icon size={16} className="shrink-0 text-brand-700" /><span className="truncate">{label}</span></>);
                 return href ? (
                   <Link key={label} href={href} className={chip}>{content}</Link>
                 ) : (
@@ -538,7 +543,7 @@ export default function VendorDashboardPage() {
                 );
               })}
             </div>
-            <div className={`hidden sm:grid gap-2.5 ${shortcuts.length === 4 ? "sm:grid-cols-4" : shortcuts.length % 3 === 0 ? "sm:grid-cols-3" : "sm:grid-cols-5"}`}>
+            <div className={`hidden sm:grid gap-2.5 ${shortcuts.length % 4 === 0 ? "sm:grid-cols-4" : shortcuts.length % 3 === 0 ? "sm:grid-cols-3" : shortcuts.length % 5 === 0 ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
               {shortcuts.map(
                 ({ label, icon: Icon, href, onClick }) => {
                   const content = (

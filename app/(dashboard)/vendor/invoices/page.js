@@ -37,6 +37,17 @@ export default function VendorInvoicesPage() {
   const { confirm, confirmDialog } = useConfirm();
   useModalScrollLock(manualOpen);
 
+  // The dashboard's "Create invoice" shortcut links here with ?new=1 -
+  // open the form straight away, then drop the flag so a refresh or the
+  // back button doesn't reopen it. Read from window rather than
+  // useSearchParams, which would need a Suspense boundary for the build.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") !== "1") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setManualOpen(true);
+    router.replace("/vendor/invoices", { scroll: false });
+  }, [router]);
+
   const loadData = useCallback(() => {
     if (!token || !storeId) return;
     Promise.all([
@@ -143,7 +154,7 @@ export default function VendorInvoicesPage() {
         />
       )}
 
-      {manualOpen && <ManualQuoteModal storeId={storeId} internationalStore={!!stores.find((s) => s.id === storeId)?.internationalPaymentsEnabled} apiFetch={apiFetch} confirm={confirm} onClose={() => setManualOpen(false)} onCreated={() => { setManualOpen(false); loadData(); }} />}
+      {manualOpen && storeId && <ManualQuoteModal storeId={storeId} internationalStore={!!stores.find((s) => s.id === storeId)?.internationalPaymentsEnabled} apiFetch={apiFetch} confirm={confirm} onClose={() => setManualOpen(false)} onCreated={() => { setManualOpen(false); loadData(); }} />}
       {confirmDialog}
     </div>
   );
