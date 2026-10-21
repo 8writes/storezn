@@ -228,7 +228,6 @@ function InvoiceView({ data, details, setDetails, pay, paying, paymentError }) {
                      Your bank may convert at its own rate.{" "}
                     </>
                   )}
-                  {invoice.international && "Pay by card or Apple Pay."}
                 </p>
               )}
               <Button onClick={pay} loading={paying} fullWidth>
