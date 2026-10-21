@@ -526,10 +526,10 @@ export default function VendorDashboardPage() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2 sm:mb-2.5">
               Quick actions
             </p>
-            {/* Phones: one row of compact buttons you swipe sideways. */}
-            <div className="sm:hidden -mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+            {/* Phones: compact buttons that wrap onto a second line if needed. */}
+            <div className="sm:hidden flex flex-wrap gap-2">
               {shortcuts.map(({ label, icon: Icon, href, onClick }) => {
-                const chip = "shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-slate-200 bg-surface text-sm font-medium text-slate-800 active:bg-brand-50 cursor-pointer";
+                const chip = "inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-slate-200 bg-surface text-sm font-medium text-slate-800 active:bg-brand-50 cursor-pointer";
                 const content = (<><Icon size={15} className="text-brand-700" />{label}</>);
                 return href ? (
                   <Link key={label} href={href} className={chip}>{content}</Link>
