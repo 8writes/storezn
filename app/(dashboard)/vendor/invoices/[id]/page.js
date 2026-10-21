@@ -107,8 +107,9 @@ export default function VendorInvoiceDetailPage({ params }) {
   const subtotal = items.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
   const platformFee = Number(order?.commissionAmount || 0) + Number(order?.flatFeeAmount || 0);
   const canCancel = invoice.status === "sent" && Number(invoice.amountPaid || 0) === 0;
-  // Editable until any money comes in, and not while the customer is mid-payment.
-  const canEdit = canCancel && !payments.some((payment) => payment.status === "pending");
+  // Editable until a payment is confirmed (a started one is checked and
+  // replaced by the server when saving).
+  const canEdit = invoice.status === "sent" && Number(invoice.amountPaid || 0) === 0;
   const status = invoiceStatus(invoice.status);
   const payable = ["sent", "partially_paid"].includes(invoice.status);
   const whatsappUrl = whatsappInvoiceUrl({ phone: invoice.buyerPhone, storeName, link: paymentUrl });
@@ -221,7 +222,9 @@ export default function VendorInvoiceDetailPage({ params }) {
             </div>
             <div className="text-right space-y-1">
               <p className="text-sm font-semibold text-slate-900 tabular-nums">{formatCurrency(payment.amount)}</p>
-              <Badge color={paymentStatus(payment.status).color}>{paymentStatus(payment.status).label}</Badge>
+              {payment.status === "pending" && payment.metadata?.superseded
+                ? <Badge color="slate">Replaced by edit</Badge>
+                : <Badge color={paymentStatus(payment.status).color}>{paymentStatus(payment.status).label}</Badge>}
             </div>
           </div>
         ))}

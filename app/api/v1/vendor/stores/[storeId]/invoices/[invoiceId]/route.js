@@ -5,6 +5,9 @@ import { invoiceItems, invoicePayments, invoiceRequests, invoices, orderItems, o
 import { validate, updateInvoiceSchema } from "../../../../../../../../lib/validate.js";
 import { computeOrderTotals } from "../../../../../../../../lib/orders.js";
 import { resolveFeePolicy } from "../../../../../../../../lib/feePolicy.js";
+import { verifyTransaction } from "../../../../../../../../lib/paystack.js";
+import { reconcileInvoicePayment } from "../../../../../../../../lib/invoicePayments.js";
+import { sendInvoicePaymentNotifications } from "../../../../../../../../lib/invoiceNotifications.js";
 import { getUser, canManageStore } from "../../../../../../../../lib/auth.js";
 import { releaseInvoiceInventoryHold } from "../../../../../../../../lib/invoiceInventory.js";
 import { withApiMonitoring } from "../../../../../../../../lib/apiMonitoring.js";
@@ -92,24 +95,49 @@ class InvoiceEditError extends Error {
 
 // Change an invoice the customer hasn't paid anything on yet: prices,
 // payment plan, customer details, note. Same link, same invoice number.
-// Refused once any money is in, or while a payment is in progress - the
-// customer may be on Paystack's page for the old amount, and a different
-// amount arriving would be rejected as a mismatch after they've paid.
-// Totals and fees are recomputed exactly as when the invoice was created.
+// Only a CONFIRMED payment stops it. A payment the customer merely started
+// is checked with Paystack first: paid -> recorded, and the edit refused;
+// failed -> closed; still open -> marked superseded (left pending, so if
+// they finish that old page the money is still recorded against this
+// invoice, but the pay route never reuses it). Totals and fees are
+// recomputed exactly as when the invoice was created.
+async function settleStartedPayments(invoiceId) {
+  const started = await db.select().from(invoicePayments).where(and(eq(invoicePayments.invoiceId, invoiceId), eq(invoicePayments.status, "pending")));
+  for (const payment of started) {
+    try {
+      const transaction = await verifyTransaction(payment.paymentReference);
+      if (transaction.paymentStatus === "PAID") {
+        const settled = await reconcileInvoicePayment({ reference: payment.paymentReference, amountPaid: transaction.amountPaid, paidAt: new Date(), cardCountry: transaction.cardCountry, paymentChannel: transaction.paymentChannel });
+        if (settled.applied) await sendInvoicePaymentNotifications(settled);
+      } else if (transaction.paymentStatus === "FAILED") {
+        await db.update(invoicePayments).set({ status: "failed", updatedAt: new Date(), metadata: { ...(payment.metadata || {}), reason: "failed_before_edit" } }).where(and(eq(invoicePayments.id, payment.id), eq(invoicePayments.status, "pending")));
+      }
+    } catch {
+      // Paystack unreachable: leave it - it's superseded below, and the
+      // payment cron settles it either way later.
+    }
+  }
+}
+
 async function updateInvoice(loaded, body) {
   const result = validate(updateInvoiceSchema, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   const data = result.data;
   const now = new Date();
+  if (loaded.invoice.status === "sent" && Number(loaded.invoice.amountPaid) === 0) await settleStartedPayments(loaded.invoice.id);
   const [settings] = await db.select().from(platformSettings).where(eq(platformSettings.id, "singleton")).limit(1);
 
   try {
     const updated = await db.transaction(async (tx) => {
       const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, loaded.invoice.id), eq(invoices.storeId, loaded.invoice.storeId))).for("update").limit(1);
-      if (!invoice || invoice.status !== "sent" || Number(invoice.amountPaid) > 0) throw new InvoiceEditError("Only an invoice with nothing paid yet can be changed");
+      if (!invoice || invoice.status !== "sent" || Number(invoice.amountPaid) > 0) throw new InvoiceEditError("A payment has been made on this invoice, so it can no longer be changed");
       if (invoice.expiresAt && new Date(invoice.expiresAt).getTime() <= now.getTime()) throw new InvoiceEditError("This invoice has expired - create a new one instead");
-      const [pendingPayment] = await tx.select({ id: invoicePayments.id }).from(invoicePayments).where(and(eq(invoicePayments.invoiceId, invoice.id), eq(invoicePayments.status, "pending"))).limit(1);
-      if (pendingPayment) throw new InvoiceEditError("The customer has started paying this invoice. Wait until the payment finishes or fails, then try again.");
+      // Anything still open after the Paystack check above: replaced by
+      // this edit, so the customer's next Pay is for the new amount.
+      const stillOpen = await tx.select().from(invoicePayments).where(and(eq(invoicePayments.invoiceId, invoice.id), eq(invoicePayments.status, "pending")));
+      for (const payment of stillOpen) {
+        await tx.update(invoicePayments).set({ metadata: { ...(payment.metadata || {}), superseded: true, supersededAt: now.toISOString() }, updatedAt: now }).where(eq(invoicePayments.id, payment.id));
+      }
       const [order] = invoice.orderId ? await tx.select().from(orders).where(eq(orders.id, invoice.orderId)).for("update").limit(1) : [];
       if (!order) throw new InvoiceEditError("This invoice can't be changed");
 

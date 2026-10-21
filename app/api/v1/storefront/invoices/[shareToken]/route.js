@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../../../../../lib/db/index.js";
 import { invoiceItems, invoicePayments, invoiceRequests, invoices, orders, stores } from "../../../../../../lib/db/schema.js";
 import { initializeTransaction, verifyTransaction } from "../../../../../../lib/paystack.js";
@@ -139,7 +139,11 @@ async function handlePost(req, { params }) {
           if (Object.keys(requestFill).length > 0) await tx.update(invoiceRequests).set({ ...requestFill, updatedAt: new Date() }).where(eq(invoiceRequests.id, request.id));
         }
       }
-      const [existing] = await tx.select().from(invoicePayments).where(and(eq(invoicePayments.invoiceId, invoice.id), eq(invoicePayments.status, "pending"))).limit(1);
+      // A payment replaced by a vendor edit (metadata.superseded) is left
+      // pending - if the customer still finishes that old Paystack page the
+      // money is recorded - but it's never handed out again: the next Pay
+      // gets a fresh link for the current amount.
+      const [existing] = await tx.select().from(invoicePayments).where(and(eq(invoicePayments.invoiceId, invoice.id), eq(invoicePayments.status, "pending"), sql`coalesce((${invoicePayments.metadata}->>'superseded')::boolean, false) = false`)).limit(1);
       // A Paystack authorization URL can remain payable after our local
       // polling window. Reuse it until Verify Transaction explicitly says
       // the attempt failed, otherwise two live links could charge twice.
