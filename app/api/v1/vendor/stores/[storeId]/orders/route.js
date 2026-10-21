@@ -52,7 +52,12 @@ export async function GET(req, { params }) {
   }
 
   return NextResponse.json({
-    orders: rows.map((o) => ({ ...o, paymentMethods: methodsByOrder.get(o.id) || [] })),
+    // Till and recorded sales list their tenders; an online (Paystack) order
+    // has none, so it shows how Paystack says it was paid instead.
+    orders: rows.map((o) => ({
+      ...o,
+      paymentMethods: methodsByOrder.get(o.id) || (o.isOffline ? [] : [o.paymentChannel ? `online:${o.paymentChannel}` : "online"]),
+    })),
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   });
 }

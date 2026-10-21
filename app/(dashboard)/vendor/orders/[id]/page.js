@@ -16,6 +16,7 @@ import { PriceInput } from "@/components/ui/PriceInput.js";
 import { formatCurrency, formatDateTime } from "@/lib/format.js";
 import { toNaira } from "@/lib/money.js";
 import { downloadOrderPdf } from "@/lib/orderPdf.js";
+import { onlinePaymentLabel } from "@/lib/paymentChannel.js";
 import { formatAddressPlace } from "@/lib/countries.js";
 
 const STATUS_COLOR = { pending: "amber", processing: "blue", shipped: "blue", delivered: "green", cancelled: "red", abandoned: "slate", refund_requested: "amber", refunded: "slate", refund_declined: "red" };
@@ -292,6 +293,16 @@ export default function VendorOrderDetailPage({ params }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {!(data.tenders?.length > 0) && !order.isOffline && order.paymentStatus !== "pending" && (
+        <div className="bg-surface border border-slate-200 rounded-sm p-5">
+          <p className="text-sm font-semibold text-slate-700 mb-1">Payment</p>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-600">{onlinePaymentLabel(order.paymentChannel)}</span>
+            <span className="text-slate-900 tabular-nums">{formatCurrency(order.amountPaid ?? order.totalAmount)}</span>
+          </div>
         </div>
       )}
 

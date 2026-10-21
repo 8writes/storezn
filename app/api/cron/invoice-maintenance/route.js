@@ -23,7 +23,7 @@ export async function GET(req) {
       const transaction = await verifyTransaction(payment.paymentReference);
       checked += 1;
       if (transaction.paymentStatus === "PAID") {
-        const result = await reconcileInvoicePayment({ reference: payment.paymentReference, amountPaid: transaction.amountPaid, paidAt: new Date(), cardCountry: transaction.cardCountry });
+        const result = await reconcileInvoicePayment({ reference: payment.paymentReference, amountPaid: transaction.amountPaid, paidAt: new Date(), cardCountry: transaction.cardCountry, paymentChannel: transaction.paymentChannel });
         if (result.applied) {
           paid += 1;
           await sendInvoicePaymentNotifications(result);

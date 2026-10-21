@@ -470,45 +470,6 @@ export default function VendorDashboardPage() {
             </Alert>
           )}
 
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2.5">
-              Quick actions
-            </p>
-            <div className={`grid gap-2.5 ${shortcuts.length % 3 === 0 ? "grid-cols-3" : shortcuts.length === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3 sm:grid-cols-5"}`}>
-              {shortcuts.map(
-                ({ label, icon: Icon, href, onClick }) => {
-                  const content = (
-                    <>
-                      <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-brand-100 text-brand-700 transition-colors group-hover:bg-brand-600 group-hover:text-white">
-                        <Icon size={17} />
-                      </span>
-                      <span className="text-xs font-medium text-slate-600 text-center leading-tight">
-                        {label}
-                      </span>
-                    </>
-                  );
-                  const className =
-                    "group flex flex-col items-center justify-center gap-2 bg-surface border border-slate-200 rounded-sm shadow-xs p-4 " +
-                    "transition-[box-shadow,border-color] duration-150 hover:shadow-sm hover:border-brand-300 cursor-pointer";
-                  return href ? (
-                    <Link key={label} href={href} className={className}>
-                      {content}
-                    </Link>
-                  ) : (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={onClick}
-                      className={className}
-                    >
-                      {content}
-                    </button>
-                  );
-                },
-              )}
-            </div>
-          </div>
-
           {statsLoading || !stats ? (
             <StatGridSkeleton count={6} />
           ) : (
@@ -591,6 +552,44 @@ export default function VendorDashboardPage() {
             })()
           )}
 
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2.5">
+              Quick actions
+            </p>
+            <div className={`grid gap-2.5 ${shortcuts.length % 3 === 0 ? "grid-cols-3" : shortcuts.length === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3 sm:grid-cols-5"}`}>
+              {shortcuts.map(
+                ({ label, icon: Icon, href, onClick }) => {
+                  const content = (
+                    <>
+                      <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-brand-100 text-brand-700 transition-colors group-hover:bg-brand-600 group-hover:text-white">
+                        <Icon size={17} />
+                      </span>
+                      <span className="text-xs font-medium text-slate-600 text-center leading-tight">
+                        {label}
+                      </span>
+                    </>
+                  );
+                  const className =
+                    "group flex flex-col items-center justify-center gap-2 bg-surface border border-slate-200 rounded-sm shadow-xs p-4 " +
+                    "transition-[box-shadow,border-color] duration-150 hover:shadow-sm hover:border-brand-300 cursor-pointer";
+                  return href ? (
+                    <Link key={label} href={href} className={className}>
+                      {content}
+                    </Link>
+                  ) : (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={onClick}
+                      className={className}
+                    >
+                      {content}
+                    </button>
+                  );
+                },
+              )}
+            </div>
+          </div>
         </>
       )}
     </div>

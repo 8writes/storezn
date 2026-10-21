@@ -125,7 +125,7 @@ async function handlePost(req, { params }) {
           reference: prepared.expiredExisting.paymentReference,
           amountPaid: transaction.amountPaid,
           paidAt: new Date(),
-          cardCountry: transaction.cardCountry,
+          cardCountry: transaction.cardCountry, paymentChannel: transaction.paymentChannel,
         });
         if (result.applied) await sendInvoicePaymentNotifications(result);
         if (result.fullyPaid) return NextResponse.json({ error: "This invoice is already paid" }, { status: 409 });

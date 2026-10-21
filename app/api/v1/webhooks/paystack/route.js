@@ -289,7 +289,7 @@ async function handlePost(req) {
   if (invoicePayment) {
     const transaction = await verifyTransaction(paymentReference);
     if (transaction.paymentStatus !== "PAID") return NextResponse.json({ received: true });
-    const result = await reconcileInvoicePayment({ reference: paymentReference, paystackTransactionId: event.data?.id, amountPaid: transaction.amountPaid, paidAt: event.data?.paid_at ? new Date(event.data.paid_at) : new Date(), cardCountry: transaction.cardCountry });
+    const result = await reconcileInvoicePayment({ reference: paymentReference, paystackTransactionId: event.data?.id, amountPaid: transaction.amountPaid, paidAt: event.data?.paid_at ? new Date(event.data.paid_at) : new Date(), cardCountry: transaction.cardCountry, paymentChannel: transaction.paymentChannel });
     if (result.amountMismatch) {
       await logAppError(new Error("Paystack amount mismatch for invoice payment"), { req, source: "paystack.invoice_amount_mismatch", level: "warn", metadata: { paymentReference, amountPaid: transaction.amountPaid } });
     }
@@ -338,7 +338,7 @@ async function handlePost(req) {
       paymentReference,
       paidAt: event.data?.paid_at ? new Date(event.data.paid_at) : new Date(),
       recoverReleasedStock: true,
-      cardCountry: transaction.cardCountry,
+      cardCountry: transaction.cardCountry, paymentChannel: transaction.paymentChannel,
     });
     if (!finalized?.created || !finalized.order) return NextResponse.json({ received: true });
 

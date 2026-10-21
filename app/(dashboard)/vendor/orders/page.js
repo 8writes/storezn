@@ -13,6 +13,7 @@ import { SearchInput } from "@/components/ui/SearchInput.js";
 import { Pagination } from "@/components/ui/Pagination.js";
 import { TableRowSkeleton, CardListSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
+import { onlinePaymentLabel } from "@/lib/paymentChannel.js";
 import { Plus, ShoppingBag } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { EmptyState } from "@/components/ui/EmptyState.js";
@@ -26,6 +27,7 @@ function paidByLabel(methods) {
   return methods
     .map((m) => {
       const [method, provider] = m.split(":");
+      if (method === "online") return onlinePaymentLabel(provider);
       const name = METHOD_NAME[method] || method;
       return provider ? `${name} (${provider})` : name;
     })

@@ -86,7 +86,7 @@ export async function GET(req, { params }) {
     if (["pending", "failed"].includes(attempt.paymentStatus) && paymentReferenceMatches(attempt, reference)) {
       const transaction = await verifyTransaction(reference);
       if (transaction.paymentStatus === "PAID" && transaction.amountPaid >= attempt.totalAmount - 0.5) {
-        const finalized = await finalizePaidCheckoutAttempt({ attempt, paymentReference: reference, recoverReleasedStock: true, cardCountry: transaction.cardCountry });
+        const finalized = await finalizePaidCheckoutAttempt({ attempt, paymentReference: reference, recoverReleasedStock: true, cardCountry: transaction.cardCountry, paymentChannel: transaction.paymentChannel });
         if (finalized?.order) {
           if (finalized.created) {
             await sendOnlineOrderNotifications(finalized.order, finalized.items);
