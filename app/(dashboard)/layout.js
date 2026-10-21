@@ -8,7 +8,8 @@ import { useApi } from "@/hooks/useApi.js";
 import { useLinkStatus } from "next/link";
 import { MobileNavDrawer } from "@/components/ui/MobileNavDrawer.js";
 import { StoreSwitcher } from "@/components/ui/StoreSwitcher.js";
-import { VendorStoreProvider } from "@/components/VendorStoreContext.js";
+import { VendorStoreProvider, useVendorStore } from "@/components/VendorStoreContext.js";
+import { filterNavForStore } from "@/lib/navFilter.js";
 import { Skeleton } from "@/components/ui/Skeleton.js";
 import { ThemeToggle } from "@/components/ui/ThemeToggle.js";
 import { PlatformThemeSync } from "@/components/PlatformThemeSync.js";
@@ -57,6 +58,7 @@ import {
   Loader2,
   ChevronDown,
   Vault,
+  Banknote,
 } from "lucide-react";
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
@@ -157,27 +159,30 @@ const NAV_BY_ROLE = {
       items: [{ href: "/profile", label: "Profile", icon: User }],
     },
   ],
+  // `plan` marks a link only that plan can use - lib/navFilter.js drops it
+  // for other stores so a free vendor isn't shown pages that only open an
+  // upgrade screen. The pages keep their own gates regardless.
   vendor: [
     {
       title: "Store",
       items: [
         { href: "/vendor/dashboard", label: "Dashboard", icon: Store },
-        { href: "/vendor/analytics", label: "Analytics", icon: BarChart3 },
-        { href: "/vendor/reports", label: "Monthly report", icon: Receipt },
+        { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
         { href: "/vendor/products", label: "Products", icon: Package },
         { href: "/vendor/categories", label: "Categories", icon: Tags },
-        { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
         { href: "/vendor/invoices", label: "Invoices", icon: FileText },
-        { href: "/vendor/pos", label: "Sell (POS)", icon: Calculator },
         { href: "/vendor/customers", label: "Customers", icon: Users },
+        { href: "/vendor/pos", label: "Sell (POS)", icon: Calculator, plan: "enterprise" },
+        { href: "/vendor/analytics", label: "Analytics", icon: BarChart3 },
+        { href: "/vendor/reports", label: "Monthly report", icon: Receipt, plan: "enterprise" },
       ],
     },
     {
-      title: "Finance",
+      title: "Money",
       items: [
         { href: "/vendor/payouts", label: "Payouts", icon: Wallet },
-        { href: "/vendor/pos/registers", label: "Registers", icon: Calculator },
-        { href: "/vendor/safe", label: "Safe", icon: Vault },
+        { href: "/vendor/pos/registers", label: "Registers", icon: Banknote, plan: "enterprise" },
+        { href: "/vendor/safe", label: "Safe", icon: Vault, plan: "enterprise" },
         { href: "/vendor/plus", label: "Storezn Plus", icon: Sparkles },
       ],
     },
@@ -187,23 +192,17 @@ const NAV_BY_ROLE = {
         { href: "/vendor/settings", label: "Store settings", icon: Settings },
         { href: "/vendor/shipping", label: "Shipping", icon: Truck },
         { href: "/vendor/verification", label: "Verification", icon: ShieldCheck },
-      ],
-    },
-    {
-      title: "Team",
-      items: [
         { href: "/vendor/staff", label: "Staff", icon: UserCog },
-        { href: "/vendor/branches", label: "Branches", icon: Building2 },
+        { href: "/vendor/branches", label: "Branches", icon: Building2, plan: "plus" },
         { href: "/vendor/activity", label: "Activity log", icon: History },
       ],
     },
     {
-      title: "Support",
-      items: [{ href: "/vendor/help", label: "Help", icon: HelpCircle }],
-    },
-    {
       title: "Account",
-      items: [{ href: "/profile", label: "Profile", icon: User }],
+      items: [
+        { href: "/vendor/help", label: "Help", icon: HelpCircle },
+        { href: "/profile", label: "Profile", icon: User },
+      ],
     },
   ],
   // Trimmed vendor nav - a staff member helps run the store day-to-day
@@ -222,21 +221,28 @@ const NAV_BY_ROLE = {
         { href: "/vendor/categories", label: "Categories", icon: Tags },
         { href: "/vendor/orders", label: "Orders", icon: ShoppingBag },
         { href: "/vendor/invoices", label: "Invoices", icon: FileText },
-        { href: "/vendor/pos", label: "Sell (POS)", icon: Calculator },
+        { href: "/vendor/pos", label: "Sell (POS)", icon: Calculator, plan: "enterprise" },
         { href: "/vendor/customers", label: "Customers", icon: Users },
         { href: "/vendor/settings", label: "Store settings", icon: Settings },
       ],
     },
     {
-      title: "Support",
-      items: [{ href: "/vendor/help", label: "Help", icon: HelpCircle }],
-    },
-    {
       title: "Account",
-      items: [{ href: "/profile", label: "Profile", icon: User }],
+      items: [
+        { href: "/vendor/help", label: "Help", icon: HelpCircle },
+        { href: "/profile", label: "Profile", icon: User },
+      ],
     },
   ],
 };
+
+// Vendor/staff nav, filtered by the active store's plan. Rendered inside
+// VendorStoreProvider (the layout itself sits above it, so it can't read
+// the store directly).
+function StoreNavLinks({ groups, ...props }) {
+  const { stores } = useVendorStore();
+  return <NavLinks groups={filterNavForStore(groups, stores[0])} {...props} />;
+}
 
 // Vendor/staff get a calmer, low-contrast nav (light sidebar, thin accent
 // instead of a solid fill) - super_admin keeps the original dark sidebar
@@ -454,7 +460,11 @@ export default function DashboardLayout({ children }) {
           )}
         </div>
         <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
-          <NavLinks groups={groups} pathname={pathname} muted={isVendor} offline={navOffline} collapsed={navCollapsed} />
+          {isVendor ? (
+            <StoreNavLinks groups={groups} pathname={pathname} muted offline={navOffline} collapsed={navCollapsed} />
+          ) : (
+            <NavLinks groups={groups} pathname={pathname} offline={navOffline} collapsed={navCollapsed} />
+          )}
         </nav>
         <div className={`border-t shrink-0 ${isVendor ? "border-slate-200" : "border-slate-800"}`}>
           <ThemeToggle collapsed={navCollapsed} tone={isVendor ? "auto" : "light"} />
@@ -525,7 +535,11 @@ export default function DashboardLayout({ children }) {
             </>
           }
         >
-          <NavLinks groups={groups} pathname={pathname} onNavigate={closeDrawer} offline={navOffline} muted={isVendor} />
+          {isVendor ? (
+            <StoreNavLinks groups={groups} pathname={pathname} onNavigate={closeDrawer} offline={navOffline} muted />
+          ) : (
+            <NavLinks groups={groups} pathname={pathname} onNavigate={closeDrawer} offline={navOffline} />
+          )}
         </MobileNavDrawer>
 
         <main className="flex-1 bg-canvas">

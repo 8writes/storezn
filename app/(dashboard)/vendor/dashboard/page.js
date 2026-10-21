@@ -40,6 +40,7 @@ import {
   compactNumber,
 } from "@/lib/format.js";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
+import { isPlusStore } from "@/lib/storePlan.js";
 import { installPwa, usePwaInstall } from "@/lib/pwaInstall.js";
 import {
   pushSupported,
@@ -115,14 +116,17 @@ function buildSetupSteps({
   return steps;
 }
 
-function SHORTCUTS(storeId, isOwner) {
+// Only shortcuts the vendor can actually use: recording an offline sale is
+// a Storezn+ feature (a free store would land on an upgrade screen), and
+// Verification drops out once it's approved.
+function SHORTCUTS(storeId, isOwner, { canRecordOrder = false, verified = false } = {}) {
   const shortcuts = [
     {
       label: "Add product",
       icon: Plus,
       href: `/vendor/products/new?storeId=${storeId}`,
     },
-    { label: "Record order", icon: ClipboardList, href: "/vendor/orders/new" },
+    ...(canRecordOrder ? [{ label: "Record a sale", icon: ClipboardList, href: "/vendor/orders/new" }] : []),
     { label: "Customers", icon: Users, href: "/vendor/customers" },
   ];
   // Payouts, store settings, verification, and the setup guide are all
@@ -135,11 +139,7 @@ function SHORTCUTS(storeId, isOwner) {
       0,
       { label: "Payouts", icon: Wallet, href: "/vendor/payouts" },
       { label: "Store settings", icon: Settings, href: "/vendor/settings" },
-      {
-        label: "Verification",
-        icon: ShieldCheck,
-        href: "/vendor/verification",
-      },
+      ...(verified ? [] : [{ label: "Verification", icon: ShieldCheck, href: "/vendor/verification" }]),
     );
   }
   return shortcuts;
@@ -247,6 +247,10 @@ export default function VendorDashboardPage() {
   // them (identity verification and payout linking are owner-only, see
   // isStoreOwner in lib/auth.js), so none of it is shown to them.
   const isOwner = user?.role === "vendor";
+  const shortcuts = SHORTCUTS(storeId, isOwner, {
+    canRecordOrder: !!store && isPlusStore(store),
+    verified: verification?.approvalStatus === "approved",
+  });
   const steps =
     store && isOwner
       ? buildSetupSteps({
@@ -389,21 +393,6 @@ export default function VendorDashboardPage() {
           )}
 
           {isOwner &&
-            store &&
-            verification &&
-            verification.approvalStatus !== "approved" && (
-              <Card pad="sm" className="max-w-md border-dashed bg-slate-50!">
-                <p className="text-sm font-semibold text-slate-800">
-                  Your website&apos;s link will appear here
-                </p>
-                <p className="text-xs text-slate-800 mt-0.5">
-                  Once your identity is verified below, you&apos;ll get a
-                  shareable link customers can use to shop from you.
-                </p>
-              </Card>
-            )}
-
-          {isOwner &&
             verification &&
             verification.approvalStatus !== "approved" && (
               <Alert
@@ -481,90 +470,12 @@ export default function VendorDashboardPage() {
             </Alert>
           )}
 
-          {statsLoading || !stats ? (
-            <StatGridSkeleton count={6} />
-          ) : (
-            (() => {
-              const showExpiry =
-                (stats.products.expiringSoon || 0) +
-                  (stats.products.expired || 0) >
-                0;
-              return (
-                <div
-                  className={`grid grid-cols-2 gap-3 ${showExpiry ? "sm:grid-cols-3 lg:grid-cols-3" : "sm:grid-cols-3"}`}
-                >
-                  <StatCard
-                    icon={Wallet}
-                    label="Revenue"
-                    value={compactCurrency(stats.revenue)}
-                    title={formatCurrency(stats.revenue)}
-                    color="green"
-                    href="/vendor/payouts"
-                  />
-                  <StatCard
-                    icon={ShoppingBag}
-                    label="Orders"
-                    value={stats.orders.total}
-                    sub={`${stats.orders.pending} in progress`}
-                    href="/vendor/orders"
-                  />
-                  <StatCard
-                    icon={Package}
-                    label="Products"
-                    value={stats.products.total}
-                    sub={`${stats.products.live} live · ₦${compactNumber(stats.products.stockValue || 0)} value`}
-                    href="/vendor/products"
-                  />
-                  <StatCard
-                    icon={AlertTriangle}
-                    label="Low stock"
-                    value={stats.products.lowStock}
-                    color={stats.products.lowStock > 0 ? "amber" : "brand"}
-                    href="/vendor/products?stock=low"
-                  />
-                  {showExpiry && (
-                    <StatCard
-                      className="col-span-2 sm:col-span-1"
-                      icon={CalendarClock}
-                      label={
-                        stats.products.expired > 0
-                          ? "Expired / expiring"
-                          : "Expiring soon"
-                      }
-                      value={
-                        stats.products.expired > 0
-                          ? stats.products.expired
-                          : stats.products.expiringSoon
-                      }
-                      sub={
-                        stats.products.expired > 0
-                          ? `${stats.products.expiringSoon} more within 30 days`
-                          : "within 30 days"
-                      }
-                      color={stats.products.expired > 0 ? "red" : "amber"}
-                      href={`/vendor/products?expiry=${stats.products.expired > 0 ? "expired" : "soon"}`}
-                    />
-                  )}
-                  <StatCard
-                    className={`col-span-2 ${showExpiry ? "sm:col-span-1" : "sm:col-span-2"}`}
-                    icon={ClipboardList}
-                    label="Invoice requests"
-                    value={stats.invoiceRequests?.open || 0}
-                    sub="Awaiting pricing"
-                    color={stats.invoiceRequests?.open > 0 ? "accent" : "brand"}
-                    href="/vendor/invoices/requests"
-                  />
-                </div>
-              );
-            })()
-          )}
-
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2.5">
               Quick actions
             </p>
-            <div className="grid grid-cols-3 sm:grid-cols-3 gap-2.5">
-              {SHORTCUTS(storeId, isOwner).map(
+            <div className={`grid gap-2.5 ${shortcuts.length % 3 === 0 ? "grid-cols-3" : shortcuts.length === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3 sm:grid-cols-5"}`}>
+              {shortcuts.map(
                 ({ label, icon: Icon, href, onClick }) => {
                   const content = (
                     <>
@@ -597,6 +508,89 @@ export default function VendorDashboardPage() {
               )}
             </div>
           </div>
+
+          {statsLoading || !stats ? (
+            <StatGridSkeleton count={6} />
+          ) : (
+            (() => {
+              const showExpiry =
+                (stats.products.expiringSoon || 0) +
+                  (stats.products.expired || 0) >
+                0;
+              const showRequests = (stats.invoiceRequests?.open || 0) > 0;
+              // An odd card count leaves a hole on the 2-column phone grid,
+              // so the last card spans the row there.
+              const oddCount = (4 + (showExpiry ? 1 : 0) + (showRequests ? 1 : 0)) % 2 === 1;
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <StatCard
+                    icon={Wallet}
+                    label="Revenue"
+                    value={compactCurrency(stats.revenue)}
+                    title={formatCurrency(stats.revenue)}
+                    color="green"
+                    href="/vendor/payouts"
+                  />
+                  <StatCard
+                    icon={ShoppingBag}
+                    label="Orders"
+                    value={stats.orders.total}
+                    sub={`${stats.orders.pending} in progress`}
+                    href="/vendor/orders"
+                  />
+                  <StatCard
+                    icon={Package}
+                    label="Products"
+                    value={stats.products.total}
+                    sub={`${stats.products.live} live · ₦${compactNumber(stats.products.stockValue || 0)} value`}
+                    href="/vendor/products"
+                  />
+                  <StatCard
+                    icon={AlertTriangle}
+                    label="Low stock"
+                    value={stats.products.lowStock}
+                    color={stats.products.lowStock > 0 ? "amber" : "brand"}
+                    href="/vendor/products?stock=low"
+                  />
+                  {showExpiry && (
+                    <StatCard
+                      className={oddCount && !showRequests ? "col-span-2 sm:col-span-1" : ""}
+                      icon={CalendarClock}
+                      label={
+                        stats.products.expired > 0
+                          ? "Expired / expiring"
+                          : "Expiring soon"
+                      }
+                      value={
+                        stats.products.expired > 0
+                          ? stats.products.expired
+                          : stats.products.expiringSoon
+                      }
+                      sub={
+                        stats.products.expired > 0
+                          ? `${stats.products.expiringSoon} more within 30 days`
+                          : "within 30 days"
+                      }
+                      color={stats.products.expired > 0 ? "red" : "amber"}
+                      href={`/vendor/products?expiry=${stats.products.expired > 0 ? "expired" : "soon"}`}
+                    />
+                  )}
+                  {showRequests && (
+                    <StatCard
+                      className={oddCount ? "col-span-2 sm:col-span-1" : ""}
+                      icon={ClipboardList}
+                      label="Quote requests"
+                      value={stats.invoiceRequests.open}
+                      sub="Waiting for your price"
+                      color="accent"
+                      href="/vendor/invoices/requests"
+                    />
+                  )}
+                </div>
+              );
+            })()
+          )}
+
         </>
       )}
     </div>
