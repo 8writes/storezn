@@ -14,7 +14,6 @@ import { SizeGuideField } from "@/components/ui/SizeGuideField.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
-import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSection } from "@/components/ui/FormSection.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
@@ -30,25 +29,19 @@ import {
   validateVideoDuration,
   validateProductImageFile,
   validateProductVideoFile,
-  PRODUCT_VIDEO_MAX_SECONDS,
-  formatUploadSize,
 } from "@/lib/clientUpload.js";
-import { PRODUCT_VIDEO_MAX_BYTES } from "@/lib/mediaValidation.js";
+import { CategoryPicker } from "@/components/ui/CategoryPicker.js";
+import { ProductMediaField, MAX_PRODUCT_MEDIA } from "@/components/ui/ProductMediaField.js";
 import { slugify } from "@/lib/slugify.js";
 import { formatCurrency } from "@/lib/format.js";
-import { X, ImagePlus, Loader2, GripVertical, Video } from "lucide-react";
 
 // Photos and video share one combined cap - a video eats one of the 10
 // slots, same as a photo would.
-const MAX_MEDIA = 10;
-
-const PRODUCT_TYPE_OPTIONS = [
-  { value: "physical", label: "Physical (needs shipping)" },
-];
+const MAX_MEDIA = MAX_PRODUCT_MEDIA;
 
 const SALE_MODE_OPTIONS = [
-  { value: "fixed_price", label: "Fixed price" },
-  { value: "invoice_required", label: "Request invoice (price agreed later)" },
+  { value: "fixed_price", label: "Fixed price - customers buy straight away" },
+  { value: "invoice_required", label: "Price agreed per customer - they request a quote" },
 ];
 
 const CONDITION_OPTIONS = [
@@ -58,7 +51,6 @@ const CONDITION_OPTIONS = [
 ];
 
 const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, sizeGuidePresetId: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", saleMode: "fixed_price", customerFields: [], condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "", imageDisclaimer: false, variants: [] };
-const EMPTY_CATEGORY = { name: "", slug: "" };
 const PRODUCT_FORM_FIELDS = [
   { id: "slug", label: "URL slug" },
   { id: "sku", label: "SKU / barcode" },
@@ -77,6 +69,8 @@ const PRODUCT_FORM_FIELDS = [
   { id: "video", label: "Video" },
 ];
 const DEFAULT_VISIBLE_FORM_FIELDS = PRODUCT_FORM_FIELDS.map((field) => field.id);
+// Fields that live under the collapsed "More options" section.
+const MORE_OPTION_FIELDS = ["variants", "discount", "costPrice", "priceTiers", "customerFields", "sku", "slug", "expiryDate"];
 
 export default function VendorNewProductPage() {
   const searchParams = useSearchParams();
@@ -93,9 +87,8 @@ export default function VendorNewProductPage() {
   const [submitting, setSubmitting] = useState(false);
   const [pendingUploads, setPendingUploads] = useState([]);
   const [dragIndex, setDragIndex] = useState(null);
-  const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY);
-  const [categorySlugTouched, setCategorySlugTouched] = useState(false);
-  const [addingCategory, setAddingCategory] = useState(false);
+  // "More options" starts closed: most products only need the basics.
+  const [moreOpen, setMoreOpen] = useState(false);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [branchCount, setBranchCount] = useState(1);
   const [usdRate, setUsdRate] = useState(null);
@@ -165,7 +158,7 @@ export default function VendorNewProductPage() {
     try {
       await apiFetch(`/api/v1/vendor/stores/${storeId}/product-form-preferences`, {
         method: "PATCH",
-        body: JSON.stringify({ visibleFields: next, sectionOrder: [], collapsedSections: [] }),
+        body: JSON.stringify({ visibleFields: next }),
       });
     } catch (err) {
       setVisibleFormFields(visibleFormFields);
@@ -174,8 +167,6 @@ export default function VendorNewProductPage() {
       setSavingFormPreferences(false);
     }
   };
-
-  const categoryOptions = [{ value: "", label: "No category" }, ...categories.map((c) => ({ value: c.id, label: c.name }))];
 
   // Images are uploaded to storage immediately (same as the edit page's
   // grid), but since there's no product row yet to PATCH, they just
@@ -306,23 +297,6 @@ export default function VendorNewProductPage() {
     setDragIndex(null);
   };
 
-  const handleAddCategory = async (e) => {
-    e.preventDefault();
-    setAddingCategory(true);
-    try {
-      const data = await apiFetch(`/api/v1/vendor/stores/${storeId}/categories`, { method: "POST", body: JSON.stringify(categoryForm) });
-      setCategories((c) => [...c, data.category]);
-      setForm((f) => ({ ...f, categoryId: data.category.id }));
-      setCategoryForm(EMPTY_CATEGORY);
-      setCategorySlugTouched(false);
-      toast.success("Category added");
-    } catch (err) {
-      toast.error(err.message || "Failed to add category");
-    } finally {
-      setAddingCategory(false);
-    }
-  };
-
   const handleCreate = async (e) => {
     e.preventDefault();
     if (pendingUploads.length > 0) {
@@ -403,322 +377,213 @@ export default function VendorNewProductPage() {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
-  return (
-    <div className="space-y-4">
-      <BackLink href="/vendor/products" label="Back to products" />
-      <PageHeader
-        title="Add product"
-        description="Create a sellable item."
+  const optionalFieldsShown = PRODUCT_FORM_FIELDS.filter((f) => MORE_OPTION_FIELDS.includes(f.id) && hasField(f.id)).length;
+  const stockField = hasField("openingStock") && form.productType === "physical" && (
+    myBranch ? (
+      <Input
+        label={`Stock at ${myBranch.name}`}
+        type="number"
+        min="0"
+        placeholder="0"
+        value={form.branchStock[myBranch.id] ?? ""}
+        onChange={(e) => setForm((f) => ({ ...f, branchStock: { ...f.branchStock, [myBranch.id]: e.target.value } }))}
       />
+    ) : branchCount > 1 && branches.length > 0 ? (
+      <div className="sm:col-span-2">
+        <p className="text-sm font-medium text-slate-700">Stock at each branch</p>
+        <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {branches.map((b) => (
+            <label key={b.id} className="flex items-center gap-3 rounded-sm border border-slate-200 px-3 py-2">
+              <span className="flex-1 truncate text-sm text-slate-700">{b.name}{b.isDefault ? " (main)" : ""}</span>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={form.branchStock[b.id] ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, branchStock: { ...f.branchStock, [b.id]: e.target.value } }))}
+                className="w-20 rounded-sm border border-slate-300 bg-surface px-2 py-1.5 text-sm outline-none focus:border-brand-500"
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+    ) : (
+      <Input label="Stock" type="number" min="0" placeholder="How many you have" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} />
+    )
+  );
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <form onSubmit={handleCreate} className={`${hasField("category") ? "lg:col-span-2" : "lg:col-span-3"} space-y-3`}>
-          {stores.length > 1 && (
-            <div className="max-w-xs">
-              <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
-            </div>
-          )}
+  return (
+    <div className="mx-auto max-w-3xl space-y-4 pb-24">
+      <BackLink href="/vendor/products" label="Products" />
+      <h1 className="text-xl font-bold tracking-tight text-slate-900">Add product</h1>
 
-          <ProductFormFieldsButton
-            fields={PRODUCT_FORM_FIELDS}
-            visibleFields={visibleFormFields}
-            onToggle={toggleFormField}
-            saving={savingFormPreferences}
-          />
+      <form onSubmit={handleCreate} className="space-y-4">
+        {stores.length > 1 && (
+          <div className="max-w-xs">
+            <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
+          </div>
+        )}
 
-          <FormSection title="Basics" description="Name the product, choose how it sells, and set the core price information.">
+        <FormSection title="Product">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Name"
-              value={form.name}
-              onChange={(e) => {
-                const name = e.target.value;
-                setForm((f) => ({ ...f, name, slug: slugTouched ? f.slug : slugify(name) }));
-              }}
-              required
-            />
-            <Select label="Selling method" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
-            {form.saleMode === "fixed_price" && <PriceInput label="Price" leadingText="₦" placeholder="0.00" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} usdRate={usdRate} required />}
-            <Select label="Type" options={PRODUCT_TYPE_OPTIONS} value={form.productType} onChange={(v) => setForm((f) => ({ ...f, productType: v }))} />
+            <div className="sm:col-span-2">
+              <Input
+                label="Name"
+                placeholder="e.g. Ankara maxi dress"
+                value={form.name}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  setForm((f) => ({ ...f, name, slug: slugTouched ? f.slug : slugify(name) }));
+                }}
+                required
+              />
+            </div>
+            {form.saleMode === "fixed_price" ? (
+              <PriceInput label="Price" leadingText="₦" placeholder="0" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} usdRate={usdRate} required />
+            ) : (
+              <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+                Price agreed with each customer - they request a quote. <button type="button" onClick={() => setForm((f) => ({ ...f, saleMode: "fixed_price" }))} className="font-medium text-brand-700 hover:underline cursor-pointer">Use a fixed price</button>
+              </div>
+            )}
+            {stockField}
+            {hasField("category") && (
+              <CategoryPicker
+                storeId={storeId}
+                apiFetch={apiFetch}
+                categories={categories}
+                value={form.categoryId}
+                onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}
+                onCreated={(category) => setCategories((c) => [...c, category])}
+              />
+            )}
             {hasField("condition") && form.productType === "physical" && (
               <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
             )}
           </div>
+        </FormSection>
+
+        {(hasField("photos") || hasField("video")) && (
+          <FormSection title="Photos & video">
+            <ProductMediaField
+              images={form.images}
+              pendingUploads={pendingUploads}
+              dragIndex={dragIndex}
+              onDragStart={setDragIndex}
+              onDrop={handleDrop}
+              onDragEnd={() => setDragIndex(null)}
+              onImageUpload={handleImageUpload}
+              onRemoveImage={removeImage}
+              showPhotos={hasField("photos")}
+              showVideo={hasField("video")}
+              videoUrl={form.videoUrl}
+              uploadingVideo={uploadingVideo}
+              videoUploadStatus={videoUploadStatus}
+              videoUploadProgress={videoUploadProgress}
+              onVideoUpload={handleVideoUpload}
+              onRemoveVideo={removeVideo}
+            />
           </FormSection>
+        )}
 
-          {(hasField("variants") || hasField("customerFields")) && <FormSection title="Options customers choose" description="Add variants or extra customer questions when the product needs more than a simple quantity.">
-          {hasField("variants") && <NewProductVariantsEditor
-            value={form.variants}
-            invoiceRequired={form.saleMode === "invoice_required"}
-            onChange={(variants) => setForm((f) => ({ ...f, variants }))}
-            usdRate={usdRate}
-          />}
+        {(hasField("description") || hasField("sizeGuide")) && (
+          <FormSection title="Description">
+            <div className="space-y-4">
+              {hasField("description") && <Textarea label="About this product" placeholder="Material, size, what's included..." rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
+              {hasField("sizeGuide") && <SizeGuideField storeId={storeId} apiFetch={apiFetch} value={{ sizeGuide: form.sizeGuide, sizeGuidePresetId: form.sizeGuidePresetId || null }} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v.sizeGuide, sizeGuidePresetId: v.sizeGuidePresetId }))} />}
+            </div>
+          </FormSection>
+        )}
 
-          {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
-          </FormSection>}
+        <FormSection
+          title="More options"
+          description={moreOpen ? undefined : "Variants, discounts, cost price, wholesale, SKU and more"}
+          collapsible
+          open={moreOpen}
+          onToggle={() => setMoreOpen((v) => !v)}
+          actions={<ProductFormFieldsButton compact fields={PRODUCT_FORM_FIELDS} visibleFields={visibleFormFields} onToggle={toggleFormField} saving={savingFormPreferences} />}
+        >
+          <div className="space-y-5">
+            <Select label="How it sells" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
 
-          <FormSection title="Inventory and details" description="Organize the item, track stock, and add information customers need before buying.">
-          <div className="space-y-4">
+            {hasField("variants") && <NewProductVariantsEditor value={form.variants} invoiceRequired={form.saleMode === "invoice_required"} onChange={(variants) => setForm((f) => ({ ...f, variants }))} usdRate={usdRate} />}
+
+            {(hasField("discount") || hasField("costPrice")) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {hasField("slug") && <Input
-                  label="URL slug"
-                  value={form.slug}
-                  onChange={(e) => {
-                    setSlugTouched(true);
-                    setForm((f) => ({ ...f, slug: e.target.value }));
-                  }}
-                />}
-                {hasField("sku") && <div className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <Input label="SKU / barcode" placeholder="e.g. RTB-001" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} />
+                {hasField("discount") && form.saleMode === "fixed_price" && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-sm font-medium text-slate-700">Discount %</label>
+                      <InfoTip>The customer pays less and sees the old price crossed out. Leave blank for no discount.</InfoTip>
+                    </div>
+                    <Input type="number" min="1" max="99" placeholder="0" value={form.discountPercent} onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))} />
                   </div>
-                  <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
-                </div>}
+                )}
+                {hasField("costPrice") && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-sm font-medium text-slate-700">Cost price</label>
+                      <InfoTip>What you paid for it. Only you see this - it&apos;s used to work out your profit.</InfoTip>
+                    </div>
+                    <PriceInput leadingText="₦" placeholder="0" value={form.costPrice} onChange={(v) => setForm((f) => ({ ...f, costPrice: v }))} />
+                    {form.costPrice !== "" && form.price !== "" && Number(form.price) > 0 && (
+                      <p className="text-xs text-slate-600 mt-1">
+                        Profit {formatCurrency(Number(form.price) - Number(form.costPrice))} ({Math.round(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100)}%)
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} usdRate={usdRate} />}
+
+            {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
+
+            {(hasField("sku") || hasField("slug") || hasField("expiryDate")) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {hasField("sku") && (
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1"><Input label="SKU / barcode" placeholder="e.g. RTB-001" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} /></div>
+                    <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
+                  </div>
+                )}
                 {hasField("expiryDate") && form.productType === "physical" && (
+                  <Input type="date" label="Expiry / use-by date" value={form.expiryDate} onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))} />
+                )}
+                {hasField("slug") && (
                   <Input
-                    type="date"
-                    label="Expiry / use-by date (optional)"
-                    value={form.expiryDate}
-                    onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
+                    label="Web link"
+                    hint={form.slug ? `.../products/${form.slug}` : "Made from the name"}
+                    value={form.slug}
+                    onChange={(e) => {
+                      setSlugTouched(true);
+                      setForm((f) => ({ ...f, slug: e.target.value }));
+                    }}
                   />
                 )}
-                {hasField("openingStock") && form.productType === "physical" &&
-                  (myBranch ? (
-                    <div>
-                      <label className="text-sm font-medium text-slate-700">Opening stock, {myBranch.name}</label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        value={form.branchStock[myBranch.id] ?? ""}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, branchStock: { ...f.branchStock, [myBranch.id]: e.target.value } }))
-                        }
-                        className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
-                      />
-                      <p className="mt-1 text-xs text-slate-800">Stock is added to your branch.</p>
-                    </div>
-                  ) : branchCount > 1 && branches.length > 0 ? (
-                    <div className="sm:col-span-2">
-                      <label className="text-sm font-medium text-slate-700">Opening stock by branch</label>
-                      <div className="mt-1.5 space-y-2">
-                        {branches.map((b) => (
-                          <div key={b.id} className="flex items-center gap-3">
-                            <span className="flex-1 truncate text-sm text-slate-600">
-                              {b.name}
-                              {b.isDefault ? " (default)" : ""}
-                            </span>
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder="0"
-                              value={form.branchStock[b.id] ?? ""}
-                              onChange={(e) =>
-                                setForm((f) => ({ ...f, branchStock: { ...f.branchStock, [b.id]: e.target.value } }))
-                              }
-                              className="w-24 rounded-sm border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-brand-500"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <p className="mt-1 text-xs text-slate-800">Blank counts as 0. You can adjust these anytime from the product page.</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <Input
-                        label="Stock"
-                        type="number"
-                        min="0"
-                        value={form.stock}
-                        onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-                        disabled={branchCount > 1}
-                      />
-                      {branchCount > 1 && <p className="text-xs font-medium text-amber-600 mt-1">Set per branch after creating.</p>}
-                    </div>
-                  ))}
-                {hasField("category") && <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />}
-                {hasField("discount") && form.saleMode === "fixed_price" && <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <label className="text-sm font-medium text-slate-700">Discount %</label>
-                    <InfoTip>Reduces what&apos;s actually charged, e.g. a ₦5,000 product with a 20% discount charges ₦4,000 and shows &ldquo;was ₦5,000, now ₦4,000&rdquo;. Leave blank for no discount.</InfoTip>
-                  </div>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="99"
-                    placeholder="0"
-                    value={form.discountPercent}
-                    onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))}
-                  />
-                </div>}
-                {hasField("costPrice") && <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <label className="text-sm font-medium text-slate-700">Cost price</label>
-                    <InfoTip>What you paid for it. Only you see this, it&apos;s used for profit/margin figures, never shown to customers.</InfoTip>
-                  </div>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={form.costPrice}
-                    onChange={(e) => setForm((f) => ({ ...f, costPrice: e.target.value }))}
-                  />
-                  {form.costPrice !== "" && form.price !== "" && Number(form.price) > 0 && (
-                    <p className="text-xs text-slate-800 mt-1">
-                      Margin {formatCurrency(Number(form.price) - Number(form.costPrice))} (
-                      {Math.round(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100)}%)
-                    </p>
-                  )}
-                </div>}
               </div>
-              {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} usdRate={usdRate} />}
-              {hasField("description") && <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
-              {hasField("sizeGuide") && <SizeGuideField storeId={storeId} apiFetch={apiFetch} value={{ sizeGuide: form.sizeGuide, sizeGuidePresetId: form.sizeGuidePresetId || null }} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v.sizeGuide, sizeGuidePresetId: v.sizeGuidePresetId }))} />}
-          </div>
-          </FormSection>
-
-          {(hasField("photos") || hasField("video")) && <FormSection title="Media" description="Show the product clearly. The first photo becomes the storefront cover.">
-          {hasField("photos") && <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Photos</label>
-            <p className="text-xs text-slate-800">
-              Drag to reorder - the first photo is the cover shown in your store. Up to {MAX_MEDIA} photos and video combined.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {form.images.map((url, index) => (
-                <div
-                  key={url}
-                  draggable
-                  onDragStart={() => setDragIndex(index)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => handleDrop(index)}
-                  onDragEnd={() => setDragIndex(null)}
-                  className={`group relative w-24 h-24 rounded-sm border border-slate-200 overflow-hidden cursor-grab active:cursor-grabbing ${
-                    dragIndex === index ? "opacity-40" : ""
-                  }`}
-                >
-                  <img src={url} alt="" className="w-full h-full object-cover" />
-                  {index === 0 && (
-                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-sm bg-neutral-900/80 text-white text-[10px] font-medium">
-                      Cover
-                    </span>
-                  )}
-                  {/* Grip handle is a hover-only desktop drag hint (fine to
-                      lose on touch, dragging itself is desktop-only), but
-                      the remove button must stay visible unconditionally -
-                      group-hover never fires on touch devices, which made
-                      this untappable on phones/tablets. */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none">
-                    <GripVertical size={16} className="absolute top-1 left-1 text-white drop-shadow opacity-0 group-hover:opacity-100" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeImage(url)}
-                    aria-label="Remove photo"
-                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center cursor-pointer shrink-0"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-
-              {pendingUploads.map((entry) => (
-                <div key={entry.key} className="relative w-24 h-24 rounded-sm border border-slate-200 overflow-hidden">
-                  <img src={entry.localUrl} alt="" className="w-full h-full object-cover opacity-50" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/35 px-1 text-center">
-                    <Loader2 size={20} className="text-white animate-spin" />
-                    <span className="text-[10px] font-medium leading-tight text-white">
-                      {entry.status || "Uploading image..."}
-                      {entry.progress != null ? ` ${entry.progress}%` : ""}
-                    </span>
-                  </div>
-                </div>
-              ))}
-
-              {form.images.length + pendingUploads.length + (form.videoUrl || uploadingVideo ? 1 : 0) < MAX_MEDIA && (
-                <label className="w-24 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-700 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
-                  <ImagePlus size={20} />
-                  <span className="text-[11px] font-medium">Add photos</span>
-                  <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
-                </label>
-              )}
-            </div>
-          </div>}
-
-          {hasField("video") && <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <label className="text-sm font-medium text-slate-700">Video (optional)</label>
-              <InfoTip>A short clip of the product - up to {PRODUCT_VIDEO_MAX_SECONDS}s and {formatUploadSize(PRODUCT_VIDEO_MAX_BYTES)}.</InfoTip>
-            </div>
-            {form.videoUrl ? (
-              <div className="relative w-40">
-                <video src={form.videoUrl} controls preload="metadata" className="w-40 rounded-sm border border-slate-200" />
-                <button
-                  type="button"
-                  onClick={removeVideo}
-                  aria-label="Remove video"
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center cursor-pointer shrink-0"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ) : uploadingVideo ? (
-              <div className="w-40 h-24 rounded-sm border border-slate-200 flex flex-col items-center justify-center gap-1 bg-slate-50 px-2 text-center">
-                <Loader2 size={20} className="text-slate-400 animate-spin" />
-                <span className="text-[11px] font-medium text-slate-700">
-                  {videoUploadStatus || "Uploading video..."}
-                  {videoUploadProgress != null ? ` ${videoUploadProgress}%` : ""}
-                </span>
-              </div>
-            ) : form.images.length + pendingUploads.length < MAX_MEDIA ? (
-              <label className="w-40 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-700 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
-                <Video size={20} />
-                <span className="text-[11px] font-medium">Add video</span>
-                <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoUpload} className="hidden" />
-              </label>
-            ) : (
-              <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
             )}
-          </div>}
-          <Switch
-            checked={!!form.imageDisclaimer}
-            onChange={(value) => setForm((f) => ({ ...f, imageDisclaimer: value }))}
-            label="Photos are for illustration only"
-            description={`Shows "${IMAGE_DISCLAIMER_TEXT}" on this product's photos in your store - for a supplier or sample photo rather than a shot of the exact item.`}
-          />
-          </FormSection>}
 
-          <div className="sticky bottom-0 z-20 -mx-3 -mb-3 flex justify-end px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">
-            <Button type="submit" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} className="w-full">Create product</Button>
+            {hasField("photos") && (
+              <Switch
+                checked={!!form.imageDisclaimer}
+                onChange={(value) => setForm((f) => ({ ...f, imageDisclaimer: value }))}
+                label="Photos are for illustration only"
+                description={`Shows "${IMAGE_DISCLAIMER_TEXT}" on the photos - for a sample or supplier photo.`}
+              />
+            )}
+            {optionalFieldsShown === 0 && <p className="text-xs text-slate-600">All extra fields are hidden. Use &ldquo;Show / hide fields&rdquo; to bring some back.</p>}
           </div>
-        </form>
+        </FormSection>
 
-        {hasField("category") && <form onSubmit={handleAddCategory} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
-          <p className="text-sm font-semibold text-slate-700">Add a category</p>
-          <Input
-            label="Name"
-            value={categoryForm.name}
-            onChange={(e) => {
-              const name = e.target.value;
-              setCategoryForm((f) => ({ ...f, name, slug: categorySlugTouched ? f.slug : slugify(name) }));
-            }}
-            required
-          />
-          <Input
-            label="Slug"
-            value={categoryForm.slug}
-            onChange={(e) => {
-              setCategorySlugTouched(true);
-              setCategoryForm((f) => ({ ...f, slug: e.target.value }));
-            }}
-            required
-          />
-          <div className="flex justify-end">
-            <Button type="submit" variant="outline" size="sm" loading={addingCategory} className="w-full sm:w-auto">Add category</Button>
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 backdrop-blur sm:sticky sm:inset-x-auto sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
+          <div className="mx-auto max-w-3xl px-4 py-3 sm:px-0">
+            <Button type="submit" size="lg" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>
+              {pendingUploads.length > 0 ? "Uploading photos..." : "Create product"}
+            </Button>
           </div>
-        </form>}
-        
-      </div>
+        </div>
+      </form>
 
       <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
     </div>

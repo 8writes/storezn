@@ -5,7 +5,9 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/Button.js";
 import { useModalScrollLock } from "@/hooks/useModalScrollLock.js";
 
-export function ProductFormFieldsButton({ fields, visibleFields, onToggle, saving = false }) {
+// compact: a small "Show / hide fields" link (e.g. in a section header)
+// instead of the full-width button.
+export function ProductFormFieldsButton({ fields, visibleFields, onToggle, saving = false, compact = false }) {
   const [open, setOpen] = useState(false);
   useModalScrollLock(open);
 
@@ -20,15 +22,21 @@ export function ProductFormFieldsButton({ fields, visibleFields, onToggle, savin
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        fullWidth={true}
-        onClick={() => setOpen(true)}
-      >
-        <SlidersHorizontal size={15} /> Customize fields
-      </Button>
+      {compact ? (
+        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline cursor-pointer">
+          <SlidersHorizontal size={13} /> Show / hide fields
+        </button>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          fullWidth={true}
+          onClick={() => setOpen(true)}
+        >
+          <SlidersHorizontal size={15} /> Customize fields
+        </Button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overflow-y-auto overscroll-contain p-0 sm:p-4 sm:py-8">

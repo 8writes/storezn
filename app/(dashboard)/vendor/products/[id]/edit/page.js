@@ -16,7 +16,8 @@ import { SizeGuideField } from "@/components/ui/SizeGuideField.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
-import { PageHeader } from "@/components/ui/PageHeader.js";
+import { CategoryPicker } from "@/components/ui/CategoryPicker.js";
+import { ProductMediaField } from "@/components/ui/ProductMediaField.js";
 import { FormSection } from "@/components/ui/FormSection.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
@@ -32,22 +33,13 @@ import {
   validateVideoDuration,
   validateProductImageFile,
   validateProductVideoFile,
-  PRODUCT_VIDEO_MAX_SECONDS,
-  formatUploadSize,
 } from "@/lib/clientUpload.js";
-import { PRODUCT_VIDEO_MAX_BYTES } from "@/lib/mediaValidation.js";
 import { formatCurrency } from "@/lib/format.js";
-import { X, Trash2, ImagePlus, Loader2, GripVertical, Video, Pencil, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Trash2, Video, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 
 // Photos and video share one combined cap - a video eats one of the 10
 // slots, same as a photo would.
 const MAX_MEDIA = 10;
-
-const PRODUCT_TYPE_OPTIONS = [
-  { value: "physical", label: "Physical (needs shipping)" },
-];
-
-// { value: "digital", label: "Digital (no shipping)" },
 
 const CONDITION_OPTIONS = [
   { value: "new", label: "Brand New" },
@@ -55,14 +47,9 @@ const CONDITION_OPTIONS = [
   { value: "used", label: "Used" },
 ];
 
-const STATUS_OPTIONS = [
-  { value: "true", label: "Live (visible in store)" },
-  { value: "false", label: "Hidden (draft)" },
-];
-
 const SALE_MODE_OPTIONS = [
-  { value: "fixed_price", label: "Fixed price" },
-  { value: "invoice_required", label: "Request invoice (price agreed later)" },
+  { value: "fixed_price", label: "Fixed price - customers buy straight away" },
+  { value: "invoice_required", label: "Price agreed per customer - they request a quote" },
 ];
 
 const PRODUCT_FORM_FIELDS = [
@@ -108,6 +95,8 @@ export default function VendorProductEditPage({ params }) {
   const [videoUploadProgress, setVideoUploadProgress] = useState(null);
   const [visibleFormFields, setVisibleFormFields] = useState(DEFAULT_VISIBLE_FORM_FIELDS);
   const [savingFormPreferences, setSavingFormPreferences] = useState(false);
+  // null = follow whether the product already uses a "More options" field.
+  const [moreOpenChoice, setMoreOpenChoice] = useState(null);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -380,235 +369,176 @@ export default function VendorProductEditPage({ params }) {
     );
   }
 
-  const categoryOptions = [{ value: "", label: "No category" }, ...categories.map((c) => ({ value: c.id, label: c.name }))];
+  // "More options" opens by itself when this product already uses one of
+  // them, so nothing set is hidden; otherwise it starts closed.
+  const usesMoreOptions =
+    form.saleMode === "invoice_required" || form.discountPercent !== "" || form.costPrice !== "" ||
+    (form.priceTiers || []).length > 0 || (form.customerFields || []).length > 0 || !!form.sku || !!form.expiryDate;
+  const moreOpen = moreOpenChoice ?? usesMoreOptions;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <BackLink href={`/vendor/products/${id}?storeId=${storeId}`} label="Back to product" />
-      <PageHeader
-        title="Edit product"
-        description="Update product details, stock settings, variants, media, and customer-facing fields."
-      />
+    <div className="mx-auto max-w-3xl space-y-4 pb-24">
+      <BackLink href={`/vendor/products/${id}?storeId=${storeId}`} label="Product" />
+      <h1 className="text-xl font-bold tracking-tight text-slate-900">Edit product</h1>
 
       {suspension && (
         <div className="bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
           <p className="font-medium">Suspended by admin</p>
-          <p>{suspension.reason || "No reason given."} It won&apos;t show on your storefront until an admin lifts the suspension - changing it to Live here won&apos;t override it.</p>
+          <p>{suspension.reason || "No reason given."} It stays hidden from your store until an admin lifts it.</p>
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-3">
-        <ProductFormFieldsButton
-          fields={PRODUCT_FORM_FIELDS}
-          visibleFields={visibleFormFields}
-          onToggle={toggleFormField}
-          saving={savingFormPreferences}
-        />
-        <FormSection title="Basics" description="Keep the product identity, selling method, price, and status easy to review.">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
-          {hasField("slug") && <Input label="URL slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />}
-          {hasField("sku") && <div className="flex items-end gap-2">
-            <div className="flex-1"><Input label="SKU / barcode (optional)" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} /></div>
-            <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
-          </div>}
-          {hasField("expiryDate") && form.productType === "physical" && (
-            <Input
-              type="date"
-              label="Expiry / use-by date (optional)"
-              value={form.expiryDate}
-              onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
-            />
-          )}
-          <Select label="Selling method" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
-          {form.saleMode === "fixed_price" && <PriceInput label="Price" leadingText="₦" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} usdRate={usdRate} required />}
-          {hasField("discount") && form.saleMode === "fixed_price" && <div>
-            <div className="flex items-center gap-1.5 mb-1">
-              <label className="text-sm font-medium text-slate-700">Discount %</label>
-              <InfoTip>Reduces what&apos;s actually charged, e.g. a ₦5,000 product with a 20% discount charges ₦4,000 and shows &ldquo;was ₦5,000, now ₦4,000&rdquo;. Leave blank for no discount.</InfoTip>
+      <form onSubmit={handleSave} className="space-y-4">
+        <FormSection title="Product">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <Input label="Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
             </div>
-            <Input
-              type="number"
-              min="1"
-              max="99"
-              placeholder="0"
-              value={form.discountPercent}
-              onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))}
-            />
-          </div>}
-          {hasField("costPrice") && <div>
-            <div className="flex items-center gap-1.5 mb-1">
-              <label className="text-sm font-medium text-slate-700">Cost price</label>
-              <InfoTip>What you paid for it. Only you see this, it&apos;s used for profit/margin figures, never shown to customers.</InfoTip>
-            </div>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              value={form.costPrice}
-              onChange={(e) => setForm((f) => ({ ...f, costPrice: e.target.value }))}
-            />
-            {form.costPrice !== "" && form.price !== "" && Number(form.price) > 0 && (
-              <p className="text-xs text-slate-800 mt-1">
-                Margin {formatCurrency(Number(form.price) - Number(form.costPrice))} (
-                {Math.round(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100)}%)
-              </p>
+            {form.saleMode === "fixed_price" ? (
+              <PriceInput label="Price" leadingText="₦" value={form.price} onChange={(v) => setForm((f) => ({ ...f, price: v }))} usdRate={usdRate} required />
+            ) : (
+              <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+                Price agreed with each customer - they request a quote.
+              </div>
             )}
-          </div>}
-          <Select label="Type" options={PRODUCT_TYPE_OPTIONS} value={form.productType} onChange={(v) => setForm((f) => ({ ...f, productType: v }))} />
-          {form.productType === "physical" && (
-            <>
-              {hasField("condition") && <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />}
-              {hasField("openingStock") && <div>
-                <Input
-                  label="Stock"
-                  type="number"
-                  min="0"
-                  value={form.stock}
-                  onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-                  disabled={branchCount > 1}
-                />
-                {branchCount > 1 && <p className="text-xs font-medium text-amber-600 mt-1">Use Stock by branch below instead.</p>}
-              </div>}
-            </>
-          )}
-          {hasField("category") && <Select label="Category" options={categoryOptions} value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))} />}
-          <Select
-            label="Status"
-            options={STATUS_OPTIONS}
-            value={String(form.isActive)}
-            onChange={(v) => setForm((f) => ({ ...f, isActive: v === "true" }))}
-          />
-        </div>
+            {hasField("openingStock") && form.productType === "physical" && (
+              branchCount > 1 ? (
+                <div className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">Stock is set per branch - see <strong>Stock by branch</strong> below.</div>
+              ) : (
+                <Input label="Stock" type="number" min="0" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} />
+              )
+            )}
+            {hasField("category") && (
+              <CategoryPicker
+                storeId={storeId}
+                apiFetch={apiFetch}
+                categories={categories}
+                value={form.categoryId}
+                onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}
+                onCreated={(category) => setCategories((c) => [...c, category])}
+              />
+            )}
+            {hasField("condition") && form.productType === "physical" && (
+              <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
+            )}
+            <div className="sm:col-span-2">
+              <Switch
+                checked={form.isActive === true || form.isActive === "true"}
+                onChange={(value) => setForm((f) => ({ ...f, isActive: value }))}
+                label="Show in your store"
+                description="Turn off to hide it from customers without deleting it."
+              />
+            </div>
+          </div>
         </FormSection>
 
-        {(hasField("priceTiers") || hasField("description") || hasField("sizeGuide") || hasField("customerFields")) && <FormSection title="Details customers see" description="Add buying guidance, sizing, wholesale tiers, or custom information customers must provide.">
-        {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} usdRate={usdRate} />}
+        {(hasField("photos") || hasField("video")) && (
+          <FormSection title="Photos & video" description="Photo changes save straight away.">
+            <ProductMediaField
+              images={form.images}
+              pendingUploads={pendingUploads}
+              dragIndex={dragIndex}
+              onDragStart={setDragIndex}
+              onDrop={handleDrop}
+              onDragEnd={() => setDragIndex(null)}
+              onImageUpload={handleImageUpload}
+              onRemoveImage={removeImage}
+              showPhotos={hasField("photos")}
+              showVideo={hasField("video")}
+              videoUrl={form.videoUrl}
+              uploadingVideo={uploadingVideo}
+              videoUploadStatus={videoUploadStatus}
+              videoUploadProgress={videoUploadProgress}
+              onVideoUpload={handleVideoUpload}
+              onRemoveVideo={removeVideo}
+            />
+          </FormSection>
+        )}
 
-        {hasField("description") && <Textarea label="Description" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
-        {hasField("sizeGuide") && <SizeGuideField storeId={storeId} apiFetch={apiFetch} value={{ sizeGuide: form.sizeGuide, sizeGuidePresetId: form.sizeGuidePresetId || null }} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v.sizeGuide, sizeGuidePresetId: v.sizeGuidePresetId }))} />}
-        {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
-        </FormSection>}
+        {(hasField("description") || hasField("sizeGuide")) && (
+          <FormSection title="Description">
+            <div className="space-y-4">
+              {hasField("description") && <Textarea label="About this product" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
+              {hasField("sizeGuide") && <SizeGuideField storeId={storeId} apiFetch={apiFetch} value={{ sizeGuide: form.sizeGuide, sizeGuidePresetId: form.sizeGuidePresetId || null }} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v.sizeGuide, sizeGuidePresetId: v.sizeGuidePresetId }))} />}
+            </div>
+          </FormSection>
+        )}
 
-        {(hasField("photos") || hasField("video")) && <FormSection title="Media" description="Refresh photos and videos without losing the rest of the product edits.">
-        {hasField("photos") && <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Photos</label>
-          <p className="text-xs text-slate-800">
-            Drag to reorder - the first photo is the cover shown in your store. Up to {MAX_MEDIA} photos and video combined.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            {form.images.map((url, index) => (
-              <div
-                key={url}
-                draggable
-                onDragStart={() => setDragIndex(index)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => handleDrop(index)}
-                onDragEnd={() => setDragIndex(null)}
-                className={`group relative w-24 h-24 rounded-sm border border-slate-200 overflow-hidden cursor-grab active:cursor-grabbing ${
-                  dragIndex === index ? "opacity-40" : ""
-                }`}
-              >
-                <img src={url} alt="" className="w-full h-full object-cover" />
-                {index === 0 && (
-                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-sm bg-neutral-900/80 text-white text-[10px] font-medium">
-                    Cover
-                  </span>
+        <FormSection
+          title="More options"
+          description={moreOpen ? undefined : "Discounts, cost price, wholesale, SKU and more"}
+          collapsible
+          open={moreOpen}
+          onToggle={() => setMoreOpenChoice(!moreOpen)}
+          actions={<ProductFormFieldsButton compact fields={PRODUCT_FORM_FIELDS} visibleFields={visibleFormFields} onToggle={toggleFormField} saving={savingFormPreferences} />}
+        >
+          <div className="space-y-5">
+            <Select label="How it sells" options={SALE_MODE_OPTIONS} value={form.saleMode} onChange={(v) => setForm((f) => ({ ...f, saleMode: v, price: v === "invoice_required" ? "" : f.price, discountPercent: v === "invoice_required" ? "" : f.discountPercent, priceTiers: v === "invoice_required" ? null : f.priceTiers }))} />
+
+            {(hasField("discount") || hasField("costPrice")) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {hasField("discount") && form.saleMode === "fixed_price" && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-sm font-medium text-slate-700">Discount %</label>
+                      <InfoTip>The customer pays less and sees the old price crossed out. Leave blank for no discount.</InfoTip>
+                    </div>
+                    <Input type="number" min="1" max="99" placeholder="0" value={form.discountPercent} onChange={(e) => setForm((f) => ({ ...f, discountPercent: e.target.value }))} />
+                  </div>
                 )}
-                {/* Grip handle is a hover-only desktop drag hint (fine to
-                    lose on touch, dragging itself is desktop-only), but
-                    the remove button must stay visible unconditionally -
-                    group-hover never fires on touch devices, which made
-                    this untappable on phones/tablets. */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none">
-                  <GripVertical size={16} className="absolute top-1 left-1 text-white drop-shadow opacity-0 group-hover:opacity-100" />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeImage(url)}
-                  aria-label="Remove photo"
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center cursor-pointer shrink-0"
-                >
-                  <X size={12} />
-                </button>
+                {hasField("costPrice") && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="text-sm font-medium text-slate-700">Cost price</label>
+                      <InfoTip>What you paid for it. Only you see this - it&apos;s used to work out your profit.</InfoTip>
+                    </div>
+                    <PriceInput leadingText="₦" placeholder="0" value={form.costPrice} onChange={(v) => setForm((f) => ({ ...f, costPrice: v }))} />
+                    {form.costPrice !== "" && form.price !== "" && Number(form.price) > 0 && (
+                      <p className="text-xs text-slate-600 mt-1">
+                        Profit {formatCurrency(Number(form.price) - Number(form.costPrice))} ({Math.round(((Number(form.price) - Number(form.costPrice)) / Number(form.price)) * 100)}%)
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
+            )}
 
-            {pendingUploads.map((entry) => (
-              <div key={entry.key} className="relative w-24 h-24 rounded-sm border border-slate-200 overflow-hidden">
-                <img src={entry.localUrl} alt="" className="w-full h-full object-cover opacity-50" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/35 px-1 text-center">
-                  <Loader2 size={20} className="text-white animate-spin" />
-                  <span className="text-[10px] font-medium leading-tight text-white">
-                    {entry.status || "Uploading image..."}
-                    {entry.progress != null ? ` ${entry.progress}%` : ""}
-                  </span>
-                </div>
+            {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} usdRate={usdRate} />}
+
+            {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
+
+            {(hasField("sku") || hasField("slug") || hasField("expiryDate")) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {hasField("sku") && (
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1"><Input label="SKU / barcode" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} /></div>
+                    <BarcodeScanButton onScan={(code) => setForm((f) => ({ ...f, sku: code }))} />
+                  </div>
+                )}
+                {hasField("expiryDate") && form.productType === "physical" && (
+                  <Input type="date" label="Expiry / use-by date" value={form.expiryDate} onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))} />
+                )}
+                {hasField("slug") && <Input label="Web link" hint={`.../products/${form.slug}`} value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} required />}
               </div>
-            ))}
+            )}
 
-            {form.images.length + pendingUploads.length + (form.videoUrl || uploadingVideo ? 1 : 0) < MAX_MEDIA && (
-              <label className="w-24 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-700 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
-                <ImagePlus size={20} />
-                <span className="text-[11px] font-medium">Add photos</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
+            {hasField("photos") && (
+              <Switch
+                checked={!!form.imageDisclaimer}
+                onChange={(value) => setForm((f) => ({ ...f, imageDisclaimer: value }))}
+                label="Photos are for illustration only"
+                description={`Shows "${IMAGE_DISCLAIMER_TEXT}" on the photos - for a sample or supplier photo.`}
+              />
             )}
           </div>
-        </div>}
+        </FormSection>
 
-        {hasField("video") && <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
-            <label className="text-sm font-medium text-slate-700">Video (optional)</label>
-            <InfoTip>A short clip of the product - up to {PRODUCT_VIDEO_MAX_SECONDS}s and {formatUploadSize(PRODUCT_VIDEO_MAX_BYTES)}.</InfoTip>
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 backdrop-blur sm:sticky sm:inset-x-auto sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
+          <div className="mx-auto max-w-3xl px-4 py-3 sm:px-0">
+            <Button type="submit" size="lg" loading={saving} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>
+              {pendingUploads.length > 0 ? "Uploading photos..." : "Save changes"}
+            </Button>
           </div>
-          {form.videoUrl ? (
-            <div className="relative w-40">
-              <video src={form.videoUrl} controls preload="metadata" className="w-40 rounded-sm border border-slate-200" />
-              <button
-                type="button"
-                onClick={removeVideo}
-                aria-label="Remove video"
-                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center cursor-pointer shrink-0"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          ) : uploadingVideo ? (
-            <div className="w-40 h-24 rounded-sm border border-slate-200 flex flex-col items-center justify-center gap-1 bg-slate-50 px-2 text-center">
-              <Loader2 size={20} className="text-slate-400 animate-spin" />
-              <span className="text-[11px] font-medium text-slate-700">
-                {videoUploadStatus || "Uploading video..."}
-                {videoUploadProgress != null ? ` ${videoUploadProgress}%` : ""}
-              </span>
-            </div>
-          ) : form.images.length + pendingUploads.length < MAX_MEDIA ? (
-            <label className="w-40 h-24 rounded-sm border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-700 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
-              <Video size={20} />
-              <span className="text-[11px] font-medium">Add video</span>
-              <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoUpload} className="hidden" />
-            </label>
-          ) : (
-            <p className="text-xs text-slate-800">Remove a photo to make room for a video.</p>
-          )}
-        </div>}
-        <Switch
-          checked={!!form.imageDisclaimer}
-          onChange={(value) => setForm((f) => ({ ...f, imageDisclaimer: value }))}
-          label="Photos are for illustration only"
-          description={`Shows "${IMAGE_DISCLAIMER_TEXT}" on this product's photos in your store - for a supplier or sample photo rather than a shot of the exact item.`}
-        />
-        </FormSection>}
-
-        <div className="sticky bottom-0 z-20 -mx-3 -mb-3 flex justify-end px-3 py-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5">
-          <Button type="submit" loading={saving} fullWidth={true} disabled={pendingUploads.length > 0 || uploadingVideo} className="w-full">Save changes</Button>
         </div>
       </form>
 
