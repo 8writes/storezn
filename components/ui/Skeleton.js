@@ -138,7 +138,7 @@ export function AuthCardSkeleton({ fields = 2 }) {
 // layout once stores load.
 export function VendorDashboardSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-3">
         <Skeleton className="h-6 w-40" />
         <Skeleton className="h-9 w-32" />
@@ -154,16 +154,21 @@ export function VendorDashboardSkeleton() {
         </div>
       </div>
 
-      <StatGridSkeleton count={4} />
+      {/* Same compact stats strip and button grid as the loaded page. */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-px overflow-hidden rounded-sm border border-slate-200 bg-slate-200">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className={`bg-surface px-2.5 py-2.5 sm:px-4 sm:py-3.5 space-y-1.5 ${i >= 4 ? "sm:hidden" : ""}`}>
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        ))}
+      </div>
 
       <div>
-        <Skeleton className="h-4 w-28 mb-3" />
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-          {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="flex flex-col items-center justify-center gap-2 bg-surface border border-slate-200 rounded-sm p-4">
-              <Skeleton className="w-5 h-5 rounded-full" />
-              <Skeleton className="h-2.5 w-12" />
-            </div>
+        <Skeleton className="h-3 w-24 mb-2.5" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
       </div>

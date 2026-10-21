@@ -25,7 +25,6 @@ import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Button } from "@/components/ui/Button.js";
-import { StatCard } from "@/components/ui/StatCard.js";
 import { PageHeader } from "@/components/ui/PageHeader.js";
 import { Card } from "@/components/ui/Card.js";
 import { Alert } from "@/components/ui/Alert.js";
@@ -33,7 +32,7 @@ import { CopyableUrl } from "@/components/ui/CopyableUrl.js";
 import { StoreQrCodeButton } from "@/components/ui/StoreQrCodeButton.js";
 import { SetupGuideModal } from "@/components/ui/SetupGuideModal.js";
 import {
-  StatGridSkeleton,
+  Skeleton,
   VendorDashboardSkeleton,
 } from "@/components/ui/Skeleton.js";
 import {
@@ -481,7 +480,14 @@ export default function VendorDashboardPage() {
           )}
 
           {statsLoading || !stats ? (
-            <StatGridSkeleton count={6} />
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-px overflow-hidden rounded-sm border border-slate-200 bg-slate-200">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className={`bg-surface px-2.5 py-2.5 sm:px-4 sm:py-3.5 space-y-1.5 ${i >= 4 ? "sm:hidden" : ""}`}>
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              ))}
+            </div>
           ) : (
             (() => {
               const expired = stats.products.expired || 0;
@@ -506,28 +512,26 @@ export default function VendorDashboardPage() {
                   ? [{ key: "quotes", icon: ClipboardList, label: "Quote requests", value: stats.invoiceRequests.open, sub: "Waiting for your price", color: "accent", href: "/vendor/invoices/requests" }]
                   : []),
               ];
-              // Phones: every figure in one tight panel, three across, no
-              // sub-lines - the whole picture without scrolling. Blank
-              // cells fill out the last row so the grid lines stay even.
+              // Every figure in one tight panel: three across on a phone,
+              // a single strip on wider screens (sub-lines show there).
+              // Blank cells fill out the phone's last row so the grid
+              // lines stay even.
               const fillers = (3 - (items.length % 3)) % 3;
               const tone = { amber: "text-amber-700", red: "text-red-700", accent: "text-accent-700" };
+              const wideCols = { 4: "sm:grid-cols-4", 5: "sm:grid-cols-5", 6: "sm:grid-cols-6" }[items.length] || "sm:grid-cols-4";
               return (
-                <>
-                  <div className="sm:hidden grid grid-cols-3 gap-px overflow-hidden rounded-sm border border-slate-200 bg-slate-200">
-                    {items.map((item) => (
-                      <Link key={item.key} href={item.href} className="bg-surface px-2.5 py-2.5 active:bg-slate-50">
-                        <p title={item.title} className={`text-base font-bold tabular-nums leading-tight truncate ${tone[item.color] || "text-slate-900"}`}>
-                          {typeof item.value === "number" ? compactNumber(item.value) : item.value}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-slate-700 truncate">{item.label}</p>
-                      </Link>
-                    ))}
-                    {Array.from({ length: fillers }, (_, i) => <div key={`fill-${i}`} className="bg-surface" />)}
-                  </div>
-                  <div className="hidden sm:grid grid-cols-4 gap-3">
-                    {items.map(({ key, ...item }) => <StatCard key={key} {...item} />)}
-                  </div>
-                </>
+                <div className={`grid grid-cols-3 ${wideCols} gap-px overflow-hidden rounded-sm border border-slate-200 bg-slate-200`}>
+                  {items.map((item) => (
+                    <Link key={item.key} href={item.href} className="bg-surface px-2.5 py-2.5 sm:px-4 sm:py-3.5 hover:bg-slate-50 active:bg-slate-50 transition-colors">
+                      <p title={item.title} className={`text-base sm:text-xl font-bold tabular-nums leading-tight truncate ${tone[item.color] || "text-slate-900"}`}>
+                        {typeof item.value === "number" ? compactNumber(item.value) : item.value}
+                      </p>
+                      <p className="mt-0.5 text-[11px] sm:text-xs text-slate-700 truncate">{item.label}</p>
+                      {item.sub && <p className="hidden sm:block mt-0.5 text-xs text-slate-500 truncate">{item.sub}</p>}
+                    </Link>
+                  ))}
+                  {Array.from({ length: fillers }, (_, i) => <div key={`fill-${i}`} className="sm:hidden bg-surface" />)}
+                </div>
               );
             })()
           )}
@@ -536,12 +540,12 @@ export default function VendorDashboardPage() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2 sm:mb-2.5">
               Quick actions
             </p>
-            {/* Phones: compact buttons in two even columns. */}
-            <div className="sm:hidden grid grid-cols-2 gap-2">
+            {/* Compact buttons: two even columns on a phone, more across on wider screens. */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               {shortcuts.map(({ label, icon: Icon, href, onClick }, index) => {
                 // An odd last button takes the whole row instead of half.
-                const span = shortcuts.length % 2 === 1 && index === shortcuts.length - 1 ? "col-span-2 " : "";
-                const chip = span + "flex items-center gap-2 h-10 px-3 rounded-sm border border-slate-200 bg-surface text-sm font-medium text-slate-800 active:bg-brand-50 cursor-pointer min-w-0";
+                const span = shortcuts.length % 2 === 1 && index === shortcuts.length - 1 ? "col-span-2 sm:col-span-1 " : "";
+                const chip = span + "flex items-center gap-2 h-10 px-3 rounded-sm border border-slate-200 bg-surface text-sm font-medium text-slate-800 hover:border-brand-300 hover:bg-brand-50/50 active:bg-brand-50 transition-colors cursor-pointer min-w-0";
                 const content = (<><Icon size={16} className="shrink-0 text-brand-700" /><span className="truncate">{label}</span></>);
                 return href ? (
                   <Link key={label} href={href} className={chip}>{content}</Link>
@@ -549,39 +553,6 @@ export default function VendorDashboardPage() {
                   <button key={label} type="button" onClick={onClick} className={chip}>{content}</button>
                 );
               })}
-            </div>
-            <div className={`hidden sm:grid gap-2.5 ${shortcuts.length % 4 === 0 ? "sm:grid-cols-4" : shortcuts.length % 3 === 0 ? "sm:grid-cols-3" : shortcuts.length % 5 === 0 ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
-              {shortcuts.map(
-                ({ label, icon: Icon, href, onClick }) => {
-                  const content = (
-                    <>
-                      <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-brand-100 text-brand-700 transition-colors group-hover:bg-brand-600 group-hover:text-white">
-                        <Icon size={17} />
-                      </span>
-                      <span className="text-xs font-medium text-slate-600 text-center leading-tight">
-                        {label}
-                      </span>
-                    </>
-                  );
-                  const className =
-                    "group flex flex-col items-center justify-center gap-2 bg-surface border border-slate-200 rounded-sm shadow-xs p-4 " +
-                    "transition-[box-shadow,border-color] duration-150 hover:shadow-sm hover:border-brand-300 cursor-pointer";
-                  return href ? (
-                    <Link key={label} href={href} className={className}>
-                      {content}
-                    </Link>
-                  ) : (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={onClick}
-                      className={className}
-                    >
-                      {content}
-                    </button>
-                  );
-                },
-              )}
             </div>
           </div>
         </>
