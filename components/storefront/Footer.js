@@ -24,7 +24,9 @@ const SOCIAL_ICONS = [
 // app/storefront/[host]/layout.js) swaps the plain white footer for the
 // store's own accent as a solid background, matching the header - text/
 // icon colors flip to a light-on-color palette so they stay legible.
-export function Footer({ store, themed = false }) {
+// `hideBranding` (Storezn+ and Enterprise) drops the "Get your own website"
+// link, so a paying store's footer carries only its own brand.
+export function Footer({ store, themed = false, hideBranding = false }) {
   const links = store?.socialLinks || {};
   const hasAnySocial = SOCIAL_ICONS.some(({ key }) => links[key]);
 
@@ -59,9 +61,11 @@ export function Footer({ store, themed = false }) {
           <a href="/orders" className={`font-medium transition-colors ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
             Track an order
           </a>
-          <a href={getPlatformUrl("/signup")} className={`text-right font-medium transition-colors sm:text-left ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
-            Get your own website
-          </a>
+          {!hideBranding && (
+            <a href={getPlatformUrl("/signup")} className={`text-right font-medium transition-colors sm:text-left ${themed ? "hover:text-white" : "hover:text-brand-600"}`}>
+              Get your own website
+            </a>
+          )}
         </div>
       </div>
     </footer>

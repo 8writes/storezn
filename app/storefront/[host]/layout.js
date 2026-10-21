@@ -125,7 +125,7 @@ export default async function StorefrontLayout({ children, params }) {
         </div>
       </header>
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-12 flex-1 w-full">{children}</main>
-      <Footer store={store} themed={themed} />
+      <Footer store={store} themed={themed} hideBranding={isPlusStore(store)} />
       <WhatsAppButton store={store} />
       <VisitBeacon />
       <UpdatePrompt />
