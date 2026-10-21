@@ -292,7 +292,7 @@ export default function VendorDashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {isOwner && (
         <SetupGuideModal open={guideOpen} onClose={closeGuide} steps={steps} />
       )}
@@ -369,11 +369,11 @@ export default function VendorDashboardPage() {
       ) : (
         <>
           {isOwner && store && verification?.approvalStatus === "approved" && (
-            <Card className="bg-brand-50! border-brand-100! space-y-1.5">
+            <Card className="bg-brand-50! border-brand-100! space-y-1.5 p-3! sm:p-5!">
               <p className="text-sm font-semibold text-slate-900">
                 This is your website&apos;s link
               </p>
-              <p className="text-xs text-slate-800">
+              <p className="hidden sm:block text-xs text-slate-800">
                 Anyone who opens it can browse and buy from you, copy it and
                 share it on WhatsApp, Instagram, anywhere.
               </p>
@@ -474,89 +474,71 @@ export default function VendorDashboardPage() {
             <StatGridSkeleton count={6} />
           ) : (
             (() => {
-              const showExpiry =
-                (stats.products.expiringSoon || 0) +
-                  (stats.products.expired || 0) >
-                0;
-              const showRequests = (stats.invoiceRequests?.open || 0) > 0;
-              // An odd card count leaves a hole on the 2-column phone grid,
-              // so the last card spans the row there.
-              const oddCount = (4 + (showExpiry ? 1 : 0) + (showRequests ? 1 : 0)) % 2 === 1;
+              const expired = stats.products.expired || 0;
+              const expiring = stats.products.expiringSoon || 0;
+              const items = [
+                { key: "revenue", icon: Wallet, label: "Revenue", value: compactCurrency(stats.revenue), title: formatCurrency(stats.revenue), color: "green", href: "/vendor/payouts" },
+                { key: "orders", icon: ShoppingBag, label: "Orders", value: stats.orders.total, sub: `${stats.orders.pending} in progress`, href: "/vendor/orders" },
+                { key: "products", icon: Package, label: "Products", value: stats.products.total, sub: `${stats.products.live} live · ₦${compactNumber(stats.products.stockValue || 0)} value`, href: "/vendor/products" },
+                { key: "low", icon: AlertTriangle, label: "Low stock", value: stats.products.lowStock, color: stats.products.lowStock > 0 ? "amber" : "brand", href: "/vendor/products?stock=low" },
+                ...(expired + expiring > 0
+                  ? [{
+                      key: "expiry",
+                      icon: CalendarClock,
+                      label: expired > 0 ? "Expired" : "Expiring soon",
+                      value: expired > 0 ? expired : expiring,
+                      sub: expired > 0 ? `${expiring} more within 30 days` : "within 30 days",
+                      color: expired > 0 ? "red" : "amber",
+                      href: `/vendor/products?expiry=${expired > 0 ? "expired" : "soon"}`,
+                    }]
+                  : []),
+                ...((stats.invoiceRequests?.open || 0) > 0
+                  ? [{ key: "quotes", icon: ClipboardList, label: "Quote requests", value: stats.invoiceRequests.open, sub: "Waiting for your price", color: "accent", href: "/vendor/invoices/requests" }]
+                  : []),
+              ];
+              // Phones: every figure in one tight panel, three across, no
+              // sub-lines - the whole picture without scrolling. Blank
+              // cells fill out the last row so the grid lines stay even.
+              const fillers = (3 - (items.length % 3)) % 3;
+              const tone = { amber: "text-amber-700", red: "text-red-700", accent: "text-accent-700" };
               return (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <StatCard
-                    icon={Wallet}
-                    label="Revenue"
-                    value={compactCurrency(stats.revenue)}
-                    title={formatCurrency(stats.revenue)}
-                    color="green"
-                    href="/vendor/payouts"
-                  />
-                  <StatCard
-                    icon={ShoppingBag}
-                    label="Orders"
-                    value={stats.orders.total}
-                    sub={`${stats.orders.pending} in progress`}
-                    href="/vendor/orders"
-                  />
-                  <StatCard
-                    icon={Package}
-                    label="Products"
-                    value={stats.products.total}
-                    sub={`${stats.products.live} live · ₦${compactNumber(stats.products.stockValue || 0)} value`}
-                    href="/vendor/products"
-                  />
-                  <StatCard
-                    icon={AlertTriangle}
-                    label="Low stock"
-                    value={stats.products.lowStock}
-                    color={stats.products.lowStock > 0 ? "amber" : "brand"}
-                    href="/vendor/products?stock=low"
-                  />
-                  {showExpiry && (
-                    <StatCard
-                      className={oddCount && !showRequests ? "col-span-2 sm:col-span-1" : ""}
-                      icon={CalendarClock}
-                      label={
-                        stats.products.expired > 0
-                          ? "Expired / expiring"
-                          : "Expiring soon"
-                      }
-                      value={
-                        stats.products.expired > 0
-                          ? stats.products.expired
-                          : stats.products.expiringSoon
-                      }
-                      sub={
-                        stats.products.expired > 0
-                          ? `${stats.products.expiringSoon} more within 30 days`
-                          : "within 30 days"
-                      }
-                      color={stats.products.expired > 0 ? "red" : "amber"}
-                      href={`/vendor/products?expiry=${stats.products.expired > 0 ? "expired" : "soon"}`}
-                    />
-                  )}
-                  {showRequests && (
-                    <StatCard
-                      className={oddCount ? "col-span-2 sm:col-span-1" : ""}
-                      icon={ClipboardList}
-                      label="Quote requests"
-                      value={stats.invoiceRequests.open}
-                      sub="Waiting for your price"
-                      color="accent"
-                      href="/vendor/invoices/requests"
-                    />
-                  )}
-                </div>
+                <>
+                  <div className="sm:hidden grid grid-cols-3 gap-px overflow-hidden rounded-sm border border-slate-200 bg-slate-200">
+                    {items.map((item) => (
+                      <Link key={item.key} href={item.href} className="bg-surface px-2.5 py-2.5 active:bg-slate-50">
+                        <p title={item.title} className={`text-base font-bold tabular-nums leading-tight truncate ${tone[item.color] || "text-slate-900"}`}>
+                          {typeof item.value === "number" ? compactNumber(item.value) : item.value}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-slate-700 truncate">{item.label}</p>
+                      </Link>
+                    ))}
+                    {Array.from({ length: fillers }, (_, i) => <div key={`fill-${i}`} className="bg-surface" />)}
+                  </div>
+                  <div className="hidden sm:grid grid-cols-4 gap-3">
+                    {items.map(({ key, ...item }) => <StatCard key={key} {...item} />)}
+                  </div>
+                </>
               );
             })()
           )}
 
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-800 mb-2 sm:mb-2.5">
               Quick actions
             </p>
-            <div className={`grid gap-2.5 ${shortcuts.length % 3 === 0 ? "grid-cols-3" : shortcuts.length === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3 sm:grid-cols-5"}`}>
+            {/* Phones: one row of compact buttons you swipe sideways. */}
+            <div className="sm:hidden -mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+              {shortcuts.map(({ label, icon: Icon, href, onClick }) => {
+                const chip = "shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-slate-200 bg-surface text-sm font-medium text-slate-800 active:bg-brand-50 cursor-pointer";
+                const content = (<><Icon size={15} className="text-brand-700" />{label}</>);
+                return href ? (
+                  <Link key={label} href={href} className={chip}>{content}</Link>
+                ) : (
+                  <button key={label} type="button" onClick={onClick} className={chip}>{content}</button>
+                );
+              })}
+            </div>
+            <div className={`hidden sm:grid gap-2.5 ${shortcuts.length === 4 ? "sm:grid-cols-4" : shortcuts.length % 3 === 0 ? "sm:grid-cols-3" : "sm:grid-cols-5"}`}>
               {shortcuts.map(
                 ({ label, icon: Icon, href, onClick }) => {
                   const content = (
