@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bookmark, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button.js";
@@ -154,9 +155,12 @@ export function SizeGuideField({ storeId, apiFetch, value, onChange }) {
   );
 }
 
+// Rendered into <body>, outside the product <form>: otherwise its buttons
+// (and Enter in its inputs) submit the product form - saving the product
+// when the vendor only meant to save the size guide.
 function ModalShell({ title, subtitle, onClose, busy, children, footer }) {
   useModalScrollLock(true);
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none sm:p-4">
       <div className="fixed inset-0 bg-black/50" onClick={busy ? undefined : onClose} />
       <div role="dialog" aria-modal="true" className="relative z-10 flex max-h-[92dvh] w-full flex-col rounded-t-sm bg-surface shadow-xl sm:max-w-2xl sm:rounded-sm">
@@ -170,7 +174,8 @@ function ModalShell({ title, subtitle, onClose, busy, children, footer }) {
         <div className="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">{children}</div>
         {footer && <div className="border-t border-slate-200 p-4 sm:p-5">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -196,7 +201,7 @@ function SavePresetModal({ storeId, apiFetch, guide, onClose, onSaved }) {
       subtitle="Name it so you can pick it on other products."
       onClose={onClose}
       busy={saving}
-      footer={<div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button><Button onClick={save} loading={saving}>Save</Button></div>}
+      footer={<div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button><Button type="button" onClick={save} loading={saving}>Save</Button></div>}
     >
       <Input label="Name" placeholder="e.g. Women's dresses, Men's shoes" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} autoFocus />
     </ModalShell>
@@ -227,7 +232,7 @@ function PresetEditorModal({ storeId, apiFetch, preset, onClose, onSaved }) {
       subtitle={preset.productCount > 0 ? `Changes show on all ${preset.productCount} product${preset.productCount === 1 ? "" : "s"} using it.` : undefined}
       onClose={onClose}
       busy={saving}
-      footer={<div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button><Button onClick={save} loading={saving}>Save</Button></div>}
+      footer={<div className="grid grid-cols-2 gap-2"><Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button><Button type="button" onClick={save} loading={saving}>Save</Button></div>}
     >
       <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
       <SizeGuideEditor value={guide} onChange={(next) => next && setGuide(next)} hideRemove />
@@ -271,7 +276,7 @@ function ManagePresetsModal({ storeId, apiFetch, presets, onChanged, onClose }) 
                 <p className="text-xs text-slate-600">Used on {preset.productCount} product{preset.productCount === 1 ? "" : "s"}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <Button size="sm" variant="ghost" onClick={() => setEditing(preset)}><Pencil size={14} /> Edit</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(preset)}><Pencil size={14} /> Edit</Button>
                 <button type="button" onClick={() => remove(preset)} disabled={deletingId === preset.id} aria-label={`Delete ${preset.name}`} className="p-2 text-slate-500 hover:text-red-600 disabled:opacity-50 cursor-pointer"><Trash2 size={15} /></button>
               </div>
             </li>
