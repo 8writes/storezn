@@ -9,7 +9,8 @@ import { BarcodeScanButton } from "@/components/pos/BarcodeScanButton.js";
 import { WholesaleTierEditor } from "@/components/ui/WholesaleTierEditor.js";
 import { PriceInput } from "@/components/ui/PriceInput.js";
 import { Textarea } from "@/components/ui/Textarea.js";
-import { SizeGuideEditor, normalizeSizeGuide } from "@/components/ui/SizeGuideEditor.js";
+import { normalizeSizeGuide } from "@/components/ui/SizeGuideEditor.js";
+import { SizeGuideField } from "@/components/ui/SizeGuideField.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
@@ -56,7 +57,7 @@ const CONDITION_OPTIONS = [
   { value: "used", label: "Used" },
 ];
 
-const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", saleMode: "fixed_price", customerFields: [], condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "", imageDisclaimer: false, variants: [] };
+const EMPTY_FORM = { name: "", slug: "", sku: "", description: "", sizeGuide: null, sizeGuidePresetId: null, price: "", costPrice: "", priceTiers: null, discountPercent: "", productType: "physical", saleMode: "fixed_price", customerFields: [], condition: "new", stock: "", expiryDate: "", branchStock: {}, categoryId: "", images: [], videoUrl: "", imageDisclaimer: false, variants: [] };
 const EMPTY_CATEGORY = { name: "", slug: "" };
 const PRODUCT_FORM_FIELDS = [
   { id: "slug", label: "URL slug" },
@@ -361,8 +362,13 @@ export default function VendorNewProductPage() {
       if (form.sku) payload.sku = form.sku;
       if (form.expiryDate) payload.expiryDate = form.expiryDate;
       if (form.description) payload.description = form.description;
-      const sg = normalizeSizeGuide(form.sizeGuide);
-      if (sg) payload.sizeGuide = sg;
+      // A saved guide is sent by id (the server copies its table in);
+      // otherwise the product's own table, if it has one.
+      if (form.sizeGuidePresetId) payload.sizeGuidePresetId = form.sizeGuidePresetId;
+      else {
+        const sg = normalizeSizeGuide(form.sizeGuide);
+        if (sg) payload.sizeGuide = sg;
+      }
       if (form.discountPercent !== "") payload.discountPercent = Number(form.discountPercent);
       if (form.costPrice !== "") payload.costPrice = Number(form.costPrice);
       const tiers = (form.priceTiers || [])
@@ -568,7 +574,7 @@ export default function VendorNewProductPage() {
               </div>
               {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} usdRate={usdRate} />}
               {hasField("description") && <Textarea label="Description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
-              {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
+              {hasField("sizeGuide") && <SizeGuideField storeId={storeId} apiFetch={apiFetch} value={{ sizeGuide: form.sizeGuide, sizeGuidePresetId: form.sizeGuidePresetId || null }} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v.sizeGuide, sizeGuidePresetId: v.sizeGuidePresetId }))} />}
           </div>
           </FormSection>
 

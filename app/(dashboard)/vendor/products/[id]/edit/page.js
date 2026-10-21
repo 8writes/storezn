@@ -11,7 +11,8 @@ import { PriceInput } from "@/components/ui/PriceInput.js";
 import { UsdHint } from "@/components/ui/UsdHint.js";
 import { WholesaleTierEditor } from "@/components/ui/WholesaleTierEditor.js";
 import { Textarea } from "@/components/ui/Textarea.js";
-import { SizeGuideEditor, normalizeSizeGuide } from "@/components/ui/SizeGuideEditor.js";
+import { normalizeSizeGuide } from "@/components/ui/SizeGuideEditor.js";
+import { SizeGuideField } from "@/components/ui/SizeGuideField.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
@@ -123,6 +124,7 @@ export default function VendorProductEditPage({ params }) {
           sku: product.sku || "",
           description: product.description || "",
           sizeGuide: product.sizeGuide || null,
+          sizeGuidePresetId: product.sizeGuidePresetId || null,
           price: String(product.price),
           saleMode: product.saleMode || "fixed_price",
           customerFields: Array.isArray(product.customerFields) ? product.customerFields : [],
@@ -345,7 +347,9 @@ export default function VendorProductEditPage({ params }) {
         categoryId: form.categoryId || null,
         expiryDate: form.expiryDate || null,
         description: form.description || undefined,
-        sizeGuide: normalizeSizeGuide(form.sizeGuide),
+        // Linked to a saved guide: the server copies its table in.
+        sizeGuidePresetId: form.sizeGuidePresetId || null,
+        sizeGuide: form.sizeGuidePresetId ? undefined : normalizeSizeGuide(form.sizeGuide),
         images: form.images,
         isActive: form.isActive === true || form.isActive === "true",
         allowStandardVariant: form.allowStandardVariant !== false,
@@ -483,7 +487,7 @@ export default function VendorProductEditPage({ params }) {
         {hasField("priceTiers") && form.saleMode === "fixed_price" && <WholesaleTierEditor value={form.priceTiers} onChange={(v) => setForm((f) => ({ ...f, priceTiers: v }))} usdRate={usdRate} />}
 
         {hasField("description") && <Textarea label="Description" rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />}
-        {hasField("sizeGuide") && <SizeGuideEditor value={form.sizeGuide} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v }))} />}
+        {hasField("sizeGuide") && <SizeGuideField storeId={storeId} apiFetch={apiFetch} value={{ sizeGuide: form.sizeGuide, sizeGuidePresetId: form.sizeGuidePresetId || null }} onChange={(v) => setForm((f) => ({ ...f, sizeGuide: v.sizeGuide, sizeGuidePresetId: v.sizeGuidePresetId }))} />}
         {hasField("customerFields") && <CustomerFieldsEditor value={form.customerFields} onChange={(customerFields) => setForm((f) => ({ ...f, customerFields }))} />}
         </FormSection>}
 

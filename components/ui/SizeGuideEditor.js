@@ -43,8 +43,19 @@ export function normalizeSizeGuide(g) {
 // measurement columns x size rows, plus the sizing-system names, a unit,
 // and a fit note. Controlled: `value` is the guide object (or null),
 // every edit calls `onChange` with the next object (or null to remove).
-export function SizeGuideEditor({ value, onChange }) {
+// addOnly: with no guide, render just the "Add size guide" button (the
+// caller supplies its own heading). hideRemove: no "Remove" link - for
+// editing a saved guide, which is deleted elsewhere.
+export function SizeGuideEditor({ value, onChange, addOnly = false, hideRemove = false }) {
   const guide = value || null;
+
+  if (!guide && addOnly) {
+    return (
+      <Button type="button" size="sm" variant="outline" onClick={() => onChange(structuredClone(EMPTY_GUIDE))}>
+        <Plus size={14} /> New size guide
+      </Button>
+    );
+  }
 
   if (!guide) {
     return (
@@ -84,13 +95,15 @@ export function SizeGuideEditor({ value, onChange }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-slate-700">Size guide</label>
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className="text-xs text-slate-800 hover:text-red-600 cursor-pointer"
-        >
-          Remove
-        </button>
+        {!hideRemove && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="text-xs text-slate-800 hover:text-red-600 cursor-pointer"
+          >
+            Remove
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

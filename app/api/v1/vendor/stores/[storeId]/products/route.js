@@ -1,3 +1,4 @@
+import { applySizeGuidePreset } from "../../../../../../../lib/sizeGuidePresets.js";
 import { NextResponse, after } from "next/server";
 import { db } from "../../../../../../../lib/db/index.js";
 import { products, productVariants, productBranchStock, stores, branches, categories } from "../../../../../../../lib/db/schema.js";
@@ -231,6 +232,10 @@ export async function POST(req, { params }) {
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
   const result = validate(createProductSchema, body);
+  if (result.ok) {
+    const presetError = await applySizeGuidePreset(storeId, result.data);
+    if (presetError) return NextResponse.json({ error: presetError }, { status: 400 });
+  }
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
   // Same attach guard as the PATCH route - media fields are plain URLs on

@@ -68,3 +68,14 @@ test("editing an invoice: every line needs a positive price; plan + deposit rule
   assert.equal(validate(updateInvoiceSchema, { ...base, guestEmail: "" }).ok, true);
   assert.equal(validate(updateInvoiceSchema, { ...base, action: "cancel" }).ok, false);
 });
+
+test("size guide presets: a name and a valid table; products can link one or clear it", async () => {
+  const { createSizeGuidePresetSchema, updateSizeGuidePresetSchema, updateProductSchema } = await import("../lib/validate.js");
+  const guide = { unit: "cm", columns: ["Bust"], rows: [{ size: "S", values: ["86"] }] };
+  assert.equal(validate(createSizeGuidePresetSchema, { name: "Dresses", guide }).ok, true);
+  assert.equal(validate(createSizeGuidePresetSchema, { name: " ", guide }).ok, false);
+  assert.equal(validate(createSizeGuidePresetSchema, { name: "Bad", guide: { ...guide, rows: [{ size: "S", values: [] }] } }).ok, false);
+  assert.equal(validate(updateSizeGuidePresetSchema, { name: "Renamed" }).ok, true);
+  assert.equal(validate(updateProductSchema, { sizeGuidePresetId: "p1" }).ok, true);
+  assert.equal(validate(updateProductSchema, { sizeGuidePresetId: null }).ok, true);
+});
