@@ -225,7 +225,7 @@ function InvoiceView({ data, details, setDetails, pay, paying, paymentError }) {
                   {isUsd && (
                     <>
                       You&apos;ll be charged <strong className="tabular-nums">{formatNaira(invoice.amountDue)}</strong> (naira).
-                      Dollar amounts are a guide; your bank may convert at its own rate.{" "}
+                     Your bank may convert at its own rate.{" "}
                     </>
                   )}
                   {invoice.international && "Pay by card or Apple Pay."}

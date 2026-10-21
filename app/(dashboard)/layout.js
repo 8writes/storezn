@@ -63,6 +63,7 @@ import {
 import Image from "next/image";
 import { PullToRefresh } from "@/components/ui/PullToRefresh.js";
 import UpdatePrompt from "@/app/UpdatePrompt.js";
+import InstallPrompt from "@/app/InstallPrompt.js";
 import { OfflineNavGuard } from "@/components/pos/OfflineNavGuard.js";
 import { isOffline, onConnectivityChange } from "@/lib/connectivity.js";
 
@@ -449,6 +450,9 @@ export default function DashboardLayout({ children }) {
       <Toaster theme={uiTheme} position="top-right" offset="80px" mobileOffset="80px" closeButton={true} />
       <UpdatePrompt />
       {isVendor && <OfflineNavGuard />}
+      {/* "Install Storezn" only for store owners and their staff, inside the
+          dashboard - not on the marketing site, sign-in or super-admin. */}
+      {isVendor && <InstallPrompt />}
 
       <aside
         className={`hidden sm:flex shrink-0 flex-col h-dvh sticky top-0 transition-[width] duration-150 ${

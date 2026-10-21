@@ -107,7 +107,19 @@ export default function VendorInvoiceRequestsPage() {
             {visibleRequests.map(({ request, items }) => {
               const name = request.buyerName || request.buyerPhone || request.guestEmail;
               return (
-                <li key={request.id} className="rounded-sm border border-slate-200 bg-surface p-4 shadow-xs">
+                <li
+                  key={request.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedId(request.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedId(request.id);
+                    }
+                  }}
+                  className="rounded-sm border border-slate-200 bg-surface p-4 shadow-xs cursor-pointer transition-colors hover:border-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className={`font-semibold truncate ${name ? "text-slate-900" : "text-slate-500"}`}>{name || "Customer not added yet"}</p>
@@ -118,7 +130,7 @@ export default function VendorInvoiceRequestsPage() {
                   <p className="mt-2 text-sm text-slate-700 line-clamp-2">
                     {items.map((item) => `${item.productName} × ${item.quantity}`).join(", ")}
                   </p>
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-3 flex items-center gap-2" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
                     <Button size="sm" onClick={() => setSelectedId(request.id)}>Set prices</Button>
                     <Button size="sm" variant="ghost" onClick={() => cancelRequest(request)}>Cancel</Button>
                   </div>

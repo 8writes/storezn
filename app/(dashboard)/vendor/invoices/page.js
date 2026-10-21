@@ -22,6 +22,7 @@ import { PageHeader } from "@/components/ui/PageHeader.js";
 import { SearchInput } from "@/components/ui/SearchInput.js";
 import { EmptyState } from "@/components/ui/EmptyState.js";
 import { Badge } from "@/components/ui/Badge.js";
+import { Skeleton } from "@/components/ui/Skeleton.js";
 import { invoiceStatus } from "@/lib/invoiceLabels.js";
 import { QuotePricingModal } from "@/components/invoices/QuotePricingModal.js";
 
@@ -33,6 +34,8 @@ export default function VendorInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
   const [requestCount, setRequestCount] = useState(0);
   const [pagination, setPagination] = useState(null);
+  // Until the first load lands - so "No invoices yet" never flashes first.
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -67,7 +70,8 @@ export default function VendorInvoicesPage() {
         setPagination(invoiceData.pagination || null);
         setPricing({ feePolicy: invoiceData.feePolicy || null, intlFeePolicy: invoiceData.intlFeePolicy || null, usdRate: invoiceData.usdRate || null });
       })
-      .catch((err) => toast.error(err.message || "Failed to load invoice requests"))
+      .catch((err) => toast.error(err.message || "Failed to load invoices"))
+      .finally(() => setLoading(false))
   }, [token, storeId, page, apiFetch]);
 
   useEffect(() => {
@@ -132,7 +136,25 @@ export default function VendorInvoicesPage() {
         </div>
       )}
 
-      {visibleInvoices.length > 0 ? (
+      {loading ? (
+        <ul className="space-y-2" aria-busy="true" aria-label="Loading invoices">
+          {Array.from({ length: 4 }, (_, i) => (
+            <li key={i} className="rounded-sm border border-slate-200 bg-surface p-4 shadow-xs">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : visibleInvoices.length > 0 ? (
         <>
           <ul className="space-y-2">
             {visibleInvoices.map((invoice) => {

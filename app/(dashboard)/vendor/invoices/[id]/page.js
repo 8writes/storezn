@@ -151,9 +151,6 @@ export default function VendorInvoiceDetailPage({ params }) {
         <a href={paymentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline">
           <ExternalLink size={14} /> See what the customer sees
         </a>
-        {order?.id && (
-          <Link href={`/vendor/orders/${order.id}?storeId=${storeId}`} className="font-medium text-brand-700 hover:underline">View order</Link>
-        )}
       </div>
 
       <section className="bg-surface border border-slate-200 rounded-sm p-5 text-sm text-slate-700 space-y-1">

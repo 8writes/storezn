@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+// Loaded on every page so the browser's one-time install offer
+// (beforeinstallprompt) is caught even when it fires before the vendor
+// reaches the dashboard - the banner itself only shows there.
+import "@/lib/pwaInstall.js";
 
 export default function RegisterServiceWorker() {
   useEffect(() => {

@@ -1,7 +1,6 @@
 import { Plus_Jakarta_Sans, Inter, Sora } from "next/font/google";
 import "./globals.css";
 import RegisterServiceWorker from "./RegisterServiceWorker.js";
-import InstallPrompt from "./InstallPrompt.js";
 import ScrollToTop from "./ScrollToTop.js";
 import CookieConsentBanner from "@/components/CookieConsentBanner.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
@@ -101,7 +100,6 @@ export default function RootLayout({ children }) {
           scroll on mobile without that side effect. */}
       <body className="min-h-full overflow-x-clip bg-canvas text-slate-900 antialiased">
         <RegisterServiceWorker />
-        <InstallPrompt />
         <ScrollToTop />
         {children}
         <CookieConsentBanner />
