@@ -144,7 +144,7 @@ function VendorSignupForm() {
             their store waits on a person to review it by hand. */}
         <p className="rounded-sm border border-amber-200 bg-amber-100 px-3 py-2 text-sm text-amber-900">
           Use your <strong>real first and last name</strong>, exactly as they appear on your NIN. We check them against
-          it when verifying your store - a nickname or your business name here will hold your store up.
+          it when verifying your identity.
         </p>
         <div className="grid grid-cols-2 gap-4">
           <Input label="First name" value={form.vendor.firstName} onChange={setVendorField("firstName")} required />

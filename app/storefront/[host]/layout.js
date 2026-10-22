@@ -1,9 +1,10 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { resolveStoreByHost, isStoreLive } from "@/lib/resolveStore.js";
-import { getStorefrontUrl, getPlatformUrl } from "@/lib/storeUrl.js";
+import { getStorefrontUrl, getPlatformUrl, customDomainRedirectHost, ORIGINAL_PATH_HEADER } from "@/lib/storeUrl.js";
 import { CartBadge } from "@/components/storefront/CartBadge.js";
 import { AccountMenu } from "@/components/storefront/AccountMenu.js";
 import { Footer } from "@/components/storefront/Footer.js";
@@ -66,6 +67,20 @@ export default async function StorefrontLayout({ children, params }) {
   const { host } = await params;
   const store = await resolveStoreByHost(decodeURIComponent(host));
   if (!store) return notFound();
+
+  // A store with its own domain lives there: its storezn subdomain sends
+  // visitors to the same page on the custom domain. Paid plans only - once
+  // a plan lapses the custom domain stops serving (lib/resolveStore.js) and
+  // the subdomain serves the store again, which is why this is a temporary
+  // redirect (a cached permanent one would strand customers on a dead
+  // domain). API calls aren't affected - they never pass through here.
+  const redirectHost = isPlusStore(store) ? customDomainRedirectHost(store, decodeURIComponent(host)) : null;
+  if (redirectHost) {
+    const path = (await headers()).get(ORIGINAL_PATH_HEADER) || "/";
+    const isLocal = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost").startsWith("localhost");
+    redirect(`${isLocal ? "http" : "https"}://${redirectHost}${path.startsWith("/") ? path : "/"}`);
+  }
+
   if (!isStoreLive(store)) return <StoreOfflineNotice store={store} />;
 
   // Storezn+ only - a free store's accent color (if any stale value is

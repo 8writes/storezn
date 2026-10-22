@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isMaintenanceModeOn } from "./lib/maintenanceMode.js";
 import { maintenancePageHtml } from "./lib/maintenancePage.js";
+import { ORIGINAL_PATH_HEADER } from "./lib/storeUrl.js";
 
 // Paths that are never a store's storefront, on ANY host - the API
 // resolves its own store from the raw Host header itself (see every
@@ -62,8 +63,13 @@ export async function proxy(req) {
   // Any other host is either a <slug>.<rootDomain> subdomain or a fully
   // custom domain - either way, rewrite into the storefront route group,
   // keyed by the raw host string, and let the page resolve it.
+  // The original path rides along in a header, so the storefront layout
+  // can send a subdomain visitor to the same page on the store's custom
+  // domain (it only sees the rewritten route, not the URL typed).
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set(ORIGINAL_PATH_HEADER, `${url.pathname}${url.search}`);
   url.pathname = `/storefront/${host}${url.pathname}`;
-  return NextResponse.rewrite(url);
+  return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
 }
 
 export const config = {
