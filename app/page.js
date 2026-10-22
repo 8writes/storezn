@@ -17,6 +17,7 @@ import {
   CreditCard,
   Check,
   ChevronDown,
+  ScanLine,
 } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
@@ -336,6 +337,60 @@ export default async function Home() {
             </div>
           </Reveal>
         </div>
+      </section>
+
+      {/* ------------------------------------------------ Spotlight: shop till */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full grid lg:grid-cols-2 gap-12 items-center">
+        <Reveal>
+          <p className="text-sm font-semibold text-brand-700">For supermarkets, pharmacies & shops</p>
+          <h2 className="mt-2 font-display text-2xl sm:text-4xl font-bold tracking-tight text-slate-900">A till for your counter, on any device</h2>
+          <p className="mt-4 text-slate-700 leading-relaxed">
+            Sell in your shop and online from the same stock. Your cashiers ring up sales on a phone, tablet or
+            computer - and you see every naira, from every branch, from anywhere.
+          </p>
+          <ul className="mt-6 space-y-3 text-sm text-slate-800">
+            {[
+              "Scan barcodes, take cash, transfer or POS machine - or split one sale across them",
+              "Keeps selling when the internet drops, and syncs when it's back",
+              "Cashier shifts with opening and closing counts, so the drawer always adds up",
+              "Several branches and tills, each with its own stock",
+              "Month-end report: what sold, who sold it, and where the money went",
+            ].map((t) => (
+              <li key={t} className="flex gap-2.5"><CheckCircle2 size={18} className="shrink-0 text-brand-600" /> {t}</li>
+            ))}
+          </ul>
+          <div className="mt-7 flex flex-col sm:flex-row gap-3">
+            <a
+              href={`mailto:support@ozmictech.com?subject=${encodeURIComponent("Storezn POS for my business")}`}
+              className="inline-flex items-center justify-center gap-2 text-sm font-semibold bg-slate-900 text-white px-6 py-3.5 rounded-sm hover:bg-slate-800 transition-colors"
+            >
+              Talk to us about POS <ArrowRight size={16} />
+            </a>
+            <Link href="/pricing" className="inline-flex items-center justify-center text-sm font-semibold text-slate-800 border border-slate-300 px-6 py-3.5 rounded-sm hover:border-slate-400 transition-colors">
+              See the Enterprise plan
+            </Link>
+          </div>
+        </Reveal>
+        <Reveal delay={120}>
+          <div className="mx-auto max-w-sm rounded-md border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden">
+            <div className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
+              <span className="inline-flex items-center gap-2 text-sm font-semibold"><ScanLine size={16} /> Till 2 · Ikeja branch</span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-brand-300"><span className="h-1.5 w-1.5 rounded-full bg-brand-400" /> Shift open</span>
+            </div>
+            <div className="space-y-2 p-4 text-sm">
+              <MockLine label="Peak milk 400g × 2" value="₦6,400" />
+              <MockLine label="Golden Penny spaghetti × 5" value="₦5,750" />
+              <MockLine label="Indomie super pack × 1" value="₦9,800" />
+              <MockLine label="Hypo bleach 1L × 1" value="₦1,450" />
+            </div>
+            <div className="space-y-1.5 border-t border-slate-100 px-4 py-3 text-sm">
+              <MockLine label="Total" value="₦23,400" strong />
+              <MockLine label="Cash" value="₦10,000" />
+              <MockLine label="POS (Moniepoint)" value="₦13,400" />
+            </div>
+            <div className="mx-4 mb-4 rounded-sm bg-brand-600 py-2.5 text-center text-sm font-semibold text-white">Complete sale</div>
+          </div>
+        </Reveal>
       </section>
 
       {/* ---------------------------------------------------- Marketplace teaser */}
