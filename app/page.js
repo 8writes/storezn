@@ -17,7 +17,6 @@ import {
   CreditCard,
   Check,
   ChevronDown,
-  BadgeCheck,
 } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { MarketingHeader } from "@/components/MarketingHeader";
@@ -123,10 +122,7 @@ export default async function Home() {
         />
         <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-10 items-center">
           <Reveal className="text-center lg:text-left">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-medium text-brand-800">
-              <BadgeCheck size={14} /> Every seller is identity-verified
-            </span>
-            <h1 className="mt-5 font-display text-4xl sm:text-5xl lg:text-[3.4rem] font-extrabold leading-[1.05] tracking-tight text-slate-900">
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.4rem] font-extrabold leading-[1.05] tracking-tight text-slate-900">
               Sell online. Get paid straight to your bank.
             </h1>
             <p className="mt-5 text-base sm:text-lg text-slate-700 max-w-xl mx-auto lg:mx-0">
