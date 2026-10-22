@@ -46,7 +46,7 @@ const FEATURES = [
 
 const PAYMENT_STEPS = [
   { icon: CreditCard, title: "Your customer pays", text: "By card, bank transfer, USSD or Apple Pay, on Paystack's secure checkout." },
-  { icon: Lock, title: "It's split instantly", text: "Your share goes to your own Paystack account at checkout. Storezn never holds your money." },
+  { icon: Lock, title: "It's split instantly", text: "Your payment goes to your own Paystack account at checkout. Storezn never holds your money." },
   { icon: Landmark, title: "It lands in your bank", text: "Paystack pays it into your bank account, usually the next business day." },
 ];
 
