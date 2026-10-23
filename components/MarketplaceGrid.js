@@ -1,10 +1,9 @@
 "use client";
 import { useState } from "react";
-import { Package, Loader2, MapPin } from "lucide-react";
+import { Package, Loader2 } from "lucide-react";
 import { getStorefrontUrl } from "@/lib/storeUrl.js";
 import { getEffectivePrice } from "@/lib/pricing.js";
 import { formatCurrency } from "@/lib/format.js";
-import { formatStateLabel } from "@/lib/nigeria.js";
 
 // Deliberately plainer than the rest of the marketplace's maximalist
 // sticker-and-shadow chrome (see app/marketplace/page.js) - a whole grid
@@ -41,12 +40,6 @@ function ProductCard({ product }) {
           <span className="text-sm font-medium text-slate-900">{invoiceRequired ? "Price on request" : formatCurrency(effectivePrice)}</span>
           {!invoiceRequired && product.discountPercent > 0 && <span className="text-xs text-slate-400 line-through">{formatCurrency(product.price)}</span>}
         </p>
-        {product.store.state && (
-          <p className="flex items-center gap-1 text-xs text-slate-400">
-            <MapPin size={11} className="shrink-0" />
-            {formatStateLabel(product.store.state)}
-          </p>
-        )}
       </div>
     </a>
   );

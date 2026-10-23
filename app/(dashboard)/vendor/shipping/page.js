@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button.js";
 import { Input } from "@/components/ui/Input.js";
 import { Switch } from "@/components/ui/Switch.js";
 import { FormSection } from "@/components/ui/FormSection.js";
+import { Tabs, TabPanel, useTabs } from "@/components/ui/Tabs.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency } from "@/lib/format.js";
 import { NIGERIA_STATE_OPTIONS, getLgaOptions } from "@/lib/nigeria.js";
@@ -22,6 +23,11 @@ import { COUNTRY_OPTIONS, FOREIGN_COUNTRY_OPTIONS, NIGERIA } from "@/lib/countri
 // the Save button; place fees save as they're added.
 
 const EMPTY_RATE_FORM = { country: NIGERIA, state: "", city: "", fee: "" };
+const SHIPPING_TABS = [
+  { id: "nigeria", label: "Nigeria" },
+  { id: "abroad", label: "Outside Nigeria" },
+  { id: "places", label: "Fees by place" },
+];
 
 export default function VendorShippingPage() {
   const { token } = useAuth(true);
@@ -33,6 +39,7 @@ export default function VendorShippingPage() {
   const [loaded, setLoaded] = useState(null);
   const form = loaded?.storeId === storeId ? loaded.form : null;
   const [saving, setSaving] = useState(false);
+  const tabs = useTabs(SHIPPING_TABS.map((t) => t.id));
 
   const setForm = (next) =>
     setLoaded((current) => ({
@@ -90,11 +97,14 @@ export default function VendorShippingPage() {
         <p className="mt-1 text-sm text-slate-700">What delivery costs and where you deliver.</p>
       </div>
 
+      <Tabs tabs={SHIPPING_TABS} active={tabs.active} onChange={tabs.onChange} />
+
       {!form ? (
         <FormSkeleton fields={3} />
       ) : (
         <>
-          <form onSubmit={handleSave} className="space-y-4">
+          <form onSubmit={handleSave} onInvalidCapture={tabs.onInvalid} className="space-y-4" hidden={tabs.active === "places"}>
+            <TabPanel id="nigeria" active={tabs.active} className="space-y-4">
             <FormSection title="Delivery fee">
               <FeeChoice
                 tbd={form.defaultShippingIsTBD}
@@ -129,6 +139,8 @@ export default function VendorShippingPage() {
               </div>
             </FormSection>
 
+            </TabPanel>
+            <TabPanel id="abroad" active={tabs.active}>
             <FormSection title="Outside Nigeria">
               <div className="space-y-4">
                 <Switch
@@ -172,10 +184,13 @@ export default function VendorShippingPage() {
               </div>
             </FormSection>
 
+            </TabPanel>
             <Button type="submit" loading={saving} fullWidth>Save</Button>
           </form>
 
-          <PlaceFees storeId={storeId} apiFetch={apiFetch} token={token} abroad={form.internationalDeliveryEnabled} />
+          <TabPanel id="places" active={tabs.active}>
+            <PlaceFees storeId={storeId} apiFetch={apiFetch} token={token} abroad={form.internationalDeliveryEnabled} />
+          </TabPanel>
         </>
       )}
     </div>

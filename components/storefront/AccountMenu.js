@@ -62,6 +62,9 @@ export function AccountMenu() {
           <Link href="/account/orders" onClick={() => setOpen(false)} className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
             Orders
           </Link>
+          <Link href="/account/wishlist" onClick={() => setOpen(false)} className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+            Wishlist
+          </Link>
           <Link href="/account/addresses" onClick={() => setOpen(false)} className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
             Addresses
           </Link>

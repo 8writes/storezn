@@ -19,7 +19,7 @@ import { BackLink } from "@/components/ui/BackLink.js";
 import { CategoryPicker } from "@/components/ui/CategoryPicker.js";
 import { ProductMediaField } from "@/components/ui/ProductMediaField.js";
 import { FormSection } from "@/components/ui/FormSection.js";
-import { moreOptionsSummary } from "@/lib/productFormSummary.js";
+import { Tabs, TabPanel, useTabs } from "@/components/ui/Tabs.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { StorageLimitDialog } from "@/components/ui/StorageLimitDialog.js";
 import { BranchStockPanel } from "@/components/ui/BranchStockPanel.js";
@@ -96,8 +96,7 @@ export default function VendorProductEditPage({ params }) {
   const [videoUploadProgress, setVideoUploadProgress] = useState(null);
   const [visibleFormFields, setVisibleFormFields] = useState(DEFAULT_VISIBLE_FORM_FIELDS);
   const [savingFormPreferences, setSavingFormPreferences] = useState(false);
-  // null = follow whether the product already uses a "More options" field.
-  const [moreOpenChoice, setMoreOpenChoice] = useState(null);
+  const tabs = useTabs(["details", "photos", "description", "more", "stock"]);
 
   useEffect(() => {
     if (!token || !storeId) return;
@@ -370,12 +369,16 @@ export default function VendorProductEditPage({ params }) {
     );
   }
 
-  // "More options" opens by itself when this product already uses one of
-  // them, so nothing set is hidden; otherwise it starts closed.
-  const usesMoreOptions =
-    form.saleMode === "invoice_required" || form.discountPercent !== "" || form.costPrice !== "" ||
-    (form.priceTiers || []).length > 0 || (form.customerFields || []).length > 0 || !!form.sku || !!form.expiryDate;
-  const moreOpen = moreOpenChoice ?? usesMoreOptions;
+  // One section at a time (components/ui/Tabs.js). A tab whose fields are
+  // all switched off in "Show / hide fields" is left out.
+  const productTabs = [
+    { id: "details", label: "Details" },
+    ...(hasField("photos") || hasField("video") ? [{ id: "photos", label: "Photos" }] : []),
+    ...(hasField("description") || hasField("sizeGuide") ? [{ id: "description", label: "Description" }] : []),
+    { id: "more", label: "More options" },
+    ...(hasField("variants") || hasField("openingStock") ? [{ id: "stock", label: "Variants & stock" }] : []),
+  ];
+  const activeTab = productTabs.some((t) => t.id === tabs.active) ? tabs.active : "details";
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-24">
@@ -411,7 +414,10 @@ export default function VendorProductEditPage({ params }) {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-4">
+      <Tabs tabs={productTabs} active={activeTab} onChange={tabs.onChange} />
+
+      <form onSubmit={handleSave} onInvalidCapture={tabs.onInvalid} className="space-y-4">
+        <TabPanel id="details" active={activeTab}>
         <FormSection title="Product">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
@@ -446,7 +452,9 @@ export default function VendorProductEditPage({ params }) {
             )}
           </div>
         </FormSection>
+        </TabPanel>
 
+        <TabPanel id="photos" active={activeTab}>
         {(hasField("photos") || hasField("video")) && (
           <FormSection title="Photos & video" description="Photo changes save straight away.">
             <ProductMediaField
@@ -479,7 +487,9 @@ export default function VendorProductEditPage({ params }) {
             )}
           </FormSection>
         )}
+        </TabPanel>
 
+        <TabPanel id="description" active={activeTab}>
         {(hasField("description") || hasField("sizeGuide")) && (
           <FormSection title="Description">
             <div className="space-y-4">
@@ -488,13 +498,12 @@ export default function VendorProductEditPage({ params }) {
             </div>
           </FormSection>
         )}
+        </TabPanel>
 
+        <TabPanel id="more" active={activeTab}>
         <FormSection
           title="More options"
-          description={moreOpen ? undefined : moreOptionsSummary(["discount", "costPrice", "priceTiers", "customerFields", "sku", "expiryDate", "slug"], hasField)}
-          collapsible
-          open={moreOpen}
-          onToggle={() => setMoreOpenChoice(!moreOpen)}
+          description="Extras most products don't need."
           actions={<ProductFormFieldsButton compact fields={PRODUCT_FORM_FIELDS} visibleFields={visibleFormFields} onToggle={toggleFormField} saving={savingFormPreferences} />}
         >
           <div className="space-y-5">
@@ -549,8 +558,9 @@ export default function VendorProductEditPage({ params }) {
 
           </div>
         </FormSection>
+        </TabPanel>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 backdrop-blur sm:sticky sm:inset-x-auto sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
+        <div hidden={activeTab === "stock"} className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 backdrop-blur sm:sticky sm:inset-x-auto sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
           <div className="mx-auto max-w-3xl px-4 py-3 sm:px-0">
             <Button type="submit" size="lg" loading={saving} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>
               {pendingUploads.length > 0 ? "Uploading photos..." : "Save changes"}
@@ -559,6 +569,7 @@ export default function VendorProductEditPage({ params }) {
         </div>
       </form>
 
+      <TabPanel id="stock" active={activeTab} className="space-y-4">
       {hasField("openingStock") && <BranchStockPanel storeId={storeId} productId={id} apiFetch={apiFetch} onTotalBranches={setBranchCount} />}
 
       {hasField("variants") && <VariantsManager
@@ -570,6 +581,7 @@ export default function VendorProductEditPage({ params }) {
         onToggleStandard={(v) => setForm((f) => ({ ...f, allowStandardVariant: v }))}
         usdRate={usdRate}
       />}
+      </TabPanel>
 
       <StorageLimitDialog open={storageDialogOpen} onClose={() => setStorageDialogOpen(false)} />
     </div>

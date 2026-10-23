@@ -110,6 +110,12 @@ export default async function Home() {
     trust.storeCount >= 20 && { value: `${roundDown(trust.storeCount, 10)}+`, label: "businesses selling" },
     trust.productCount >= 100 && { value: `${roundDown(trust.productCount, 100).toLocaleString("en-NG")}+`, label: "products listed" },
   ].filter(Boolean);
+  const trustItems = [
+    <><Lock size={16} className="text-brand-600" /> Payments by Paystack</>,
+    <><Landmark size={16} className="text-brand-600" /> Paid to your own bank</>,
+    <><ShieldCheck size={16} className="text-brand-600" /> Verified sellers only</>,
+    ...stats.map((stat) => <><strong className="font-semibold text-slate-900">{stat.value}</strong> {stat.label}</>),
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-white overflow-x-clip">
@@ -179,14 +185,18 @@ export default async function Home() {
 
       {/* ---------------------------------------------------------- Trust strip */}
       <section className="border-y border-slate-100 bg-slate-50/70">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-center gap-x-10 gap-y-3 text-sm text-slate-700">
-          <span className="inline-flex items-center gap-2"><Lock size={16} className="text-brand-600" /> Payments by Paystack</span>
-          <span className="inline-flex items-center gap-2"><Landmark size={16} className="text-brand-600" /> Paid to your own bank</span>
-          <span className="inline-flex items-center gap-2"><ShieldCheck size={16} className="text-brand-600" /> Verified sellers only</span>
-          {stats.map((stat) => (
-            <span key={stat.label} className="inline-flex items-center gap-1.5">
-              <strong className="font-semibold text-slate-900">{stat.value}</strong> {stat.label}
-            </span>
+        {/* Phones: one row sliding sideways on a loop (the list is doubled so
+            it wraps seamlessly - see .animate-marquee in globals.css). */}
+        <div className="sm:hidden overflow-hidden py-4" aria-label="Why sellers trust Storezn">
+          <div className="flex w-max animate-marquee gap-8 pr-8 text-sm text-slate-700">
+            {[...trustItems, ...trustItems].map((item, i) => (
+              <span key={i} aria-hidden={i >= trustItems.length} className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">{item}</span>
+            ))}
+          </div>
+        </div>
+        <div className="hidden sm:flex max-w-6xl mx-auto px-6 py-6 flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm text-slate-700">
+          {trustItems.map((item, i) => (
+            <span key={i} className="inline-flex items-center gap-2">{item}</span>
           ))}
         </div>
       </section>

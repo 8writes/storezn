@@ -10,6 +10,7 @@ import { claimStoreUploads, filterStoreOwnedUploadUrls, removeStoreUpload } from
 import { deleteStoreProducts, purgeProductAssets } from "../../../../../../../../lib/productDelete.js";
 import { setBranchStock } from "../../../../../../../../lib/inventory.js";
 import { logStoreActivity } from "../../../../../../../../lib/storeActivity.js";
+import { isPriceDrop, notifyWishlistPriceDrop } from "../../../../../../../../lib/wishlistAlerts.js";
 import { formatCurrency } from "../../../../../../../../lib/format.js";
 import { STAFF_BRANCH_REQUIRED_MESSAGE, stockBranchForUser } from "../../../../../../../../lib/stockBranch.js";
 import {
@@ -208,6 +209,13 @@ export async function PATCH(req, { params }) {
         [...owned].map((url) => Promise.allSettled([deletePublicFile(url), removeStoreUpload(url)])),
       );
     });
+  }
+
+  // Cheaper now (new/bigger discount or lower price)? Tell the shoppers
+  // who saved it to their wishlist - after the response, deduplicated per
+  // shopper (lib/wishlistAlerts.js).
+  if (updated && isPriceDrop(product, updated)) {
+    after(() => notifyWishlistPriceDrop({ store, before: product, after: updated }).catch((err) => console.error("wishlist price drop failed:", err)));
   }
 
   // Preserve a complete field-level audit. Large media arrays are recorded

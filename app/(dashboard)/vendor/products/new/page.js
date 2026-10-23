@@ -15,7 +15,7 @@ import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
 import { BackLink } from "@/components/ui/BackLink.js";
 import { FormSection } from "@/components/ui/FormSection.js";
-import { moreOptionsSummary } from "@/lib/productFormSummary.js";
+import { Tabs, TabPanel, useTabs } from "@/components/ui/Tabs.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { InfoTip } from "@/components/ui/InfoTip.js";
 import { Switch } from "@/components/ui/Switch.js";
@@ -88,8 +88,7 @@ export default function VendorNewProductPage() {
   const [submitting, setSubmitting] = useState(false);
   const [pendingUploads, setPendingUploads] = useState([]);
   const [dragIndex, setDragIndex] = useState(null);
-  // "More options" starts closed: most products only need the basics.
-  const [moreOpen, setMoreOpen] = useState(false);
+  const tabs = useTabs(["details", "photos", "description", "more"]);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [branchCount, setBranchCount] = useState(1);
   const [usdRate, setUsdRate] = useState(null);
@@ -378,6 +377,15 @@ export default function VendorNewProductPage() {
     return <p className="text-sm text-slate-700">No store set up yet.</p>;
   }
 
+  // One section at a time (components/ui/Tabs.js). A tab whose fields are
+  // all switched off in "Show / hide fields" is left out.
+  const productTabs = [
+    { id: "details", label: "Details" },
+    ...(hasField("photos") || hasField("video") ? [{ id: "photos", label: "Photos" }] : []),
+    ...(hasField("description") || hasField("sizeGuide") ? [{ id: "description", label: "Description" }] : []),
+    { id: "more", label: "More options" },
+  ];
+  const activeTab = productTabs.some((t) => t.id === tabs.active) ? tabs.active : "details";
   const optionalFieldsShown = PRODUCT_FORM_FIELDS.filter((f) => MORE_OPTION_FIELDS.includes(f.id) && hasField(f.id)).length;
   const stockField = hasField("openingStock") && form.productType === "physical" && (
     myBranch ? (
@@ -418,13 +426,16 @@ export default function VendorNewProductPage() {
       <BackLink href="/vendor/products" label="Products" />
       <h1 className="text-xl font-bold tracking-tight text-slate-900">Add product</h1>
 
-      <form onSubmit={handleCreate} className="space-y-4">
+      <Tabs tabs={productTabs} active={activeTab} onChange={tabs.onChange} />
+
+      <form onSubmit={handleCreate} onInvalidCapture={tabs.onInvalid} className="space-y-4">
         {stores.length > 1 && (
           <div className="max-w-xs">
             <Select label="Store" options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
           </div>
         )}
 
+        <TabPanel id="details" active={activeTab}>
         <FormSection title="Product">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
@@ -462,7 +473,9 @@ export default function VendorNewProductPage() {
             )}
           </div>
         </FormSection>
+        </TabPanel>
 
+        <TabPanel id="photos" active={activeTab}>
         {(hasField("photos") || hasField("video")) && (
           <FormSection title="Photos & video">
             <ProductMediaField
@@ -495,7 +508,9 @@ export default function VendorNewProductPage() {
             )}
           </FormSection>
         )}
+        </TabPanel>
 
+        <TabPanel id="description" active={activeTab}>
         {(hasField("description") || hasField("sizeGuide")) && (
           <FormSection title="Description">
             <div className="space-y-4">
@@ -504,13 +519,12 @@ export default function VendorNewProductPage() {
             </div>
           </FormSection>
         )}
+        </TabPanel>
 
+        <TabPanel id="more" active={activeTab}>
         <FormSection
           title="More options"
-          description={moreOpen ? undefined : moreOptionsSummary(["variants", "discount", "costPrice", "priceTiers", "customerFields", "sku", "expiryDate", "slug"], hasField)}
-          collapsible
-          open={moreOpen}
-          onToggle={() => setMoreOpen((v) => !v)}
+          description="Extras most products don't need."
           actions={<ProductFormFieldsButton compact fields={PRODUCT_FORM_FIELDS} visibleFields={visibleFormFields} onToggle={toggleFormField} saving={savingFormPreferences} />}
         >
           <div className="space-y-5">
@@ -578,8 +592,9 @@ export default function VendorNewProductPage() {
             {optionalFieldsShown === 0 && <p className="text-xs text-slate-600">All extra fields are hidden. Use &ldquo;Show / hide fields&rdquo; to bring some back.</p>}
           </div>
         </FormSection>
+        </TabPanel>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 backdrop-blur sm:sticky sm:inset-x-auto sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
+        <div hidden={activeTab === "stock"} className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-surface/95 backdrop-blur sm:sticky sm:inset-x-auto sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
           <div className="mx-auto max-w-3xl px-4 py-3 sm:px-0">
             <Button type="submit" size="lg" loading={submitting || uploadingVideo} disabled={pendingUploads.length > 0 || uploadingVideo} fullWidth>
               {pendingUploads.length > 0 ? "Uploading photos..." : "Create product"}

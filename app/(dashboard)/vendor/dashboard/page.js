@@ -279,24 +279,16 @@ export default function VendorDashboardPage() {
         })
       : [];
   const allStepsDone = steps.length > 0 && steps.every((s) => s.done);
-  // Read once per render, only reached after the client-only fetches above
-  // have already resolved (loading is false) - never evaluated during SSR
-  // or the initial hydration pass, so there's no server/client mismatch to
-  // guard against here the way a top-level "on mount" read would need.
-  const dismissKey = store ? `setup_guide_dismissed_${store.id}` : null;
-  const previouslyDismissed =
-    dismissKey &&
-    typeof window !== "undefined" &&
-    !!localStorage.getItem(dismissKey);
+  // Until every step is done, the guide opens each time the vendor comes
+  // back to the dashboard. Closing it only hides it for this visit
+  // (component state, not stored), so unfinished setup keeps resurfacing.
   const guideOpen =
     isOwner &&
-    (guideForceOpen ||
-      (!!store && !allStepsDone && !guideDismissed && !previouslyDismissed));
+    (guideForceOpen || (!!store && !allStepsDone && !guideDismissed));
 
   const closeGuide = () => {
     setGuideForceOpen(false);
     setGuideDismissed(true);
-    if (dismissKey) localStorage.setItem(dismissKey, "1");
   };
 
   return (

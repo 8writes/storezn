@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Tabs, TabPanel, useTabs } from "@/components/ui/Tabs.js";
 import { STOREFRONT_FONTS } from "@/lib/storefrontFontOptions.js";
 import { storefrontFontFamily } from "@/components/storefrontFonts.js";
 import Link from "next/link";
@@ -52,6 +53,15 @@ function SectionLabel({ children }) {
   return <p className="text-[11px] font-semibold text-slate-800 uppercase tracking-wider">{children}</p>;
 }
 
+const SETTINGS_TABS = [
+  { id: "general", label: "General" },
+  { id: "branding", label: "Branding" },
+  { id: "contact", label: "Contact" },
+  { id: "payments", label: "Payments" },
+  { id: "domain", label: "Domain & storage" },
+];
+const FORM_TABS = ["branding", "contact", "payments"];
+
 export default function VendorSettingsPage() {
   const { user, token } = useAuth(true);
   const { apiFetch } = useApi(token);
@@ -62,6 +72,7 @@ export default function VendorSettingsPage() {
 
   const { stores, storeId, loading: storesLoading, updateStore } = useVendorStore();
   const [form, setForm] = useState(null);
+  const tabs = useTabs(SETTINGS_TABS.map((t) => t.id));
   const [store, setStore] = useState(null);
   const [commissionRate, setCommissionRate] = useState(null);
   const [flatFee, setFlatFee] = useState(0);
@@ -273,10 +284,13 @@ export default function VendorSettingsPage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <PageHeader
         title="Store settings"
-        description="Manage your storefront identity, availability, policies, domain, and notification preferences."
       />
 
-      <PushNotificationToggle token={token} />
+      {isOwner ? (
+        <Tabs tabs={SETTINGS_TABS} active={tabs.active} onChange={tabs.onChange} />
+      ) : (
+        <PushNotificationToggle token={token} />
+      )}
 
       {isOwner && !loading && store && !store.isActive && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
@@ -289,7 +303,10 @@ export default function VendorSettingsPage() {
       )}
 
       {isOwner && !loading && store && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <>
+        <TabPanel id="general" active={tabs.active} className="space-y-4">
+          <PushNotificationToggle token={token} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           <div className="bg-surface border border-slate-200 rounded-sm p-5 flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-slate-900">
@@ -355,9 +372,12 @@ export default function VendorSettingsPage() {
               />
             </button>
           </div>
+        </div>
+        </TabPanel>
 
+        <TabPanel id="domain" active={tabs.active}>
           {/* Custom domain full-width on mobile; Storage rides beside it on desktop. */}
-          <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             <CustomDomainSettings
               store={store}
               isPlus={isPlus}
@@ -408,14 +428,15 @@ export default function VendorSettingsPage() {
               </div>
             )}
           </div>
-        </div>
+        </TabPanel>
+        </>
       )}
 
       {isOwner && (loading || !form) ? (
         <FormSkeleton fields={4} />
       ) : isOwner && form ? (
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <form onSubmit={handleSave} onInvalidCapture={tabs.onInvalid} className="space-y-4">
+          <TabPanel id="branding" active={tabs.active} className="space-y-4">
             {isPlus ? (
               <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-3">
                 <div className="flex items-center gap-2">
@@ -676,6 +697,8 @@ export default function VendorSettingsPage() {
               </div>
             </div>
 
+          </TabPanel>
+          <TabPanel id="contact" active={tabs.active} className="space-y-4">
             <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
               <SectionLabel>Contact &amp; socials</SectionLabel>
 
@@ -838,6 +861,8 @@ export default function VendorSettingsPage() {
               </div>
             </div>
 
+          </TabPanel>
+          <TabPanel id="payments" active={tabs.active} className="space-y-4">
             <div className="lg:col-span-2 bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
               <SectionLabel>Fees &amp; refunds</SectionLabel>
 
@@ -910,7 +935,6 @@ export default function VendorSettingsPage() {
                 />
               </div>
             </div>
-          </div>
 
           {/* Prices and what Paystack charges stay in naira - the dollar
               view is display only (lib/fxDisplay.js). What changes for an
@@ -997,8 +1021,11 @@ export default function VendorSettingsPage() {
               </div>
             )}
           </div>
+          </TabPanel>
 
-          <div className="sticky bottom-0 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 bg-surface/95 backdrop-blur-sm border-t border-slate-200">
+          {/* One Save for the form tabs (Branding, Contact, Payments) - it
+              saves all three. General and Domain save as you change them. */}
+          <div hidden={!FORM_TABS.includes(tabs.active)} className="sticky bottom-0 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 bg-surface/95 backdrop-blur-sm border-t border-slate-200">
             <Button type="submit" loading={saving} fullWidth>
               Save settings
             </Button>

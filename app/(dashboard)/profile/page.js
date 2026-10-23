@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Tabs, TabPanel, useTabs } from "@/components/ui/Tabs.js";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
 import { useApi } from "@/hooks/useApi.js";
@@ -15,6 +16,12 @@ const EMPTY_PASSWORD_FORM = { currentPassword: "", newPassword: "" };
 // customers the signed-in principal's row actually lives in (see
 // lib/auth.js's getUser, PATCH /api/v1/auth/me). The "Leave store" card
 // below is staff-only.
+const PROFILE_TABS = [
+  { id: "details", label: "My details" },
+  { id: "password", label: "Password" },
+  { id: "account", label: "Account" },
+];
+
 export default function ProfilePage() {
   const { user, token, login, logout, updateUser } = useAuth(true);
   const { apiFetch } = useApi(token);
@@ -38,6 +45,7 @@ export default function ProfilePage() {
   const setForm = (next) => setEdited((current) => (typeof next === "function" ? next(current ?? form) : next));
   const [saving, setSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
+  const tabs = useTabs(PROFILE_TABS.map((t) => t.id));
   const [changingPassword, setChangingPassword] = useState(false);
   const [notifSaving, setNotifSaving] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -137,6 +145,9 @@ export default function ProfilePage() {
       {confirmDialog}
       <h1 className="text-xl font-bold text-slate-900">Profile</h1>
 
+      <Tabs tabs={PROFILE_TABS} active={tabs.active} onChange={tabs.onChange} />
+
+      <TabPanel id="details" active={tabs.active} className="space-y-4">
       <form onSubmit={handleSaveProfile} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
         <p className="text-sm font-semibold text-slate-700">Your details</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -160,7 +171,9 @@ export default function ProfilePage() {
           />
         </label>
       </div>
+      </TabPanel>
 
+      <TabPanel id="password" active={tabs.active}>
       <form onSubmit={handleChangePassword} className="bg-surface border border-slate-200 rounded-sm p-5 space-y-4">
         <p className="text-sm font-semibold text-slate-700">Change password</p>
         <PasswordInput
@@ -180,6 +193,14 @@ export default function ProfilePage() {
         />
         <Button type="submit" loading={changingPassword}>Change password</Button>
       </form>
+      </TabPanel>
+
+      <TabPanel id="account" active={tabs.active} className="space-y-4">
+      <div className="bg-surface border border-slate-200 rounded-sm p-5 space-y-1 text-sm">
+        <p className="font-semibold text-slate-700">Signed in as</p>
+        <p className="text-slate-900">{user.email}</p>
+        <p className="text-slate-600 capitalize">{user.role === "staff" ? "Staff member" : user.role === "vendor" ? "Store owner" : user.role.replace("_", " ")}</p>
+      </div>
 
       {user.role === "staff" && (
         <div className="bg-surface border border-red-200 rounded-sm p-5 space-y-3">
@@ -213,6 +234,8 @@ export default function ProfilePage() {
           </Button>
         </div>
       )}
+
+      </TabPanel>
 
       {deleteOpen && (
         <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-4 py-8">
