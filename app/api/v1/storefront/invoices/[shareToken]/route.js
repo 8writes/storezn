@@ -24,10 +24,7 @@ const buyerPhoneSchema = z.string().trim().min(5, "Enter your phone number").max
 function missingBuyerDetails(invoice, body) {
   const errors = [];
   const details = {};
-  if (!invoice.guestEmail) {
-    const parsed = paymentEmailSchema.safeParse(body?.email);
-    if (parsed.success) details.guestEmail = parsed.data; else errors.push(parsed.error.issues[0]?.message || "Enter a valid email address");
-  }
+  
   if (!invoice.buyerName) {
     const parsed = buyerNameSchema.safeParse(body?.name ?? "");
     if (parsed.success) details.buyerName = parsed.data; else errors.push(parsed.error.issues[0]?.message);

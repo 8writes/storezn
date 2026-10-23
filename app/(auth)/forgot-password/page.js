@@ -35,12 +35,26 @@ export default function ForgotPasswordPage() {
       <div className="space-y-5 text-center">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Reset link sent</h2>
-          <p className="mt-1 text-sm text-slate-700">If an account exists, we sent a password reset link to:</p>
+          <p className="mt-1 text-sm text-slate-700">
+            If an account exists, we sent a password reset link to:
+          </p>
         </div>
-        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{email}</p>
-        <p className="text-sm leading-6 text-slate-800">Open the email and select <strong>Reset password</strong>. Then choose a new password.</p>
-        <p className="text-xs leading-5 text-slate-600">No email yet? Check your spam or junk folder, then try again.</p>
-        <Link href="/login" className="text-sm font-semibold text-brand-700 hover:underline">Back to sign in</Link>
+        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
+          {email}
+        </p>
+        <p className="text-lg leading-6 text-slate-800">
+          Check your{" "}
+          <mark className="rounded-sm bg-yellow-200 px-1 py-0.5 font-bold text-slate-900">
+            spam
+          </mark>{" "}
+          or junk folder.
+        </p>
+        <Link
+          href="/login"
+          className="text-sm font-semibold text-brand-700 hover:underline"
+        >
+          Back to sign in
+        </Link>
       </div>
     );
   }
@@ -48,8 +62,12 @@ export default function ForgotPasswordPage() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">Forgot your password?</h2>
-        <p className="text-sm text-slate-800 mt-1">Enter your email and we&apos;ll send you a reset link.</p>
+        <h2 className="text-xl font-bold text-slate-900">
+          Forgot your password?
+        </h2>
+        <p className="text-sm text-slate-800 mt-1">
+          Enter your email and we&apos;ll send you a reset link.
+        </p>
       </div>
 
       <Input
@@ -65,7 +83,10 @@ export default function ForgotPasswordPage() {
         Send reset link
       </Button>
 
-      <Link href="/login" className="block text-center text-sm text-brand-600 hover:underline">
+      <Link
+        href="/login"
+        className="block text-center text-sm text-brand-600 hover:underline"
+      >
         Back to sign in
       </Link>
     </form>

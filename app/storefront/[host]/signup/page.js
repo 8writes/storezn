@@ -9,7 +9,13 @@ import { deviceHeaders } from "@/lib/clientDevice.js";
 import { BannedNotice } from "@/components/BannedNotice.js";
 import { safeFetch } from "@/lib/fetchError.js";
 
-const EMPTY_FORM = { firstName: "", lastName: "", email: "", password: "", acceptMarketing: false };
+const EMPTY_FORM = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  password: "",
+  acceptMarketing: false,
+};
 
 export default function StorefrontSignupPage() {
   const [form, setForm] = useState(EMPTY_FORM);
@@ -17,7 +23,8 @@ export default function StorefrontSignupPage() {
   const [created, setCreated] = useState(false);
   const [banned, setBanned] = useState(null);
 
-  const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setField = (key) => (e) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,41 +61,95 @@ export default function StorefrontSignupPage() {
     return (
       <div className="max-w-sm mx-auto py-8 space-y-5 text-center">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Check your email</h1>
-          <p className="mt-1 text-sm text-slate-700">We sent a verification link to:</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            Check your email
+          </h1>
+          <p className="mt-1 text-sm text-slate-700">
+            We sent a verification link to:
+          </p>
         </div>
-        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{form.email}</p>
-        <p className="text-sm leading-6 text-slate-800">Open the email and select <strong>Verify email</strong>. Then return here and sign in.</p>
-        <p className="text-xs leading-5 text-slate-600">No email yet? Check your spam or junk folder. You can also request a new link from the sign-in page.</p>
-        <Link href="/login" className="inline-block text-sm font-semibold text-brand-700 underline underline-offset-2">I&apos;ve verified my email - sign in</Link>
+        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
+          {form.email}
+        </p>
+        <p className="text-lg leading-6 text-slate-800">
+          Check your{" "}
+          <mark className="rounded-sm bg-yellow-200 px-1 py-0.5 font-bold text-slate-900">
+            spam
+          </mark>{" "}
+          or junk folder.
+        </p>
+        <Link
+          href="/login"
+          className="inline-block text-sm font-semibold text-brand-700 underline underline-offset-2"
+        >
+          I&apos;ve verified my email - sign in
+        </Link>
       </div>
     );
   }
 
   return (
     <div className="max-w-sm mx-auto py-8 space-y-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900 text-center">Create an account</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900 text-center">
+        Create an account
+      </h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <Input label="First name" value={form.firstName} onChange={setField("firstName")} required />
-          <Input label="Last name" value={form.lastName} onChange={setField("lastName")} required />
+          <Input
+            label="First name"
+            value={form.firstName}
+            onChange={setField("firstName")}
+            required
+          />
+          <Input
+            label="Last name"
+            value={form.lastName}
+            onChange={setField("lastName")}
+            required
+          />
         </div>
-        <Input label="Email" type="email" value={form.email} onChange={setField("email")} required autoComplete="email" />
-        <PasswordInput label="Password" value={form.password} onChange={setField("password")} required minLength={8} autoComplete="new-password" />
+        <Input
+          label="Email"
+          type="email"
+          value={form.email}
+          onChange={setField("email")}
+          required
+          autoComplete="email"
+        />
+        <PasswordInput
+          label="Password"
+          value={form.password}
+          onChange={setField("password")}
+          required
+          minLength={8}
+          autoComplete="new-password"
+        />
         <label className="flex items-start gap-2 text-sm text-slate-600">
           <input
             type="checkbox"
             checked={form.acceptMarketing}
-            onChange={(e) => setForm((f) => ({ ...f, acceptMarketing: e.target.checked }))}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, acceptMarketing: e.target.checked }))
+            }
             className="mt-0.5"
           />
-          <span>I want to receive occasional marketing emails. You can unsubscribe at any time.</span>
+          <span>
+            I want to receive occasional marketing emails. You can unsubscribe
+            at any time.
+          </span>
         </label>
-        <Button type="submit" fullWidth size="lg" loading={loading}>Create account</Button>
+        <Button type="submit" fullWidth size="lg" loading={loading}>
+          Create account
+        </Button>
       </form>
       <p className="text-center text-sm text-slate-800">
         Already have an account?{" "}
-        <Link href="/login" className="text-slate-900 underline underline-offset-2">Sign in</Link>
+        <Link
+          href="/login"
+          className="text-slate-900 underline underline-offset-2"
+        >
+          Sign in
+        </Link>
       </p>
     </div>
   );
