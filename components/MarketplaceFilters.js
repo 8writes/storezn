@@ -2,6 +2,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, Loader2, SlidersHorizontal, X } from "lucide-react";
+import { Select } from "@/components/ui/Select.js";
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
@@ -19,7 +20,7 @@ const PRICE_RANGES = [
 const POP = "#ff7a1a";
 
 // Mobile-first marketplace filters: a search bar with a Filters button,
-// then category chips you swipe sideways. Sort and price live in a sheet
+// then a category dropdown. Sort and price live in a sheet
 // that slides up on phones (a dialog on desktop). Everything drives the
 // URL (q, category, sort, min, max), which the page reads server-side -
 // `categories` is a flat list of names across every listed store (see
@@ -85,23 +86,13 @@ export function MarketplaceFilters({ categories = [] }) {
       </div>
 
       {categories.length > 0 && (
-        <div className="-mx-4 sm:mx-0 flex gap-2 overflow-x-auto px-4 sm:px-0 pb-1 [scrollbar-width:none]" role="tablist" aria-label="Categories">
-          {[{ value: "", label: "All" }, ...categories.map((name) => ({ value: name, label: name }))].map((c) => {
-            const on = category === c.value;
-            return (
-              <button
-                key={c.value || "all"}
-                type="button"
-                role="tab"
-                aria-selected={on}
-                onClick={() => push({ category: c.value })}
-                className={`shrink-0 whitespace-nowrap border-2 border-slate-900 px-3.5 py-1.5 text-sm font-semibold cursor-pointer transition-transform active:scale-95 ${on ? "text-slate-900" : "bg-white text-slate-800"}`}
-                style={on ? { backgroundColor: POP } : undefined}
-              >
-                {c.label}
-              </button>
-            );
-          })}
+        <div className="sm:max-w-xs">
+          <Select
+            options={[{ value: "", label: "All categories" }, ...categories.map((name) => ({ value: name, label: name }))]}
+            value={category}
+            onChange={(v) => push({ category: v })}
+            placeholder="All categories"
+          />
         </div>
       )}
 
