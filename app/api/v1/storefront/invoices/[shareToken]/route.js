@@ -12,6 +12,7 @@ import { invoicePaymentReference, isInvoicePaymentAuthorizationExpired, reconcil
 import { sendInvoicePaymentNotifications } from "../../../../../../lib/invoiceNotifications.js";
 import { getUsdRate } from "../../../../../../lib/fxRates.js";
 import { INTERNATIONAL_CHANNELS } from "../../../../../../lib/feePolicy.js";
+import { isPlusStore } from "../../../../../../lib/storePlan.js";
 
 const paymentEmailSchema = z.string().trim().toLowerCase().email("Enter a valid email address");
 const buyerNameSchema = z.string().trim().min(1, "Enter your name").max(150);
@@ -91,7 +92,14 @@ export async function GET(req, { params }) {
       isExpired: row.invoice.status === "expired" || (row.invoice.status === "sent" && row.invoice.expiresAt && new Date(row.invoice.expiresAt).getTime() <= Date.now()),
     },
     items: items.map((item) => ({ id: item.id, productName: item.productName, variantLabel: item.variantLabel, quantity: item.quantity, unitPrice: item.unitPrice, lineTotal: item.lineTotal, customerFields: item.customerFields })),
-    store: { name: row.store.name, logoUrl: row.store.logoUrl, storefrontAccentColor: row.store.storefrontAccentColor, slug: row.store.slug },
+    // Theme colour and font are Storezn+ - same rule as the storefront.
+    store: {
+      name: row.store.name,
+      logoUrl: row.store.logoUrl,
+      storefrontAccentColor: isPlusStore(row.store) ? row.store.storefrontAccentColor : null,
+      storefrontFont: isPlusStore(row.store) ? row.store.storefrontFont : null,
+      slug: row.store.slug,
+    },
   });
 }
 

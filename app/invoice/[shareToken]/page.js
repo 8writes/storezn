@@ -9,6 +9,7 @@ import { CurrencyProvider, useMoney } from "@/components/storefront/Money.js";
 import { CurrencyToggle } from "@/components/storefront/CurrencyToggle.js";
 import { customerFieldEntries } from "@/lib/customerFields.js";
 import { generateBrandShades } from "@/lib/colorShades.js";
+import { storefrontFontFamily } from "@/components/storefrontFonts.js";
 import { safeFetch } from "@/lib/fetchError.js";
 
 export default function PublicInvoicePage({ params }) {
@@ -90,11 +91,11 @@ function InvoiceView({ data, details, setDetails, pay, paying, paymentError }) {
   return (
     <main
       className="min-h-screen bg-slate-50 p-4 sm:p-8"
-      style={
-        store.storefrontAccentColor
-          ? generateBrandShades(store.storefrontAccentColor)
-          : undefined
-      }
+      // The store's own colour and font (Storezn+ - the API sends null otherwise).
+      style={{
+        ...(store.storefrontAccentColor ? generateBrandShades(store.storefrontAccentColor) : {}),
+        ...(storefrontFontFamily(store.storefrontFont) ? { fontFamily: storefrontFontFamily(store.storefrontFont) } : {}),
+      }}
     >
       <div className="max-w-xl mx-auto bg-white border border-slate-200 rounded-sm p-5 sm:p-8 shadow-sm">
         <div className="flex items-center gap-3 border-b border-slate-200 pb-5">

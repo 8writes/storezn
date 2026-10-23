@@ -53,7 +53,7 @@
 
   /* Platform UI typeface (dashboard / admin / auth). Storefront keeps
      Jakarta via the body default. Opt in with `font-ui`. */
-  --font-ui: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-ui: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   /* Radius: Tailwind defaults, unchanged. Everything uses `rounded-sm`
      (4px) - one radius, kept small and consistent, on purpose. */
@@ -167,7 +167,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -322,13 +322,12 @@ body {
   }
 }
 
-/* Platform typography (Inter). `.font-ui` is set on the dashboard + auth
-   shells; the storefront is untouched. */
+/* Platform typography (DM Sans, same as everywhere). `.font-ui` is set
+   on the dashboard + auth shells for the table-figure tweaks below. */
 .font-ui {
   font-family: var(--font-ui);
 }
-/* Inter runs a touch large; -1% tracking on headings and lined-up
-   figures in tables read tighter and more "product". */
+/* Slightly tighter headings and lined-up figures in tables. */
 .font-ui :is(h1, h2, h3) {
   letter-spacing: -0.011em;
 }
@@ -337,13 +336,10 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Marketing display type (Sora). `.font-display` is opted into by the
-   public landing / pricing pages for headings only - the body on those
-   pages stays Jakarta. */
+/* Marketing headings (landing / pricing): same face, a little tighter. */
 .font-display {
-  font-family: var(--font-display), var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -0.021em;
-  font-feature-settings: "ss01";
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.025em;
 }
 
 /* Seamless horizontal drift for the landing's mobile trust strip - the

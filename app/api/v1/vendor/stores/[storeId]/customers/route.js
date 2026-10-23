@@ -26,7 +26,7 @@ export async function GET(req, { params }) {
   const q = searchParams.get("q")?.trim();
   const { page, pageSize, limit, offset } = parsePagination(searchParams);
   const conditions = [eq(customers.storeId, storeId)];
-  if (q) conditions.push(or(ilike(customers.firstName, `%${q}%`), ilike(customers.lastName, `%${q}%`), ilike(customers.email, `%${q}%`)));
+  if (q) conditions.push(or(ilike(customers.firstName, `%${q}%`), ilike(customers.lastName, `%${q}%`), ilike(customers.email, `%${q}%`), ilike(customers.phone, `%${q}%`)));
 
   const [rows, [{ total }]] = await Promise.all([
     db

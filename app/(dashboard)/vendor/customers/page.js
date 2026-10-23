@@ -93,10 +93,45 @@ export default function VendorCustomersPage() {
       />
 
       <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
-        <SearchInput value={q} onSearch={handleSearch} placeholder="Search by name or email..." className="w-full sm:max-w-sm" />
+        <SearchInput value={q} onSearch={handleSearch} placeholder="Search customers" className="w-full sm:max-w-sm" />
       </div>
 
-      <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
+      {/* Phones: one card per customer - name, contact, orders and spend -
+          instead of a table that scrolls sideways. */}
+      <div className="sm:hidden space-y-2">
+        {loading ? (
+          Array.from({ length: 4 }, (_, i) => <div key={i} className="h-24 rounded-sm border border-slate-200 bg-surface animate-pulse" />)
+        ) : customers.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title={q ? "No matching customers" : "No customers yet"}
+            description={q ? "Try searching another name or email." : "Customer profiles will appear here after people place orders."}
+          />
+        ) : (
+          customers.map((c) => (
+            <Link
+              key={c.id}
+              href={`/vendor/customers/${c.id}?storeId=${storeId}`}
+              className="block rounded-sm border border-slate-200 bg-surface p-4 active:bg-slate-50"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900 truncate">{c.firstName} {c.lastName}</p>
+                  <p className="text-xs text-slate-600 truncate">{c.phone || c.email}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-semibold text-slate-900 tabular-nums">{formatCurrency(c.totalSpent)}</p>
+                  <p className="text-xs text-slate-600">{c.orderCount} order{c.orderCount === 1 ? "" : "s"}</p>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">Joined {formatDate(c.createdAt)}</p>
+            </Link>
+          ))
+        )}
+        <Pagination pagination={pagination} onPageChange={handlePageChange} />
+      </div>
+
+      <div className="hidden sm:block bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>

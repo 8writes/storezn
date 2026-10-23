@@ -380,7 +380,29 @@ export default function VendorProductEditPage({ params }) {
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-24">
       <BackLink href={`/vendor/products/${id}?storeId=${storeId}`} label="Product" />
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">Edit product</h1>
+      {/* Live / Hidden sits with the title - it's about the whole product,
+          not one of its fields. Saved with "Save changes". */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">Edit product</h1>
+        {(() => {
+          const live = form.isActive === true || form.isActive === "true";
+          return (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={live}
+              aria-label="Visible in your store"
+              onClick={() => setForm((f) => ({ ...f, isActive: !live }))}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium cursor-pointer transition-colors ${live ? "border-brand-200 bg-brand-50 text-brand-800" : "border-slate-300 bg-slate-100 text-slate-700"}`}
+            >
+              <span className={`relative h-4 w-7 rounded-full transition-colors ${live ? "bg-brand-600" : "bg-slate-300"}`}>
+                <span className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${live ? "translate-x-3" : ""}`} />
+              </span>
+              {live ? "Live" : "Hidden"}
+            </button>
+          );
+        })()}
+      </div>
 
       {suspension && (
         <div className="bg-red-50 border border-red-200 rounded-sm p-4 text-sm text-red-800">
@@ -422,14 +444,6 @@ export default function VendorProductEditPage({ params }) {
             {hasField("condition") && form.productType === "physical" && (
               <Select label="Condition" options={CONDITION_OPTIONS} value={form.condition} onChange={(v) => setForm((f) => ({ ...f, condition: v }))} />
             )}
-            <div className="sm:col-span-2">
-              <Switch
-                checked={form.isActive === true || form.isActive === "true"}
-                onChange={(value) => setForm((f) => ({ ...f, isActive: value }))}
-                label="Show in your store"
-                description="Turn off to hide it from customers without deleting it."
-              />
-            </div>
           </div>
         </FormSection>
 

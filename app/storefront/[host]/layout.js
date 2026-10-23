@@ -15,6 +15,7 @@ import { VisitBeacon } from "@/components/storefront/VisitBeacon.js";
 import UpdatePrompt from "@/app/UpdatePrompt.js";
 import { isPlusStore } from "@/lib/storePlan.js";
 import { generateBrandShades } from "@/lib/colorShades.js";
+import { storefrontFontFamily } from "@/components/storefrontFonts.js";
 import { getUsdRate } from "@/lib/fxRates.js";
 import { CurrencyProvider } from "@/components/storefront/Money.js";
 import { CurrencyToggle } from "@/components/storefront/CurrencyToggle.js";
@@ -88,6 +89,9 @@ export default async function StorefrontLayout({ children, params }) {
   // renders the platform default brand-* ramp already in globals.css.
   const themed = isPlusStore(store) && !!store.storefrontAccentColor;
   const accentStyle = themed ? generateBrandShades(store.storefrontAccentColor) : undefined;
+  // Storezn+ font choice; a lapsed plan falls back to the platform font.
+  const fontFamily = isPlusStore(store) ? storefrontFontFamily(store.storefrontFont) : undefined;
+  const wrapperStyle = fontFamily ? { ...(accentStyle || {}), fontFamily } : accentStyle;
   // Dollar DISPLAY (lib/fxDisplay.js): resolved once here, cached, and
   // shared with every price on the page through CurrencyProvider. null when
   // the store hasn't switched it on or no current rate exists - then the
@@ -104,7 +108,7 @@ export default async function StorefrontLayout({ children, params }) {
         countries: store.internationalDeliveryEnabled && store.deliveryCountries?.length ? store.deliveryCountries : null,
       }}
     >
-    <div className="min-h-screen bg-white flex flex-col" style={accentStyle} data-cookie-site-name={store.name}>
+    <div className="min-h-screen bg-white flex flex-col" style={wrapperStyle} data-cookie-site-name={store.name}>
       <Suspense fallback={null}>
         <MarketplaceBanner storeName={store.name} />
       </Suspense>

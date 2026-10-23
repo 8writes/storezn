@@ -134,6 +134,11 @@ export async function PATCH(req, { params }) {
   if (result.data.storefrontAccentColor && !isPlusStore(store)) {
     return NextResponse.json({ error: "Storefront theme color is a Storezn+ feature" }, { status: 402 });
   }
+  if (result.data.storefrontFont && !isPlusStore(store)) {
+    return NextResponse.json({ error: "Storefront font is a Storezn+ feature" }, { status: 402 });
+  }
+  // "" clears it (back to the platform font).
+  if (result.data.storefrontFont === "") result.data.storefrontFont = null;
 
   // The header/footer render white text over this color once set (see
   // app/storefront/[host]/layout.js's `themed`) - a white/near-white pick

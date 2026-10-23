@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { STOREFRONT_FONTS } from "@/lib/storefrontFontOptions.js";
+import { storefrontFontFamily } from "@/components/storefrontFonts.js";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth.js";
@@ -25,7 +27,7 @@ import { isColorTooLight } from "@/lib/colorShades.js";
 import { AlertTriangle, Palette } from "lucide-react";
 
 const EMPTY_SOCIAL_LINKS = { website: "", instagram: "", twitter: "", facebook: "", tiktok: "", whatsapp: "" };
-const EMPTY_FORM = { name: "", logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "", internationalPaymentsEnabled: false, usdRateProvider: DEFAULT_FX_PROVIDER };
+const EMPTY_FORM = { name: "", logoUrl: "", faviconUrl: "", socialLinks: EMPTY_SOCIAL_LINKS, feeChargedToCustomer: false, returnWindowDays: "7", address: "", state: "", showShipsFrom: true, description: "", showDescription: true, storefrontAccentColor: "", storefrontFont: "", internationalPaymentsEnabled: false, usdRateProvider: DEFAULT_FX_PROVIDER };
 
 const NAME_MAX = 120;
 const DESCRIPTION_MAX = 160;
@@ -111,6 +113,7 @@ export default function VendorSettingsPage() {
           description: data.store.description || "",
           showDescription: data.store.showDescription !== false,
           storefrontAccentColor: data.store.storefrontAccentColor || "",
+          storefrontFont: data.store.storefrontFont || "",
           internationalPaymentsEnabled: !!data.store.internationalPaymentsEnabled,
           // What the radio shows is what gets saved: a source that isn't
           // offered (Wise with no token) becomes the first offered one.
@@ -248,7 +251,10 @@ export default function VendorSettingsPage() {
       // sending it would fail the whole save, so drop it unless it's
       // actually theirs to set.
       const payload = { ...form };
-      if (!isPlus) delete payload.storefrontAccentColor;
+      if (!isPlus) {
+        delete payload.storefrontAccentColor;
+        delete payload.storefrontFont;
+      }
       const data = await apiFetch(`/api/v1/vendor/stores/${storeId}`, { method: "PATCH", body: JSON.stringify(payload) });
       updateStore(data.store);
       toast.success("Settings saved");
@@ -417,8 +423,7 @@ export default function VendorSettingsPage() {
                   <SectionLabel>Storefront theme</SectionLabel>
                 </div>
                 <p className="text-xs text-slate-800">
-                  Sets the accent color for your storefront&apos;s header,
-                  buttons, and prices.
+                  Your storefront&apos;s colour (header, buttons, prices) and font.
                 </p>
                 <div className="flex items-center gap-3">
                   <input
@@ -473,6 +478,27 @@ export default function VendorSettingsPage() {
                       be unreadable on it. Pick something darker.
                     </p>
                   )}
+                <div className="pt-2">
+                  <p className="text-sm font-medium text-slate-700 mb-2">Font</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[{ key: "", label: "Storezn default", vibe: "Clean & calm" }, ...STOREFRONT_FONTS].map((font) => (
+                      <button
+                        key={font.key || "default"}
+                        type="button"
+                        aria-pressed={form.storefrontFont === font.key}
+                        onClick={() => setForm((f) => ({ ...f, storefrontFont: font.key }))}
+                        style={font.key ? { fontFamily: storefrontFontFamily(font.key) } : undefined}
+                        className={`rounded-sm border px-3 py-2.5 text-left cursor-pointer transition-colors ${
+                          form.storefrontFont === font.key ? "border-brand-600 bg-brand-50" : "border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <span className="block text-lg leading-tight text-slate-900">Aa</span>
+                        <span className="block text-sm font-medium text-slate-900 truncate">{font.label}</span>
+                        <span className="block text-[11px] text-slate-500 truncate">{font.vibe}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="lg:col-span-2 bg-surface border border-dashed border-slate-300 rounded-sm p-5 space-y-3">
@@ -484,8 +510,7 @@ export default function VendorSettingsPage() {
                   <Badge color="slate">Storezn+</Badge>
                 </div>
                 <p className="text-sm text-slate-800">
-                  Pick a custom accent color for your storefront&apos;s header,
-                  buttons, and prices.
+                  Choose your storefront&apos;s colour and font.
                 </p>
                 <Link
                   href="/vendor/plus"

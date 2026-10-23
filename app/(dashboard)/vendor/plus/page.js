@@ -6,7 +6,6 @@ import { useApi } from "@/hooks/useApi.js";
 import { useVendorStore } from "@/components/VendorStoreContext.js";
 import { Button } from "@/components/ui/Button.js";
 import { Badge } from "@/components/ui/Badge.js";
-import { PageHeader } from "@/components/ui/PageHeader.js";
 import { FormSkeleton } from "@/components/ui/Skeleton.js";
 import { formatCurrency, formatDate } from "@/lib/format.js";
 import { Sparkles, Building2, CalendarClock, Receipt, Check } from "lucide-react";
@@ -36,8 +35,16 @@ const PLUS_FEATURES = [
     text: "A larger allowance for product photos and store images, so a big catalogue with several pictures per item doesn't run out of room.",
   },
   {
-    title: "Storefront theme colour",
-    text: "Set your brand's accent colour across the storefront: buttons, links and highlights all pick it up.",
+    title: "Your brand colour and font",
+    text: "Pick your shop's colour and font. Your storefront and invoices all use them.",
+  },
+  {
+    title: "No Storezn branding",
+    text: "The \"Get your own website\" link disappears from your shop footer.",
+  },
+  {
+    title: "Record sales you make yourself",
+    text: "Log in-person, phone and WhatsApp sales so stock and takings stay in one place.",
   },
 ];
 
@@ -45,34 +52,11 @@ const PLUS_FEATURES = [
 // the Storezn team (an off-platform arrangement, see the super-admin
 // store page). There is no self-checkout for it on this page.
 const ENTERPRISE_FEATURES = [
-  {
-    title: "In-person registers (POS)",
-    text: "Open a till on any phone, tablet or computer. Ring walk-in customers up item by item, scan or search your catalogue, take cash, transfer or POS-machine payments, give change from the drawer, and print or text a receipt.",
-  },
-  {
-    title: "Shifts & Z-reports",
-    text: "Every cashier opens their own shift with a counted opening float and closes it with a counted drawer. The Z-report shows expected vs counted cash for every payment type and exactly what is over or short.",
-  },
-  {
-    title: "Keeps working offline",
-    text: "When the internet drops, selling carries on. Sales, stock counts and price changes are saved on the device and sync automatically the moment the connection is back. Nothing is lost.",
-  },
-  {
-    title: "Record past & phone sales",
-    text: "Log a sale that happened away from the storefront (a phone order, a WhatsApp order, a cash sale) so it lands in your order history and pulls stock down like any other order.",
-  },
-  {
-    title: "Cash-drawer movements",
-    text: "Track money paid into or taken out of the drawer during a shift (a supplier paid in cash, the owner lifts a float) with a reason recorded on every entry.",
-  },
-  {
-    title: "Payment-account tracking",
-    text: "Record which POS machine or transfer account each payment landed in (Moniepoint, Opay, and so on) and trace every naira of change back to where it was given from.",
-  },
-  {
-    title: "Month-end forensic report",
-    text: "A full audit document for the month: sales against cash counted, every discount, price override, refund and drawer shortage, plus a per-staff breakdown of who did what and where money left as something other than a sale.",
-  },
+  { title: "Shop till (POS)", text: "Sell at the counter on any phone, tablet or computer - cash, transfer or POS machine." },
+  { title: "Cashier shifts", text: "Each cashier opens and closes with a cash count, so you see what's over or short." },
+  { title: "Works offline", text: "Keeps selling when the internet drops and syncs when it's back." },
+  { title: "Cash drawer & payment accounts", text: "Track money in and out of the drawer, and which account (Moniepoint, Opay) each payment went to." },
+  { title: "Month-end report", text: "What sold, who sold it, and where every naira went." },
 ];
 
 function FeatureList({ features }) {
@@ -82,8 +66,8 @@ function FeatureList({ features }) {
         <li key={title} className="flex items-start gap-2.5 text-sm">
           <Check size={16} className="text-brand-600 shrink-0 mt-0.5" />
           <span>
-            <span className="font-medium text-slate-900">{title}</span>
-            <span className="text-slate-800">: {text}</span>
+            <span className="block font-medium text-slate-900">{title}</span>
+            <span className="block text-slate-600">{text}</span>
           </span>
         </li>
       ))}
@@ -172,175 +156,149 @@ export default function VendorPlusPage() {
   // every Plus feature, so the self-serve Plus checkout is hidden for it.
   const plusActive = isPlus && !isEnterprise;
 
+  const currentPlan = isEnterprise ? "Enterprise" : isPlus ? "Storezn+" : "Free";
+  const perDay = Math.round(plusStandardMonthlyPrice / 30);
+
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <PageHeader
-        title="Plans"
-        description="Compare Storezn+ and Enterprise features, manage your subscription, and review billing activity."
-      />
+    <div className="space-y-5 max-w-3xl mx-auto">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">Plans</h1>
+        <p className="mt-1 text-sm text-slate-700">
+          You&apos;re on <strong className="text-slate-900">{currentPlan}</strong>.
+        </p>
+      </div>
 
       {loading || !store ? (
         <FormSkeleton fields={3} />
       ) : (
         <>
           {/* -------- Storezn+ -------- */}
-          <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
-            <div className="bg-gradient-to-br from-brand-700 to-brand-900 px-6 py-8 text-white relative overflow-hidden">
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
-              />
-              <div className="relative flex items-start justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-2 text-white/80 text-sm font-medium">
-                  <Sparkles size={16} />
-                  Storezn+
-                </div>
+          <div className={`bg-surface rounded-sm overflow-hidden ${plusActive ? "border border-slate-200" : "border-2 border-brand-500 shadow-lg shadow-brand-900/5"}`}>
+            <div className="p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
+                  <Sparkles size={16} /> Storezn+
+                </p>
                 {isEnterprise ? (
                   <Badge color="blue">Included with Enterprise</Badge>
                 ) : isPlus ? (
-                  <Badge color={store.planCancelled ? "amber" : "green"}>
-                    {store.planCancelled ? "Not renewing" : "Active"}
-                  </Badge>
-                ) : null}
+                  <Badge color={store.planCancelled ? "amber" : "green"}>{store.planCancelled ? "Not renewing" : "Active"}</Badge>
+                ) : (
+                  <Badge color="green">Recommended</Badge>
+                )}
               </div>
-              <p className="relative mt-2 text-4xl font-extrabold tracking-tight">
-                {formatCurrency(plusMonthlyPrice)}
-                <span className="text-lg font-medium text-white/70">{discountPercent != null ? " first month" : "/month"}</span>
-              </p>
-              {discountPercent != null ? (
-                <p className="relative mt-1 text-sm text-white/80">
-                  {discountPercent}% off, then {formatCurrency(plusStandardMonthlyPrice)}/month from month two. Cancel anytime.
-                </p>
-              ) : (
-                <p className="relative mt-1 text-sm text-white/70">Billed every month, cancel anytime.</p>
-              )}
-            </div>
 
-            <div className="p-6 space-y-6">
+              {!isPlus && (
+                <>
+                  <p className="mt-3 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Look like a big brand</p>
+                  <p className="mt-1 text-sm text-slate-700">Your own domain, colours and font - and no limits on your products.</p>
+                  <div className="mt-5 flex flex-wrap items-end gap-x-3 gap-y-1">
+                    <p className="text-4xl font-extrabold tracking-tight text-slate-900">{formatCurrency(plusMonthlyPrice)}</p>
+                    {discountPercent != null ? (
+                      <p className="pb-1 text-sm text-slate-600">
+                        first month <span className="line-through">{formatCurrency(plusStandardMonthlyPrice)}</span>, then {formatCurrency(plusStandardMonthlyPrice)}/month
+                      </p>
+                    ) : (
+                      <p className="pb-1 text-sm text-slate-600">/month · about {formatCurrency(perDay)} a day</p>
+                    )}
+                  </div>
+                  <Button type="button" onClick={openConfirm} fullWidth size="lg" className="mt-5">
+                    Upgrade to Storezn+
+                  </Button>
+                  <p className="mt-2 text-center text-xs text-slate-500">Pay by card · Cancel any time · Nothing is deleted if you stop</p>
+                </>
+              )}
+
               {isPlus && (
-                <div className="flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-sm p-4 text-sm text-slate-700">
-                  <CalendarClock size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                <div className="mt-3 flex items-start gap-2.5 rounded-sm border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  <CalendarClock size={16} className="mt-0.5 shrink-0 text-slate-500" />
                   <p>
                     {isEnterprise
-                      ? "Your store is on Storezn Enterprise, which already includes everything in Storezn+."
+                      ? "Your store is on Enterprise, which already includes everything in Storezn+."
                       : store.planCancelled
-                        ? `Cancelled - you'll keep Storezn+ until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "your current period ends"}.`
-                        : `Renews ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "monthly"} at ${formatCurrency(plusMonthlyPrice)}/month.`}
+                        ? `Cancelled. You keep Storezn+ until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "your paid month ends"}.`
+                        : `Renews ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "monthly"} for ${formatCurrency(plusMonthlyPrice)}.`}
                   </p>
                 </div>
               )}
 
-              <div>
-                <p className="text-xs font-semibold text-slate-800 uppercase tracking-wide mb-2">What you get</p>
+              <div className="mt-6">
+                <p className="mb-3 text-sm font-semibold text-slate-900">{isPlus ? "What you have" : "What you get"}</p>
                 <FeatureList features={PLUS_FEATURES} />
               </div>
 
               {plusActive && !store.planCancelled && (
-                <Button type="button" variant="outline" fullWidth loading={cancelling} onClick={handleCancelSubscription}>
-                  Cancel subscription
-                </Button>
-              )}
-              {!isPlus && (
-                <>
-                  <Button type="button" onClick={openConfirm} fullWidth size="lg">
-                    Upgrade to Storezn+
-                  </Button>
-                  <p className="text-xs text-slate-400 text-center">
-                    {discountPercent != null
-                      ? `${formatCurrency(plusMonthlyPrice)} for your first month, then ${formatCurrency(plusStandardMonthlyPrice)}/month until you cancel.`
-                      : `${formatCurrency(plusMonthlyPrice)}/month, billed automatically until you cancel.`}
-                  </p>
-                </>
+                <div className="mt-6 border-t border-slate-100 pt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={handleCancelSubscription}
+                    disabled={cancelling}
+                    className="text-sm text-slate-600 underline hover:text-slate-900 disabled:opacity-50 cursor-pointer"
+                  >
+                    {cancelling ? "Cancelling..." : "Cancel subscription"}
+                  </button>
+                </div>
               )}
             </div>
           </div>
 
           {/* -------- Storezn Enterprise -------- */}
-          <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
-            <div className="bg-gradient-to-br from-neutral-800 to-neutral-950 px-6 py-8 text-white relative overflow-hidden">
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "16px 16px" }}
-              />
-              <div className="relative flex items-start justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-2 text-white/70 text-sm font-medium">
-                  <Building2 size={16} />
-                  Storezn Enterprise
-                </div>
-                {isEnterprise && (
-                  <Badge color={store.planCancelled ? "amber" : "green"}>
-                    {store.planCancelled ? "Not renewing" : "Active"}
-                  </Badge>
-                )}
-              </div>
-              <p className="relative mt-2 text-2xl font-extrabold tracking-tight">
-                Everything in Storezn+, plus a full point-of-sale system
+          <div className="rounded-sm bg-neutral-950 p-5 sm:p-6 text-white">
+            <div className="flex items-start justify-between gap-3">
+              <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/80">
+                <Building2 size={16} /> Enterprise
               </p>
-              <p className="relative mt-1 text-sm text-white/70">
-                Set up with you by the Storezn team. Pricing depends on your branches and tills.
-              </p>
-            </div>
-
-            <div className="p-6 space-y-6">
               {isEnterprise && (
-                <div className="flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-sm p-4 text-sm text-slate-700">
-                  <CalendarClock size={16} className="text-slate-400 shrink-0 mt-0.5" />
-                  <p>
-                    {store.planCancelled
-                      ? `Your Enterprise term runs until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "the end of the paid period"}. Talk to us before then to keep it going.`
-                      : `Active${store.planRenewsAt ? ` until ${formatDate(store.planRenewsAt)}` : ""}. Renewals are arranged with the Storezn team.`}
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <p className="text-xs font-semibold text-slate-800 uppercase tracking-wide mb-2">
-                  {isEnterprise ? "What's included" : "What you get on top of Storezn+"}
-                </p>
-                <FeatureList features={ENTERPRISE_FEATURES} />
-              </div>
-
-              {!isEnterprise && (
-                <div className="space-y-2">
-                  <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Storezn Enterprise enquiry")}`} className="block">
-                    <Button type="button" fullWidth size="lg">
-                      Contact us about Enterprise
-                    </Button>
-                  </a>
-                  <p className="text-xs text-slate-400 text-center">
-                    Email {SUPPORT_EMAIL} and we&apos;ll set it up on your store.
-                  </p>
-                </div>
+                <Badge color={store.planCancelled ? "amber" : "green"}>{store.planCancelled ? "Not renewing" : "Active"}</Badge>
               )}
             </div>
+            <p className="mt-3 text-xl sm:text-2xl font-extrabold tracking-tight">A shop till for your counter</p>
+            <p className="mt-1 text-sm text-white/70">For supermarkets, pharmacies and shops. Everything in Storezn+, plus:</p>
+            {isEnterprise && (
+              <p className="mt-4 rounded-sm bg-white/10 px-4 py-3 text-sm text-white/90">
+                {store.planCancelled
+                  ? `Your Enterprise term runs until ${store.planRenewsAt ? formatDate(store.planRenewsAt) : "the end of the paid period"}. Talk to us before then to keep it.`
+                  : `Active${store.planRenewsAt ? ` until ${formatDate(store.planRenewsAt)}` : ""}. Renewals are arranged with the Storezn team.`}
+              </p>
+            )}
+            <ul className="mt-5 space-y-2.5">
+              {ENTERPRISE_FEATURES.map(({ title, text }) => (
+                <li key={title} className="flex gap-2.5 text-sm">
+                  <Check size={16} className="mt-0.5 shrink-0 text-brand-400" />
+                  <span>
+                    <span className="block font-medium text-white">{title}</span>
+                    <span className="block text-white/65">{text}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {!isEnterprise && (
+              <a
+                href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Storezn Enterprise enquiry")}`}
+                className="mt-6 flex items-center justify-center rounded-sm bg-white px-5 py-3 text-sm font-semibold text-neutral-950 hover:bg-white/90 transition-colors"
+              >
+                Talk to us about Enterprise
+              </a>
+            )}
+            {!isEnterprise && <p className="mt-2 text-center text-xs text-white/50">Priced around your branches and tills. We set it up with you.</p>}
           </div>
         </>
       )}
 
       {transactions && transactions.length > 0 && (
         <div className="bg-surface border border-slate-200 rounded-sm overflow-hidden">
-          <p className="text-sm font-semibold text-slate-700 px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-            <Receipt size={16} className="text-slate-400" />
+          <p className="text-sm font-semibold text-slate-900 px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+            <Receipt size={16} className="text-slate-500" />
             Billing history
           </p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-slate-800 border-b border-slate-100">
-                <th className="font-medium px-5 py-2.5">Date</th>
-                <th className="font-medium px-5 py-2.5">Reference</th>
-                <th className="font-medium px-5 py-2.5 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {transactions.map((t) => (
-                <tr key={t.id}>
-                  <td className="px-5 py-3 text-slate-700">{formatDate(t.paidAt)}</td>
-                  <td className="px-5 py-3 text-slate-400 text-xs">{t.paystackReference}</td>
-                  <td className="px-5 py-3 text-right font-medium text-slate-900">{formatCurrency(t.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul className="divide-y divide-slate-100">
+            {transactions.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <span className="text-slate-700">{formatDate(t.paidAt)}</span>
+                <span className="font-semibold text-slate-900 tabular-nums">{formatCurrency(t.amount)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

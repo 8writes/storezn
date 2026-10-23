@@ -394,8 +394,8 @@ export default function VendorPayoutsPage() {
       )}
 
       <div className="bg-surface border border-slate-200 rounded-sm p-3 sm:p-4">
-      <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-        <div className="max-w-xs">
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="sm:max-w-xs">
           <Select
             label="Filter"
             options={CHANNEL_OPTIONS}
@@ -406,13 +406,64 @@ export default function VendorPayoutsPage() {
         <SearchInput
           value={q}
           onSearch={setQ}
-          placeholder="Search by order number..."
-          className="max-w-xs"
+          placeholder="Search order number"
+          className="sm:max-w-xs"
         />
       </div>
       </div>
 
-      <div className="bg-surface border border-slate-200 rounded-sm overflow-x-auto">
+      {/* Phones: one card per payment - what you get, when, and where it
+          stands - instead of a seven-column table scrolling sideways. */}
+      <div className="sm:hidden space-y-2">
+        {data.transactions.length === 0 ? (
+          <EmptyState
+            icon={Receipt}
+            title={q || channel ? "No matching payouts" : "No payouts yet"}
+            description={q || channel ? "Try another order number or filter." : "Paid online orders and recorded offline sales will appear here."}
+          />
+        ) : (
+          data.transactions.map((t) => {
+            const paidAt = t.paidAt || t.createdAt;
+            return (
+              <Link
+                key={t.id}
+                href={`/vendor/orders/${t.orderId}?storeId=${storeId}`}
+                className="block rounded-sm border border-slate-200 bg-surface p-4 active:bg-slate-50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 truncate">{t.orderNumber}</p>
+                    <p className="text-xs text-slate-600">
+                      {formatDate(paidAt)}
+                      {t.paymentKind ? ` · ${t.paymentKind === "deposit" ? "Deposit" : t.paymentKind === "balance" ? "Balance" : t.paymentKind}` : ""}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-semibold text-slate-900 tabular-nums">{formatCurrency(t.vendorPayoutAmount)}</p>
+                    <p className="text-xs text-slate-600">You receive</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+                  {t.isOffline ? (
+                    <Badge color="amber">Collected in person</Badge>
+                  ) : t.settledAt ? (
+                    <Badge color="green">In your bank {formatDate(t.settledAt)}</Badge>
+                  ) : (
+                    <Badge color="amber">Expected {formatDate(estimatedSettlementDate(paidAt))}</Badge>
+                  )}
+                  <span className="text-slate-500 tabular-nums">
+                    Total {formatCurrency(t.totalAmount)}
+                    {!t.isOffline && t.commissionAmount + (t.flatFeeAmount || 0) > 0 ? ` · fee ${formatCurrency(t.commissionAmount + (t.flatFeeAmount || 0))}` : ""}
+                  </span>
+                </div>
+              </Link>
+            );
+          })
+        )}
+        <Pagination pagination={data?.pagination} onPageChange={setPage} />
+      </div>
+
+      <div className="hidden sm:block bg-surface border border-slate-200 rounded-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-800 text-left">
             <tr>

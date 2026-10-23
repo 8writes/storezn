@@ -1,34 +1,16 @@
-import { Plus_Jakarta_Sans, Inter, Sora } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import RegisterServiceWorker from "./RegisterServiceWorker.js";
 import ScrollToTop from "./ScrollToTop.js";
 import CookieConsentBanner from "@/components/CookieConsentBanner.js";
 import { getPlatformUrl } from "@/lib/storeUrl.js";
 
-// Jakarta stays the default (storefront / marketing pages - warmer,
-// display-ish). The platform (dashboard, admin, auth) opts into Inter
-// via `.font-ui` - a neutral workhorse that holds up at small sizes and
-// has proper tabular figures for all the money / quantity tables.
-const jakarta = Plus_Jakarta_Sans({
+// One calm, readable typeface across the whole platform - marketing,
+// dashboard, auth and the default storefront. A Storezn+ store can pick
+// its own storefront font instead (lib/storefrontFonts.js).
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  variable: "--font-jakarta",
-  display: "swap",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-// Display face for the public marketing pages only (landing / pricing),
-// opted into with `.font-display` - a tight geometric grotesque that
-// reads as considered and official at large sizes. Not loaded on the
-// dashboard or storefront, which keep Inter / Jakarta.
-const sora = Sora({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-display",
+  variable: "--font-sans",
   display: "swap",
 });
 
@@ -88,7 +70,7 @@ document.documentElement.setAttribute("data-theme",t==="light"?"light":"dark");
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" data-theme="light" suppressHydrationWarning className={`h-full overflow-x-clip ${jakarta.variable} ${inter.variable} ${sora.variable}`}>
+    <html lang="en" data-theme="light" suppressHydrationWarning className={`h-full overflow-x-clip ${dmSans.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
