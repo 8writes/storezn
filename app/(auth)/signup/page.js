@@ -43,8 +43,10 @@ function VendorSignupForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-  const setVendorField = (key) => (e) => setForm((f) => ({ ...f, vendor: { ...f.vendor, [key]: e.target.value } }));
+  const setField = (key) => (e) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setVendorField = (key) => (e) =>
+    setForm((f) => ({ ...f, vendor: { ...f.vendor, [key]: e.target.value } }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -96,8 +98,7 @@ function VendorSignupForm() {
         </p>
 
         <p className="text-lg leading-6 text-slate-800">
-          Open the email and select <strong>Verify email</strong>. Then return
-          here and sign in. No email yet? Check your{" "}
+          Check your{" "}
           <mark className="rounded-sm bg-yellow-200 px-1 py-0.5 font-bold text-slate-900">
             spam
           </mark>{" "}
@@ -118,7 +119,9 @@ function VendorSignupForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <h2 className="text-xl font-bold text-slate-900">Getting started</h2>
-        <p className="text-sm text-slate-800 mt-1">Create your business in a couple of minutes.</p>
+        <p className="text-sm text-slate-800 mt-1">
+          Create your business in a couple of minutes.
+        </p>
       </div>
 
       <Input
@@ -126,7 +129,11 @@ function VendorSignupForm() {
         value={form.name}
         onChange={(e) => {
           const name = e.target.value;
-          setForm((f) => ({ ...f, name, slug: slugTouched ? f.slug : slugifyStoreName(name) }));
+          setForm((f) => ({
+            ...f,
+            name,
+            slug: slugTouched ? f.slug : slugifyStoreName(name),
+          }));
         }}
         required
       />
@@ -142,7 +149,10 @@ function VendorSignupForm() {
         // lib/validate.js).
         onChange={(e) => {
           setSlugTouched(true);
-          setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "") }));
+          setForm((f) => ({
+            ...f,
+            slug: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""),
+          }));
         }}
         required
       />
@@ -161,32 +171,67 @@ function VendorSignupForm() {
             or a business name here means that check can't clear them and
             their store waits on a person to review it by hand. */}
         <p className="rounded-sm border border-amber-200 bg-amber-100 px-3 py-2 text-sm text-amber-900">
-          Use your <strong>real first and last name</strong>, exactly as they appear on your NIN. We check them against
-          it when verifying your identity.
+          Use your <strong>real first and last name</strong>, exactly as they
+          appear on your NIN. We check them against it when verifying your
+          identity.
         </p>
         <div className="grid grid-cols-2 gap-4">
-          <Input label="First name" value={form.vendor.firstName} onChange={setVendorField("firstName")} required />
-          <Input label="Last name" value={form.vendor.lastName} onChange={setVendorField("lastName")} required />
+          <Input
+            label="First name"
+            value={form.vendor.firstName}
+            onChange={setVendorField("firstName")}
+            required
+          />
+          <Input
+            label="Last name"
+            value={form.vendor.lastName}
+            onChange={setVendorField("lastName")}
+            required
+          />
         </div>
-        <Input label="Email" type="email" value={form.vendor.email} onChange={setVendorField("email")} required autoComplete="email" />
-        <PasswordInput label="Password" value={form.vendor.password} onChange={setVendorField("password")} required minLength={8} autoComplete="new-password" />
+        <Input
+          label="Email"
+          type="email"
+          value={form.vendor.email}
+          onChange={setVendorField("email")}
+          required
+          autoComplete="email"
+        />
+        <PasswordInput
+          label="Password"
+          value={form.vendor.password}
+          onChange={setVendorField("password")}
+          required
+          minLength={8}
+          autoComplete="new-password"
+        />
       </div>
 
       <label className="flex items-start gap-2 text-sm text-slate-700">
         <input
           type="checkbox"
           checked={form.acceptTerms}
-          onChange={(e) => setForm((f) => ({ ...f, acceptTerms: e.target.checked }))}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, acceptTerms: e.target.checked }))
+          }
           className="mt-0.5"
           required
         />
         <span>
           I agree to the{" "}
-          <Link href="/terms" target="_blank" className="text-brand-600 hover:underline">
+          <Link
+            href="/terms"
+            target="_blank"
+            className="text-brand-600 hover:underline"
+          >
             Terms of Service
-          </Link>
-          {" "}and{" "}
-          <Link href="/privacy" target="_blank" className="text-brand-600 hover:underline">
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy"
+            target="_blank"
+            className="text-brand-600 hover:underline"
+          >
             Privacy Policy
           </Link>
           .
@@ -197,11 +242,14 @@ function VendorSignupForm() {
         <input
           type="checkbox"
           checked={form.acceptMarketing}
-          onChange={(e) => setForm((f) => ({ ...f, acceptMarketing: e.target.checked }))}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, acceptMarketing: e.target.checked }))
+          }
           className="mt-0.5"
         />
         <span>
-          I want to receive occasional marketing emails from Storezn. You can unsubscribe at any time.
+          I want to receive occasional marketing emails from Storezn. You can
+          unsubscribe at any time.
         </span>
       </label>
 
@@ -211,7 +259,9 @@ function VendorSignupForm() {
 
       <p className="text-center text-sm text-slate-800">
         Already have an account?{" "}
-        <Link href="/login" className="text-brand-600 hover:underline">Sign in</Link>
+        <Link href="/login" className="text-brand-600 hover:underline">
+          Sign in
+        </Link>
       </p>
     </form>
   );
