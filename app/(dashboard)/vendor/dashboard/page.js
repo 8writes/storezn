@@ -71,7 +71,7 @@ function buildSetupSteps({
       label: "Add your logo",
       description: "Helps customers recognize and trust your store.",
       done: !!store.logoUrl,
-      href: "/vendor/settings",
+      href: "/vendor/settings#branding",
     },
     {
       label: "Link your bank account",

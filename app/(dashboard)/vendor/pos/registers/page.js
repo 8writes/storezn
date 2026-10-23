@@ -7,11 +7,11 @@ import { useApi } from "@/hooks/useApi.js";
 import { Input } from "@/components/ui/Input.js";
 import { Select } from "@/components/ui/Select.js";
 import { Button } from "@/components/ui/Button.js";
-import { BackLink } from "@/components/ui/BackLink.js";
 import { EmptyState } from "@/components/ui/EmptyState.js";
-import { PageHeader } from "@/components/ui/PageHeader.js";
+import { Badge } from "@/components/ui/Badge.js";
+import { useConfirm } from "@/hooks/useConfirm.js";
 import { isEnterpriseStore } from "@/lib/storePlan.js";
-import { Calculator, Trash2, Check, X } from "lucide-react";
+import { Calculator, Trash2, Pencil, Plus, History, X } from "lucide-react";
 import { FeatureLocked } from "@/components/ui/FeatureLocked.js";
 
 export default function RegistersPage() {
@@ -28,8 +28,10 @@ export default function RegistersPage() {
   const [name, setName] = useState("");
   const [branchId, setBranchId] = useState("");
   const [creating, setCreating] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [editName, setEditName] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  // { id, name } while the rename sheet is open.
+  const [renaming, setRenaming] = useState(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   useEffect(() => {
     if (!token) return;
@@ -95,6 +97,7 @@ export default function RegistersPage() {
         body: JSON.stringify({ name, branchId }),
       });
       setName("");
+      setAddOpen(false);
       refresh();
       toast.success("Register added");
     } catch (err) {
@@ -104,22 +107,30 @@ export default function RegistersPage() {
     }
   };
 
-  const rename = async (id) => {
+  const rename = async () => {
     try {
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/registers/${id}`, {
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/registers/${renaming.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: editName }),
+        body: JSON.stringify({ name: renaming.name.trim() }),
       });
-      setEditId(null);
+      setRenaming(null);
       refresh();
+      toast.success("Register renamed");
     } catch (err) {
       toast.error(err.message);
     }
   };
 
-  const retire = async (id) => {
+  const retire = async (register) => {
+    const ok = await confirm({
+      title: `Remove ${register.name}?`,
+      description: "Cashiers won't be able to open a shift on it. Its past shifts and sales are kept.",
+      confirmLabel: "Remove",
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
-      await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/registers/${id}`, { method: "DELETE" });
+      await apiFetch(`/api/v1/vendor/stores/${storeId}/pos/registers/${register.id}`, { method: "DELETE" });
       refresh();
       toast.success("Register removed");
     } catch (err) {
@@ -144,97 +155,120 @@ export default function RegistersPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <BackLink href="/vendor/orders" label="Back to orders" />
-      <PageHeader
-        title="Registers"
-        description="A register is a till at a branch. Open a shift from the Sell screen, take payments, and close it out with a Z report."
-        actions={
-          <Link href="/vendor/pos/sessions" className="text-sm font-medium text-brand-700 hover:text-brand-800">
-            Session history &amp; Z reports
+    <div className="mx-auto max-w-3xl space-y-5">
+      {confirmDialog}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Registers</h1>
+          <p className="mt-1 text-sm text-slate-700">Each till at your branches. Cashiers open a shift on one from the Sell screen.</p>
+        </div>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <Link href="/vendor/pos/sessions" className="inline-flex items-center justify-center gap-1.5 rounded-sm border border-slate-300 bg-surface px-3 py-2 text-sm font-medium text-slate-800 hover:border-slate-400">
+            <History size={15} /> Shift history
           </Link>
-        }
-      />
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus size={16} /> Add register
+          </Button>
+        </div>
+      </div>
 
       {stores.length > 1 && (
-        <div className="w-52">
+        <div className="sm:w-56">
           <Select options={stores.map((s) => ({ value: s.id, label: s.name }))} value={storeId} onChange={setStoreId} />
         </div>
       )}
 
-      <div className="bg-surface border border-slate-200 rounded-sm divide-y divide-slate-100">
-        {loading ? (
-          <div className="p-6 text-sm text-slate-400">Loading…</div>
-        ) : registers.length === 0 ? (
-          <EmptyState
-            icon={Calculator}
-            title="No registers yet"
-            description="Add a register for each till or checkout point your team uses."
-            className="border-0 bg-transparent py-10"
-          />
-        ) : (
-          registers.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                {editId === r.id ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="px-2 py-1 border border-slate-300 rounded-sm text-sm outline-none focus:border-brand-500"
-                      autoFocus
-                    />
-                    <button type="button" onClick={() => rename(r.id)} className="text-emerald-600 cursor-pointer">
-                      <Check size={15} />
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }, (_, i) => <div key={i} className="h-20 rounded-sm border border-slate-200 bg-surface animate-pulse" />)}
+        </div>
+      ) : registers.length === 0 ? (
+        <EmptyState
+          icon={Calculator}
+          title="No registers yet"
+          description="Add one for each till or checkout point your team uses."
+          action={<Button onClick={() => setAddOpen(true)}><Plus size={16} /> Add register</Button>}
+        />
+      ) : (
+        <ul className="space-y-2">
+          {registers.map((r) => (
+            <li key={r.id} className={`rounded-sm border bg-surface p-4 ${r.isActive ? "border-slate-200" : "border-dashed border-slate-300 opacity-70"}`}>
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sm bg-brand-100 text-brand-700"><Calculator size={18} /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-900 truncate">{r.name}</p>
+                  <p className="text-sm text-slate-600 truncate">{r.branchName || "No branch"}</p>
+                  <div className="mt-2">
+                    {!r.isActive ? (
+                      <Badge color="slate">Removed</Badge>
+                    ) : r.openSession ? (
+                      <Badge color="green">Shift open</Badge>
+                    ) : (
+                      <Badge color="slate">Closed</Badge>
+                    )}
+                  </div>
+                </div>
+                {r.isActive && (
+                  <div className="flex shrink-0 items-center">
+                    <button type="button" onClick={() => setRenaming({ id: r.id, name: r.name })} aria-label={`Rename ${r.name}`} className="p-2 text-slate-500 hover:text-slate-900 cursor-pointer">
+                      <Pencil size={16} />
                     </button>
-                    <button type="button" onClick={() => setEditId(null)} className="text-slate-400 cursor-pointer">
-                      <X size={15} />
+                    <button type="button" onClick={() => retire(r)} aria-label={`Remove ${r.name}`} className="p-2 text-slate-500 hover:text-red-600 cursor-pointer">
+                      <Trash2 size={16} />
                     </button>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditId(r.id);
-                      setEditName(r.name);
-                    }}
-                    className="text-sm font-medium text-slate-900 hover:text-brand-700 cursor-pointer"
-                  >
-                    {r.name}
-                  </button>
                 )}
-                <p className="text-[11px] text-slate-800">
-                  {r.branchName || "N/A"}
-                  {r.openSession && <span className="text-emerald-600 font-medium"> · shift open</span>}
-                  {!r.isActive && <span className="text-slate-400"> · retired</span>}
-                </p>
               </div>
-              <button type="button" onClick={() => retire(r.id)} className="text-slate-400 hover:text-red-600 cursor-pointer" title="Remove">
-                <Trash2 size={15} />
-              </button>
-            </div>
-          ))
-        )}
-      </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <form onSubmit={create} className="bg-surface border border-slate-200 rounded-sm p-4 space-y-3">
-        <p className="text-sm font-semibold text-slate-700">Add a register</p>
-        <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Front counter" required />
-        {branches.length > 1 && (
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">Branch</label>
-            <Select
-              value={branchId}
-              onChange={setBranchId}
-              options={[{ value: "", label: "Choose a branch…" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
-            />
-            <p className="text-xs text-slate-800">Sales rung up on this till count against this branch&apos;s stock.</p>
-          </div>
-        )}
-        <Button type="submit" loading={creating} disabled={!name.trim() || !branchId}>
-          Add register
-        </Button>
-      </form>
+      {(addOpen || renaming) && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overscroll-none sm:p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => { setAddOpen(false); setRenaming(null); }} />
+          {renaming ? (
+            <form onSubmit={(e) => { e.preventDefault(); rename(); }} className="relative z-10 w-full sm:max-w-md rounded-t-sm sm:rounded-sm bg-surface shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-200 p-4">
+                <h2 className="font-semibold text-slate-900">Rename register</h2>
+                <button type="button" onClick={() => setRenaming(null)} aria-label="Close" className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"><X size={20} /></button>
+              </div>
+              <div className="p-4">
+                <Input label="Name" value={renaming.name} onChange={(e) => setRenaming((r) => ({ ...r, name: e.target.value }))} autoFocus required />
+              </div>
+              <div className="grid grid-cols-2 gap-2 border-t border-slate-200 p-4">
+                <Button type="button" variant="outline" onClick={() => setRenaming(null)}>Cancel</Button>
+                <Button type="submit" disabled={!renaming.name.trim()}>Save</Button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={create} className="relative z-10 w-full sm:max-w-md rounded-t-sm sm:rounded-sm bg-surface shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-200 p-4">
+                <h2 className="font-semibold text-slate-900">Add register</h2>
+                <button type="button" onClick={() => setAddOpen(false)} disabled={creating} aria-label="Close" className="p-1 text-slate-500 hover:text-slate-900 cursor-pointer"><X size={20} /></button>
+              </div>
+              <div className="space-y-4 p-4">
+                <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Front counter" autoFocus required />
+                {branches.length > 1 && (
+                  <div className="space-y-1">
+                    <Select
+                      label="Branch"
+                      value={branchId}
+                      onChange={setBranchId}
+                      options={[{ value: "", label: "Choose a branch…" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+                    />
+                    <p className="text-xs text-slate-600">Sales on this till take stock from this branch.</p>
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 border-t border-slate-200 p-4">
+                <Button type="button" variant="outline" onClick={() => setAddOpen(false)} disabled={creating}>Cancel</Button>
+                <Button type="submit" loading={creating} disabled={!name.trim() || !branchId}>Add register</Button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }

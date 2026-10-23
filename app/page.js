@@ -130,12 +130,17 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-10 items-center">
           <Reveal className="text-center lg:text-left">
             <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.4rem] font-extrabold leading-[1.05] tracking-tight text-slate-900">
-              Sell online. Get paid straight to your bank.
+              Run your whole business from one place.
             </h1>
             <p className="mt-5 text-base sm:text-lg text-slate-700 max-w-xl mx-auto lg:mx-0">
-              Your own online shop, invoices you can send in a minute, and customers anywhere in the world - with
-              every payment going to your account, not ours.
+              Sell online and at your counter, keep stock right, send invoices, manage staff and branches, and see
+              your numbers - with every payment going straight to your bank.
             </p>
+            <ul className="mt-5 flex flex-wrap justify-center lg:justify-start gap-2 text-xs font-medium text-slate-700">
+              {["Online shop", "Point of sale", "Inventory", "Invoices", "Staff & branches", "Reports"].map((t) => (
+                <li key={t} className="rounded-full border border-slate-200 bg-white px-3 py-1">{t}</li>
+              ))}
+            </ul>
             <div className="mt-8 flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3">
               <Link
                 href="/signup"

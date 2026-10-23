@@ -17,10 +17,15 @@ export function useTabs(ids) {
   const [active, setActive] = useState(ids[0]);
 
   // Open the tab named in the URL (#contact), e.g. after a refresh or a link.
+  // Also follows a link to another #tab while the page is already open.
   useEffect(() => {
-    const fromHash = window.location.hash.slice(1);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (ids.includes(fromHash)) setActive(fromHash);
+    const sync = () => {
+      const fromHash = window.location.hash.slice(1);
+      if (ids.includes(fromHash)) setActive(fromHash);
+    };
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

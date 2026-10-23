@@ -84,7 +84,8 @@ export default function VendorPayoutsPage() {
 
   const loadPayouts = () => {
     if (!token || !storeId) return Promise.resolve();
-    const params = new URLSearchParams({ page: String(page) });
+    // 10 per page - a phone screen of cards, not a long scroll.
+    const params = new URLSearchParams({ page: String(page), pageSize: "10" });
     if (channel) params.set("channel", channel);
     if (q.trim()) params.set("q", q.trim());
     return apiFetch(`/api/v1/vendor/stores/${storeId}/payouts?${params}`)
@@ -451,10 +452,9 @@ export default function VendorPayoutsPage() {
                   ) : (
                     <Badge color="amber">Expected {formatDate(estimatedSettlementDate(paidAt))}</Badge>
                   )}
-                  <span className="text-slate-500 tabular-nums">
-                    Total {formatCurrency(t.totalAmount)}
-                    {!t.isOffline && t.commissionAmount + (t.flatFeeAmount || 0) > 0 ? ` · fee ${formatCurrency(t.commissionAmount + (t.flatFeeAmount || 0))}` : ""}
-                  </span>
+                  {!t.isOffline && t.commissionAmount + (t.flatFeeAmount || 0) > 0 && (
+                    <span className="text-slate-500 tabular-nums">Fee {formatCurrency(t.commissionAmount + (t.flatFeeAmount || 0))}</span>
+                  )}
                 </div>
               </Link>
             );
