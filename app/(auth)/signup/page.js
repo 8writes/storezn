@@ -86,12 +86,30 @@ function VendorSignupForm() {
       <div className="space-y-5 text-center">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Check your email</h2>
-          <p className="mt-1 text-sm text-slate-700">We sent a verification link to:</p>
+          <p className="mt-1 text-sm text-slate-700">
+            We sent a verification link to:
+          </p>
         </div>
-        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{form.vendor.email}</p>
-        <p className="text-sm leading-6 text-slate-800">Open the email and select <strong>Verify email</strong>. Then return here and sign in.</p>
-        <p className="text-xs leading-5 text-slate-600">No email yet? Check your spam or junk folder. You can also request a new link from the sign-in page.</p>
-        <Link href="/login" className="inline-block text-sm font-semibold text-brand-700 hover:underline">I&apos;ve verified my email - sign in</Link>
+
+        <p className="break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
+          {form.vendor.email}
+        </p>
+
+        <p className="text-lg leading-6 text-slate-800">
+          Open the email and select <strong>Verify email</strong>. Then return
+          here and sign in. No email yet? Check your{" "}
+          <mark className="rounded-sm bg-yellow-200 px-1 py-0.5 font-bold text-slate-900">
+            spam
+          </mark>{" "}
+          or junk folder.
+        </p>
+
+        <Link
+          href="/signin"
+          className="inline-block rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+        >
+          Back to sign in
+        </Link>
       </div>
     );
   }
