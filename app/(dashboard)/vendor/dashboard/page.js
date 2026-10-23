@@ -168,7 +168,7 @@ export default function VendorDashboardPage() {
   const [stats, setStats] = useState(null);
   const [verification, setVerification] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [guideDismissed, setGuideDismissed] = useState(false);
+  const [guideDismissed, setGuideDismissed] = useState(true);
   const [guideForceOpen, setGuideForceOpen] = useState(false);
   const [pushSubscribed, setPushSubscribed] = useState(false);
 
