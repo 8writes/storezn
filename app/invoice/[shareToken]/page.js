@@ -36,7 +36,7 @@ export default function PublicInvoicePage({ params }) {
     const inv = data?.invoice || {};
     if (inv.requiresBuyerName && !details.name.trim()) return setPaymentError("Enter your name");
     if (inv.requiresBuyerPhone && details.phone.trim().length < 5) return setPaymentError("Enter your phone number");
-    if (inv.requiresPaymentEmail) return setPaymentError("Enter a valid email address");
+    if (inv.requiresPaymentEmail && !details.email.trim()) return setPaymentError("Enter your email address");
     setPaying(true);
     try {
       const res = await safeFetch(`/api/v1/storefront/invoices/${shareToken}`, {
