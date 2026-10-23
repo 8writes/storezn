@@ -182,8 +182,6 @@ export default function CheckoutPage() {
     if (!user) {
       const email = guestEmail.trim();
       if (!email) errors.guestEmail = "Email is required";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-        errors.guestEmail = "Enter a valid email address";
     }
 
     if (needsShipping) {
